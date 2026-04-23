@@ -12,7 +12,7 @@ Currently planned or partially supported games include:
 - **Framework:** [Next.js](https://nextjs.org/) (App Router)
 - **Styling:** CSS Modules / Global CSS
 - **Backend/Database:** [Firebase](https://firebase.google.com/) (Realtime Database / Firestore)
-- **Hosting:** Firebase Hosting
+- **Hosting:** [Vercel](https://vercel.com)
 
 ## 📦 Getting Started
 
@@ -33,11 +33,11 @@ Currently planned or partially supported games include:
    ```
 
 ### Deployment
-This project is configured to deploy to Firebase Hosting.
-```bash
-npm run build
-firebase deploy
-```
+The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new) from the creators of Next.js.
+
+Since the repository is already on GitHub, you can simply log into Vercel, click "Add New Project", select your `board-game-app` repository, and add your Firebase environment variables. Vercel will automatically build and deploy it.
+
+For more details, check out the [Next.js deployment documentation](https://nextjs.org/docs/deployment).
 
 ## 🛠️ Project Structure
 - `/src/components/core`: Core UI components (Modals, Loading Spinners, Room Entry, Game Selection).
