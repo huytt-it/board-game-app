@@ -62,6 +62,83 @@ export const ROLE_TEAMS: Record<ClocktowerRole, ClocktowerTeam> = {
   [ClocktowerRole.Imp]: 'demon',
 };
 
+// ─── Role Icons (unique per role) ─────────────────────────────────────
+export const ROLE_ICONS: Record<ClocktowerRole, string> = {
+  [ClocktowerRole.Washerwoman]: '🧺',
+  [ClocktowerRole.Librarian]: '📚',
+  [ClocktowerRole.Investigator]: '🔍',
+  [ClocktowerRole.Chef]: '👨‍🍳',
+  [ClocktowerRole.Empath]: '💗',
+  [ClocktowerRole.FortuneTeller]: '🔮',
+  [ClocktowerRole.Undertaker]: '⚰️',
+  [ClocktowerRole.Monk]: '🛐',
+  [ClocktowerRole.Ravenkeeper]: '🐦‍⬛',
+  [ClocktowerRole.Virgin]: '👼',
+  [ClocktowerRole.Slayer]: '⚔️',
+  [ClocktowerRole.Soldier]: '🛡️',
+  [ClocktowerRole.Mayor]: '👑',
+  [ClocktowerRole.Butler]: '🎩',
+  [ClocktowerRole.Drunk]: '🍺',
+  [ClocktowerRole.Recluse]: '🏚️',
+  [ClocktowerRole.Saint]: '✝️',
+  [ClocktowerRole.Poisoner]: '☠️',
+  [ClocktowerRole.Spy]: '🕵️',
+  [ClocktowerRole.ScarletWoman]: '💃',
+  [ClocktowerRole.Baron]: '🎪',
+  [ClocktowerRole.Imp]: '👹',
+};
+
+// ─── Role Short Descriptions ──────────────────────────────────────────
+export const ROLE_SHORT_DESC: Record<ClocktowerRole, string> = {
+  [ClocktowerRole.Washerwoman]: 'Knows 1 of 2 players is a Townsfolk',
+  [ClocktowerRole.Librarian]: 'Knows 1 of 2 players is an Outsider',
+  [ClocktowerRole.Investigator]: 'Knows 1 of 2 players is a Minion',
+  [ClocktowerRole.Chef]: 'Knows how many evil pairs exist',
+  [ClocktowerRole.Empath]: 'Learns evil neighbour count each night',
+  [ClocktowerRole.FortuneTeller]: 'Picks 2 players to detect Demon',
+  [ClocktowerRole.Undertaker]: 'Learns who was executed today',
+  [ClocktowerRole.Monk]: 'Protects a player from the Demon',
+  [ClocktowerRole.Ravenkeeper]: 'On death, learns a player\'s role',
+  [ClocktowerRole.Virgin]: 'First nominator (Townsfolk) dies',
+  [ClocktowerRole.Slayer]: 'Once per game, try to slay the Demon',
+  [ClocktowerRole.Soldier]: 'Cannot be killed by the Demon',
+  [ClocktowerRole.Mayor]: 'If 3 alive & no execution, Good wins',
+  [ClocktowerRole.Butler]: 'Must follow a master\'s vote',
+  [ClocktowerRole.Drunk]: 'Thinks they\'re a Townsfolk (but isn\'t)',
+  [ClocktowerRole.Recluse]: 'May register as evil',
+  [ClocktowerRole.Saint]: 'If executed, Evil wins',
+  [ClocktowerRole.Poisoner]: 'Poisons a player each night',
+  [ClocktowerRole.Spy]: 'Sees the Grimoire each night',
+  [ClocktowerRole.ScarletWoman]: 'Becomes Demon if Demon dies',
+  [ClocktowerRole.Baron]: 'Adds 2 extra Outsiders',
+  [ClocktowerRole.Imp]: 'Kills a player each night',
+};
+
+// ─── Roles that have night actions ────────────────────────────────────
+export const FIRST_NIGHT_ROLES: ClocktowerRole[] = [
+  ClocktowerRole.Washerwoman,
+  ClocktowerRole.Librarian,
+  ClocktowerRole.Investigator,
+  ClocktowerRole.Chef,
+  ClocktowerRole.Empath,
+  ClocktowerRole.FortuneTeller,
+  ClocktowerRole.Butler,
+  ClocktowerRole.Poisoner,
+  ClocktowerRole.Spy,
+];
+
+export const OTHER_NIGHT_ROLES: ClocktowerRole[] = [
+  ClocktowerRole.Empath,
+  ClocktowerRole.FortuneTeller,
+  ClocktowerRole.Undertaker,
+  ClocktowerRole.Monk,
+  ClocktowerRole.Butler,
+  ClocktowerRole.Ravenkeeper,
+  ClocktowerRole.Poisoner,
+  ClocktowerRole.Spy,
+  ClocktowerRole.Imp,
+];
+
 // ─── Role Ability Descriptions ────────────────────────────────────────
 export const ROLE_ABILITIES: Record<ClocktowerRole, string> = {
   [ClocktowerRole.Washerwoman]: 'You start knowing that 1 of 2 players is a particular Townsfolk.',

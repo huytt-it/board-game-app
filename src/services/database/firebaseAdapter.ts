@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { getDb } from '@/services/firebase/config';
 import type { IGameStorage } from './IGameStorage';
-import type { Room, CreateRoomPayload, RoomStatus } from '@/types/room';
+import type { Room, CreateRoomPayload, RoomStatus, RoomGameState } from '@/types/room';
 import type { Player, CreatePlayerPayload, BaseGameData } from '@/types/player';
 import type { GameAction, SubmitActionPayload, ActionResult } from '@/types/actions';
 
@@ -46,6 +46,11 @@ export class FirebaseAdapter implements IGameStorage {
       status: 'lobby',
       roomCode,
       config: payload.config,
+      gameState: {
+        dayCount: 0,
+        votes: {},
+        rolesAssigned: false,
+      },
       createdAt: serverTimestamp() as Room['createdAt'],
     };
     await setDoc(roomDoc, roomData);
@@ -70,6 +75,58 @@ export class FirebaseAdapter implements IGameStorage {
     await updateDoc(doc(getDb(), 'rooms', roomId), { status });
   }
 
+  async updateRoomGameState(roomId: string, state: Partial<RoomGameState>): Promise<void> {
+    const updates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(state)) {
+      updates[`gameState.${key}`] = value;
+    }
+    await updateDoc(doc(getDb(), 'rooms', roomId), updates);
+  }
+
+  async deleteRoom(roomId: string): Promise<void> {
+    const batch = writeBatch(getDb());
+    
+    // Delete all players
+    const playersSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'players'));
+    playersSnap.docs.forEach((d) => batch.delete(d.ref));
+    
+    // Delete all actions
+    const actionsSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'actions'));
+    actionsSnap.docs.forEach((d) => batch.delete(d.ref));
+    
+    // Delete room
+    batch.delete(doc(getDb(), 'rooms', roomId));
+    await batch.commit();
+  }
+
+  async resetRoom(roomId: string): Promise<void> {
+    const batch = writeBatch(getDb());
+    
+    // Reset room
+    const roomRef = doc(getDb(), 'rooms', roomId);
+    batch.update(roomRef, {
+      status: 'lobby',
+      'gameState.dayCount': 0,
+      'gameState.votes': {},
+      'gameState.rolesAssigned': false,
+    });
+
+    // Reset players
+    const playersSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'players'));
+    playersSnap.docs.forEach((d) => {
+      batch.update(d.ref, {
+        isAlive: true,
+        gameData: {}
+      });
+    });
+
+    // Delete actions
+    const actionsSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'actions'));
+    actionsSnap.docs.forEach((d) => batch.delete(d.ref));
+
+    await batch.commit();
+  }
+
   subscribeToRoom(roomId: string, callback: (room: Room | null) => void): Unsubscribe {
     return onSnapshot(doc(getDb(), 'rooms', roomId), (snap) => {
       if (!snap.exists()) {
@@ -81,8 +138,22 @@ export class FirebaseAdapter implements IGameStorage {
   }
 
   // ─── Player Operations ─────────────────────────────────────────────
+  async getPlayer(roomId: string, playerId: string): Promise<Player | null> {
+    const snap = await getDoc(doc(getDb(), 'rooms', roomId, 'players', playerId));
+    if (!snap.exists()) return null;
+    return { id: snap.id, ...snap.data() } as Player;
+  }
+
   async addPlayer(roomId: string, player: CreatePlayerPayload): Promise<void> {
     const playerDoc = doc(getDb(), 'rooms', roomId, 'players', player.id);
+    
+    // Check if player already exists to avoid overwriting properties like isHost
+    const snap = await getDoc(playerDoc);
+    if (snap.exists()) {
+      await updateDoc(playerDoc, { name: player.name });
+      return;
+    }
+
     const playerData: Omit<Player, 'id'> = {
       name: player.name,
       isAlive: true,
@@ -108,6 +179,11 @@ export class FirebaseAdapter implements IGameStorage {
       updates[`gameData.${key}`] = value;
     }
     await updateDoc(playerRef, updates);
+  }
+
+  async updatePlayerAlive(roomId: string, playerId: string, isAlive: boolean): Promise<void> {
+    const playerRef = doc(getDb(), 'rooms', roomId, 'players', playerId);
+    await updateDoc(playerRef, { isAlive });
   }
 
   subscribeToPlayers(roomId: string, callback: (players: Player[]) => void): Unsubscribe {

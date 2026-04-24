@@ -1,6 +1,6 @@
 'use client';
 
-import { use } from 'react';
+import { use, useState } from 'react';
 import { useRoom } from '@/hooks/useRoom';
 import { useAuth } from '@/hooks/useAuth';
 import { getGameComponent, getGameEntry } from '@/lib/gameRegistry';
@@ -14,7 +14,10 @@ export default function RoomPage({
 }) {
   const { gameType, roomId } = use(params);
   const { playerId, isLoading: authLoading } = useAuth();
-  const { room, players, isHost, isLoading: roomLoading } = useRoom(roomId, playerId);
+  const { room, players, isHost, isLoading: roomLoading, joinRoomById } = useRoom(roomId, playerId);
+  const [displayName, setDisplayName] = useState('');
+  const [isJoining, setIsJoining] = useState(false);
+  const [joinError, setJoinError] = useState<string | null>(null);
 
   // Validate game type
   const gameEntry = getGameEntry(gameType as GameType);
@@ -92,6 +95,72 @@ export default function RoomPage({
         </a>
       </div>
     );
+  }
+
+  const isPlayerInRoom = players.some(p => p.id === playerId);
+
+  const handleJoin = async () => {
+    if (!playerId || !displayName.trim()) return;
+    setIsJoining(true);
+    setJoinError(null);
+    try {
+      await joinRoomById(roomId, playerId, displayName.trim());
+    } catch (err) {
+      setJoinError(err instanceof Error ? err.message : 'Failed to join room');
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  if (!isPlayerInRoom && room) {
+     return (
+       <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-8 text-center animate-fade-in">
+         <div className="text-6xl mb-4 animate-bounce">👋</div>
+         <h1 className="text-3xl font-black text-white">Join Room</h1>
+         <p className="text-slate-400 max-w-sm">
+           You&apos;ve been invited to play <strong>{gameEntry?.label}</strong>! Enter your name to join the lobby.
+         </p>
+         
+         <div className="w-full max-w-sm space-y-4 rounded-2xl border border-white/10 bg-white/5 p-6 shadow-xl text-left">
+           <div>
+             <label className="mb-2 block text-sm font-medium text-slate-300" htmlFor="display-name-input">
+               Display Name
+             </label>
+             <input
+               id="display-name-input"
+               type="text"
+               value={displayName}
+               onChange={(e) => setDisplayName(e.target.value)}
+               placeholder="Enter your name..."
+               maxLength={20}
+               className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white placeholder-slate-500 outline-none transition-all focus:border-cyan-500 focus:ring-1 focus:ring-cyan-500"
+               onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+             />
+           </div>
+           
+           {joinError && (
+             <div className="rounded-xl bg-red-500/10 border border-red-500/20 px-4 py-3 text-sm text-red-400">
+               {joinError}
+             </div>
+           )}
+
+           <button
+             onClick={handleJoin}
+             disabled={isJoining || !displayName.trim()}
+             className="w-full rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-700 px-4 py-3 font-semibold text-white transition-all hover:from-cyan-500 hover:to-cyan-600 shadow-lg shadow-cyan-500/25 disabled:opacity-40"
+           >
+             {isJoining ? 'Joining...' : 'Join Game'}
+           </button>
+         </div>
+         
+         <a
+           href="/"
+           className="mt-4 text-sm font-medium text-slate-500 hover:text-slate-300 transition-colors"
+         >
+           Cancel and return to home
+         </a>
+       </div>
+     );
   }
 
   return (

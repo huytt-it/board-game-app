@@ -2,8 +2,13 @@
 
 import { useState } from 'react';
 import { useNightActions } from '@/hooks/useNightActions';
+import { useVoting } from '@/hooks/games/useVoting';
+import { gameStorage } from '@/services/database/firebaseAdapter';
 import type { Player } from '@/types/player';
 import type { GameAction } from '@/types/actions';
+import type { RoomGameState } from '@/types/room';
+import { ROLE_ICONS, type ClocktowerRole } from '@/types/games/clocktower';
+import VotingPanel from './VotingPanel';
 
 interface HostDashboardProps {
   roomId: string;
@@ -11,13 +16,31 @@ interface HostDashboardProps {
   players: Player[];
   onChangePhase: (phase: 'day' | 'night') => void;
   currentPhase: string;
+  gameState?: RoomGameState;
+  onEndGame?: (winner: 'good' | 'evil') => void;
 }
 
-export default function HostDashboard({ roomId, hostId, players, onChangePhase, currentPhase }: HostDashboardProps) {
+export default function HostDashboard({
+  roomId,
+  hostId,
+  players,
+  onChangePhase,
+  currentPhase,
+  gameState,
+  onEndGame,
+}: HostDashboardProps) {
   const { pendingActions, resolvedActions, resolveAction, sendPrivateMessage, clearAllActions } = useNightActions(roomId, hostId);
   const [resolveMessages, setResolveMessages] = useState<Record<string, string>>({});
   const [directMessage, setDirectMessage] = useState('');
   const [directTarget, setDirectTarget] = useState('');
+
+  const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
+  const { nominations, votingTarget, votingTargetName, votes, hasVoted, voteCount, nominatePlayer, castVote, resolveVote, cancelVote } =
+    useVoting(roomId, hostId, gameState, alivePlayers);
+
+  const toggleAlive = async (playerId: string, currentAlive: boolean) => {
+    await gameStorage.updatePlayerAlive(roomId, playerId, !currentAlive);
+  };
 
   const handleResolve = async (action: GameAction) => {
     const msg = resolveMessages[action.id] || 'No information.';
@@ -73,6 +96,81 @@ export default function HostDashboard({ roomId, hostId, players, onChangePhase, 
           </button>
         </div>
       </div>
+
+      {/* Voting Section (Day Phase) */}
+      {(currentPhase === 'day' || currentPhase === 'voting') && (
+        <div className="space-y-4">
+          {/* Active voting */}
+          {currentPhase === 'voting' && votingTarget && votingTargetName && (
+            <VotingPanel
+              targetName={votingTargetName}
+              targetId={votingTarget}
+              players={players}
+              playerId={hostId}
+              votes={votes}
+              hasVoted={hasVoted}
+              voteCount={voteCount}
+              onVote={(v) => castVote(v)}
+              onResolve={resolveVote}
+              onCancel={cancelVote}
+              isHost={true}
+              alivePlayers={alivePlayers}
+            />
+          )}
+
+          {/* Live Nominations (only during day, not during active voting) */}
+          {currentPhase === 'day' && (
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-amber-400">
+                ⚖️ Live Nominations
+              </h3>
+              <div className="space-y-2">
+                {players
+                  .filter((p) => !p.isHost && p.isAlive)
+                  .sort((a, b) => {
+                     const aCount = Object.values(nominations || {}).filter(id => id === a.id).length;
+                     const bCount = Object.values(nominations || {}).filter(id => id === b.id).length;
+                     return bCount - aCount;
+                  })
+                  .map((p) => {
+                    const role = p.gameData?.role as ClocktowerRole | undefined;
+                    const count = Object.values(nominations || {}).filter(id => id === p.id).length;
+                    const percentage = alivePlayers > 0 ? Math.round((count / alivePlayers) * 100) : 0;
+                    
+                    if (count === 0) return null;
+
+                    return (
+                      <div key={p.id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
+                         <div className="flex-1">
+                           <div className="flex items-center justify-between mb-1">
+                             <div className="flex items-center gap-2 text-sm text-white font-medium">
+                               {role && <span>{ROLE_ICONS[role]}</span>}
+                               {p.name}
+                             </div>
+                             <span className="text-xs text-amber-400 font-bold">{count} votes ({percentage}%)</span>
+                           </div>
+                           <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                             <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${percentage}%` }} />
+                           </div>
+                         </div>
+                         <button
+                           onClick={() => nominatePlayer(p.id, p.name)}
+                           className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-amber-500 shadow-lg shadow-amber-500/20"
+                         >
+                           ⚖️ Trial
+                         </button>
+                      </div>
+                    );
+                  })}
+                  
+                  {Object.values(nominations || {}).length === 0 && (
+                     <p className="text-sm text-slate-500 italic text-center py-4">No one has been nominated yet.</p>
+                  )}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Pending Night Actions */}
       {currentPhase === 'night' && (
@@ -193,23 +291,70 @@ export default function HostDashboard({ roomId, hostId, players, onChangePhase, 
           Players ({players.length})
         </h3>
         <div className="grid grid-cols-2 gap-2">
-          {players.map((p) => (
-            <div
-              key={p.id}
-              className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                p.isAlive ? 'bg-white/5 text-white' : 'bg-red-500/5 text-slate-500 line-through'
-              }`}
-            >
-              <div className={`h-2 w-2 rounded-full ${p.isAlive ? 'bg-green-500' : 'bg-red-500'}`} />
-              <span>{p.name}</span>
-              {p.isHost && <span className="ml-auto text-xs text-amber-400">Host</span>}
-              {p.gameData?.role && (
-                <span className="ml-auto text-xs text-purple-400">{String(p.gameData.role)}</span>
-              )}
-            </div>
-          ))}
+          {players.map((p) => {
+            const role = p.gameData?.role as ClocktowerRole | undefined;
+            return (
+              <div
+                key={p.id}
+                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
+                  p.isAlive ? 'bg-white/5 text-white' : 'bg-red-500/5 text-slate-500 line-through'
+                }`}
+              >
+                <div className={`h-2 w-2 rounded-full ${p.isAlive ? 'bg-green-500' : 'bg-red-500'}`} />
+                {role && <span>{ROLE_ICONS[role]}</span>}
+                <span>{p.name}</span>
+                {p.isHost && <span className="ml-auto text-xs text-amber-400">Host</span>}
+                {role && !p.isHost && (
+                  <span className="ml-auto text-xs text-purple-400">{String(role)}</span>
+                )}
+                {!p.isHost && (
+                  <button
+                    onClick={() => toggleAlive(p.id, p.isAlive)}
+                    className={`ml-auto rounded-md px-2 py-1 text-xs font-bold transition-all ${
+                      p.isAlive 
+                        ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' 
+                        : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                    }`}
+                  >
+                    {p.isAlive ? '💀 Kill' : '💖 Revive'}
+                  </button>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
+
+      {/* End Game Control */}
+      {onEndGame && (
+        <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
+            End Game
+          </h3>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => {
+                if (confirm('Are you sure the Good team has won?')) {
+                  onEndGame('good');
+                }
+              }}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-3 font-bold text-white transition-all hover:from-cyan-500 hover:to-blue-500"
+            >
+              🌟 Good Wins
+            </button>
+            <button
+              onClick={() => {
+                if (confirm('Are you sure the Evil team has won?')) {
+                  onEndGame('evil');
+                }
+              }}
+              className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 px-4 py-3 font-bold text-white transition-all hover:from-red-500 hover:to-orange-500"
+            >
+              👹 Evil Wins
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

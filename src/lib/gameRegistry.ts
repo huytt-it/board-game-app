@@ -39,7 +39,7 @@ export const GAME_REGISTRY: GameRegistryEntry[] = [
     description: 'A bluffing game of deduction and deception for 5-20 players. The Storyteller knows all — but can they be trusted?',
     icon: '🏰',
     enabled: true,
-    minPlayers: 5,
+    minPlayers: 1,
     maxPlayers: 20,
     component: ClocktowerBoard,
   },

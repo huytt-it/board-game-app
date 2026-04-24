@@ -1,5 +1,6 @@
 'use client';
 
+import { useState, useEffect } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 
 interface QRCodeDisplayProps {
@@ -9,29 +10,41 @@ interface QRCodeDisplayProps {
 }
 
 export default function QRCodeDisplay({ roomId, roomCode, gameType }: QRCodeDisplayProps) {
-  const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
-  const roomUrl = `${appUrl}/room/${gameType}/${roomId}`;
+  // Use current browser origin for dynamic domain support
+  const [appUrl, setAppUrl] = useState('');
+
+  useEffect(() => {
+    setAppUrl(window.location.origin);
+  }, []);
+
+  const roomUrl = appUrl ? `${appUrl}/room/${gameType}/${roomId}` : '';
 
   const copyCode = () => {
     navigator.clipboard.writeText(roomCode);
   };
 
   const copyLink = () => {
-    navigator.clipboard.writeText(roomUrl);
+    if (roomUrl) navigator.clipboard.writeText(roomUrl);
   };
 
   return (
     <div className="flex flex-col items-center gap-4">
       {/* QR Code */}
       <div className="rounded-2xl bg-white p-4 shadow-lg shadow-purple-500/10">
-        <QRCodeSVG
-          value={roomUrl}
-          size={180}
-          bgColor="#ffffff"
-          fgColor="#1e1b4b"
-          level="M"
-          includeMargin={false}
-        />
+        {roomUrl ? (
+          <QRCodeSVG
+            value={roomUrl}
+            size={180}
+            bgColor="#ffffff"
+            fgColor="#1e1b4b"
+            level="M"
+            includeMargin={false}
+          />
+        ) : (
+          <div className="flex h-[180px] w-[180px] items-center justify-center">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-indigo-900 border-t-transparent" />
+          </div>
+        )}
       </div>
 
       {/* Room Code */}
@@ -62,7 +75,8 @@ export default function QRCodeDisplay({ roomId, roomCode, gameType }: QRCodeDisp
       {/* Share Link */}
       <button
         onClick={copyLink}
-        className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm text-slate-300 transition-all hover:bg-white/10 hover:text-white"
+        disabled={!roomUrl}
+        className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-sm text-slate-300 transition-all hover:bg-white/10 hover:text-white disabled:opacity-40"
         id="copy-link-btn"
       >
         <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">

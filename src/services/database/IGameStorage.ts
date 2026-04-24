@@ -1,4 +1,4 @@
-import type { Room, CreateRoomPayload, RoomStatus } from '@/types/room';
+import type { Room, CreateRoomPayload, RoomStatus, RoomGameState } from '@/types/room';
 import type { Player, CreatePlayerPayload, BaseGameData } from '@/types/player';
 import type { GameAction, SubmitActionPayload, ActionResult } from '@/types/actions';
 
@@ -12,12 +12,17 @@ export interface IGameStorage {
   getRoom(roomId: string): Promise<Room | null>;
   getRoomByCode(roomCode: string): Promise<Room | null>;
   updateRoomStatus(roomId: string, status: RoomStatus): Promise<void>;
+  updateRoomGameState(roomId: string, state: Partial<RoomGameState>): Promise<void>;
   subscribeToRoom(roomId: string, callback: (room: Room | null) => void): () => void;
+  deleteRoom(roomId: string): Promise<void>;
+  resetRoom(roomId: string): Promise<void>;
 
   // ─── Player Operations ───────────────────────────────────────────────
   addPlayer(roomId: string, player: CreatePlayerPayload): Promise<void>;
   removePlayer(roomId: string, playerId: string): Promise<void>;
   updatePlayerGameData(roomId: string, playerId: string, data: Partial<BaseGameData>): Promise<void>;
+  updatePlayerAlive(roomId: string, playerId: string, isAlive: boolean): Promise<void>;
+  getPlayer(roomId: string, playerId: string): Promise<Player | null>;
   subscribeToPlayers(roomId: string, callback: (players: Player[]) => void): () => void;
   subscribeToPlayer(roomId: string, playerId: string, callback: (player: Player | null) => void): () => void;
 
