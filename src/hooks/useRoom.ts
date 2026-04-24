@@ -17,6 +17,7 @@ interface UseRoomReturn {
   joinRoomById: (roomId: string, playerId: string, playerName: string) => Promise<void>;
   updateStatus: (status: RoomStatus) => Promise<void>;
   updateGameState: (state: Partial<RoomGameState>) => Promise<void>;
+  updateConfig: (config: Partial<RoomConfig>) => Promise<void>;
   leaveRoom: (playerId: string) => Promise<void>;
   assignRoles: () => Promise<void>;
   startGame: () => Promise<void>;
@@ -35,45 +36,120 @@ function shuffle<T>(array: T[]): T[] {
 }
 
 // ─── Role pool based on player count (Trouble Brewing) ────────────────
-function buildRolePool(playerCount: number): ClocktowerRole[] {
+function buildRolePool(playerCount: number, roomConfig?: RoomConfig): ClocktowerRole[] {
   // Base roles for Trouble Brewing balanced setup
-  const townsfolk: ClocktowerRole[] = [
+  let townsfolk: ClocktowerRole[] = [
     ClocktowerRole.Washerwoman, ClocktowerRole.Librarian, ClocktowerRole.Investigator,
     ClocktowerRole.Chef, ClocktowerRole.Empath, ClocktowerRole.FortuneTeller,
     ClocktowerRole.Undertaker, ClocktowerRole.Monk, ClocktowerRole.Ravenkeeper,
     ClocktowerRole.Virgin, ClocktowerRole.Slayer, ClocktowerRole.Soldier,
     ClocktowerRole.Mayor,
   ];
-  const outsiders: ClocktowerRole[] = [
+  let outsiders: ClocktowerRole[] = [
     ClocktowerRole.Butler, ClocktowerRole.Drunk, ClocktowerRole.Recluse, ClocktowerRole.Saint,
   ];
-  const minions: ClocktowerRole[] = [
+  let minions: ClocktowerRole[] = [
     ClocktowerRole.Poisoner, ClocktowerRole.Spy, ClocktowerRole.ScarletWoman, ClocktowerRole.Baron,
   ];
+  let demons: ClocktowerRole[] = [
+    ClocktowerRole.Imp,
+  ];
+
+  const roleConfig = roomConfig?.roleConfig;
+  const mandatoryRoles = (roleConfig?.mandatoryRoles || []) as ClocktowerRole[];
+  const excludedRoles = (roleConfig?.excludedRoles || []) as ClocktowerRole[];
+
+  // Filter out excluded roles
+  townsfolk = townsfolk.filter((r) => !excludedRoles.includes(r));
+  outsiders = outsiders.filter((r) => !excludedRoles.includes(r));
+  minions = minions.filter((r) => !excludedRoles.includes(r));
+  demons = demons.filter((r) => !excludedRoles.includes(r));
 
   // Determine role distribution by player count
-  let numTownsfolk: number, numOutsiders: number, numMinions: number;
+  let numTownsfolk = 0;
+  let numOutsiders = 0;
+  let numMinions = 0;
+  let numDemons = 1;
 
-  if (playerCount <= 5) {
-    numTownsfolk = 3; numOutsiders = 0; numMinions = 1;
-  } else if (playerCount <= 7) {
-    numTownsfolk = 3; numOutsiders = 1; numMinions = 1;
-  } else if (playerCount <= 9) {
-    numTownsfolk = 5; numOutsiders = 1; numMinions = 1;
-  } else if (playerCount <= 12) {
-    numTownsfolk = 7; numOutsiders = 1; numMinions = 2;
-  } else if (playerCount <= 15) {
-    numTownsfolk = 9; numOutsiders = 1; numMinions = 3;
-  } else {
-    numTownsfolk = 10; numOutsiders = 2; numMinions = 3;
+  if (playerCount >= 5) {
+    if (playerCount === 5) { numTownsfolk = 3; numOutsiders = 0; numMinions = 1; }
+    else if (playerCount === 6) { numTownsfolk = 3; numOutsiders = 1; numMinions = 1; }
+    else if (playerCount === 7) { numTownsfolk = 5; numOutsiders = 0; numMinions = 1; }
+    else if (playerCount === 8) { numTownsfolk = 5; numOutsiders = 1; numMinions = 1; }
+    else if (playerCount === 9) { numTownsfolk = 5; numOutsiders = 2; numMinions = 1; }
+    else if (playerCount === 10) { numTownsfolk = 7; numOutsiders = 0; numMinions = 2; }
+    else if (playerCount === 11) { numTownsfolk = 7; numOutsiders = 1; numMinions = 2; }
+    else if (playerCount === 12) { numTownsfolk = 7; numOutsiders = 2; numMinions = 2; }
+    else if (playerCount === 13) { numTownsfolk = 9; numOutsiders = 0; numMinions = 3; }
+    else if (playerCount === 14) { numTownsfolk = 9; numOutsiders = 1; numMinions = 3; }
+    else { numTownsfolk = 9; numOutsiders = 2; numMinions = 3; } // 15+ players
   }
 
-  const pool: ClocktowerRole[] = [
-    ...shuffle(townsfolk).slice(0, numTownsfolk),
-    ...shuffle(outsiders).slice(0, numOutsiders),
-    ...shuffle(minions).slice(0, numMinions),
-    ClocktowerRole.Imp, // always 1 demon
-  ];
+  // Helper to pick roles
+  const pickRoles = (pool: ClocktowerRole[], needed: number, categoryMandatory: ClocktowerRole[]) => {
+    const picked: ClocktowerRole[] = [];
+    for (const r of categoryMandatory) {
+      if (picked.length < needed && !excludedRoles.includes(r)) {
+        picked.push(r);
+      }
+    }
+    const remainingPool = shuffle(pool.filter((r) => !picked.includes(r)));
+    while (picked.length < needed && remainingPool.length > 0) {
+      picked.push(remainingPool.pop()!);
+    }
+    return picked;
+  };
+
+  const tfMandatory = mandatoryRoles.filter((r) => ROLE_TEAMS[r] === 'townsfolk');
+  const outMandatory = mandatoryRoles.filter((r) => ROLE_TEAMS[r] === 'outsider');
+  const minMandatory = mandatoryRoles.filter((r) => ROLE_TEAMS[r] === 'minion');
+  const demMandatory = mandatoryRoles.filter((r) => ROLE_TEAMS[r] === 'demon');
+
+  let pool: ClocktowerRole[] = [];
+
+  if (playerCount < 5) {
+    // Testing mode: < 5 players
+    if (mandatoryRoles.length > playerCount) {
+      throw new Error('Số lượng thẻ Bắt buộc vượt quá giới hạn của ván đấu. Vui lòng giảm bớt.');
+    }
+    
+    // Add all mandatory roles
+    pool.push(...mandatoryRoles);
+
+    // Fill the rest with Townsfolk, then anything else
+    const remainingNeeded = playerCount - pool.length;
+    if (remainingNeeded > 0) {
+      const allAvailable = [
+        ...townsfolk.filter(r => !pool.includes(r)),
+        ...minions.filter(r => !pool.includes(r)),
+        ...demons.filter(r => !pool.includes(r)),
+        ...outsiders.filter(r => !pool.includes(r))
+      ];
+      const filler = shuffle(allAvailable).slice(0, remainingNeeded);
+      pool.push(...filler);
+    }
+  } else {
+    // Standard rules
+    if (
+      tfMandatory.length > numTownsfolk ||
+      outMandatory.length > numOutsiders ||
+      minMandatory.length > numMinions ||
+      demMandatory.length > numDemons
+    ) {
+      throw new Error('Số lượng thẻ Bắt buộc vượt quá giới hạn của ván đấu. Vui lòng giảm bớt.');
+    }
+
+    pool = [
+      ...pickRoles(townsfolk, numTownsfolk, tfMandatory),
+      ...pickRoles(outsiders, numOutsiders, outMandatory),
+      ...pickRoles(minions, numMinions, minMandatory),
+      ...pickRoles(demons, numDemons, demMandatory),
+    ];
+  }
+
+  if (pool.length < playerCount) {
+    throw new Error('Không đủ thẻ bài cho số lượng người chơi. Vui lòng kiểm tra lại cấu hình.');
+  }
 
   return shuffle(pool);
 }
@@ -111,8 +187,24 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
     async (hostId: string, hostName: string, gameType: GameType, config: RoomConfig) => {
       try {
         setError(null);
+        
+        // Auto-leave old room if one exists
+        const activeRoomId = localStorage.getItem('active_room_id');
+        if (activeRoomId) {
+          try {
+            await gameStorage.removePlayer(activeRoomId, hostId);
+            const oldPlayers = await gameStorage.getPlayers(activeRoomId);
+            if (oldPlayers.length === 0) {
+              await gameStorage.deleteRoom(activeRoomId);
+            }
+          } catch (e) {
+            console.error('Failed to leave old room', e);
+          }
+        }
+
         const newRoomId = await gameStorage.createRoom({ hostId, gameType, config });
         await gameStorage.addPlayer(newRoomId, { id: hostId, name: hostName, isHost: true });
+        localStorage.setItem('active_room_id', newRoomId);
         return newRoomId;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to create room';
@@ -131,11 +223,31 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
         if (!foundRoom) throw new Error('Room not found');
         
         const existingPlayer = await gameStorage.getPlayer(foundRoom.id, pId);
+        const currentPlayers = await gameStorage.getPlayers(foundRoom.id);
+        
+        if (!existingPlayer && currentPlayers.length >= foundRoom.config.maxPlayers) {
+          throw new Error('Room is full');
+        }
         if (!existingPlayer && foundRoom.status !== 'lobby') {
           throw new Error('Game already in progress');
         }
+
+        // Auto-leave old room
+        const activeRoomId = localStorage.getItem('active_room_id');
+        if (activeRoomId && activeRoomId !== foundRoom.id) {
+          try {
+            await gameStorage.removePlayer(activeRoomId, pId);
+            const oldPlayers = await gameStorage.getPlayers(activeRoomId);
+            if (oldPlayers.length === 0) {
+              await gameStorage.deleteRoom(activeRoomId);
+            }
+          } catch (e) {
+            console.error('Failed to leave old room', e);
+          }
+        }
         
         await gameStorage.addPlayer(foundRoom.id, { id: pId, name: playerName, isHost: false });
+        localStorage.setItem('active_room_id', foundRoom.id);
         return foundRoom.id;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to join room';
@@ -154,11 +266,31 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
         if (!foundRoom) throw new Error('Room not found');
         
         const existingPlayer = await gameStorage.getPlayer(rId, pId);
+        const currentPlayers = await gameStorage.getPlayers(rId);
+
+        if (!existingPlayer && currentPlayers.length >= foundRoom.config.maxPlayers) {
+          throw new Error('Room is full');
+        }
         if (!existingPlayer && foundRoom.status !== 'lobby') {
           throw new Error('Game already in progress');
         }
 
+        // Auto-leave old room
+        const activeRoomId = localStorage.getItem('active_room_id');
+        if (activeRoomId && activeRoomId !== rId) {
+          try {
+            await gameStorage.removePlayer(activeRoomId, pId);
+            const oldPlayers = await gameStorage.getPlayers(activeRoomId);
+            if (oldPlayers.length === 0) {
+              await gameStorage.deleteRoom(activeRoomId);
+            }
+          } catch (e) {
+            console.error('Failed to leave old room', e);
+          }
+        }
+
         await gameStorage.addPlayer(rId, { id: pId, name: playerName, isHost: false });
+        localStorage.setItem('active_room_id', rId);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to join room';
         setError(msg);
@@ -175,6 +307,18 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
         await gameStorage.updateRoomStatus(roomId, status);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to update status');
+      }
+    },
+    [roomId]
+  );
+
+  const updateConfig = useCallback(
+    async (config: Partial<RoomConfig>) => {
+      if (!roomId) return;
+      try {
+        await gameStorage.updateRoomConfig(roomId, config);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : 'Failed to update config');
       }
     },
     [roomId]
@@ -197,6 +341,12 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
       if (!roomId) return;
       try {
         await gameStorage.removePlayer(roomId, pId);
+        localStorage.removeItem('active_room_id');
+        
+        const remaining = await gameStorage.getPlayers(roomId);
+        if (remaining.length === 0) {
+          await gameStorage.deleteRoom(roomId);
+        }
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to leave room');
       }
@@ -227,7 +377,7 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
     if (!roomId) return;
     try {
       const gamePlayers = players.filter((p) => !p.isHost);
-      const rolePool = buildRolePool(gamePlayers.length);
+      const rolePool = buildRolePool(gamePlayers.length, room?.config);
 
       for (let i = 0; i < gamePlayers.length; i++) {
         const role = rolePool[i % rolePool.length];
@@ -245,8 +395,9 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
       await gameStorage.updateRoomGameState(roomId, { rolesAssigned: true, dayCount: 0 });
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to assign roles');
+      throw err;
     }
-  }, [roomId, players]);
+  }, [roomId, players, room]);
 
   // ─── Start game: assign roles then update status ────────────────────
   const startGame = useCallback(async () => {
@@ -266,6 +417,7 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
     joinRoomById,
     updateStatus,
     updateGameState,
+    updateConfig,
     leaveRoom,
     assignRoles,
     startGame,

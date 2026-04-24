@@ -12,6 +12,7 @@ import PlayerWaiting from './PlayerWaiting';
 import GameStartAnimation from './GameStartAnimation';
 import RoleRevealAnimation from './RoleRevealAnimation';
 import VotingPanel from './VotingPanel';
+import RoomSettingsPanel from './RoomSettingsPanel';
 import type { GameModuleProps } from '@/lib/gameRegistry';
 import { ROLE_ICONS, type ClocktowerRole } from '@/types/games/clocktower';
 
@@ -19,7 +20,7 @@ type AnimationPhase = 'none' | 'countdown' | 'role-reveal';
 
 export default function ClocktowerBoard({ room, players, playerId, isHost }: GameModuleProps) {
   const router = useRouter();
-  const { updateStatus, updateGameState, startGame, leaveRoom, deleteRoom, resetRoom } = useRoom(room.id, playerId);
+  const { updateStatus, updateGameState, updateConfig, startGame, leaveRoom, deleteRoom, resetRoom } = useRoom(room.id, playerId);
   const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('none');
   const [roleRevealed, setRoleRevealed] = useState(false);
 
@@ -32,8 +33,12 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
   // ─── Handle Start Game (Host) ──────────────────────────────────────
   const handleStartGame = useCallback(async () => {
-    setAnimationPhase('countdown');
-    await startGame();
+    try {
+      await startGame();
+      setAnimationPhase('countdown');
+    } catch (err: any) {
+      alert(err.message || 'Failed to start game');
+    }
   }, [startGame]);
 
   // ─── After countdown animation completes ───────────────────────────
@@ -107,6 +112,15 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/80 to-slate-900/80 p-6">
           <QRCodeDisplay roomId={room.id} roomCode={room.roomCode} gameType={room.gameType} />
         </div>
+
+        {/* Room Settings (Host Only) */}
+        {isHost && (
+          <RoomSettingsPanel 
+            config={room.config}
+            onUpdateConfig={updateConfig}
+            playerCount={players.filter(p => !p.isHost).length}
+          />
+        )}
 
         {/* Player List */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
@@ -213,6 +227,11 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           {room.gameState?.dayCount !== undefined && room.gameState.dayCount > 0 && (
             <span className="text-xs text-slate-500">Day {room.gameState.dayCount}</span>
           )}
+          <div className="ml-auto">
+            <button onClick={handleDelete} className="rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20">
+              🗑️ Delete Room
+            </button>
+          </div>
         </div>
         <HostDashboard
           roomId={room.id}
@@ -240,9 +259,14 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   if (room.status === 'night') {
     return (
       <div className="mx-auto max-w-lg space-y-6 animate-fade-in">
-        <div className="text-center">
-          <h1 className="mb-1 text-2xl font-black text-white">🌙 Night Phase</h1>
-          <p className="text-sm text-slate-400">Close your eyes...</p>
+        <div className="flex items-start justify-between text-left">
+          <div>
+            <h1 className="mb-1 text-2xl font-black text-white">🌙 Night Phase</h1>
+            <p className="text-sm text-slate-400">Close your eyes...</p>
+          </div>
+          <button onClick={handleLeave} className="rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20">
+            🚪 Leave Room
+          </button>
         </div>
 
         {/* Role Card */}
@@ -266,9 +290,14 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   if (room.status === 'voting') {
     return (
       <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
-        <div className="text-center">
-          <h1 className="mb-1 text-2xl font-black text-white">⚖️ Town Vote</h1>
-          <p className="text-sm text-slate-400">A nomination has been called!</p>
+        <div className="flex items-start justify-between text-left">
+          <div>
+            <h1 className="mb-1 text-2xl font-black text-white">⚖️ Town Vote</h1>
+            <p className="text-sm text-slate-400">A nomination has been called!</p>
+          </div>
+          <button onClick={handleLeave} className="rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20">
+            🚪 Leave Room
+          </button>
         </div>
 
         {/* Role Card (compact) */}
@@ -299,12 +328,17 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   if (room.status === 'day') {
     return (
       <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
-        <div className="text-center">
-          <h1 className="mb-1 text-2xl font-black text-white">☀️ Day Phase</h1>
-          <p className="text-sm text-slate-400">Discuss, accuse, and nominate!</p>
-          {room.gameState?.dayCount !== undefined && room.gameState.dayCount > 0 && (
-            <p className="text-xs text-slate-500 mt-1">Day {room.gameState.dayCount}</p>
-          )}
+        <div className="flex items-start justify-between text-left">
+          <div>
+            <h1 className="mb-1 text-2xl font-black text-white">☀️ Day Phase</h1>
+            <p className="text-sm text-slate-400">Discuss, accuse, and nominate!</p>
+            {room.gameState?.dayCount !== undefined && room.gameState.dayCount > 0 && (
+              <p className="text-xs text-slate-500 mt-1">Day {room.gameState.dayCount}</p>
+            )}
+          </div>
+          <button onClick={handleLeave} className="rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20">
+            🚪 Leave Room
+          </button>
         </div>
 
         {/* Role Card (compact) */}

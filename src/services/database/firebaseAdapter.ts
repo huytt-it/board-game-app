@@ -16,7 +16,7 @@ import {
 } from 'firebase/firestore';
 import { getDb } from '@/services/firebase/config';
 import type { IGameStorage } from './IGameStorage';
-import type { Room, CreateRoomPayload, RoomStatus, RoomGameState } from '@/types/room';
+import type { Room, CreateRoomPayload, RoomStatus, RoomGameState, RoomConfig } from '@/types/room';
 import type { Player, CreatePlayerPayload, BaseGameData } from '@/types/player';
 import type { GameAction, SubmitActionPayload, ActionResult } from '@/types/actions';
 
@@ -36,8 +36,24 @@ export class FirebaseAdapter implements IGameStorage {
     return collection(getDb(), 'rooms');
   }
 
+  private async cleanupStaleRooms() {
+    try {
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+      const q = query(this.roomsRef, where('createdAt', '<', twelveHoursAgo));
+      const snap = await getDocs(q);
+      for (const d of snap.docs) {
+        await this.deleteRoom(d.id);
+      }
+    } catch (err) {
+      console.error('Failed to cleanup stale rooms', err);
+    }
+  }
+
   // ─── Room Operations ───────────────────────────────────────────────
   async createRoom(payload: CreateRoomPayload): Promise<string> {
+    // Run cleanup in background
+    this.cleanupStaleRooms().catch(console.error);
+
     const roomCode = generateRoomCode();
     const roomDoc = doc(this.roomsRef);
     const roomData: Omit<Room, 'id'> = {
@@ -69,6 +85,14 @@ export class FirebaseAdapter implements IGameStorage {
     if (snap.empty) return null;
     const d = snap.docs[0];
     return { id: d.id, ...d.data() } as Room;
+  }
+
+  async updateRoomConfig(roomId: string, config: Partial<RoomConfig>): Promise<void> {
+    const updates: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(config)) {
+      updates[`config.${key}`] = value;
+    }
+    await updateDoc(doc(getDb(), 'rooms', roomId), updates);
   }
 
   async updateRoomStatus(roomId: string, status: RoomStatus): Promise<void> {
@@ -142,6 +166,11 @@ export class FirebaseAdapter implements IGameStorage {
     const snap = await getDoc(doc(getDb(), 'rooms', roomId, 'players', playerId));
     if (!snap.exists()) return null;
     return { id: snap.id, ...snap.data() } as Player;
+  }
+
+  async getPlayers(roomId: string): Promise<Player[]> {
+    const snap = await getDocs(collection(getDb(), 'rooms', roomId, 'players'));
+    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player));
   }
 
   async addPlayer(roomId: string, player: CreatePlayerPayload): Promise<void> {

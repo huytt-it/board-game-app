@@ -6,9 +6,15 @@ export type GameType = 'clock-tower' | 'werewolf' | 'avalon';
 // ─── Room Status ──────────────────────────────────────────────────────
 export type RoomStatus = 'lobby' | 'day' | 'night' | 'voting' | 'end';
 
+export interface RoleConfig {
+  mandatoryRoles: string[]; // ClocktowerRole[]
+  excludedRoles: string[]; // ClocktowerRole[]
+}
+
 // ─── Room Configuration (generic, extended per game) ──────────────────
 export interface RoomConfig {
   maxPlayers: number;
+  roleConfig?: RoleConfig;
   [key: string]: unknown;
 }
 
