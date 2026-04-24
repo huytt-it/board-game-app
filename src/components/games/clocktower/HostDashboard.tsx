@@ -3,12 +3,15 @@
 import { useState } from 'react';
 import { useNightActions } from '@/hooks/useNightActions';
 import { useVoting } from '@/hooks/games/useVoting';
+import { useGameHistory } from '@/hooks/useGameHistory';
 import { gameStorage } from '@/services/database/firebaseAdapter';
 import type { Player } from '@/types/player';
 import type { GameAction } from '@/types/actions';
 import type { RoomGameState } from '@/types/room';
-import { ROLE_ICONS, type ClocktowerRole } from '@/types/games/clocktower';
+import { ROLE_ICONS, ROLE_TEAMS, ClocktowerRole } from '@/types/games/clocktower';
 import VotingPanel from './VotingPanel';
+import NightTimelinePanel from './NightTimelinePanel';
+import GameHistoryPanel from './GameHistoryPanel';
 
 interface HostDashboardProps {
   roomId: string;
@@ -33,24 +36,85 @@ export default function HostDashboard({
   const [resolveMessages, setResolveMessages] = useState<Record<string, string>>({});
   const [directMessage, setDirectMessage] = useState('');
   const [directTarget, setDirectTarget] = useState('');
+  const [activeTab, setActiveTab] = useState<'night' | 'history'>('night');
+
+  const { events: historyEvents, addEvent } = useGameHistory(roomId);
+
+  const dayCount = gameState?.dayCount ?? 0;
+  const phase: 'night' | 'day' = (currentPhase === 'night') ? 'night' : 'day';
 
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
   const { nominations, votingTarget, votingTargetName, votes, hasVoted, voteCount, nominatePlayer, castVote, resolveVote, cancelVote } =
     useVoting(roomId, hostId, gameState, alivePlayers);
 
+  const handleVoteResolve = async () => {
+    if (!votingTarget || !votingTargetName) return;
+    await resolveVote();
+    // Write execution to history
+    await addEvent({
+      type: 'execution',
+      dayCount,
+      phase: 'day',
+      emoji: '⚖️',
+      title: `${votingTargetName} bị đưa lên giá treo`,
+      detail: `${voteCount} phiếu đồng ý`,
+      targetName: votingTargetName,
+    });
+  };
+
   const toggleAlive = async (playerId: string, currentAlive: boolean) => {
+    const player = players.find((p) => p.id === playerId);
+    const role = player?.gameData?.role as ClocktowerRole | undefined;
     await gameStorage.updatePlayerAlive(roomId, playerId, !currentAlive);
+    if (currentAlive) {
+      await addEvent({
+        type: 'night_death',
+        dayCount,
+        phase,
+        emoji: '💀',
+        title: `${player?.name || playerId} đã chết`,
+        detail: 'Bị loại khỏi ván đấu bởi Quản trò',
+        targetName: player?.name,
+        targetRole: role ? String(role) : undefined,
+      });
+    }
   };
 
   const handleResolve = async (action: GameAction) => {
     const msg = resolveMessages[action.id] || 'No information.';
     await resolveAction(action.id, msg);
-    // Also push private message to the player
     await sendPrivateMessage(action.playerId, msg);
-    setResolveMessages((prev) => {
-      const copy = { ...prev };
-      delete copy[action.id];
-      return copy;
+    setResolveMessages((prev) => { const copy = { ...prev }; delete copy[action.id]; return copy; });
+
+    // Write to history
+    const actor = players.find((p) => p.id === action.playerId);
+    const actorRole = actor?.gameData?.role as ClocktowerRole | undefined;
+    
+    const roleStr = actorRole ? `(${actorRole})` : '';
+    
+    let actionTitle = `${action.playerName} ${roleStr} đã sử dụng kỹ năng`;
+    if (action.targetName) {
+      if (actorRole === ClocktowerRole.Monk) {
+        actionTitle = `Người chơi ${action.targetName} đã được bảo vệ bởi ${action.playerName} ${roleStr}`;
+      } else {
+        actionTitle = `${action.playerName} ${roleStr} đã sử dụng kỹ năng lên người chơi ${action.targetName}`;
+      }
+    }
+
+    const detailMsg = msg !== 'No information.'
+      ? `Quản trò đã đưa thông tin cho ${action.playerName} ${roleStr}: "${msg}"`
+      : undefined;
+
+    await addEvent({
+      type: 'night_action',
+      dayCount,
+      phase: 'night',
+      emoji: '🎯',
+      title: actionTitle,
+      detail: detailMsg,
+      actorName: action.playerName,
+      actorRole: actorRole ? String(actorRole) : undefined,
+      targetName: action.targetName,
     });
   };
 
@@ -62,6 +126,13 @@ export default function HostDashboard({
   };
 
   const handleNewNight = async () => {
+    await addEvent({
+      type: 'phase_change',
+      dayCount: dayCount + 1,
+      phase: 'night',
+      emoji: '🌙',
+      title: `Bắt đầu Đêm ${dayCount + 1}`,
+    });
     await clearAllActions();
     onChangePhase('night');
   };
@@ -111,7 +182,7 @@ export default function HostDashboard({
               hasVoted={hasVoted}
               voteCount={voteCount}
               onVote={(v) => castVote(v)}
-              onResolve={resolveVote}
+              onResolve={handleVoteResolve}
               onCancel={cancelVote}
               isHost={true}
               alivePlayers={alivePlayers}
@@ -172,76 +243,48 @@ export default function HostDashboard({
         </div>
       )}
 
-      {/* Pending Night Actions */}
-      {currentPhase === 'night' && (
-        <div className="space-y-3">
-          <h3 className="flex items-center gap-2 text-sm font-semibold uppercase tracking-wider text-slate-400">
-            <span className="relative flex h-2 w-2">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-purple-400 opacity-75" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-purple-500" />
-            </span>
-            Pending Actions ({pendingActions.length})
-          </h3>
-
-          {pendingActions.length === 0 && (
-            <p className="rounded-xl bg-white/5 px-4 py-8 text-center text-sm text-slate-500">
-              Waiting for players to submit their night actions...
-            </p>
+      {/* Game History Panel */}
+      <div className="rounded-xl border border-white/10 bg-white/5">
+        <div className="flex border-b border-white/10">
+          <button
+            onClick={() => setActiveTab('night')}
+            className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
+              activeTab === 'night' ? 'text-purple-400 border-b-2 border-purple-500' : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            🌙 {currentPhase === 'night' ? 'Night Actions' : 'Night Log'}
+          </button>
+          <button
+            onClick={() => setActiveTab('history')}
+            className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
+              activeTab === 'history' ? 'text-amber-400 border-b-2 border-amber-500' : 'text-slate-500 hover:text-slate-300'
+            }`}
+          >
+            📜 Game History ({historyEvents.filter(e => e.type !== 'phase_change').length})
+          </button>
+        </div>
+        <div className="p-4">
+          {activeTab === 'night' && currentPhase === 'night' && (
+            <NightTimelinePanel
+              players={players}
+              pendingActions={pendingActions}
+              resolvedActions={resolvedActions}
+              dayCount={dayCount}
+              resolveMessages={resolveMessages}
+              onResolveMessageChange={(id, val) =>
+                setResolveMessages((prev) => ({ ...prev, [id]: val }))
+              }
+              onResolve={handleResolve}
+            />
           )}
-
-          {pendingActions.map((action) => (
-            <div
-              key={action.id}
-              className="rounded-xl border border-purple-500/20 bg-gradient-to-r from-purple-900/20 to-indigo-900/10 p-4"
-            >
-              <div className="mb-3 flex items-center justify-between">
-                <div>
-                  <span className="font-semibold text-white">{action.playerName}</span>
-                  <span className="mx-2 text-slate-500">→</span>
-                  <span className="text-purple-300">{action.targetName || 'No target'}</span>
-                </div>
-                <span className="rounded-full bg-yellow-500/20 px-2.5 py-0.5 text-xs font-medium text-yellow-400">
-                  {action.actionType}
-                </span>
-              </div>
-              <div className="flex gap-2">
-                <input
-                  type="text"
-                  value={resolveMessages[action.id] || ''}
-                  onChange={(e) => setResolveMessages((prev) => ({ ...prev, [action.id]: e.target.value }))}
-                  placeholder="Storyteller response..."
-                  className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500"
-                />
-                <button
-                  onClick={() => handleResolve(action)}
-                  className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-purple-500"
-                  id={`resolve-${action.id}`}
-                >
-                  Resolve
-                </button>
-              </div>
-            </div>
-          ))}
-
-          {/* Resolved Actions */}
-          {resolvedActions.length > 0 && (
-            <div className="space-y-2">
-              <h4 className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-                Resolved ({resolvedActions.length})
-              </h4>
-              {resolvedActions.map((action) => (
-                <div key={action.id} className="flex items-center gap-3 rounded-lg bg-white/5 px-3 py-2 text-sm">
-                  <span className="text-green-400">✓</span>
-                  <span className="text-slate-300">{action.playerName}</span>
-                  <span className="text-slate-600">→</span>
-                  <span className="text-slate-400">{action.targetName}</span>
-                  <span className="ml-auto text-xs text-slate-500">{action.result?.message}</span>
-                </div>
-              ))}
-            </div>
+          {activeTab === 'night' && currentPhase !== 'night' && (
+            <p className="text-center text-sm text-slate-500 py-4">Không phải đêm. Chuyển sang ngày...</p>
+          )}
+          {activeTab === 'history' && (
+            <GameHistoryPanel events={historyEvents} />
           )}
         </div>
-      )}
+      </div>
 
       {/* Direct Private Message */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
@@ -325,6 +368,8 @@ export default function HostDashboard({
         </div>
       </div>
 
+
+
       {/* End Game Control */}
       {onEndGame && (
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
@@ -333,21 +378,13 @@ export default function HostDashboard({
           </h3>
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => {
-                if (confirm('Are you sure the Good team has won?')) {
-                  onEndGame('good');
-                }
-              }}
+              onClick={() => { if (confirm('Are you sure the Good team has won?')) { onEndGame('good'); } }}
               className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-3 font-bold text-white transition-all hover:from-cyan-500 hover:to-blue-500"
             >
               🌟 Good Wins
             </button>
             <button
-              onClick={() => {
-                if (confirm('Are you sure the Evil team has won?')) {
-                  onEndGame('evil');
-                }
-              }}
+              onClick={() => { if (confirm('Are you sure the Evil team has won?')) { onEndGame('evil'); } }}
               className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 px-4 py-3 font-bold text-white transition-all hover:from-red-500 hover:to-orange-500"
             >
               👹 Evil Wins

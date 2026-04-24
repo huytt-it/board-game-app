@@ -19,6 +19,7 @@ import type { IGameStorage } from './IGameStorage';
 import type { Room, CreateRoomPayload, RoomStatus, RoomGameState, RoomConfig } from '@/types/room';
 import type { Player, CreatePlayerPayload, BaseGameData } from '@/types/player';
 import type { GameAction, SubmitActionPayload, ActionResult } from '@/types/actions';
+import type { GameHistoryEvent, AddHistoryEventPayload } from '@/types/history';
 
 // ─── Room Code Generator ──────────────────────────────────────────────
 function generateRoomCode(): string {
@@ -282,6 +283,29 @@ export class FirebaseAdapter implements IGameStorage {
   // ─── Private Messaging ─────────────────────────────────────────────
   async sendPrivateMessage(roomId: string, playerId: string, message: string): Promise<void> {
     await this.updatePlayerGameData(roomId, playerId, { privateMessage: message });
+  }
+
+  // ─── Game History ─────────────────────────────────────────────────
+  async addHistoryEvent(roomId: string, payload: AddHistoryEventPayload): Promise<void> {
+    const eventsCol = collection(getDb(), 'rooms', roomId, 'history');
+    const cleanPayload = Object.fromEntries(
+      Object.entries(payload).filter(([_, v]) => v !== undefined)
+    );
+    await addDoc(eventsCol, { ...cleanPayload, createdAt: serverTimestamp() });
+  }
+
+  subscribeToHistory(roomId: string, callback: (events: GameHistoryEvent[]) => void): () => void {
+    const eventsCol = collection(getDb(), 'rooms', roomId, 'history');
+    return onSnapshot(eventsCol, (snap) => {
+      const events = snap.docs
+        .map((d) => ({ id: d.id, ...d.data() } as GameHistoryEvent))
+        .sort((a, b) => {
+          const aTime = (a.createdAt as any)?.seconds ?? 0;
+          const bTime = (b.createdAt as any)?.seconds ?? 0;
+          return aTime - bTime;
+        });
+      callback(events);
+    });
   }
 }
 

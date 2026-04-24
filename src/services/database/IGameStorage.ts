@@ -1,6 +1,7 @@
 import type { Room, CreateRoomPayload, RoomStatus, RoomGameState, RoomConfig } from '@/types/room';
 import type { Player, CreatePlayerPayload, BaseGameData } from '@/types/player';
 import type { GameAction, SubmitActionPayload, ActionResult } from '@/types/actions';
+import type { GameHistoryEvent, AddHistoryEventPayload } from '@/types/history';
 
 /**
  * IGameStorage — Adapter Pattern interface for all database interactions.
@@ -36,4 +37,8 @@ export interface IGameStorage {
 
   // ─── Private Messaging ───────────────────────────────────────────────
   sendPrivateMessage(roomId: string, playerId: string, message: string): Promise<void>;
+
+  // ─── Game History ────────────────────────────────────────────────────
+  addHistoryEvent(roomId: string, payload: AddHistoryEventPayload): Promise<void>;
+  subscribeToHistory(roomId: string, callback: (events: GameHistoryEvent[]) => void): () => void;
 }
