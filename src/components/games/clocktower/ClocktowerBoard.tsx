@@ -4,6 +4,7 @@ import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom } from '@/hooks/useRoom';
 import { useVoting } from '@/hooks/games/useVoting';
+import { gameStorage } from '@/services/database/firebaseAdapter';
 import QRCodeDisplay from '@/components/core/QRCodeDisplay';
 import RoleCard from './RoleCard';
 import NightActionPanel from './NightActionPanel';
@@ -14,7 +15,7 @@ import RoleRevealAnimation from './RoleRevealAnimation';
 import VotingPanel from './VotingPanel';
 import RoomSettingsPanel from './RoomSettingsPanel';
 import type { GameModuleProps } from '@/lib/gameRegistry';
-import { ROLE_ICONS, type ClocktowerRole } from '@/types/games/clocktower';
+import { ROLE_ICONS, ClocktowerRole } from '@/types/games/clocktower';
 
 type AnimationPhase = 'none' | 'countdown' | 'role-reveal';
 
@@ -26,10 +27,25 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
   const currentPlayer = players.find((p) => p.id === playerId);
   const playerRole = currentPlayer?.gameData?.role as ClocktowerRole | undefined;
+  // Drunk players see their fake Townsfolk role everywhere in the player-facing UI
+  const isDrunk = currentPlayer?.gameData?.isDrunk === true;
+  const drunkRole = currentPlayer?.gameData?.drunkRole as ClocktowerRole | undefined;
+  const displayRole = isDrunk && drunkRole ? drunkRole : playerRole;
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
 
   const { nominations, votingTarget, votingTargetName, votes, hasVoted, voteCount, nominatePlayer, castNomination, castVote, resolveVote, cancelVote } =
     useVoting(room.id, playerId, room.gameState, alivePlayers);
+
+  const [slayerPickMode, setSlayerPickMode] = useState(false);
+  const isSlayer = displayRole === ClocktowerRole.Slayer;
+  const slayerUsed = currentPlayer?.gameData?.hasUsedAbility === true;
+
+  const handleSlayerUse = useCallback(async (targetId: string, targetName: string) => {
+    if (!playerId || !currentPlayer) return;
+    await gameStorage.updatePlayerGameData(room.id, playerId, { hasUsedAbility: true });
+    await updateGameState({ pendingSlayerAction: { slayerName: currentPlayer.name, targetId, targetName } } as any);
+    setSlayerPickMode(false);
+  }, [playerId, currentPlayer, room.id, updateGameState]);
 
   // ─── Handle Start Game (Host) ──────────────────────────────────────
   const handleStartGame = useCallback(async () => {
@@ -49,7 +65,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
   // ─── Handle role reveal for players ────────────────────────────────
   // When night starts and player has a role but hasn't seen it yet
-  const showRoleReveal = !isHost && room.status === 'night' && playerRole && !roleRevealed;
+  const showRoleReveal = !isHost && room.status === 'night' && displayRole && !roleRevealed;
 
   // ─── Room Management Actions ───────────────────────────────────────
   const handleLeave = async () => {
@@ -80,7 +96,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   if (showRoleReveal) {
     return (
       <RoleRevealAnimation
-        role={playerRole}
+        role={displayRole!}
         onDismiss={() => setRoleRevealed(true)}
       />
     );
@@ -282,8 +298,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
         </div>
 
         {/* Role Card */}
-        {playerRole && (
-          <RoleCard role={playerRole} isRevealed={true} />
+        {displayRole && (
+          <RoleCard role={displayRole} isRevealed={true} />
         )}
 
         {/* Night Action */}
@@ -291,7 +307,6 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           roomId={room.id}
           playerId={playerId}
           players={players}
-          roleName={playerRole}
           dayCount={room.gameState?.dayCount || 0}
         />
       </div>
@@ -313,8 +328,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
         </div>
 
         {/* Role Card (compact) */}
-        {playerRole && (
-          <RoleCard role={playerRole} isRevealed={true} compact />
+        {displayRole && (
+          <RoleCard role={displayRole} isRevealed={true} compact />
         )}
 
         {/* Voting Panel */}
@@ -354,8 +369,49 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
         </div>
 
         {/* Role Card (compact) */}
-        {playerRole && (
-          <RoleCard role={playerRole} isRevealed={true} compact />
+        {displayRole && (
+          <RoleCard role={displayRole} isRevealed={true} compact />
+        )}
+
+        {/* Slayer Ability */}
+        {isSlayer && !slayerUsed && currentPlayer?.isAlive && (
+          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+            <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-amber-400">
+              ⚔️ Slayer Ability
+            </h3>
+            <p className="mb-3 text-xs text-slate-400">Publicly declare you are slaying a player. If they are the Demon, they die.</p>
+            {!slayerPickMode ? (
+              <button
+                onClick={() => setSlayerPickMode(true)}
+                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-amber-500"
+              >
+                ⚔️ Use Slayer Ability
+              </button>
+            ) : (
+              <div>
+                <p className="mb-2 text-xs text-amber-300 font-medium">Choose a player to slay:</p>
+                <div className="grid grid-cols-3 gap-2 mb-3">
+                  {players.filter((p) => !p.isHost && p.isAlive && p.id !== playerId).map((p) => (
+                    <button
+                      key={p.id}
+                      onClick={() => handleSlayerUse(p.id, p.name)}
+                      className="rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-amber-500/20 hover:text-amber-300 border border-white/10 hover:border-amber-500/40"
+                    >
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setSlayerPickMode(false)} className="text-xs text-slate-500 underline">
+                  Cancel
+                </button>
+              </div>
+            )}
+          </div>
+        )}
+        {isSlayer && slayerUsed && (
+          <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-500">
+            ⚔️ You have already used your Slayer ability this game.
+          </div>
         )}
 
         {/* Town Square */}

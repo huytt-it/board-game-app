@@ -14,7 +14,7 @@ interface UseVotingReturn {
   nominatePlayer: (targetId: string, targetName: string) => Promise<void>; // Host pushing to trial
   castNomination: (targetId: string | null) => Promise<void>; // Player nominating someone
   castVote: (vote: boolean) => Promise<void>;
-  resolveVote: () => Promise<void>;
+  resolveVote: (executedRole?: string) => Promise<void>;
   cancelVote: () => Promise<void>;
 }
 
@@ -89,25 +89,31 @@ export function useVoting(
   );
 
   // ─── Resolve vote: if majority agree, execute the player ────────────
-  const resolveVote = useCallback(async () => {
-    if (!roomId || !votingTarget) return;
-    const majority = Math.ceil(alivePlayers / 2);
-    const agreeCount = Object.values(votes).filter((v) => v === true).length;
+  const resolveVote = useCallback(
+    async (executedRole?: string) => {
+      if (!roomId || !votingTarget) return;
+      const majority = Math.ceil(alivePlayers / 2);
+      const agreeCount = Object.values(votes).filter((v) => v === true).length;
+      const executed = agreeCount >= majority;
 
-    if (agreeCount >= majority) {
-      // Execute the player — they die
-      await gameStorage.updatePlayerAlive(roomId, votingTarget, false);
-    }
+      if (executed) {
+        await gameStorage.updatePlayerAlive(roomId, votingTarget, false);
+      }
 
-    // Clear voting state and return to day
-    // Using null instead of undefined because Firebase updateDoc ignores undefined
-    await gameStorage.updateRoomGameState(roomId, {
-      votingTarget: null,
-      votingTargetName: null,
-      votes: {},
-    } as any);
-    await gameStorage.updateRoomStatus(roomId, 'day');
-  }, [roomId, votingTarget, votes, alivePlayers]);
+      await gameStorage.updateRoomGameState(roomId, {
+        votingTarget: null,
+        votingTargetName: null,
+        votes: {},
+        // Track for Undertaker: only update if actually executed
+        ...(executed && {
+          lastExecutedPlayerId: votingTarget,
+          lastExecutedRole: executedRole ?? null,
+        }),
+      } as any);
+      await gameStorage.updateRoomStatus(roomId, 'day');
+    },
+    [roomId, votingTarget, votes, alivePlayers]
+  );
 
   // ─── Cancel vote without execution ──────────────────────────────────
   const cancelVote = useCallback(async () => {
