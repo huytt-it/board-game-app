@@ -49,7 +49,9 @@ export default function HostDashboard({
 
   const handleVoteResolve = async () => {
     if (!votingTarget || !votingTargetName) return;
-    await resolveVote();
+    const targetPlayer = players.find((p) => p.id === votingTarget);
+    const executedRole = targetPlayer?.gameData?.role as string | undefined;
+    await resolveVote(executedRole);
     // Write execution to history
     await addEvent({
       type: 'execution',
@@ -65,6 +67,20 @@ export default function HostDashboard({
   const toggleAlive = async (playerId: string, currentAlive: boolean) => {
     const player = players.find((p) => p.id === playerId);
     const role = player?.gameData?.role as ClocktowerRole | undefined;
+
+    // ScarletWoman warning: if Imp is killed and 5+ players alive
+    if (currentAlive && role === ClocktowerRole.Imp) {
+      const aliveCount = players.filter((p) => !p.isHost && p.isAlive).length;
+      const scarletWoman = players.find(
+        (p) => !p.isHost && p.isAlive && p.gameData?.role === ClocktowerRole.ScarletWoman
+      );
+      if (scarletWoman && aliveCount >= 5) {
+        alert(
+          `⚠️ SCARLET WOMAN!\n${scarletWoman.name} là Scarlet Woman và có ${aliveCount} người còn sống.\nScarlet Woman sẽ trở thành Imp mới! Cập nhật vai trò của họ trong Grimoire.`
+        );
+      }
+    }
+
     await gameStorage.updatePlayerAlive(roomId, playerId, !currentAlive);
     if (currentAlive) {
       await addEvent({
@@ -85,6 +101,17 @@ export default function HostDashboard({
     await resolveAction(action.id, msg);
     await sendPrivateMessage(action.playerId, msg);
     setResolveMessages((prev) => { const copy = { ...prev }; delete copy[action.id]; return copy; });
+
+    // Auto-update isPoisoned when Poisoner resolves
+    const actorForResolve = players.find((p) => p.id === action.playerId);
+    if (actorForResolve?.gameData?.role === ClocktowerRole.Poisoner && action.targetId) {
+      // Clear previous victim first
+      const previousVictim = players.find((p) => p.gameData?.isPoisoned === true && p.id !== action.targetId);
+      if (previousVictim) {
+        await gameStorage.updatePlayerGameData(roomId, previousVictim.id, { isPoisoned: false });
+      }
+      await gameStorage.updatePlayerGameData(roomId, action.targetId, { isPoisoned: true });
+    }
 
     // Write to history
     const actor = players.find((p) => p.id === action.playerId);
@@ -189,6 +216,35 @@ export default function HostDashboard({
             />
           )}
 
+          {/* Pending Slayer Action */}
+          {gameState?.pendingSlayerAction && (
+            <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
+              <h3 className="mb-2 text-sm font-semibold text-amber-400">⚔️ Slayer Action!</h3>
+              <p className="mb-3 text-sm text-white">
+                <span className="font-bold">{gameState.pendingSlayerAction.slayerName}</span> tuyên bố hạ{' '}
+                <span className="font-bold text-amber-300">{gameState.pendingSlayerAction.targetName}</span>.
+              </p>
+              <div className="flex gap-2">
+                <button
+                  onClick={async () => {
+                    const { targetId } = gameState.pendingSlayerAction!;
+                    await gameStorage.updatePlayerAlive(roomId, targetId, false);
+                    await gameStorage.updateRoomGameState(roomId, { pendingSlayerAction: null } as any);
+                  }}
+                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-red-500"
+                >
+                  💀 Trúng — Giết ngay
+                </button>
+                <button
+                  onClick={() => gameStorage.updateRoomGameState(roomId, { pendingSlayerAction: null } as any)}
+                  className="rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-slate-500"
+                >
+                  ✗ Trật — Không ai chết
+                </button>
+              </div>
+            </div>
+          )}
+
           {/* Live Nominations (only during day, not during active voting) */}
           {currentPhase === 'day' && (
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
@@ -225,7 +281,12 @@ export default function HostDashboard({
                            </div>
                          </div>
                          <button
-                           onClick={() => nominatePlayer(p.id, p.name)}
+                           onClick={() => {
+                             if (role === ClocktowerRole.Virgin) {
+                               alert(`⚠️ VIRGIN!\n${p.name} là Virgin. Nếu người đề cử đầu tiên là Townsfolk, họ sẽ bị xử tử ngay lập tức thay vì ${p.name}.`);
+                             }
+                             nominatePlayer(p.id, p.name);
+                           }}
                            className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-amber-500 shadow-lg shadow-amber-500/20"
                          >
                            ⚖️ Trial
@@ -270,6 +331,7 @@ export default function HostDashboard({
               pendingActions={pendingActions}
               resolvedActions={resolvedActions}
               dayCount={dayCount}
+              gameState={gameState}
               resolveMessages={resolveMessages}
               onResolveMessageChange={(id, val) =>
                 setResolveMessages((prev) => ({ ...prev, [id]: val }))

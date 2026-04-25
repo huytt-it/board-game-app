@@ -23,11 +23,14 @@ export interface RoomConfig {
 export interface RoomGameState {
   dayCount: number;
   nominations?: Record<string, string | null>; // playerId -> targetId
-  votingTarget?: string | null;        // playerId being voted on
-  votingTargetName?: string | null;    // display name
-  votes: Record<string, boolean>; // playerId → agree/disagree
+  votingTarget?: string | null;
+  votingTargetName?: string | null;
+  votes: Record<string, boolean>;
   rolesAssigned: boolean;
-  winner?: 'good' | 'evil' | null; // which team won
+  winner?: 'good' | 'evil' | null;
+  lastExecutedPlayerId?: string | null;  // Undertaker: who was executed last day
+  lastExecutedRole?: string | null;      // Undertaker: their true role
+  pendingSlayerAction?: { slayerName: string; targetId: string; targetName: string } | null; // Slayer public ability
 }
 
 // ─── Room Document ────────────────────────────────────────────────────

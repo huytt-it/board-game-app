@@ -130,19 +130,38 @@ function buildRolePool(playerCount: number, roomConfig?: RoomConfig): Clocktower
     }
   } else {
     // Standard rules
+    // Baron mechanic: +2 Outsiders, -2 Townsfolk
+    const baronInMandatory = mandatoryRoles.includes(ClocktowerRole.Baron);
+    // We'll know if Baron ends up in the pool after picking minions
+    // Adjust counts tentatively if Baron is mandatory
+    let adjustedTownsfolk = numTownsfolk;
+    let adjustedOutsiders = numOutsiders;
+
+    if (baronInMandatory) {
+      adjustedTownsfolk = Math.max(0, numTownsfolk - 2);
+      adjustedOutsiders = numOutsiders + 2;
+    }
+
     if (
-      tfMandatory.length > numTownsfolk ||
-      outMandatory.length > numOutsiders ||
+      tfMandatory.length > adjustedTownsfolk ||
+      outMandatory.length > adjustedOutsiders ||
       minMandatory.length > numMinions ||
       demMandatory.length > numDemons
     ) {
       throw new Error('Số lượng thẻ Bắt buộc vượt quá giới hạn của ván đấu. Vui lòng giảm bớt.');
     }
 
+    const pickedMinions = pickRoles(minions, numMinions, minMandatory);
+    const baronIncluded = pickedMinions.includes(ClocktowerRole.Baron);
+
+    // Apply Baron effect if Baron ended up in the pool
+    const finalTownsfolk = baronIncluded ? Math.max(0, numTownsfolk - 2) : numTownsfolk;
+    const finalOutsiders = baronIncluded ? numOutsiders + 2 : numOutsiders;
+
     pool = [
-      ...pickRoles(townsfolk, numTownsfolk, tfMandatory),
-      ...pickRoles(outsiders, numOutsiders, outMandatory),
-      ...pickRoles(minions, numMinions, minMandatory),
+      ...pickRoles(townsfolk, finalTownsfolk, tfMandatory),
+      ...pickRoles(outsiders, finalOutsiders, outMandatory),
+      ...pickedMinions,
       ...pickRoles(demons, numDemons, demMandatory),
     ];
   }
@@ -388,6 +407,25 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
         ClocktowerRole.Mayor,
       ];
 
+      // Build assignment map first so we can cross-reference roles
+      const assignments: Array<{ playerId: string; role: ClocktowerRole }> = gamePlayers.map(
+        (p, i) => ({ playerId: p.id, role: rolePool[i % rolePool.length] })
+      );
+
+      // Fortune Teller red herring: one good player who always registers as Demon to the FT
+      const ftAssignment = assignments.find((a) => a.role === ClocktowerRole.FortuneTeller);
+      let fortuneTellerRedHerring: string | undefined;
+      if (ftAssignment) {
+        const goodPlayers = assignments.filter(
+          (a) =>
+            a.playerId !== ftAssignment.playerId &&
+            (ROLE_TEAMS[a.role] === 'townsfolk' || ROLE_TEAMS[a.role] === 'outsider')
+        );
+        if (goodPlayers.length > 0) {
+          fortuneTellerRedHerring = goodPlayers[Math.floor(Math.random() * goodPlayers.length)].playerId;
+        }
+      }
+
       for (let i = 0; i < gamePlayers.length; i++) {
         const role = rolePool[i % rolePool.length];
         const team = ROLE_TEAMS[role];
@@ -409,6 +447,9 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
           isPoisoned: false,
           isDrunk,
           ...(drunkRole && { drunkRole }),
+          ...(role === ClocktowerRole.FortuneTeller && fortuneTellerRedHerring
+            ? { fortuneTellerRedHerring }
+            : {}),
           hasUsedAbility: false,
           nightOrder: i,
         });
