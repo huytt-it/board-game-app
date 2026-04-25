@@ -165,12 +165,63 @@ export const ROLE_ABILITIES: Record<ClocktowerRole, string> = {
   [ClocktowerRole.Imp]: 'Each night*, choose a player: they die. If you kill yourself this way, a Minion becomes the Imp.',
 };
 
+// ─── Role Action Types ────────────────────────────────────────────────
+// 'info-only'     : Player waits; host auto-computes & sends info (no target picked)
+// 'single-target' : Player picks 1 other player
+// 'dual-target'   : Player picks 2 players (Fortune Teller)
+// 'self-or-other' : Player picks any player including themselves (Imp)
+// 'no-action'     : No night action for this role
+export type RoleActionType = 'info-only' | 'single-target' | 'dual-target' | 'no-action' | 'self-or-other';
+
+export const ROLE_ACTION_TYPE: Record<ClocktowerRole, RoleActionType> = {
+  [ClocktowerRole.Washerwoman]: 'info-only',
+  [ClocktowerRole.Librarian]: 'info-only',
+  [ClocktowerRole.Investigator]: 'info-only',
+  [ClocktowerRole.Chef]: 'info-only',
+  [ClocktowerRole.Empath]: 'info-only',
+  [ClocktowerRole.FortuneTeller]: 'dual-target',
+  [ClocktowerRole.Undertaker]: 'info-only',
+  [ClocktowerRole.Monk]: 'single-target',
+  [ClocktowerRole.Ravenkeeper]: 'single-target',
+  [ClocktowerRole.Virgin]: 'no-action',
+  [ClocktowerRole.Slayer]: 'no-action',
+  [ClocktowerRole.Soldier]: 'no-action',
+  [ClocktowerRole.Mayor]: 'no-action',
+  [ClocktowerRole.Butler]: 'single-target',
+  [ClocktowerRole.Drunk]: 'no-action',
+  [ClocktowerRole.Recluse]: 'no-action',
+  [ClocktowerRole.Saint]: 'no-action',
+  [ClocktowerRole.Poisoner]: 'single-target',
+  [ClocktowerRole.Spy]: 'info-only',
+  [ClocktowerRole.ScarletWoman]: 'no-action',
+  [ClocktowerRole.Baron]: 'no-action',
+  [ClocktowerRole.Imp]: 'self-or-other',
+};
+
+// ─── Night action instructions shown to the player ───────────────────
+export const ROLE_NIGHT_INSTRUCTIONS: Partial<Record<ClocktowerRole, string>> = {
+  [ClocktowerRole.Washerwoman]: 'Quản trò sẽ cho bạn biết 2 người chơi, trong đó 1 người là Townsfolk cụ thể.',
+  [ClocktowerRole.Librarian]: 'Quản trò sẽ cho bạn biết 2 người chơi, trong đó 1 người là Outsider cụ thể.',
+  [ClocktowerRole.Investigator]: 'Quản trò sẽ cho bạn biết 2 người chơi, trong đó 1 người là Minion cụ thể.',
+  [ClocktowerRole.Chef]: 'Quản trò sẽ cho bạn biết có bao nhiêu cặp người ác ngồi cạnh nhau.',
+  [ClocktowerRole.Empath]: 'Quản trò sẽ cho bạn biết số hàng xóm còn sống gần bạn nhất là ác (0, 1 hoặc 2).',
+  [ClocktowerRole.FortuneTeller]: 'Chọn 2 người chơi. Quản trò sẽ cho bạn biết liệu một trong hai có phải là Quỷ không.',
+  [ClocktowerRole.Undertaker]: 'Quản trò sẽ cho bạn biết nhân vật của người đã bị xử tử hôm nay.',
+  [ClocktowerRole.Monk]: 'Chọn 1 người chơi để bảo vệ họ khỏi Quỷ đêm nay. Không thể chọn bản thân.',
+  [ClocktowerRole.Ravenkeeper]: 'Bạn vừa qua đời! Chọn 1 người chơi để biết nhân vật của họ.',
+  [ClocktowerRole.Butler]: 'Chọn 1 người chơi làm chủ. Ngày mai bạn chỉ được bỏ phiếu nếu người đó bỏ phiếu trước.',
+  [ClocktowerRole.Poisoner]: 'Chọn 1 người chơi để đầu độc đêm nay. Họ sẽ nhận thông tin sai từ Quản trò.',
+  [ClocktowerRole.Spy]: 'Quản trò sẽ cho bạn xem Grimoire — danh sách nhân vật của tất cả mọi người.',
+  [ClocktowerRole.Imp]: 'Chọn 1 người chơi để giết đêm nay. Chọn chính mình để truyền vai Imp cho một Minion ngẫu nhiên.',
+};
+
 // ─── Clocktower-Specific Game Data ────────────────────────────────────
 export interface ClocktowerGameData extends BaseGameData {
   role: ClocktowerRole;
   team: ClocktowerTeam;
   isPoisoned: boolean;
   isDrunk: boolean;
+  drunkRole?: ClocktowerRole; // The fake Townsfolk role the Drunk player believes they are
   hasUsedAbility: boolean;
   nightOrder: number;
   privateMessage?: string;

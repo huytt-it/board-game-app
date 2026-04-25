@@ -379,14 +379,36 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
       const gamePlayers = players.filter((p) => !p.isHost);
       const rolePool = buildRolePool(gamePlayers.length, room?.config);
 
+      // All Townsfolk roles that can serve as the Drunk's fake role
+      const townsfolkRoles: ClocktowerRole[] = [
+        ClocktowerRole.Washerwoman, ClocktowerRole.Librarian, ClocktowerRole.Investigator,
+        ClocktowerRole.Chef, ClocktowerRole.Empath, ClocktowerRole.FortuneTeller,
+        ClocktowerRole.Undertaker, ClocktowerRole.Monk, ClocktowerRole.Ravenkeeper,
+        ClocktowerRole.Virgin, ClocktowerRole.Slayer, ClocktowerRole.Soldier,
+        ClocktowerRole.Mayor,
+      ];
+
       for (let i = 0; i < gamePlayers.length; i++) {
         const role = rolePool[i % rolePool.length];
         const team = ROLE_TEAMS[role];
+        const isDrunk = role === ClocktowerRole.Drunk;
+
+        // Drunk gets a random Townsfolk role as their fake identity (not one already in the game)
+        let drunkRole: ClocktowerRole | undefined;
+        if (isDrunk) {
+          const rolesInGame = new Set<string>(rolePool);
+          const available = townsfolkRoles.filter((r) => !rolesInGame.has(r));
+          drunkRole = available.length > 0
+            ? available[Math.floor(Math.random() * available.length)]
+            : townsfolkRoles[Math.floor(Math.random() * townsfolkRoles.length)];
+        }
+
         await gameStorage.updatePlayerGameData(roomId, gamePlayers[i].id, {
           role,
           team,
           isPoisoned: false,
-          isDrunk: role === ClocktowerRole.Drunk,
+          isDrunk,
+          ...(drunkRole && { drunkRole }),
           hasUsedAbility: false,
           nightOrder: i,
         });

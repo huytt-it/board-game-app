@@ -26,6 +26,10 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
   const currentPlayer = players.find((p) => p.id === playerId);
   const playerRole = currentPlayer?.gameData?.role as ClocktowerRole | undefined;
+  // Drunk players see their fake Townsfolk role everywhere in the player-facing UI
+  const isDrunk = currentPlayer?.gameData?.isDrunk === true;
+  const drunkRole = currentPlayer?.gameData?.drunkRole as ClocktowerRole | undefined;
+  const displayRole = isDrunk && drunkRole ? drunkRole : playerRole;
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
 
   const { nominations, votingTarget, votingTargetName, votes, hasVoted, voteCount, nominatePlayer, castNomination, castVote, resolveVote, cancelVote } =
@@ -49,7 +53,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
   // ─── Handle role reveal for players ────────────────────────────────
   // When night starts and player has a role but hasn't seen it yet
-  const showRoleReveal = !isHost && room.status === 'night' && playerRole && !roleRevealed;
+  const showRoleReveal = !isHost && room.status === 'night' && displayRole && !roleRevealed;
 
   // ─── Room Management Actions ───────────────────────────────────────
   const handleLeave = async () => {
@@ -80,7 +84,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   if (showRoleReveal) {
     return (
       <RoleRevealAnimation
-        role={playerRole}
+        role={displayRole!}
         onDismiss={() => setRoleRevealed(true)}
       />
     );
@@ -282,8 +286,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
         </div>
 
         {/* Role Card */}
-        {playerRole && (
-          <RoleCard role={playerRole} isRevealed={true} />
+        {displayRole && (
+          <RoleCard role={displayRole} isRevealed={true} />
         )}
 
         {/* Night Action */}
@@ -291,7 +295,6 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           roomId={room.id}
           playerId={playerId}
           players={players}
-          roleName={playerRole}
           dayCount={room.gameState?.dayCount || 0}
         />
       </div>
@@ -313,8 +316,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
         </div>
 
         {/* Role Card (compact) */}
-        {playerRole && (
-          <RoleCard role={playerRole} isRevealed={true} compact />
+        {displayRole && (
+          <RoleCard role={displayRole} isRevealed={true} compact />
         )}
 
         {/* Voting Panel */}
@@ -354,8 +357,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
         </div>
 
         {/* Role Card (compact) */}
-        {playerRole && (
-          <RoleCard role={playerRole} isRevealed={true} compact />
+        {displayRole && (
+          <RoleCard role={displayRole} isRevealed={true} compact />
         )}
 
         {/* Town Square */}
