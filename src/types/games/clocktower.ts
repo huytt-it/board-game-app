@@ -115,7 +115,9 @@ export const ROLE_SHORT_DESC: Record<ClocktowerRole, string> = {
 };
 
 // ─── Roles that have night actions ────────────────────────────────────
+// Night 1 (Dusk): Poisoner acts first, then information roles, then Spy
 export const FIRST_NIGHT_ROLES: ClocktowerRole[] = [
+  ClocktowerRole.Poisoner,
   ClocktowerRole.Washerwoman,
   ClocktowerRole.Librarian,
   ClocktowerRole.Investigator,
@@ -123,20 +125,23 @@ export const FIRST_NIGHT_ROLES: ClocktowerRole[] = [
   ClocktowerRole.Empath,
   ClocktowerRole.FortuneTeller,
   ClocktowerRole.Butler,
-  ClocktowerRole.Poisoner,
   ClocktowerRole.Spy,
+  // Imp does NOT act on night 1
+  // Ravenkeeper only triggers on the night they are killed — NOT a regular nightly action
 ];
 
+// Night 2+ (official Trouble Brewing order)
 export const OTHER_NIGHT_ROLES: ClocktowerRole[] = [
+  ClocktowerRole.Poisoner,   // poisons first so victims get bad info this night
+  ClocktowerRole.Monk,       // protects before Imp kills
+  ClocktowerRole.Imp,        // kills
+  // Ravenkeeper triggers here IF they were killed — handled manually by host via direct message
   ClocktowerRole.Empath,
   ClocktowerRole.FortuneTeller,
   ClocktowerRole.Undertaker,
-  ClocktowerRole.Monk,
   ClocktowerRole.Butler,
-  ClocktowerRole.Ravenkeeper,
-  ClocktowerRole.Poisoner,
   ClocktowerRole.Spy,
-  ClocktowerRole.Imp,
+  // ScarletWoman is passive — triggers automatically if Imp dies (host handles)
 ];
 
 // ─── Role Ability Descriptions ────────────────────────────────────────
@@ -221,7 +226,8 @@ export interface ClocktowerGameData extends BaseGameData {
   team: ClocktowerTeam;
   isPoisoned: boolean;
   isDrunk: boolean;
-  drunkRole?: ClocktowerRole; // The fake Townsfolk role the Drunk player believes they are
+  drunkRole?: ClocktowerRole;          // Fake role the Drunk believes they are
+  fortuneTellerRedHerring?: string;    // PlayerId of the good player who registers as Demon to FT
   hasUsedAbility: boolean;
   nightOrder: number;
   privateMessage?: string;
