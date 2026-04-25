@@ -20,6 +20,8 @@ export interface GameAction {
   actionType: ActionType;
   targetId?: string;
   targetName?: string;
+  secondTargetId?: string;   // Fortune Teller second pick
+  secondTargetName?: string;
   status: ActionStatus;
   result?: ActionResult;
   createdAt: Timestamp | Date;
@@ -32,4 +34,6 @@ export interface SubmitActionPayload {
   actionType: ActionType;
   targetId?: string;
   targetName?: string;
+  secondTargetId?: string;
+  secondTargetName?: string;
 }

@@ -11,14 +11,22 @@ interface UseClocktowerNightReturn {
   waitingForStoryteller: boolean;
   hasSubmitted: boolean;
   hasNightAction: boolean;
-  submitAction: (targetId: string, targetName: string) => Promise<void>;
+  displayRole: ClocktowerRole | null; // Fake role for Drunk, actual role otherwise
+  isDrunk: boolean;
+  submitAction: (
+    targetId?: string,
+    targetName?: string,
+    secondTargetId?: string,
+    secondTargetName?: string
+  ) => Promise<void>;
   clearMessage: () => void;
 }
 
 /**
  * Player-side hook for Clocktower Night Phase.
- * Submits night actions and listens for Storyteller responses.
- * Dead players and roles without night abilities are blocked.
+ * - Returns displayRole: the Drunk sees their fake (drunkRole) Townsfolk identity.
+ * - hasNightAction is computed from displayRole so Drunk acts as their fake role.
+ * - submitAction supports a second target for Fortune Teller.
  */
 export function useClocktowerNight(
   roomId: string | undefined,
@@ -31,20 +39,34 @@ export function useClocktowerNight(
   const [playerName, setPlayerName] = useState('');
   const [isAlive, setIsAlive] = useState(true);
   const [playerRole, setPlayerRole] = useState<ClocktowerRole | null>(null);
+  const [drunkRole, setDrunkRole] = useState<ClocktowerRole | null>(null);
+  const [isDrunk, setIsDrunk] = useState(false);
 
-  // Determine if this role has a night action based on dayCount
-  const hasNightAction = playerRole 
-    ? (dayCount === 0 ? FIRST_NIGHT_ROLES.includes(playerRole) : OTHER_NIGHT_ROLES.includes(playerRole))
+  // The role shown to the player (fake role for Drunk)
+  const displayRole = isDrunk && drunkRole ? drunkRole : playerRole;
+
+  // Night action eligibility is based on what the player believes their role is
+  const hasNightAction = displayRole
+    ? dayCount === 0
+      ? FIRST_NIGHT_ROLES.includes(displayRole)
+      : OTHER_NIGHT_ROLES.includes(displayRole)
     : false;
 
-  // Subscribe to player's own document to receive private messages
   useEffect(() => {
     if (!roomId || !playerId) return;
     const unsub = gameStorage.subscribeToPlayer(roomId, playerId, (player: Player | null) => {
       if (player) {
         setPlayerName(player.name);
         setIsAlive(player.isAlive);
-        setPlayerRole(player.gameData?.role as ClocktowerRole || null);
+
+        const role = player.gameData?.role as ClocktowerRole | null;
+        const drunk = player.gameData?.isDrunk === true;
+        const fake = player.gameData?.drunkRole as ClocktowerRole | null;
+
+        setPlayerRole(role);
+        setIsDrunk(drunk);
+        setDrunkRole(fake ?? null);
+
         const msg = player.gameData?.privateMessage;
         if (msg && typeof msg === 'string') {
           setPrivateMessage(msg);
@@ -55,15 +77,28 @@ export function useClocktowerNight(
     return () => unsub();
   }, [roomId, playerId]);
 
+  // Reset submission state each new night (dayCount changes)
+  useEffect(() => {
+    setHasSubmitted(false);
+    setWaitingForStoryteller(false);
+  }, [dayCount]);
+
   const submitAction = useCallback(
-    async (targetId: string, targetName: string) => {
+    async (
+      targetId?: string,
+      targetName?: string,
+      secondTargetId?: string,
+      secondTargetName?: string
+    ) => {
       if (!roomId || !playerId || !isAlive) return;
       const payload: SubmitActionPayload = {
         playerId,
         playerName,
         actionType: 'ability',
-        targetId,
-        targetName,
+        ...(targetId && { targetId }),
+        ...(targetName && { targetName }),
+        ...(secondTargetId && { secondTargetId }),
+        ...(secondTargetName && { secondTargetName }),
       };
       await gameStorage.submitAction(roomId, payload);
       setHasSubmitted(true);
@@ -81,6 +116,8 @@ export function useClocktowerNight(
     waitingForStoryteller,
     hasSubmitted,
     hasNightAction,
+    displayRole,
+    isDrunk,
     submitAction,
     clearMessage,
   };

@@ -336,26 +336,49 @@ export default function HostDashboard({
         <div className="grid grid-cols-2 gap-2">
           {players.map((p) => {
             const role = p.gameData?.role as ClocktowerRole | undefined;
+            const isDrunk = p.gameData?.isDrunk === true;
+            const drunkRole = p.gameData?.drunkRole as ClocktowerRole | undefined;
             return (
               <div
                 key={p.id}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                  p.isAlive ? 'bg-white/5 text-white' : 'bg-red-500/5 text-slate-500 line-through'
+                className={`flex flex-col gap-1 rounded-lg px-3 py-2 text-sm ${
+                  p.isAlive ? 'bg-white/5 text-white' : 'bg-red-500/5 text-slate-500'
                 }`}
               >
-                <div className={`h-2 w-2 rounded-full ${p.isAlive ? 'bg-green-500' : 'bg-red-500'}`} />
-                {role && <span>{ROLE_ICONS[role]}</span>}
-                <span>{p.name}</span>
-                {p.isHost && <span className="ml-auto text-xs text-amber-400">Host</span>}
-                {role && !p.isHost && (
-                  <span className="ml-auto text-xs text-purple-400">{String(role)}</span>
+                <div className="flex items-center gap-2">
+                  <div className={`h-2 w-2 rounded-full shrink-0 ${p.isAlive ? 'bg-green-500' : 'bg-red-500'}`} />
+                  {role && <span>{ROLE_ICONS[role]}</span>}
+                  <span className={!p.isAlive ? 'line-through' : ''}>{p.name}</span>
+                  {p.isHost && <span className="ml-auto text-xs text-amber-400">Host</span>}
+                </div>
+
+                {!p.isHost && role && (
+                  <div className="flex items-center gap-1 flex-wrap pl-4">
+                    <span className="text-xs text-purple-400 font-medium">{String(role)}</span>
+                    {isDrunk && drunkRole && (
+                      <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
+                        🍺 nghĩ là {drunkRole}
+                      </span>
+                    )}
+                    {p.gameData?.isPoisoned === true && (
+                      <span className="rounded-full bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-bold text-purple-300">
+                        ☠️ Poisoned
+                      </span>
+                    )}
+                    {!p.isAlive && (
+                      <span className="rounded-full bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-400">
+                        💀 Dead
+                      </span>
+                    )}
+                  </div>
                 )}
+
                 {!p.isHost && (
                   <button
                     onClick={() => toggleAlive(p.id, p.isAlive)}
-                    className={`ml-auto rounded-md px-2 py-1 text-xs font-bold transition-all ${
-                      p.isAlive 
-                        ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20' 
+                    className={`self-start ml-4 rounded-md px-2 py-0.5 text-xs font-bold transition-all ${
+                      p.isAlive
+                        ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
                         : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
                     }`}
                   >
