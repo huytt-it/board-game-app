@@ -9,6 +9,7 @@ export type RoomStatus = 'lobby' | 'day' | 'night' | 'voting' | 'end';
 export interface RoleConfig {
   mandatoryRoles: string[]; // ClocktowerRole[]
   excludedRoles: string[]; // ClocktowerRole[]
+  teamCounts?: Record<string, number>;
 }
 
 // ─── Room Configuration (generic, extended per game) ──────────────────

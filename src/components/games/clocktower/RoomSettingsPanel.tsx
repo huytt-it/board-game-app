@@ -19,6 +19,8 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
   const roleConfig: RoleConfig = config.roleConfig || { mandatoryRoles: [], excludedRoles: [] };
   const mandatory = new Set(roleConfig.mandatoryRoles);
   const excluded = new Set(roleConfig.excludedRoles);
+  const teamCounts = roleConfig.teamCounts || { townsfolk: 0, outsider: 0, minion: 0, demon: 0 };
+  const totalTeamCount = Object.values(teamCounts).reduce((acc, count) => acc + count, 0);
 
   // Group roles by team
   const rolesByTeam = {
@@ -36,6 +38,16 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
     onUpdateConfig({ maxPlayers: newMax });
   };
 
+  const handleTeamCountChange = (team: string, val: number) => {
+    const newCounts = { ...teamCounts, [team]: Math.max(0, val) };
+    onUpdateConfig({
+      roleConfig: {
+        ...roleConfig,
+        teamCounts: newCounts
+      }
+    });
+  };
+
   const handleRoleToggle = (role: ClocktowerRole, status: 'mandatory' | 'random' | 'excluded') => {
     const newMandatory = new Set(mandatory);
     const newExcluded = new Set(excluded);
@@ -43,11 +55,22 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
     newMandatory.delete(role);
     newExcluded.delete(role);
 
-    if (status === 'mandatory') newMandatory.add(role);
+    if (status === 'mandatory') {
+      const team = ROLE_TEAMS[role];
+      const currentMandatoryForTeam = Array.from(newMandatory).filter(r => ROLE_TEAMS[r as ClocktowerRole] === team).length;
+      const allowedCount = teamCounts[team] || 0;
+      
+      if (currentMandatoryForTeam >= allowedCount) {
+        alert(`Không thể chọn thêm. Bạn đã giới hạn số lượng ${team} là ${allowedCount}.`);
+        return;
+      }
+      newMandatory.add(role);
+    }
     if (status === 'excluded') newExcluded.add(role);
 
     onUpdateConfig({
       roleConfig: {
+        ...roleConfig,
         mandatoryRoles: Array.from(newMandatory),
         excludedRoles: Array.from(newExcluded),
       }
@@ -102,6 +125,36 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
             )}
           </div>
 
+          {/* Faction Distribution */}
+          <div>
+            <div className="mb-2 flex items-center justify-between">
+              <label className="block text-sm font-semibold uppercase tracking-wider text-slate-400">
+                Faction Distribution
+              </label>
+              <span className={`text-xs font-bold ${totalTeamCount > maxPlayers ? 'text-red-400' : totalTeamCount === maxPlayers ? 'text-green-400' : 'text-amber-400'}`}>
+                Total: {totalTeamCount} / {maxPlayers}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4 mb-6">
+              {(['townsfolk', 'outsider', 'minion', 'demon'] as const).map(team => {
+                 const mandatoryCount = Array.from(mandatory).filter(r => ROLE_TEAMS[r as ClocktowerRole] === team).length;
+                 const currentCount = teamCounts[team] || 0;
+                 const isValid = currentCount >= mandatoryCount;
+                 return (
+                   <div key={team} className={`bg-white/5 p-3 rounded-lg border ${isValid ? 'border-white/10' : 'border-red-500/50'}`}>
+                     <div className="text-xs font-bold uppercase text-slate-400 capitalize mb-2">{team}</div>
+                     <div className="flex items-center gap-2">
+                       <button onClick={() => handleTeamCountChange(team, currentCount - 1)} className="w-8 h-8 bg-white/10 rounded-lg font-bold hover:bg-white/20">-</button>
+                       <div className="flex-1 text-center font-bold text-white text-lg">{currentCount}</div>
+                       <button onClick={() => handleTeamCountChange(team, currentCount + 1)} className="w-8 h-8 bg-white/10 rounded-lg font-bold hover:bg-white/20">+</button>
+                     </div>
+                     {!isValid && <div className="text-[10px] text-red-400 mt-1 leading-tight">Cần giảm số chức năng bắt buộc xuống {currentCount}</div>}
+                   </div>
+                 );
+              })}
+            </div>
+          </div>
+
           {/* Role Drafting */}
           <div>
             <div className="mb-4">
@@ -114,12 +167,20 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
             </div>
 
             <div className="space-y-6">
-              {(Object.entries(rolesByTeam) as [keyof typeof rolesByTeam, ClocktowerRole[]][]).map(([team, roles]) => (
-                <div key={team}>
-                  <h5 className="text-xs font-bold uppercase tracking-widest text-slate-500 mb-2 border-b border-white/5 pb-1 capitalize">
-                    {team}
-                  </h5>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {(Object.entries(rolesByTeam) as [keyof typeof rolesByTeam, ClocktowerRole[]][]).map(([team, roles]) => {
+                const mandatoryCount = Array.from(mandatory).filter(r => ROLE_TEAMS[r as ClocktowerRole] === team).length;
+                const allowedCount = teamCounts[team] || 0;
+                return (
+                  <div key={team}>
+                    <div className="flex items-center justify-between border-b border-white/5 pb-1 mb-2">
+                      <h5 className="text-xs font-bold uppercase tracking-widest text-slate-500 capitalize">
+                        {team}
+                      </h5>
+                      <span className={`text-[10px] font-bold ${mandatoryCount > allowedCount ? 'text-red-400' : 'text-slate-400'}`}>
+                        Mandatory: {mandatoryCount} / {allowedCount}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                     {roles.map((role) => {
                       const status = getRoleStatus(role);
                       return (
@@ -147,7 +208,8 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
                     })}
                   </div>
                 </div>
-              ))}
+                );
+              })}
             </div>
           </div>
 

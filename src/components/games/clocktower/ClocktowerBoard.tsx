@@ -238,9 +238,21 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           hostId={playerId}
           players={players}
           onChangePhase={(phase) => {
+            const resetVotingState = {
+              nominations: {},
+              votingTarget: null,
+              votingTargetName: null,
+              votes: {},
+            } as any;
+            
             if (phase === 'day') {
               const currentDay = room.gameState?.dayCount || 0;
-              updateGameState({ dayCount: currentDay + 1 });
+              updateGameState({ 
+                dayCount: currentDay + 1,
+                ...resetVotingState
+              });
+            } else if (phase === 'night') {
+              updateGameState(resetVotingState);
             }
             updateStatus(phase);
           }}
@@ -395,7 +407,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                     >
                       {p.isAlive
                         ? p.name.charAt(0).toUpperCase()
-                        : (role ? ROLE_ICONS[role] : '💀')}
+                        : '💀'}
                     </div>
                     <span className={`text-xs font-medium truncate w-full ${!p.isAlive ? 'text-slate-500 line-through' : isNominatedByMe ? 'text-amber-400' : 'text-white'}`}>
                       {p.name}
