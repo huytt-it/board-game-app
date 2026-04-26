@@ -16,6 +16,8 @@ import VotingPanel from './VotingPanel';
 import RoomSettingsPanel from './RoomSettingsPanel';
 import PlayerRoleCard from './PlayerRoleCard';
 import RoleHandbook from './RoleHandbook';
+import GameHistoryPanel from './GameHistoryPanel';
+import { useGameHistory } from '@/hooks/useGameHistory';
 import type { GameModuleProps } from '@/lib/gameRegistry';
 import {
   ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAM_VI, ROLE_TEAMS,
@@ -58,6 +60,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   const { updateStatus, updateGameState, updateConfig, startGame, leaveRoom, deleteRoom, resetRoom } = useRoom(room.id, playerId);
   const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('none');
   const [roleRevealed, setRoleRevealed] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const { events: historyEvents } = useGameHistory(room.id);
 
   const currentPlayer = players.find((p) => p.id === playerId);
   const playerRole = currentPlayer?.gameData?.role as ClocktowerRole | undefined;
@@ -280,6 +284,36 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   if (room.status === 'end') {
     const winner    = room.gameState?.winner;
     const isGoodWin = winner === 'good';
+
+    // ── History overlay for players ────────────────────────────────
+    if (!isHost && showHistory) {
+      return (
+        <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-fade-in">
+          {/* Header bar */}
+          <div className="flex items-center gap-3 border-b border-white/10 bg-slate-950/95 backdrop-blur-md px-4 py-3 shrink-0">
+            <button
+              onClick={() => setShowHistory(false)}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-bold text-slate-300 active:bg-white/10"
+            >
+              ← Quay lại
+            </button>
+            <h2 className="text-base font-black text-white">📜 Lịch sử ván đấu</h2>
+          </div>
+          {/* Scrollable history */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 pb-safe">
+            {historyEvents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+                <span className="text-4xl opacity-40">📭</span>
+                <p className="text-slate-500 text-sm">Chưa có sự kiện nào được ghi lại.</p>
+              </div>
+            ) : (
+              <GameHistoryPanel events={historyEvents} />
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mx-auto max-w-2xl space-y-6 animate-fade-in text-center">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-xl relative overflow-hidden">
@@ -292,7 +326,21 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
             {isGoodWin ? 'Dân làng đã tiêu diệt Quỷ.' : 'Quỷ đã thống trị làng.'}
           </p>
         </div>
-        <div className="flex justify-center gap-4">
+
+        {/* Role reveal for players — show their real role if they were drunk */}
+        {!isHost && playerRole && playerRole !== displayRole && (
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 text-center">
+            <p className="text-xs text-amber-400 font-bold mb-1">🍺 Bạn đã bị Say rượu!</p>
+            <p className="text-sm text-slate-300">
+              Vai trò thật của bạn là{' '}
+              <span className="font-black text-white">
+                {ROLE_ICONS[playerRole]} {playerRole}
+              </span>
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap justify-center gap-3">
           {isHost ? (
             <button
               onClick={handleReset}
@@ -301,12 +349,20 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
               🔄 Ván mới
             </button>
           ) : (
-            <button
-              onClick={handleLeave}
-              className="rounded-xl border border-white/10 bg-white/5 px-8 py-4 font-semibold text-white transition-all hover:bg-white/10"
-            >
-              🚪 Về sảnh chờ
-            </button>
+            <>
+              <button
+                onClick={() => setShowHistory(true)}
+                className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 font-bold text-white transition-all hover:from-indigo-500 hover:to-purple-500 active:scale-95"
+              >
+                📜 Xem lịch sử ván đấu
+              </button>
+              <button
+                onClick={handleLeave}
+                className="rounded-xl border border-white/10 bg-white/5 px-6 py-4 font-semibold text-white transition-all hover:bg-white/10 active:scale-95"
+              >
+                🚪 Rời phòng
+              </button>
+            </>
           )}
         </div>
       </div>
