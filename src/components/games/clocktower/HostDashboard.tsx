@@ -36,10 +36,11 @@ export default function HostDashboard({
   const { pendingActions, resolvedActions, resolveAction, sendPrivateMessage, clearAllActions } =
     useNightActions(roomId, hostId);
   const [resolveMessages, setResolveMessages] = useState<Record<string, string>>({});
-  const [directMessage, setDirectMessage] = useState('');
-  const [directTarget, setDirectTarget] = useState('');
   const [activeTab, setActiveTab] = useState<'night' | 'history' | 'handbook'>('night');
   const [showHandbook, setShowHandbook] = useState(false);
+  // Inline DM: which player card has the compose box open
+  const [messagingPlayerId, setMessagingPlayerId] = useState<string | null>(null);
+  const [inlineMessage, setInlineMessage] = useState('');
 
   const { events: historyEvents, addEvent } = useGameHistory(roomId);
 
@@ -370,22 +371,23 @@ export default function HostDashboard({
     await gameStorage.updateRoomGameState(roomId, { pendingStarpassAction: null } as any);
   };
 
-  // ─── Direct private message ────────────────────────────────────────────
-  const handleDirectMessage = async () => {
-    if (!directTarget || !directMessage.trim()) return;
-    const targetPlayer = players.find((p) => p.id === directTarget);
-    await sendPrivateMessage(directTarget, directMessage.trim());
+  // ─── Inline direct private message ────────────────────────────────────
+  const handleInlineMessage = async (targetId: string) => {
+    const msg = inlineMessage.trim();
+    if (!targetId || !msg) return;
+    const targetPlayer = players.find((p) => p.id === targetId);
+    await sendPrivateMessage(targetId, msg);
     await addEvent({
       type: 'host_decision',
       dayCount,
       phase,
       emoji: '📬',
-      title: `Quản trò gửi tin riêng cho ${targetPlayer?.name || directTarget}`,
+      title: `Quản trò gửi tin riêng cho ${targetPlayer?.name || targetId}`,
       targetName: targetPlayer?.name,
-      messageSent: directMessage.trim(),
+      messageSent: msg,
     });
-    setDirectMessage('');
-    setDirectTarget('');
+    setInlineMessage('');
+    setMessagingPlayerId(null);
   };
 
   // ─── Start new night ───────────────────────────────────────────────────
@@ -400,6 +402,42 @@ export default function HostDashboard({
     await clearAllActions();
     onChangePhase('night');
   };
+
+  // ─── Team visual tokens for Grimoire cards ───────────────────────────
+  const TEAM_CARD: Record<string, {
+    border: string; bg: string; glow: string; badge: string; text: string;
+  }> = {
+    townsfolk: {
+      border: 'border-blue-500/35',   bg: 'bg-blue-900/25',
+      glow:   'shadow-blue-500/10',   badge: 'bg-blue-500/20 text-blue-300',
+      text: 'text-blue-300',
+    },
+    outsider: {
+      border: 'border-purple-500/35', bg: 'bg-purple-900/25',
+      glow:   'shadow-purple-500/10', badge: 'bg-purple-500/20 text-purple-300',
+      text: 'text-purple-300',
+    },
+    minion: {
+      border: 'border-orange-500/35', bg: 'bg-orange-900/25',
+      glow:   'shadow-orange-500/10', badge: 'bg-orange-500/20 text-orange-300',
+      text: 'text-orange-300',
+    },
+    demon: {
+      border: 'border-red-500/40',    bg: 'bg-red-900/30',
+      glow:   'shadow-red-500/10',    badge: 'bg-red-500/20 text-red-300',
+      text: 'text-red-300',
+    },
+  };
+
+  // ─── Team count stats ─────────────────────────────────────────────────
+  const gamePlayers = players.filter((p) => !p.isHost);
+  const teamStats = (['townsfolk', 'outsider', 'minion', 'demon'] as const).map((team) => {
+    const all   = gamePlayers.filter((p) => ROLE_TEAMS[p.gameData?.role as ClocktowerRole] === team);
+    const alive = all.filter((p) => p.isAlive);
+    return { team, total: all.length, alive: alive.length };
+  });
+  const goodAlive = teamStats.filter((t) => t.team === 'townsfolk' || t.team === 'outsider').reduce((s, t) => s + t.alive, 0);
+  const evilAlive = teamStats.filter((t) => t.team === 'minion'    || t.team === 'demon').reduce((s, t) => s + t.alive, 0);
 
   return (
     <div className="space-y-6">
@@ -664,48 +702,6 @@ export default function HostDashboard({
         </div>
       </div>
 
-      {/* ── Direct private message ─────────────────────────────────────── */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-          📬 Gửi tin riêng cho người chơi
-        </h3>
-        <div className="space-y-2">
-          <select
-            value={directTarget}
-            onChange={(e) => setDirectTarget(e.target.value)}
-            className="w-full rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:border-purple-500"
-            id="direct-message-target"
-          >
-            <option value="">Chọn người chơi...</option>
-            {players
-              .filter((p) => p.id !== hostId)
-              .map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name} {!p.isAlive ? '(Đã chết)' : ''}
-                </option>
-              ))}
-          </select>
-          <div className="flex gap-2">
-            <input
-              type="text"
-              value={directMessage}
-              onChange={(e) => setDirectMessage(e.target.value)}
-              placeholder="Nhập tin nhắn riêng..."
-              className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500"
-              id="direct-message-input"
-            />
-            <button
-              onClick={handleDirectMessage}
-              disabled={!directTarget || !directMessage.trim()}
-              className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-cyan-500 disabled:opacity-40"
-              id="send-direct-message-btn"
-            >
-              Gửi
-            </button>
-          </div>
-        </div>
-      </div>
-
       {/* ── Sơ đồ chỗ ngồi ───────────────────────────────────────────── */}
       {(() => {
         const seated = players
@@ -751,66 +747,156 @@ export default function HostDashboard({
         );
       })()}
 
-      {/* ── Player Overview (Grimoire) ─────────────────────────────────── */}
+      {/* ── Grimoire ──────────────────────────────────────────────────────── */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-        <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-          Grimoire ({players.filter((p) => !p.isHost).length} người chơi)
-        </h3>
-        <div className="grid grid-cols-2 gap-2">
-          {players.map((p) => {
-            const role = p.gameData?.role as ClocktowerRole | undefined;
-            const isDrunk = p.gameData?.isDrunk === true;
+
+        {/* Header + team-count summary */}
+        <div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 shrink-0">
+            🔮 Grimoire ({gamePlayers.length} người chơi)
+          </h3>
+          <div className="flex gap-2 flex-wrap">
+            <div className="flex items-center gap-1.5 rounded-xl border border-blue-500/25 bg-blue-900/20 px-3 py-1.5">
+              <span className="text-sm">☀️</span>
+              <div className="text-[11px] leading-tight">
+                <span className="font-black text-blue-300">{goodAlive}</span>
+                <span className="text-slate-400"> sống</span>
+                <div className="flex gap-1 mt-0.5">
+                  {teamStats.filter(t => t.team === 'townsfolk' || t.team === 'outsider').map(t => (
+                    <span key={t.team} className={`text-[10px] font-bold ${t.team === 'townsfolk' ? 'text-blue-400' : 'text-purple-400'}`}>
+                      {t.team === 'townsfolk' ? '🌟' : '🌀'}{t.alive}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 rounded-xl border border-red-500/25 bg-red-900/20 px-3 py-1.5">
+              <span className="text-sm">🌑</span>
+              <div className="text-[11px] leading-tight">
+                <span className="font-black text-red-300">{evilAlive}</span>
+                <span className="text-slate-400"> sống</span>
+                <div className="flex gap-1 mt-0.5">
+                  {teamStats.filter(t => t.team === 'minion' || t.team === 'demon').map(t => (
+                    <span key={t.team} className={`text-[10px] font-bold ${t.team === 'minion' ? 'text-orange-400' : 'text-red-400'}`}>
+                      {t.team === 'minion' ? '🗡️' : '👹'}{t.alive}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Player cards — host excluded */}
+        <div className="grid grid-cols-1 gap-2">
+          {gamePlayers.map((p) => {
+            const role      = p.gameData?.role as ClocktowerRole | undefined;
+            const team      = role ? ROLE_TEAMS[role] : undefined;
+            const tc        = team ? TEAM_CARD[team] : null;
+            const isDrunk   = p.gameData?.isDrunk === true;
             const drunkRole = p.gameData?.drunkRole as ClocktowerRole | undefined;
-            const seat = p.gameData?.seatNumber as number | undefined;
+            const isPoisoned = p.gameData?.isPoisoned === true;
+            const seat      = p.gameData?.seatNumber as number | undefined;
+            const isMessaging = messagingPlayerId === p.id;
+
             return (
               <div
                 key={p.id}
-                className={`flex flex-col gap-1 rounded-lg px-3 py-2 text-sm ${
-                  p.isAlive ? 'bg-white/5 text-white' : 'bg-red-500/5 text-slate-500'
+                className={`rounded-2xl border shadow-sm transition-all ${
+                  !p.isAlive
+                    ? 'border-red-500/15 bg-red-950/20 opacity-70'
+                    : tc
+                    ? `${tc.border} ${tc.bg} shadow-lg ${tc.glow}`
+                    : 'border-white/10 bg-white/5'
                 }`}
               >
-                <div className="flex items-center gap-2">
-                  <div className={`h-2 w-2 rounded-full shrink-0 ${p.isAlive ? 'bg-green-500' : 'bg-red-500'}`} />
-                  {role && <span>{ROLE_ICONS[role]}</span>}
-                  <span className={!p.isAlive ? 'line-through' : ''}>{p.name}</span>
+                {/* Main row */}
+                <div className="flex items-center gap-3 px-3 py-2.5">
                   {seat != null && (
-                    <span className="ml-auto text-[10px] font-black text-slate-600">#{seat}</span>
+                    <span className="shrink-0 text-[10px] font-black text-slate-500 w-5 text-center">
+                      #{seat}
+                    </span>
                   )}
-                  {p.isHost && <span className="ml-auto text-xs text-amber-400">Host</span>}
-                </div>
-
-                {!p.isHost && role && (
-                  <div className="flex items-center gap-1 flex-wrap pl-4">
-                    <span className="text-xs text-purple-400 font-medium">{String(role)}</span>
-                    {isDrunk && drunkRole && (
-                      <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[10px] font-bold text-amber-300">
-                        🍺 nghĩ là {drunkRole}
+                  <span className={`text-2xl shrink-0 leading-none ${!p.isAlive ? 'grayscale opacity-50' : ''}`}>
+                    {role ? ROLE_ICONS[role] : '🎭'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className={`text-sm font-black leading-tight ${!p.isAlive ? 'line-through text-slate-500' : 'text-white'}`}>
+                        {p.name}
                       </span>
-                    )}
-                    {p.gameData?.isPoisoned === true && (
-                      <span className="rounded-full bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-bold text-purple-300">
-                        ☠️ Nhiễm độc
-                      </span>
-                    )}
-                    {!p.isAlive && (
-                      <span className="rounded-full bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-400">
-                        💀 Đã chết
-                      </span>
+                      {!p.isAlive && <span className="text-[10px] text-red-400 font-bold">💀</span>}
+                    </div>
+                    {role && (
+                      <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                        <span className={`text-[11px] font-bold ${tc ? tc.text : 'text-slate-400'}`}>
+                          {String(role)}
+                        </span>
+                        {isDrunk && drunkRole && (
+                          <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-black text-amber-300">
+                            🍺 {drunkRole}
+                          </span>
+                        )}
+                        {isPoisoned && (
+                          <span className="rounded-full bg-purple-500/20 px-1.5 py-0.5 text-[9px] font-black text-purple-300">
+                            ☠️ Nhiễm độc
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
-                )}
+                  <div className="flex items-center gap-1 shrink-0">
+                    <button
+                      onClick={() => {
+                        setMessagingPlayerId(isMessaging ? null : p.id);
+                        setInlineMessage('');
+                      }}
+                      className={`flex h-8 w-8 items-center justify-center rounded-xl border text-sm transition-all active:scale-95 ${
+                        isMessaging
+                          ? 'border-cyan-500/50 bg-cyan-500/20 text-cyan-300'
+                          : 'border-white/10 bg-white/5 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30'
+                      }`}
+                      title="Gửi tin riêng"
+                    >
+                      💬
+                    </button>
+                    <button
+                      onClick={() => toggleAlive(p.id, p.isAlive)}
+                      className={`flex h-8 w-8 items-center justify-center rounded-xl border text-sm transition-all active:scale-95 ${
+                        p.isAlive
+                          ? 'border-red-500/25 bg-red-500/10 text-red-400 hover:bg-red-500/20'
+                          : 'border-green-500/25 bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                      }`}
+                      title={p.isAlive ? 'Giết' : 'Hồi sinh'}
+                    >
+                      {p.isAlive ? '💀' : '💖'}
+                    </button>
+                  </div>
+                </div>
 
-                {!p.isHost && (
-                  <button
-                    onClick={() => toggleAlive(p.id, p.isAlive)}
-                    className={`self-start ml-4 rounded-md px-2 py-0.5 text-xs font-bold transition-all ${
-                      p.isAlive
-                        ? 'bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                        : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
-                    }`}
-                  >
-                    {p.isAlive ? '💀 Giết' : '💖 Hồi sinh'}
-                  </button>
+                {/* Inline DM compose */}
+                {isMessaging && (
+                  <div className="border-t border-cyan-500/20 bg-cyan-950/20 px-3 py-2.5 rounded-b-2xl">
+                    <div className="flex gap-2 items-center">
+                      <span className="text-xs text-cyan-400 shrink-0 font-bold">📬</span>
+                      <input
+                        type="text"
+                        value={inlineMessage}
+                        onChange={(e) => setInlineMessage(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') handleInlineMessage(p.id); }}
+                        placeholder={`Tin nhắn riêng cho ${p.name}...`}
+                        autoFocus
+                        className="flex-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-500/50"
+                      />
+                      <button
+                        onClick={() => handleInlineMessage(p.id)}
+                        disabled={!inlineMessage.trim()}
+                        className="shrink-0 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-cyan-500 disabled:opacity-40 active:scale-95"
+                      >
+                        Gửi
+                      </button>
+                    </div>
+                  </div>
                 )}
               </div>
             );
