@@ -244,7 +244,10 @@ function getRoleRec(
 
   // ── Empath ──────────────────────────────────────────────────────
   if (role === ClocktowerRole.Empath) {
-    const aliveSorted = gamePlayers.filter((p) => p.isAlive);
+    // Sort alive players by seat number so left/right neighbour is accurate
+    const aliveSorted = gamePlayers
+      .filter((p) => p.isAlive)
+      .sort((a, b) => ((a.gameData?.seatNumber as number) ?? 0) - ((b.gameData?.seatNumber as number) ?? 0));
     const myIndex = aliveSorted.findIndex((p) => p.id === actor.id);
     if (myIndex === -1 || aliveSorted.length < 2) {
       return {
@@ -369,23 +372,27 @@ function getRoleRec(
 
   // ── Chef ────────────────────────────────────────────────────────
   if (role === ClocktowerRole.Chef) {
-    const aliveSorted = gamePlayers.filter((p) => p.isAlive);
+    // Sort all players (alive + dead) by seat number for a complete circle
+    const bySeat = [...gamePlayers].sort(
+      (a, b) => ((a.gameData?.seatNumber as number) ?? 0) - ((b.gameData?.seatNumber as number) ?? 0)
+    );
     let evilPairs = 0;
-    for (let i = 0; i < aliveSorted.length; i++) {
-      const a = aliveSorted[i];
-      const b = aliveSorted[(i + 1) % aliveSorted.length];
+    for (let i = 0; i < bySeat.length; i++) {
+      const a = bySeat[i];
+      const b = bySeat[(i + 1) % bySeat.length];
       const aRole = a.gameData?.role as ClocktowerRole | undefined;
       const bRole = b.gameData?.role as ClocktowerRole | undefined;
       const aEvil = aRole ? (ROLE_TEAMS[aRole] === 'minion' || ROLE_TEAMS[aRole] === 'demon') : false;
       const bEvil = bRole ? (ROLE_TEAMS[bRole] === 'minion' || ROLE_TEAMS[bRole] === 'demon') : false;
       if (aEvil && bEvil) evilPairs++;
     }
+    const seatList = bySeat.map((p) => `${p.gameData?.seatNumber ?? '?'}. ${p.name}`).join(' → ');
     return {
       emoji: '👨‍🍳',
       lines: [
-        `Số cặp ác ngồi cạnh nhau (theo thứ tự tham gia): ${evilPairs}.`,
+        `Vòng tròn: ${seatList}`,
+        `Số cặp ác ngồi cạnh nhau: ${evilPairs}.`,
         `→ Trả lời: ${evilPairs}.`,
-        `⚠️ Dựa trên thứ tự ngồi thực tế — điều chỉnh nếu thứ tự ngồi khác.`,
       ],
       color: 'text-yellow-300 bg-yellow-500/10 border-yellow-500/20',
     };

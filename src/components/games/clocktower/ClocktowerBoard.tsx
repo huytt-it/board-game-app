@@ -69,6 +69,19 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   const displayTeam: ClocktowerTeam | null = displayRole ? ROLE_TEAMS[displayRole] : null;
   const dayCount = room.gameState?.dayCount ?? 0;
 
+  // ─── Seat / neighbour info ─────────────────────────────────────────
+  const mySeat = currentPlayer?.gameData?.seatNumber as number | undefined;
+  const seatedPlayers = players
+    .filter((p) => !p.isHost && p.gameData?.seatNumber != null)
+    .sort((a, b) => (a.gameData.seatNumber as number) - (b.gameData.seatNumber as number));
+  const mySeatedIdx = seatedPlayers.findIndex((p) => p.id === playerId);
+  const leftNeighbour = mySeatedIdx >= 0
+    ? seatedPlayers[(mySeatedIdx - 1 + seatedPlayers.length) % seatedPlayers.length]
+    : null;
+  const rightNeighbour = mySeatedIdx >= 0
+    ? seatedPlayers[(mySeatedIdx + 1) % seatedPlayers.length]
+    : null;
+
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
   const {
     nominations, votingTarget, votingTargetName,
@@ -139,6 +152,26 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
   // ─── Role info / handbook overlays (rendered on top of current view) ─
   // We render these as fragments that wrap the main content so they can
+  // ─── Seat bar — shown under role strip in every player phase ─────────
+  const seatBar = mySeat != null && leftNeighbour && rightNeighbour ? (
+    <div className="flex items-center gap-2 border-t border-white/5 bg-black/20 px-4 py-1.5">
+      <span className="text-[10px] text-slate-600 shrink-0">Hàng xóm</span>
+      <div className="flex items-center gap-1 flex-1 min-w-0 justify-center">
+        <span className={`text-[11px] font-semibold truncate max-w-[80px] ${leftNeighbour.isAlive ? 'text-slate-300' : 'text-slate-600 line-through'}`}>
+          {leftNeighbour.name}
+        </span>
+        <span className="text-slate-600 text-[10px] shrink-0 mx-1">←</span>
+        <span className="text-xs font-black text-white shrink-0">
+          #{mySeat} Bạn
+        </span>
+        <span className="text-slate-600 text-[10px] shrink-0 mx-1">→</span>
+        <span className={`text-[11px] font-semibold truncate max-w-[80px] ${rightNeighbour.isAlive ? 'text-slate-300' : 'text-slate-600 line-through'}`}>
+          {rightNeighbour.name}
+        </span>
+      </div>
+    </div>
+  ) : null;
+
   // be dismissed without remounting the phase below.
   const overlays = (
     <>
@@ -384,6 +417,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
+            {seatBar}
           </div>
 
           {/* Night action fills remaining space */}
@@ -447,6 +481,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
+            {seatBar}
           </div>
 
           {/* VotingPanel owns flex-1, scroll + sticky vote buttons */}
@@ -525,6 +560,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
+            {seatBar}
             {/* Nomination summary bar */}
             {nominatedPlayerName && (
               <div className="flex items-center gap-2 border-t border-amber-500/20 bg-amber-500/8 px-4 py-2">

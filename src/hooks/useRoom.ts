@@ -428,6 +428,9 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
         }
       }
 
+      // Random seat numbers 1..N (circular seating order for Empath / Chef / neighbours)
+      const seatNumbers = shuffle(gamePlayers.map((_, i) => i + 1));
+
       for (let i = 0; i < gamePlayers.length; i++) {
         const role = rolePool[i % rolePool.length];
         const team = ROLE_TEAMS[role];
@@ -454,6 +457,7 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
             : {}),
           hasUsedAbility: false,
           nightOrder: i,
+          seatNumber: seatNumbers[i],
         });
       }
 
