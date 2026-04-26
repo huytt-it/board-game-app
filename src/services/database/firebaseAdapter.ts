@@ -149,6 +149,10 @@ export class FirebaseAdapter implements IGameStorage {
     const actionsSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'actions'));
     actionsSnap.docs.forEach((d) => batch.delete(d.ref));
 
+    // Delete history
+    const historySnap = await getDocs(collection(getDb(), 'rooms', roomId, 'history'));
+    historySnap.docs.forEach((d) => batch.delete(d.ref));
+
     await batch.commit();
   }
 
