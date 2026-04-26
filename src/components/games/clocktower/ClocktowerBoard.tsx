@@ -159,8 +159,18 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   // ══════════════════════════════════════════════════════════════════
   if (room.status === 'lobby') {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
-        <div className="flex justify-end">
+      <>
+        {overlays}
+        <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
+        <div className="flex items-center gap-2 justify-end">
+          {!isHost && (
+            <button
+              onClick={() => setShowHandbook(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-bold text-slate-300 transition-all hover:bg-white/10 active:scale-95"
+            >
+              📖 Sách HD
+            </button>
+          )}
           <button
             onClick={isHost ? handleDelete : handleLeave}
             className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-400"
@@ -227,6 +237,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           </button>
         )}
       </div>
+      </>
     );
   }
 
