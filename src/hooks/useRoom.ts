@@ -21,6 +21,8 @@ interface UseRoomReturn {
   leaveRoom: (playerId: string) => Promise<void>;
   assignRoles: () => Promise<void>;
   startGame: () => Promise<void>;
+  /** Clears game data, assigns new roles, and moves directly to night — no lobby detour. */
+  startNewGame: () => Promise<void>;
   deleteRoom: () => Promise<void>;
   resetRoom: () => Promise<void>;
 }
@@ -498,6 +500,22 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
     // Status will be updated by the ClocktowerBoard after animation
   }, [roomId, assignRoles]);
 
+  // ─── Start NEW game (2nd round+): skip lobby, go straight to night ──
+  const startNewGame = useCallback(async () => {
+    if (!roomId) return;
+    try {
+      // 1. Wipe all per-game data without touching room status
+      await gameStorage.clearGameData(roomId);
+      // 2. Assign fresh roles (reads current players + config)
+      await assignRoles();
+      // 3. Jump directly to night — no lobby flash
+      await gameStorage.updateRoomStatus(roomId, 'night');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to start new game');
+      throw err;
+    }
+  }, [roomId, assignRoles]);
+
   return {
     room,
     players,
@@ -513,6 +531,7 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
     leaveRoom,
     assignRoles,
     startGame,
+    startNewGame,
     deleteRoom,
     resetRoom,
   };
