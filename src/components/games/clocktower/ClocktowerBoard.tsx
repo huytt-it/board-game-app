@@ -159,8 +159,18 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   // ══════════════════════════════════════════════════════════════════
   if (room.status === 'lobby') {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
-        <div className="flex justify-end">
+      <>
+        {overlays}
+        <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
+        <div className="flex items-center gap-2 justify-end">
+          {!isHost && (
+            <button
+              onClick={() => setShowHandbook(true)}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-bold text-slate-300 transition-all hover:bg-white/10 active:scale-95"
+            >
+              📖 Sách HD
+            </button>
+          )}
           <button
             onClick={isHost ? handleDelete : handleLeave}
             className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-400"
@@ -188,7 +198,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-            Người chơi ({players.length}/{room.config.maxPlayers})
+            Người chơi ({players.filter((p) => !p.isHost).length}/{room.config.maxPlayers})
           </h3>
           <div className="space-y-2">
             {players.map((p, idx) => (
@@ -227,6 +237,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           </button>
         )}
       </div>
+      </>
     );
   }
 

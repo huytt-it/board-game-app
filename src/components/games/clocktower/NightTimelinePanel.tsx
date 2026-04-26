@@ -111,9 +111,12 @@ function getRoleRec(
         emoji: '🔁',
         lines: [
           `Imp TỰ GIẾT bản thân! (Starpass)`,
-          `Chọn 1 Minion còn sống để trở thành Imp mới:`,
-          minions.length > 0 ? minions.map((p) => `• ${p.name} (${p.gameData?.role})`).join(', ') : '(Không có Minion!)',
-          `Cập nhật vai trò của Minion đó trong Grimoire.`,
+          minions.length > 0
+            ? `Tay Sai còn sống: ${minions.map((p) => `${p.name} (${p.gameData?.role})`).join(', ')}`
+            : `⚠️ Không có Tay Sai nào còn sống — Imp chết, phe Thiện thắng!`,
+          minions.length > 0
+            ? `Nhấn ✓ Xác nhận để mở giao diện chọn Tay Sai kế vị.`
+            : `Nhấn ✓ Xác nhận để đánh dấu Imp chết.`,
         ],
         color: 'text-orange-300 bg-orange-500/10 border-orange-500/20',
       };
