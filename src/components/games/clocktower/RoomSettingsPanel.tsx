@@ -111,28 +111,74 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
 
   // ── Handlers ──────────────────────────────────────────────────────────
   const handleMaxPlayersChange = (val: number) => {
-    const next = Math.min(20, Math.max(5, val));
+    const next = Math.min(20, Math.max(2, val));
     setMaxPlayers(next);
     onUpdateConfig({ maxPlayers: next });
+  };
+
+  // Prune mandatory roles for a given team down to `limit` slots.
+  // Returns a new Set without those excess entries.
+  const pruneMandatory = (
+    src: Set<string>,
+    team: ClocktowerTeam,
+    limit: number
+  ): Set<string> => {
+    const result = new Set(src);
+    const forTeam = Array.from(result).filter(
+      r => ROLE_TEAMS[r as ClocktowerRole] === team
+    );
+    if (forTeam.length > limit) {
+      forTeam.slice(limit).forEach(r => result.delete(r));
+    }
+    return result;
   };
 
   const handleTeamCountChange = (team: ClocktowerTeam, val: number) => {
     if (team === 'demon') return; // locked
     const next = Math.max(0, val);
     const newCounts = { ...effectiveCounts, [team]: next };
-    onUpdateConfig({ roleConfig: { ...roleConfig, teamCounts: newCounts } });
+    // Auto-remove mandatory roles that exceed the new slot count
+    const newMandatory = pruneMandatory(mandatory, team, next);
+    onUpdateConfig({
+      roleConfig: {
+        ...roleConfig,
+        teamCounts: newCounts,
+        mandatoryRoles: Array.from(newMandatory),
+      }
+    });
   };
 
   const applyPreset = () => {
     if (!preset) return;
     const newCounts = { ...preset, demon: 1 };
-    onUpdateConfig({ roleConfig: { ...roleConfig, teamCounts: newCounts } });
+    // Auto-remove mandatory roles that conflict with the new preset counts
+    let newMandatory = new Set(mandatory);
+    for (const team of TEAM_ORDER) {
+      newMandatory = pruneMandatory(newMandatory, team, newCounts[team] || 0);
+    }
+    onUpdateConfig({
+      roleConfig: {
+        ...roleConfig,
+        teamCounts: newCounts,
+        mandatoryRoles: Array.from(newMandatory),
+      }
+    });
     setSuggestApplied(true);
   };
 
   const handleRoleToggle = (role: ClocktowerRole) => {
     const current = getRoleStatus(role);
-    const next    = STATUS_CYCLE[current];
+    const team = ROLE_TEAMS[role];
+    const slotCount = effectiveCounts[team] || 0;
+    const mandatoryForTeam = Array.from(mandatory).filter(
+      r => ROLE_TEAMS[r as ClocktowerRole] === team
+    ).length;
+    const isAtLimit = mandatoryForTeam >= slotCount;
+
+    // When slots are full and user taps a random role, skip mandatory → go to excluded
+    const next = current === 'random' && isAtLimit
+      ? 'excluded'
+      : STATUS_CYCLE[current];
 
     const newMandatory = new Set(mandatory);
     const newExcluded  = new Set(excluded);
@@ -140,13 +186,6 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
     newExcluded.delete(role);
 
     if (next === 'mandatory') {
-      const team = ROLE_TEAMS[role];
-      const count = Array.from(newMandatory).filter(r => ROLE_TEAMS[r as ClocktowerRole] === team).length;
-      const allowed = effectiveCounts[team] || 0;
-      if (count >= allowed) {
-        // silently skip — can't exceed slot count
-        return;
-      }
       newMandatory.add(role);
     } else if (next === 'excluded') {
       newExcluded.add(role);
@@ -372,9 +411,17 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
                       <span>{cfg.emoji}</span>
                       <span className={`font-black text-sm ${cfg.header}`}>{cfg.label}</span>
                       <span className="text-slate-600 text-xs ml-0.5">· {roles.length} vai</span>
-                      <span className={`ml-auto text-[10px] rounded-full px-2 py-0.5 font-bold border ${cfg.badge}`}>
-                        {mandatoryCount} / {slotCount} bắt buộc
-                      </span>
+                      {slotCount === 0 ? (
+                        <span className="ml-auto text-[10px] text-slate-600 italic">
+                          0 slot — không thể bắt buộc
+                        </span>
+                      ) : (
+                        <span className={`ml-auto text-[10px] rounded-full px-2 py-0.5 font-bold border ${
+                          mandatoryCount >= slotCount ? 'bg-amber-500/20 text-amber-300 border-amber-500/30' : cfg.badge
+                        }`}>
+                          {mandatoryCount} / {slotCount} bắt buộc
+                        </span>
+                      )}
                     </div>
 
                     {/* Role pills grid */}
