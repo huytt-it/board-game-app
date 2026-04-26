@@ -220,6 +220,180 @@ export const ROLE_NIGHT_INSTRUCTIONS: Partial<Record<ClocktowerRole, string>> = 
   [ClocktowerRole.Imp]: 'Chọn 1 người chơi để giết đêm nay. Chọn chính mình để truyền vai Imp cho một Minion ngẫu nhiên.',
 };
 
+// ─── Vietnamese Role Names ────────────────────────────────────────────
+export const ROLE_NAMES_VI: Record<ClocktowerRole, string> = {
+  [ClocktowerRole.Washerwoman]: 'Người Giặt Đồ',
+  [ClocktowerRole.Librarian]: 'Thủ Thư',
+  [ClocktowerRole.Investigator]: 'Thám Tử',
+  [ClocktowerRole.Chef]: 'Đầu Bếp',
+  [ClocktowerRole.Empath]: 'Người Thấu Cảm',
+  [ClocktowerRole.FortuneTeller]: 'Thầy Bói',
+  [ClocktowerRole.Undertaker]: 'Người Chôn Xác',
+  [ClocktowerRole.Monk]: 'Tu Sĩ',
+  [ClocktowerRole.Ravenkeeper]: 'Người Nuôi Quạ',
+  [ClocktowerRole.Virgin]: 'Trinh Nữ',
+  [ClocktowerRole.Slayer]: 'Thợ Săn Quỷ',
+  [ClocktowerRole.Soldier]: 'Chiến Binh',
+  [ClocktowerRole.Mayor]: 'Thị Trưởng',
+  [ClocktowerRole.Butler]: 'Quản Gia',
+  [ClocktowerRole.Drunk]: 'Kẻ Say Rượu',
+  [ClocktowerRole.Recluse]: 'Ẩn Sĩ',
+  [ClocktowerRole.Saint]: 'Thánh Nhân',
+  [ClocktowerRole.Poisoner]: 'Kẻ Đầu Độc',
+  [ClocktowerRole.Spy]: 'Gián Điệp',
+  [ClocktowerRole.ScarletWoman]: 'Hồng Y Phu Nhân',
+  [ClocktowerRole.Baron]: 'Nam Tước',
+  [ClocktowerRole.Imp]: 'Quỷ Con',
+};
+
+// ─── Vietnamese Team Names ────────────────────────────────────────────
+export const ROLE_TEAM_VI: Record<ClocktowerTeam, string> = {
+  townsfolk: 'Dân Làng',
+  outsider: 'Ngoại Nhân',
+  minion: 'Tay Sai',
+  demon: 'Quỷ Dữ',
+};
+
+// ─── Full Vietnamese Descriptions ────────────────────────────────────
+export const ROLE_FULL_DESC_VI: Record<ClocktowerRole, string> = {
+  [ClocktowerRole.Washerwoman]: 'Đêm đầu tiên, Quản trò cho bạn biết tên 2 người chơi và xác nhận 1 trong số đó là một Townsfolk cụ thể. Thông tin có thể sai nếu bạn bị đầu độc hoặc là Kẻ Say Rượu.',
+  [ClocktowerRole.Librarian]: 'Đêm đầu tiên, Quản trò cho bạn biết tên 2 người chơi và xác nhận 1 trong số đó là một Outsider cụ thể. Nếu không có Outsider trong ván, bạn sẽ biết điều đó ngay từ đầu.',
+  [ClocktowerRole.Investigator]: 'Đêm đầu tiên, Quản trò cho bạn biết tên 2 người chơi và xác nhận 1 trong số đó là một Minion cụ thể. Recluse và Spy có thể làm nhiễu kết quả của bạn.',
+  [ClocktowerRole.Chef]: 'Đêm đầu tiên, Quản trò cho bạn biết có bao nhiêu cặp người ác ngồi cạnh nhau theo vòng tròn. Số 0 = ác không ngồi liền kề; số cao = ác tập trung.',
+  [ClocktowerRole.Empath]: 'Mỗi đêm bạn được cho biết trong 2 hàng xóm còn sống gần nhất (trái và phải) có bao nhiêu người là phe ác. Con số này cập nhật theo từng đêm khi có người chết.',
+  [ClocktowerRole.FortuneTeller]: 'Mỗi đêm bạn chọn 2 người chơi. Quản trò trả lời "CÓ" nếu 1 trong 2 là Quỷ, "KHÔNG" nếu không. Lưu ý: luôn có 1 người thiện đặc biệt đăng ký như Quỷ với bạn (mồi nhử), làm phức tạp thêm thông tin.',
+  [ClocktowerRole.Undertaker]: 'Mỗi đêm từ đêm 2, nếu hôm nay có ai bị xử tử, Quản trò cho bạn biết nhân vật thật của người đó. Không có xử tử = không có thông tin đêm đó.',
+  [ClocktowerRole.Monk]: 'Mỗi đêm từ đêm 2, bạn chọn 1 người chơi khác (không phải bản thân) để bảo vệ họ khỏi đòn tấn công của Quỷ trong đêm đó.',
+  [ClocktowerRole.Ravenkeeper]: 'Nếu bạn bị Quỷ giết trong đêm, trước khi chết bạn được chọn 1 người chơi và Quản trò tiết lộ nhân vật thật của người đó cho bạn. Thông tin này cực kỳ giá trị — hãy chia sẻ vào ngày hôm sau.',
+  [ClocktowerRole.Virgin]: 'Kỹ năng kích hoạt 1 lần: Lần đầu tiên bạn bị đề cử, nếu người đề cử là một Townsfolk thật sự, họ bị xử tử ngay lập tức! Đây là bẫy lọc người ác dám đề cử bạn.',
+  [ClocktowerRole.Slayer]: 'Một lần duy nhất trong cả ván, bạn công khai tuyên bố nhắm vào 1 người chơi. Nếu người đó là Quỷ — họ chết ngay! Nếu không, không có gì xảy ra. Hãy dùng sau khi có đủ thông tin.',
+  [ClocktowerRole.Soldier]: 'Bạn hoàn toàn miễn nhiễm với đòn tấn công của Quỷ vào ban đêm. Quỷ không thể giết bạn dù có cố bao nhiêu lần.',
+  [ClocktowerRole.Mayor]: 'Nếu còn đúng 3 người sống và ngày hôm đó không có ai bị xử tử, phe Thiện thắng ngay! Ngoài ra, khi Quỷ tấn công bạn vào đêm, Quản trò có thể chuyển cái chết sang người khác.',
+  [ClocktowerRole.Butler]: 'Mỗi đêm bạn chọn 1 người làm "chủ". Ngày hôm sau bạn chỉ được bỏ phiếu xử tử nếu người chủ đó bỏ phiếu trước bạn. Không thể chọn bản thân làm chủ.',
+  [ClocktowerRole.Drunk]: 'Bạn không biết mình là Kẻ Say Rượu. Bạn nghĩ mình là một Townsfolk khác, nhưng không có khả năng gì. Mọi thông tin Quản trò đưa cho bạn đều là thông tin giả.',
+  [ClocktowerRole.Recluse]: 'Bạn có thể được Quản trò đối xử như người ác trong một số tình huống — Thám Tử có thể chỉ điểm bạn là Minion, Thầy Bói có thể nhận "CÓ" khi chọn bạn. Điều này tạo ra thông tin sai lệch tự nhiên.',
+  [ClocktowerRole.Saint]: 'Nếu làng xử tử bạn bằng bỏ phiếu đa số, phe Ác thắng ngay lập tức! Nhiệm vụ của bạn là tồn tại và tránh bị xử tử suốt ván đấu.',
+  [ClocktowerRole.Poisoner]: 'Mỗi đêm bạn chọn 1 người để đầu độc. Người đó nhận thông tin giả từ Quản trò trong đêm đó và cả ngày hôm sau. Đây là vũ khí gây nhiễu thông tin mạnh nhất của phe Ác.',
+  [ClocktowerRole.Spy]: 'Mỗi đêm bạn được xem toàn bộ Grimoire — biết nhân vật thật và trạng thái của tất cả mọi người. Bạn cũng có thể được Quản trò đối xử như người thiện trong một số tình huống.',
+  [ClocktowerRole.ScarletWoman]: 'Kỹ năng thụ động: Nếu Quỷ bị giết khi còn ít nhất 5 người sống, bạn ngay lập tức trở thành Quỷ mới! Phe Ác tiếp tục chiến đấu. Nhiệm vụ của bạn là tồn tại và ẩn náu.',
+  [ClocktowerRole.Baron]: 'Kỹ năng thụ động từ đầu ván: Thêm 2 Outsider vào ván đấu (và bớt đi 2 Townsfolk tương ứng). Điều này đẩy thêm Outsider nguy hiểm vào làng ngay từ đầu.',
+  [ClocktowerRole.Imp]: 'Mỗi đêm từ đêm 2, bạn chọn 1 người để giết. Nếu bạn tự chọn mình, bạn "truyền ngôi" — một Minion ngẫu nhiên còn sống trở thành Quỷ Con mới, còn bạn chết như một chiến thuật rút lui.',
+};
+
+// ─── Vietnamese Gameplay Tips ─────────────────────────────────────────
+export const ROLE_TIPS_VI: Record<ClocktowerRole, string[]> = {
+  [ClocktowerRole.Washerwoman]: [
+    'Chia sẻ thông tin ngay ngày đầu để xây dựng niềm tin với làng.',
+    'Kết hợp với Chef và Empath để xác nhận thông tin lẫn nhau.',
+    'Nếu thông tin mâu thuẫn với thực tế, bạn có thể đang bị đầu độc.',
+  ],
+  [ClocktowerRole.Librarian]: [
+    'Nếu biết có Saint hoặc Drunk, hãy chia sẻ ngay để làng thận trọng.',
+    'Không có Outsider là thông tin quan trọng — hãy khai ngay từ đầu.',
+    'Kết hợp với Washerwoman để cùng thu hẹp danh sách nghi ngờ.',
+  ],
+  [ClocktowerRole.Investigator]: [
+    'Thông tin về Minion rất quý giá — hãy chia sẻ cẩn thận, không vội vàng.',
+    'Recluse và Spy có thể làm nhiễu kết quả — hãy tính đến khả năng này.',
+    'Kết hợp với người có thông tin khác để loại trừ dần.',
+  ],
+  [ClocktowerRole.Chef]: [
+    'Số 0: ác không ngồi cạnh nhau — Spy có thể là nguyên nhân làm số này sai.',
+    'Số cao: ác tập trung thành cụm — hãy tìm nhóm người đáng ngờ.',
+    'Kết hợp với Empath để vẽ bản đồ phân bố phe ác.',
+  ],
+  [ClocktowerRole.Empath]: [
+    'Theo dõi sự thay đổi con số qua mỗi đêm khi người chết đi để rút ra manh mối.',
+    'Nếu số tăng sau khi ai đó chết — người đó có thể đã là người thiện.',
+    'Ghi nhớ vị trí ngồi của mình để tính toán chính xác hàng xóm nào.',
+  ],
+  [ClocktowerRole.FortuneTeller]: [
+    'Luôn nhớ có 1 mồi nhử — người đầu tiên báo "CÓ" chưa chắc là Quỷ.',
+    'Chọn nhiều người khác nhau qua nhiều đêm để thu hẹp dần khả năng.',
+    'Nếu 1 người liên tục báo "CÓ" khi ghép với người khác — họ có thể là mồi nhử.',
+  ],
+  [ClocktowerRole.Undertaker]: [
+    'Thông tin của bạn xác nhận chắc chắn nhân vật người đã bị xử tử.',
+    'Chia sẻ ngay khi cần — thông tin xác nhận thường rất có giá trị.',
+    'Nếu bị đầu độc, thông tin bạn nhận sẽ sai — hãy cẩn thận.',
+  ],
+  [ClocktowerRole.Monk]: [
+    'Ưu tiên bảo vệ người mang thông tin quan trọng như Empath, Undertaker, FT.',
+    'Đừng bảo vệ cùng 1 người mỗi đêm — Quỷ sẽ đổi mục tiêu sang người khác.',
+    'Đôi khi hãy bảo vệ chính người bạn nghi là mục tiêu của Quỷ đêm đó.',
+  ],
+  [ClocktowerRole.Ravenkeeper]: [
+    'Khi chết, hãy chọn người bạn nghi ngờ nhất — thông tin thu được rất quý.',
+    'Hãy chia sẻ thông tin bạn thu được vào ngày hôm sau trước khi bị xử tử.',
+    'Nếu thấy mình sắp bị xử tử ban ngày, hãy khai thông tin còn bạn có thể.',
+  ],
+  [ClocktowerRole.Virgin]: [
+    'Khai ra bạn là Virgin sớm để bẫy người ác nếu họ liều lĩnh đề cử bạn.',
+    'Người đề cử bạn có thể là Recluse hoặc Outsider — họ sẽ không chết.',
+    'Đừng sợ bị đề cử — đó chính là cơ chế giúp làng lọc người ác.',
+  ],
+  [ClocktowerRole.Slayer]: [
+    'Đừng dùng kỹ năng vội — hãy thu thập đủ thông tin qua nhiều ngày trước.',
+    'Kết hợp với FT và Empath để xác định mục tiêu chính xác nhất.',
+    'Tuyên bố "Tôi là Slayer và tôi nghi X" cũng tạo áp lực dù chưa dùng kỹ năng.',
+  ],
+  [ClocktowerRole.Soldier]: [
+    'Khai ra bạn là Soldier để Quỷ lãng phí lượt tấn công vào bạn đêm đó.',
+    'Hoặc giữ bí mật để Quỷ mất lượt mà không biết — bạn vẫn sống qua đêm.',
+    'Hãy sống sót đến cùng để bỏ phiếu quyết định vào những ngày cuối.',
+  ],
+  [ClocktowerRole.Mayor]: [
+    'Mục tiêu chính: kéo dài ván đấu đến khi chỉ còn đúng 3 người sống và không có xử tử.',
+    'Hợp tác với Monk để được bảo vệ trong những đêm cuối quan trọng.',
+    'Đừng khai ra quá sớm — phe ác sẽ tập trung bỏ phiếu xử tử bạn.',
+  ],
+  [ClocktowerRole.Butler]: [
+    'Chọn người bạn tin tưởng nhất và quan sát hành động bỏ phiếu của họ mỗi ngày.',
+    'Đừng quên theo dõi khi nào chủ bỏ phiếu để kịp bỏ theo trước khi hết thời gian.',
+    'Nếu nghi ngờ chủ là người ác, hãy đổi chủ vào đêm hôm sau.',
+  ],
+  [ClocktowerRole.Drunk]: [
+    'Bạn không biết mình say — hãy chơi bình thường như vai trò bạn nghĩ bạn đang có.',
+    'Thông tin bạn nhận đêm qua là thông tin giả, nhưng bạn không thể biết điều đó.',
+    'Thử thách thú vị: khi nào bạn mới bắt đầu nghi ngờ thông tin của mình bị sai?',
+  ],
+  [ClocktowerRole.Recluse]: [
+    'Bạn có thể giả vờ là một Townsfolk để tránh bị làng nghi ngờ và xử tử.',
+    'Khả năng đăng ký như ác tự nhiên tạo ra thông tin sai lệch giúp phe ác gián tiếp.',
+    'Hãy cố gắng tồn tại lâu nhất vì sự xuất hiện của bạn làm nhiễu loạn thông tin.',
+  ],
+  [ClocktowerRole.Saint]: [
+    'Nhiệm vụ số 1: đừng bị xử tử! Thuyết phục mọi người bạn không phải mối đe dọa.',
+    'Đừng khai ra bạn là Saint quá sớm — phe ác sẽ tìm cách vận động xử tử bạn.',
+    'Nếu bị đề cử nhiều lần, hãy cân nhắc khai ra để làng không dám bỏ phiếu tiến hành.',
+  ],
+  [ClocktowerRole.Poisoner]: [
+    'Ưu tiên đầu độc Empath, Thầy Bói, Undertaker — những người mang thông tin quan trọng.',
+    'Đầu độc Virgin trước khi có ai đề cử họ để tránh cơ chế bẫy của Virgin.',
+    'Xây dựng vỏ bọc thiện lành và ủng hộ người thiện để che giấu bản thân.',
+  ],
+  [ClocktowerRole.Spy]: [
+    'Bạn biết tất cả — hãy dùng thông tin đó để vận động làng xử tử người thiện quan trọng.',
+    'Có thể đăng ký như Townsfolk với một số vai trò — hãy tận dụng để tạo vỏ bọc.',
+    'Chia sẻ một phần thông tin thật để tạo niềm tin, rồi phản bội vào thời điểm quyết định.',
+  ],
+  [ClocktowerRole.ScarletWoman]: [
+    'Tồn tại là nhiệm vụ tối thượng — đừng để bị xử tử dù bằng bất kỳ cách nào.',
+    'Hợp tác bí mật với Imp — khi Imp bị lộ, Imp có thể tự giết để bạn trở thành Quỷ mới.',
+    'Xây dựng vỏ bọc Townsfolk tốt ngay từ đầu ván để làng không bao giờ nghi bạn.',
+  ],
+  [ClocktowerRole.Baron]: [
+    'Bạn không có hành động đêm — hãy tập trung vào thao túng và vận động trong ngày.',
+    'Bạn biết ai là Outsider trong ván (do bạn đưa vào) — hãy bảo vệ những đồng minh đó.',
+    'Hành xử như một Townsfolk bình thường, tránh để lộ bất kỳ dấu hiệu nào.',
+  ],
+  [ClocktowerRole.Imp]: [
+    'Ưu tiên giết người thu thập thông tin quan trọng: Empath, Thầy Bói, Undertaker.',
+    'Khi bị lộ và khó thoát, hãy tự giết để truyền ngôi cho Minion — phe ác tiếp tục.',
+    'Điều phối bí mật với Poisoner để đảm bảo thông tin của làng luôn bị nhiễu loạn.',
+  ],
+};
+
 // ─── Clocktower-Specific Game Data ────────────────────────────────────
 export interface ClocktowerGameData extends BaseGameData {
   role: ClocktowerRole;

@@ -12,6 +12,7 @@ import { ROLE_ICONS, ROLE_TEAMS, ClocktowerRole } from '@/types/games/clocktower
 import VotingPanel from './VotingPanel';
 import NightTimelinePanel from './NightTimelinePanel';
 import GameHistoryPanel from './GameHistoryPanel';
+import RoleHandbook from './RoleHandbook';
 
 interface HostDashboardProps {
   roomId: string;
@@ -37,7 +38,8 @@ export default function HostDashboard({
   const [resolveMessages, setResolveMessages] = useState<Record<string, string>>({});
   const [directMessage, setDirectMessage] = useState('');
   const [directTarget, setDirectTarget] = useState('');
-  const [activeTab, setActiveTab] = useState<'night' | 'history'>('night');
+  const [activeTab, setActiveTab] = useState<'night' | 'history' | 'handbook'>('night');
+  const [showHandbook, setShowHandbook] = useState(false);
 
   const { events: historyEvents, addEvent } = useGameHistory(roomId);
 
@@ -481,28 +483,35 @@ export default function HostDashboard({
         </div>
       )}
 
-      {/* ── Night actions / History tabs ───────────────────────────────── */}
+      {/* ── Night actions / History / Handbook tabs ───────────────────── */}
+      {showHandbook && <RoleHandbook onClose={() => setShowHandbook(false)} />}
       <div className="rounded-xl border border-white/10 bg-white/5">
-        <div className="flex border-b border-white/10">
+        <div className="flex border-b border-white/10 overflow-x-auto no-scrollbar">
           <button
             onClick={() => setActiveTab('night')}
-            className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
+            className={`shrink-0 flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
               activeTab === 'night'
                 ? 'text-purple-400 border-b-2 border-purple-500'
                 : 'text-slate-500 hover:text-slate-300'
             }`}
           >
-            🌙 {currentPhase === 'night' ? 'Hành động đêm' : 'Nhật ký đêm'}
+            🌙 {currentPhase === 'night' ? 'Đêm' : 'Nhật ký'}
           </button>
           <button
             onClick={() => setActiveTab('history')}
-            className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
+            className={`shrink-0 flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
               activeTab === 'history'
                 ? 'text-amber-400 border-b-2 border-amber-500'
                 : 'text-slate-500 hover:text-slate-300'
             }`}
           >
             📜 Lịch sử ({historyEvents.filter((e) => e.type !== 'phase_change').length})
+          </button>
+          <button
+            onClick={() => setShowHandbook(true)}
+            className="shrink-0 flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors text-slate-500 hover:text-slate-300"
+          >
+            📖 Sách HD
           </button>
         </div>
         <div className="p-4">
