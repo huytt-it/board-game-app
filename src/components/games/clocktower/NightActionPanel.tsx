@@ -36,10 +36,15 @@ export default function NightActionPanel({ roomId, playerId, players, dayCount }
   // ─── Dead player ──────────────────────────────────────────────────
   if (!isAlive) {
     return (
-      <div className="rounded-2xl border border-red-500/20 bg-red-500/5 p-6 text-center animate-scale-in">
-        <div className="text-5xl mb-3">💀</div>
-        <h3 className="text-lg font-bold text-red-400 mb-2">Bạn Đã Qua Đời</h3>
-        <p className="text-sm text-slate-400">Người chết không thể hành động trong đêm...</p>
+      <div className="flex flex-col items-center gap-5 py-10 text-center animate-scale-in">
+        <div className="text-7xl">💀</div>
+        <div>
+          <h3 className="text-xl font-black text-red-400 mb-2">Bạn Đã Qua Đời</h3>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Người chết không thể hành động trong đêm.<br />Hãy quan sát...
+          </p>
+        </div>
+        <PlayerWaiting message="Đang chờ màn đêm qua đi..." />
       </div>
     );
   }
@@ -47,19 +52,27 @@ export default function NightActionPanel({ roomId, playerId, players, dayCount }
   // ─── Show private message from Storyteller (highest priority) ─────
   if (privateMessage) {
     return (
-      <div className="space-y-4 animate-scale-in">
-        <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-900/30 to-indigo-900/20 p-5">
-          <div className="mb-3 flex items-center gap-2">
-            <span className="text-xl">📜</span>
-            <h3 className="font-semibold text-purple-300">Thông tin từ Quản trò</h3>
+      <div className="flex flex-col gap-4 animate-scale-in">
+        {/* Glow header */}
+        <div className="rounded-2xl border border-purple-500/30 bg-gradient-to-br from-purple-900/40 to-indigo-900/20 p-5 shadow-lg shadow-purple-500/10">
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-500/20 text-xl">📜</div>
+            <div>
+              <h3 className="font-black text-white">Tin từ Quản trò</h3>
+              <p className="text-xs text-purple-400">Chỉ mình bạn thấy tin này</p>
+            </div>
           </div>
-          <p className="text-sm leading-relaxed text-slate-200 whitespace-pre-wrap">{privateMessage}</p>
+          <div className="rounded-xl bg-black/30 border border-white/5 px-4 py-4">
+            <p className="text-base leading-relaxed text-slate-100 whitespace-pre-wrap font-medium">
+              {privateMessage}
+            </p>
+          </div>
         </div>
         <button
           onClick={clearMessage}
-          className="w-full rounded-xl bg-white/5 px-4 py-3 text-sm text-slate-400 transition-all hover:bg-white/10 hover:text-white"
+          className="w-full rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 py-4 text-base font-black text-white transition-all active:scale-95 hover:from-purple-500 hover:to-indigo-500"
         >
-          Đã hiểu
+          ✓ Đã hiểu — Đóng lại
         </button>
       </div>
     );
@@ -67,7 +80,7 @@ export default function NightActionPanel({ roomId, playerId, players, dayCount }
 
   // ─── Waiting for Storyteller response ─────────────────────────────
   if (waitingForStoryteller || hasSubmitted) {
-    return <PlayerWaiting message="Đang chờ phản hồi từ Quản trò..." />;
+    return <PlayerWaiting message="Quản trò đang xử lý — chờ tin nhắn riêng tư..." />;
   }
 
   // ─── Role has no night action ──────────────────────────────────────
@@ -75,12 +88,14 @@ export default function NightActionPanel({ roomId, playerId, players, dayCount }
     return (
       <div className="space-y-4">
         <div className="rounded-2xl border border-indigo-500/20 bg-indigo-900/10 p-5 text-center">
-          <div className="text-4xl mb-3">{displayRole ? ROLE_ICONS[displayRole] : '🌙'}</div>
-          <h3 className="text-lg font-semibold text-indigo-300 mb-2">Không có hành động đêm</h3>
-          <p className="text-sm text-slate-400">
-            Nhân vật của bạn không hành động trong đêm nay.
+          <div className="text-5xl mb-3 animate-float">
+            {displayRole ? ROLE_ICONS[displayRole] : '🌙'}
+          </div>
+          <h3 className="text-lg font-black text-indigo-300 mb-2">Không có hành động đêm nay</h3>
+          <p className="text-sm text-slate-400 leading-relaxed">
+            Nhân vật của bạn ngủ yên trong đêm nay.
           </p>
-          <p className="text-xs text-slate-500 mt-2">Chờ Quản trò chuyển sang ban ngày...</p>
+          <p className="text-xs text-slate-600 mt-1">Chờ Quản trò chuyển sang ban ngày...</p>
         </div>
         <PlayerWaiting message="Đang chờ màn đêm qua đi..." />
       </div>
