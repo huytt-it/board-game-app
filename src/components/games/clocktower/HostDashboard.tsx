@@ -706,6 +706,51 @@ export default function HostDashboard({
         </div>
       </div>
 
+      {/* ── Sơ đồ chỗ ngồi ───────────────────────────────────────────── */}
+      {(() => {
+        const seated = players
+          .filter((p) => !p.isHost && p.gameData?.seatNumber != null)
+          .sort((a, b) => (a.gameData.seatNumber as number) - (b.gameData.seatNumber as number));
+        if (seated.length === 0) return null;
+        return (
+          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
+              🪑 Sơ đồ chỗ ngồi (vòng tròn)
+            </h3>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              {seated.map((p, idx) => {
+                const role = p.gameData?.role as ClocktowerRole | undefined;
+                return (
+                  <div key={p.id} className="flex items-center gap-1">
+                    <div className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs ${
+                      p.isAlive
+                        ? 'bg-white/5 border-white/10 text-white'
+                        : 'bg-red-500/5 border-red-500/10 text-slate-500'
+                    }`}>
+                      <span className="font-black text-slate-500 text-[10px] shrink-0">
+                        #{p.gameData.seatNumber as number}
+                      </span>
+                      {role && <span className="text-base leading-none">{ROLE_ICONS[role]}</span>}
+                      <span className={`font-semibold ${!p.isAlive ? 'line-through' : ''}`}>
+                        {p.name}
+                      </span>
+                      {!p.isAlive && <span className="text-[10px] text-red-500">💀</span>}
+                    </div>
+                    {idx < seated.length - 1 && (
+                      <span className="text-slate-600 text-xs">→</span>
+                    )}
+                  </div>
+                );
+              })}
+              {/* Close the circle */}
+              {seated.length > 1 && (
+                <span className="text-slate-600 text-xs">↩ #{seated[0].gameData.seatNumber as number}</span>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ── Player Overview (Grimoire) ─────────────────────────────────── */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
@@ -716,6 +761,7 @@ export default function HostDashboard({
             const role = p.gameData?.role as ClocktowerRole | undefined;
             const isDrunk = p.gameData?.isDrunk === true;
             const drunkRole = p.gameData?.drunkRole as ClocktowerRole | undefined;
+            const seat = p.gameData?.seatNumber as number | undefined;
             return (
               <div
                 key={p.id}
@@ -727,6 +773,9 @@ export default function HostDashboard({
                   <div className={`h-2 w-2 rounded-full shrink-0 ${p.isAlive ? 'bg-green-500' : 'bg-red-500'}`} />
                   {role && <span>{ROLE_ICONS[role]}</span>}
                   <span className={!p.isAlive ? 'line-through' : ''}>{p.name}</span>
+                  {seat != null && (
+                    <span className="ml-auto text-[10px] font-black text-slate-600">#{seat}</span>
+                  )}
                   {p.isHost && <span className="ml-auto text-xs text-amber-400">Host</span>}
                 </div>
 
