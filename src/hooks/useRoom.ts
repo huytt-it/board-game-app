@@ -243,8 +243,9 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
         
         const existingPlayer = await gameStorage.getPlayer(foundRoom.id, pId);
         const currentPlayers = await gameStorage.getPlayers(foundRoom.id);
-        
-        if (!existingPlayer && currentPlayers.length >= foundRoom.config.maxPlayers) {
+        const nonHostPlayers = currentPlayers.filter((p) => !p.isHost);
+
+        if (!existingPlayer && nonHostPlayers.length >= foundRoom.config.maxPlayers) {
           throw new Error('Room is full');
         }
         if (!existingPlayer && foundRoom.status !== 'lobby') {
@@ -286,8 +287,9 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
         
         const existingPlayer = await gameStorage.getPlayer(rId, pId);
         const currentPlayers = await gameStorage.getPlayers(rId);
+        const nonHostPlayers = currentPlayers.filter((p) => !p.isHost);
 
-        if (!existingPlayer && currentPlayers.length >= foundRoom.config.maxPlayers) {
+        if (!existingPlayer && nonHostPlayers.length >= foundRoom.config.maxPlayers) {
           throw new Error('Room is full');
         }
         if (!existingPlayer && foundRoom.status !== 'lobby') {

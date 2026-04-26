@@ -198,7 +198,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-            Người chơi ({players.length}/{room.config.maxPlayers})
+            Người chơi ({players.filter((p) => !p.isHost).length}/{room.config.maxPlayers})
           </h3>
           <div className="space-y-2">
             {players.map((p, idx) => (

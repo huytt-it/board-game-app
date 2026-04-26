@@ -111,7 +111,7 @@ export default function RoomSettingsPanel({ config, onUpdateConfig, playerCount 
 
   // ── Handlers ──────────────────────────────────────────────────────────
   const handleMaxPlayersChange = (val: number) => {
-    const next = Math.min(20, Math.max(5, val));
+    const next = Math.min(20, Math.max(2, val));
     setMaxPlayers(next);
     onUpdateConfig({ maxPlayers: next });
   };
