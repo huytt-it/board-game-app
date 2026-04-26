@@ -14,8 +14,10 @@ import GameStartAnimation from './GameStartAnimation';
 import RoleRevealAnimation from './RoleRevealAnimation';
 import VotingPanel from './VotingPanel';
 import RoomSettingsPanel from './RoomSettingsPanel';
+import PlayerRoleCard from './PlayerRoleCard';
+import RoleHandbook from './RoleHandbook';
 import type { GameModuleProps } from '@/lib/gameRegistry';
-import { ROLE_ICONS, ClocktowerRole } from '@/types/games/clocktower';
+import { ROLE_ICONS, ROLE_NAMES_VI, ClocktowerRole } from '@/types/games/clocktower';
 
 type AnimationPhase = 'none' | 'countdown' | 'role-reveal';
 
@@ -39,6 +41,10 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     votes, hasVoted, voteCount,
     nominatePlayer, castNomination, castVote, resolveVote, cancelVote,
   } = useVoting(room.id, playerId, room.gameState, alivePlayers);
+
+  // ─── Handbook / role info overlay ─────────────────────────────────
+  const [showHandbook, setShowHandbook] = useState(false);
+  const [showRoleInfo, setShowRoleInfo] = useState(false);
 
   // ─── Slayer state ──────────────────────────────────────────────────
   const [slayerPickMode, setSlayerPickMode] = useState(false);
@@ -96,6 +102,24 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   if (showRoleReveal) {
     return <RoleRevealAnimation role={displayRole!} onDismiss={() => setRoleRevealed(true)} />;
   }
+
+  // ─── Role info / handbook overlays (rendered on top of current view) ─
+  // We render these as fragments that wrap the main content so they can
+  // be dismissed without remounting the phase below.
+  const overlays = (
+    <>
+      {showHandbook && (
+        <RoleHandbook onClose={() => setShowHandbook(false)} highlightRole={displayRole} />
+      )}
+      {showRoleInfo && displayRole && (
+        <PlayerRoleCard
+          role={displayRole}
+          isDrunk={isDrunk}
+          onClose={() => setShowRoleInfo(false)}
+        />
+      )}
+    </>
+  );
 
   // ══════════════════════════════════════════════════════════════════
   // LOBBY
@@ -270,53 +294,70 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   // ══════════════════════════════════════════════════════════════════
   if (room.status === 'night') {
     return (
-      <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
-        {/* Sticky top bar */}
-        <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-indigo-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="shrink-0 text-base">🌙</span>
-            <span className="shrink-0 text-sm font-bold text-indigo-300">
-              Đêm {dayCount + 1}
-            </span>
-            {displayRole && (
-              <>
-                <span className="text-white/20 text-sm">·</span>
-                <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
-                <span className="min-w-0 truncate text-sm font-bold text-white">{displayRole}</span>
-              </>
-            )}
-          </div>
-          {/* Alive dot */}
-          {currentPlayer && (
-            <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-              currentPlayer.isAlive
-                ? 'bg-green-500/15 text-green-400'
-                : 'bg-red-500/15 text-red-400'
-            }`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${
-                currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'
-              }`} />
-              {currentPlayer.isAlive ? 'Sống' : 'Chết'}
+      <>
+        {overlays}
+        <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
+          {/* Sticky top bar */}
+          <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-indigo-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="shrink-0 text-base">🌙</span>
+              <span className="shrink-0 text-sm font-bold text-indigo-300">
+                Đêm {dayCount + 1}
+              </span>
+              {displayRole && (
+                <button
+                  onClick={() => setShowRoleInfo(true)}
+                  className="flex items-center gap-1.5 min-w-0 rounded-lg px-1.5 py-0.5 active:bg-white/10"
+                >
+                  <span className="text-white/20 text-sm">·</span>
+                  <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
+                  <div className="min-w-0 text-left">
+                    <span className="block truncate text-sm font-bold text-white leading-tight">{displayRole}</span>
+                    <span className="block text-[10px] text-indigo-300 leading-none">{ROLE_NAMES_VI[displayRole]}</span>
+                  </div>
+                  <span className="text-[9px] text-slate-600 shrink-0">ⓘ</span>
+                </button>
+              )}
             </div>
-          )}
-          <button
-            onClick={handleLeave}
-            className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10 ml-1"
-          >
-            Thoát
-          </button>
-        </div>
+            {/* Controls */}
+            <button
+              onClick={() => setShowHandbook(true)}
+              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10"
+              title="Sách hướng dẫn"
+            >
+              📖
+            </button>
+            {currentPlayer && (
+              <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                currentPlayer.isAlive
+                  ? 'bg-green-500/15 text-green-400'
+                  : 'bg-red-500/15 text-red-400'
+              }`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${
+                  currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'
+                }`} />
+                {currentPlayer.isAlive ? 'Sống' : 'Chết'}
+              </div>
+            )}
+            <button
+              onClick={handleLeave}
+              className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10 ml-1"
+            >
+              Thoát
+            </button>
+          </div>
 
-        {/* Night action fills remaining space */}
-        <div className="flex-1 overflow-y-auto px-4 py-5 pb-safe">
-          <NightActionPanel
-            roomId={room.id}
-            playerId={playerId}
-            players={players}
-            dayCount={dayCount}
-          />
+          {/* Night action fills remaining space */}
+          <div className="flex-1 overflow-y-auto px-4 py-5 pb-safe">
+            <NightActionPanel
+              roomId={room.id}
+              playerId={playerId}
+              players={players}
+              dayCount={dayCount}
+            />
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
@@ -326,20 +367,35 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   // ══════════════════════════════════════════════════════════════════
   if (room.status === 'voting') {
     return (
-      <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
+      <>
+        {overlays}
+        <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
         {/* Sticky top bar */}
         <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-amber-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
           <div className="flex min-w-0 flex-1 items-center gap-2">
             <span className="shrink-0">⚖️</span>
             <span className="shrink-0 text-sm font-bold text-amber-300">Phiên tòa</span>
             {displayRole && (
-              <>
+              <button
+                onClick={() => setShowRoleInfo(true)}
+                className="flex items-center gap-1.5 min-w-0 rounded-lg px-1.5 py-0.5 active:bg-white/10"
+              >
                 <span className="text-white/20 text-sm">·</span>
                 <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
-                <span className="min-w-0 truncate text-sm font-bold text-white">{displayRole}</span>
-              </>
+                <div className="min-w-0 text-left">
+                  <span className="block truncate text-sm font-bold text-white leading-tight">{displayRole}</span>
+                  <span className="block text-[10px] text-amber-300 leading-none">{ROLE_NAMES_VI[displayRole]}</span>
+                </div>
+                <span className="text-[9px] text-slate-600 shrink-0">ⓘ</span>
+              </button>
             )}
           </div>
+          <button
+            onClick={() => setShowHandbook(true)}
+            className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10"
+          >
+            📖
+          </button>
           {currentPlayer && (
             <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
               currentPlayer.isAlive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
@@ -376,6 +432,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           </div>
         )}
       </div>
+      </>
     );
   }
 
@@ -390,7 +447,9 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
       : null;
 
     return (
-      <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
+      <>
+        {overlays}
+        <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
         {/* Sticky top bar */}
         <div className="sticky top-0 z-20 border-b border-amber-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
           <div className="flex items-center gap-2">
@@ -400,16 +459,27 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 Ngày {dayCount || 1}
               </span>
               {displayRole && (
-                <>
+                <button
+                  onClick={() => setShowRoleInfo(true)}
+                  className="flex items-center gap-1.5 min-w-0 rounded-lg px-1.5 py-0.5 active:bg-white/10"
+                >
                   <span className="text-white/20 text-sm">·</span>
                   <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
-                  <span className="min-w-0 truncate text-sm font-bold text-white max-w-[100px]">
-                    {displayRole}
-                  </span>
-                </>
+                  <div className="min-w-0 text-left">
+                    <span className="block truncate text-sm font-bold text-white leading-tight max-w-[80px]">{displayRole}</span>
+                    <span className="block text-[10px] text-amber-300 leading-none">{ROLE_NAMES_VI[displayRole]}</span>
+                  </div>
+                  <span className="text-[9px] text-slate-600 shrink-0">ⓘ</span>
+                </button>
               )}
             </div>
-            {/* Alive badge */}
+            {/* Handbook + alive + leave */}
+            <button
+              onClick={() => setShowHandbook(true)}
+              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10"
+            >
+              📖
+            </button>
             {currentPlayer && (
               <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
                 currentPlayer.isAlive
@@ -419,7 +489,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className={`h-1.5 w-1.5 rounded-full ${
                   currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'
                 }`} />
-                {currentPlayer.isAlive ? 'Còn sống' : 'Đã chết'}
+                {currentPlayer.isAlive ? 'Sống' : 'Chết'}
               </div>
             )}
             <button
@@ -638,6 +708,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           )}
         </div>
       </div>
+      </>
     );
   }
 
