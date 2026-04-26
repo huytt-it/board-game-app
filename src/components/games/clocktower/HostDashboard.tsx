@@ -750,59 +750,9 @@ export default function HostDashboard({
               </div>
             </div>
 
-            {/* ── Seat ring strip (horizontal scroll) ───────────────────── */}
-            {n > 0 && (
-              <div className="border-b border-white/8 bg-black/20 px-3 py-3 overflow-x-auto">
-                <div className="flex items-center gap-1 w-max">
-                  {seated.map((p, idx) => {
-                    const role = p.gameData?.role as ClocktowerRole | undefined;
-                    const team = role ? ROLE_TEAMS[role] : undefined;
-                    const tc   = team ? TEAM_CARD[team] : null;
-                    return (
-                      <div key={p.id} className="flex items-center gap-1 shrink-0">
-                        {/* Seat node */}
-                        <div className={`flex flex-col items-center gap-0.5 rounded-xl border px-2 py-1.5 min-w-[52px] transition-all ${
-                          !p.isAlive
-                            ? 'border-red-500/15 bg-red-950/30 opacity-60'
-                            : tc
-                            ? `${tc.border} ${tc.bg}`
-                            : 'border-white/10 bg-white/5'
-                        }`}>
-                          <span className="text-[9px] font-black text-slate-500 leading-none">
-                            #{p.gameData.seatNumber as number}
-                          </span>
-                          <span className={`text-xl leading-none ${!p.isAlive ? 'grayscale opacity-50' : ''}`}>
-                            {role ? ROLE_ICONS[role] : '🎭'}
-                          </span>
-                          <span className={`text-[9px] font-bold leading-none max-w-[48px] truncate ${
-                            !p.isAlive ? 'text-slate-600 line-through' : tc ? tc.text : 'text-slate-300'
-                          }`}>
-                            {p.name}
-                          </span>
-                          {!p.isAlive && (
-                            <span className="text-[8px] text-red-500 leading-none">💀</span>
-                          )}
-                        </div>
-                        {/* Arrow between nodes */}
-                        <span className="text-slate-700 text-xs shrink-0">
-                          {idx < n - 1 ? '→' : '↩'}
-                        </span>
-                      </div>
-                    );
-                  })}
-                  {/* Back-to-start label */}
-                  {n > 1 && (
-                    <span className="text-[10px] font-black text-slate-600 shrink-0">
-                      #{seated[0].gameData.seatNumber as number}
-                    </span>
-                  )}
-                </div>
-              </div>
-            )}
-
             {/* ── Player detail cards (sorted by seat) ──────────────────── */}
             <div className="divide-y divide-white/5">
-              {ordered.map((p, cardIdx) => {
+              {ordered.map((p) => {
                 const role       = p.gameData?.role as ClocktowerRole | undefined;
                 const team       = role ? ROLE_TEAMS[role] : undefined;
                 const tc         = team ? TEAM_CARD[team] : null;
@@ -819,7 +769,11 @@ export default function HostDashboard({
 
                 return (
                   <div key={p.id} className={`transition-all ${
-                    !p.isAlive ? 'bg-red-950/10 opacity-75' : cardIdx % 2 === 0 ? 'bg-white/[0.02]' : ''
+                    !p.isAlive
+                      ? 'bg-red-950/15 opacity-70'
+                      : tc
+                      ? tc.bg
+                      : 'bg-white/[0.02]'
                   }`}>
                     {/* Main row */}
                     <div className="flex items-center gap-3 px-4 py-3">
