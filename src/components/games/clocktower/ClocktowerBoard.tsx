@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom } from '@/hooks/useRoom';
 import { useVoting } from '@/hooks/games/useVoting';
@@ -62,6 +62,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   const [roleRevealed, setRoleRevealed] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const { events: historyEvents } = useGameHistory(room.id);
+  // Track how many games have started so we only show the countdown on the very first one
+  const gamesStartedRef = useRef(0);
 
   const currentPlayer = players.find((p) => p.id === playerId);
   const playerRole = currentPlayer?.gameData?.role as ClocktowerRole | undefined;
@@ -115,12 +117,20 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   // ─── Start game ────────────────────────────────────────────────────
   const handleStartGame = useCallback(async () => {
     try {
+      setRoleRevealed(false); // reset so players see role reveal every new game
       await startGame();
-      setAnimationPhase('countdown');
+      if (gamesStartedRef.current === 0) {
+        // First game: play the full countdown animation
+        setAnimationPhase('countdown');
+      } else {
+        // Subsequent games: skip animation, go straight to night
+        await updateStatus('night');
+      }
+      gamesStartedRef.current += 1;
     } catch (err: any) {
       alert(err.message || 'Failed to start game');
     }
-  }, [startGame]);
+  }, [startGame, updateStatus]);
 
   const handleCountdownComplete = useCallback(() => {
     setAnimationPhase('none');
@@ -142,9 +152,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
       router.push('/');
     }
   };
-  const handleReset = async () => {
-    if (confirm('Bắt đầu ván mới?')) await resetRoom();
-  };
+  const handleReset = async () => { await resetRoom(); };
 
   // ─── Animation overlays ────────────────────────────────────────────
   if (animationPhase === 'countdown') {
@@ -315,8 +323,9 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     }
 
     return (
-      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in text-center">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-xl relative overflow-hidden">
+      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
+        {/* Winner banner */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-xl relative overflow-hidden text-center">
           <div className={`absolute inset-0 bg-gradient-to-br opacity-20 ${isGoodWin ? 'from-cyan-500 to-blue-500' : 'from-red-500 to-orange-500'}`} />
           <div className="relative text-6xl mb-4">{isGoodWin ? '🌟' : '👹'}</div>
           <h1 className="relative mb-2 text-4xl font-black text-white">
@@ -326,6 +335,15 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
             {isGoodWin ? 'Dân làng đã tiêu diệt Quỷ.' : 'Quỷ đã thống trị làng.'}
           </p>
         </div>
+
+        {/* Host: settings panel for next game */}
+        {isHost && (
+          <RoomSettingsPanel
+            config={room.config}
+            onUpdateConfig={updateConfig}
+            playerCount={players.filter((p) => !p.isHost).length}
+          />
+        )}
 
         {/* Role reveal for players — show their real role if they were drunk */}
         {!isHost && playerRole && playerRole !== displayRole && (
@@ -344,9 +362,9 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           {isHost ? (
             <button
               onClick={handleReset}
-              className="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-4 font-bold text-white transition-all hover:from-purple-500 hover:to-indigo-500"
+              className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-4 font-bold text-white transition-all hover:from-purple-500 hover:to-indigo-500 active:scale-[0.98]"
             >
-              🔄 Ván mới
+              🔄 Bắt đầu ván mới
             </button>
           ) : (
             <>

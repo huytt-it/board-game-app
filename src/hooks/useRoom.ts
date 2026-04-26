@@ -65,7 +65,7 @@ function buildRolePool(playerCount: number, roomConfig?: RoomConfig): Clocktower
   minions = minions.filter((r) => !excludedRoles.includes(r));
   demons = demons.filter((r) => !excludedRoles.includes(r));
 
-  // Determine role distribution by player count
+  // Determine role distribution by player count (BotC defaults)
   let numTownsfolk = 0;
   let numOutsiders = 0;
   let numMinions = 0;
@@ -83,6 +83,17 @@ function buildRolePool(playerCount: number, roomConfig?: RoomConfig): Clocktower
     else if (playerCount === 13) { numTownsfolk = 9; numOutsiders = 0; numMinions = 3; }
     else if (playerCount === 14) { numTownsfolk = 9; numOutsiders = 1; numMinions = 3; }
     else { numTownsfolk = 9; numOutsiders = 2; numMinions = 3; } // 15+ players
+  }
+
+  // ── Override with host's custom team counts if configured ────────────
+  // teamCounts is set by RoomSettingsPanel; values already account for Baron.
+  const tc = roleConfig?.teamCounts;
+  const hasCustomCounts = tc && Object.keys(tc).length > 0;
+  if (hasCustomCounts) {
+    if (tc!['townsfolk'] !== undefined) numTownsfolk = tc!['townsfolk'];
+    if (tc!['outsider']  !== undefined) numOutsiders = tc!['outsider'];
+    if (tc!['minion']    !== undefined) numMinions   = tc!['minion'];
+    if (tc!['demon']     !== undefined) numDemons    = tc!['demon'];
   }
 
   // Helper to pick roles
@@ -108,35 +119,47 @@ function buildRolePool(playerCount: number, roomConfig?: RoomConfig): Clocktower
   let pool: ClocktowerRole[] = [];
 
   if (playerCount < 5) {
-    // Testing mode: < 5 players
-    if (mandatoryRoles.length > playerCount) {
-      throw new Error('Số lượng thẻ Bắt buộc vượt quá giới hạn của ván đấu. Vui lòng giảm bớt.');
-    }
-    
-    // Add all mandatory roles
-    pool.push(...mandatoryRoles);
-
-    // Fill the rest with Townsfolk, then anything else
-    const remainingNeeded = playerCount - pool.length;
-    if (remainingNeeded > 0) {
-      const allAvailable = [
-        ...townsfolk.filter(r => !pool.includes(r)),
-        ...minions.filter(r => !pool.includes(r)),
-        ...demons.filter(r => !pool.includes(r)),
-        ...outsiders.filter(r => !pool.includes(r))
+    // Testing / small game mode
+    if (hasCustomCounts) {
+      // Use the exact faction counts the host configured
+      if (
+        tfMandatory.length > numTownsfolk ||
+        outMandatory.length > numOutsiders ||
+        minMandatory.length > numMinions ||
+        demMandatory.length > numDemons
+      ) {
+        throw new Error('Số lượng thẻ Bắt buộc vượt quá giới hạn của ván đấu. Vui lòng giảm bớt.');
+      }
+      pool = [
+        ...pickRoles(townsfolk, numTownsfolk, tfMandatory),
+        ...pickRoles(outsiders, numOutsiders, outMandatory),
+        ...pickRoles(minions,   numMinions,   minMandatory),
+        ...pickRoles(demons,    numDemons,    demMandatory),
       ];
-      const filler = shuffle(allAvailable).slice(0, remainingNeeded);
-      pool.push(...filler);
+    } else {
+      // Legacy testing mode: mandatory + random fill
+      if (mandatoryRoles.length > playerCount) {
+        throw new Error('Số lượng thẻ Bắt buộc vượt quá giới hạn của ván đấu. Vui lòng giảm bớt.');
+      }
+      pool.push(...mandatoryRoles);
+      const remainingNeeded = playerCount - pool.length;
+      if (remainingNeeded > 0) {
+        const allAvailable = [
+          ...townsfolk.filter(r => !pool.includes(r)),
+          ...minions.filter(r => !pool.includes(r)),
+          ...demons.filter(r => !pool.includes(r)),
+          ...outsiders.filter(r => !pool.includes(r)),
+        ];
+        pool.push(...shuffle(allAvailable).slice(0, remainingNeeded));
+      }
     }
   } else {
-    // Standard rules
-    // Baron mechanic: +2 Outsiders, -2 Townsfolk
-    const baronInMandatory = mandatoryRoles.includes(ClocktowerRole.Baron);
-    // We'll know if Baron ends up in the pool after picking minions
-    // Adjust counts tentatively if Baron is mandatory
+    // Standard rules (≥5 players)
+    // Baron mechanic: +2 Outsiders, -2 Townsfolk — only when NOT using custom counts
+    // (when using custom counts, the host already factored in Baron via the UI)
+    const baronInMandatory = !hasCustomCounts && mandatoryRoles.includes(ClocktowerRole.Baron);
     let adjustedTownsfolk = numTownsfolk;
     let adjustedOutsiders = numOutsiders;
-
     if (baronInMandatory) {
       adjustedTownsfolk = Math.max(0, numTownsfolk - 2);
       adjustedOutsiders = numOutsiders + 2;
@@ -152,9 +175,9 @@ function buildRolePool(playerCount: number, roomConfig?: RoomConfig): Clocktower
     }
 
     const pickedMinions = pickRoles(minions, numMinions, minMandatory);
-    const baronIncluded = pickedMinions.includes(ClocktowerRole.Baron);
+    const baronIncluded = !hasCustomCounts && pickedMinions.includes(ClocktowerRole.Baron);
 
-    // Apply Baron effect if Baron ended up in the pool
+    // Apply Baron effect only when counts are from the default table
     const finalTownsfolk = baronIncluded ? Math.max(0, numTownsfolk - 2) : numTownsfolk;
     const finalOutsiders = baronIncluded ? numOutsiders + 2 : numOutsiders;
 

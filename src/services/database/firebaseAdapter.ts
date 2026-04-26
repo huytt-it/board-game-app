@@ -127,13 +127,23 @@ export class FirebaseAdapter implements IGameStorage {
   async resetRoom(roomId: string): Promise<void> {
     const batch = writeBatch(getDb());
     
-    // Reset room
+    // Reset room — clear entire gameState so stale fields (winner, pendingStarpass, etc.) don't linger
     const roomRef = doc(getDb(), 'rooms', roomId);
     batch.update(roomRef, {
       status: 'lobby',
-      'gameState.dayCount': 0,
-      'gameState.votes': {},
-      'gameState.rolesAssigned': false,
+      gameState: {
+        dayCount: 0,
+        votes: {},
+        rolesAssigned: false,
+        winner: null,
+        nominations: {},
+        votingTarget: null,
+        votingTargetName: null,
+        lastExecutedPlayerId: null,
+        lastExecutedRole: null,
+        pendingSlayerAction: null,
+        pendingStarpassAction: null,
+      },
     });
 
     // Reset players
