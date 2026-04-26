@@ -18,6 +18,7 @@ export interface IGameStorage {
   subscribeToRoom(roomId: string, callback: (room: Room | null) => void): () => void;
   deleteRoom(roomId: string): Promise<void>;
   resetRoom(roomId: string): Promise<void>;
+  clearGameData(roomId: string): Promise<void>;
 
   // ─── Player Operations ───────────────────────────────────────────────
   addPlayer(roomId: string, player: CreatePlayerPayload): Promise<void>;

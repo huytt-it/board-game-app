@@ -166,6 +166,45 @@ export class FirebaseAdapter implements IGameStorage {
     await batch.commit();
   }
 
+  // Clears all per-game data (player gameData, actions, history, gameState) without
+  // changing room status — used to start a new round without going through the lobby.
+  async clearGameData(roomId: string): Promise<void> {
+    const batch = writeBatch(getDb());
+
+    // Reset players (keep them in the room)
+    const playersSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'players'));
+    playersSnap.docs.forEach((d) => {
+      batch.update(d.ref, { isAlive: true, gameData: {} });
+    });
+
+    // Delete actions
+    const actionsSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'actions'));
+    actionsSnap.docs.forEach((d) => batch.delete(d.ref));
+
+    // Delete history
+    const historySnap = await getDocs(collection(getDb(), 'rooms', roomId, 'history'));
+    historySnap.docs.forEach((d) => batch.delete(d.ref));
+
+    // Reset gameState (status untouched so there is no lobby flash)
+    batch.update(doc(getDb(), 'rooms', roomId), {
+      gameState: {
+        dayCount: 0,
+        votes: {},
+        rolesAssigned: false,
+        winner: null,
+        nominations: {},
+        votingTarget: null,
+        votingTargetName: null,
+        lastExecutedPlayerId: null,
+        lastExecutedRole: null,
+        pendingSlayerAction: null,
+        pendingStarpassAction: null,
+      },
+    });
+
+    await batch.commit();
+  }
+
   subscribeToRoom(roomId: string, callback: (room: Room | null) => void): Unsubscribe {
     return onSnapshot(doc(getDb(), 'rooms', roomId), (snap) => {
       if (!snap.exists()) {

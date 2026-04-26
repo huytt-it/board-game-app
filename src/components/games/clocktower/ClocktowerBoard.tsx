@@ -57,7 +57,7 @@ const TEAM_EMOJI: Record<ClocktowerTeam, string> = {
 
 export default function ClocktowerBoard({ room, players, playerId, isHost }: GameModuleProps) {
   const router = useRouter();
-  const { updateStatus, updateGameState, updateConfig, startGame, leaveRoom, deleteRoom, resetRoom } = useRoom(room.id, playerId);
+  const { updateStatus, updateGameState, updateConfig, startGame, startNewGame, leaveRoom, deleteRoom, resetRoom } = useRoom(room.id, playerId);
   const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('none');
   const [roleRevealed, setRoleRevealed] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
@@ -152,7 +152,19 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
       router.push('/');
     }
   };
+  // Used only in the fallback Game-Over screen (edge case)
   const handleReset = async () => { await resetRoom(); };
+
+  // End-screen "Bắt đầu ván mới": wipe data → assign roles → go straight to night
+  const handleStartNewGame = useCallback(async () => {
+    try {
+      setRoleRevealed(false);
+      await startNewGame();
+      gamesStartedRef.current += 1;
+    } catch (err: any) {
+      alert(err.message || 'Failed to start new game');
+    }
+  }, [startNewGame]);
 
   // ─── Animation overlays ────────────────────────────────────────────
   if (animationPhase === 'countdown') {
@@ -361,7 +373,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
         <div className="flex flex-wrap justify-center gap-3">
           {isHost ? (
             <button
-              onClick={handleReset}
+              onClick={handleStartNewGame}
               className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-4 font-bold text-white transition-all hover:from-purple-500 hover:to-indigo-500 active:scale-[0.98]"
             >
               🔄 Bắt đầu ván mới
