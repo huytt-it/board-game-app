@@ -17,9 +17,41 @@ import RoomSettingsPanel from './RoomSettingsPanel';
 import PlayerRoleCard from './PlayerRoleCard';
 import RoleHandbook from './RoleHandbook';
 import type { GameModuleProps } from '@/lib/gameRegistry';
-import { ROLE_ICONS, ROLE_NAMES_VI, ClocktowerRole } from '@/types/games/clocktower';
+import {
+  ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAM_VI, ROLE_TEAMS,
+  ClocktowerRole, type ClocktowerTeam,
+} from '@/types/games/clocktower';
 
 type AnimationPhase = 'none' | 'countdown' | 'role-reveal';
+
+// ─── Team visual config (board-level) ─────────────────────────────────
+const TEAM_PAGE_BG: Record<ClocktowerTeam, React.CSSProperties> = {
+  townsfolk: { backgroundImage: 'radial-gradient(ellipse at top, rgba(30,58,138,0.45) 0%, transparent 55%)' },
+  outsider:  { backgroundImage: 'radial-gradient(ellipse at top, rgba(76,29,149,0.45) 0%, transparent 55%)'  },
+  minion:    { backgroundImage: 'radial-gradient(ellipse at top, rgba(124,45,18,0.45) 0%, transparent 55%)'  },
+  demon:     { backgroundImage: 'radial-gradient(ellipse at top, rgba(127,29,29,0.55) 0%, transparent 55%)'  },
+};
+
+const TEAM_STRIP_BG: Record<ClocktowerTeam, string> = {
+  townsfolk: 'bg-blue-950/40 border-blue-500/20',
+  outsider:  'bg-purple-950/40 border-purple-500/20',
+  minion:    'bg-orange-950/40 border-orange-500/20',
+  demon:     'bg-red-950/40 border-red-500/20',
+};
+
+const TEAM_BADGE: Record<ClocktowerTeam, string> = {
+  townsfolk: 'bg-blue-500/20 text-blue-300',
+  outsider:  'bg-purple-500/20 text-purple-300',
+  minion:    'bg-orange-500/20 text-orange-300',
+  demon:     'bg-red-500/20 text-red-300',
+};
+
+const TEAM_EMOJI: Record<ClocktowerTeam, string> = {
+  townsfolk: '🌟',
+  outsider:  '🌀',
+  minion:    '🗡️',
+  demon:     '👹',
+};
 
 export default function ClocktowerBoard({ room, players, playerId, isHost }: GameModuleProps) {
   const router = useRouter();
@@ -31,8 +63,10 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   const playerRole = currentPlayer?.gameData?.role as ClocktowerRole | undefined;
   const isDrunk   = currentPlayer?.gameData?.isDrunk === true;
   const drunkRole = currentPlayer?.gameData?.drunkRole as ClocktowerRole | undefined;
-  // Drunk players see their fake role everywhere in player-facing UI
+  // Drunk players see their fake role everywhere in player-facing UI — no drunk indicator shown
   const displayRole = isDrunk && drunkRole ? drunkRole : playerRole;
+  // Team is derived from displayRole so Drunk players appear as Townsfolk
+  const displayTeam: ClocktowerTeam | null = displayRole ? ROLE_TEAMS[displayRole] : null;
   const dayCount = room.gameState?.dayCount ?? 0;
 
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
@@ -114,7 +148,6 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
       {showRoleInfo && displayRole && (
         <PlayerRoleCard
           role={displayRole}
-          isDrunk={isDrunk}
           onClose={() => setShowRoleInfo(false)}
         />
       )}
@@ -296,55 +329,50 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     return (
       <>
         {overlays}
-        <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
-          {/* Sticky top bar */}
-          <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-indigo-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
-              <span className="shrink-0 text-base">🌙</span>
-              <span className="shrink-0 text-sm font-bold text-indigo-300">
-                Đêm {dayCount + 1}
-              </span>
-              {displayRole && (
-                <button
-                  onClick={() => setShowRoleInfo(true)}
-                  className="flex items-center gap-1.5 min-w-0 rounded-lg px-1.5 py-0.5 active:bg-white/10"
-                >
-                  <span className="text-white/20 text-sm">·</span>
-                  <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
-                  <div className="min-w-0 text-left">
-                    <span className="block truncate text-sm font-bold text-white leading-tight">{displayRole}</span>
-                    <span className="block text-[10px] text-indigo-300 leading-none">{ROLE_NAMES_VI[displayRole]}</span>
-                  </div>
-                  <span className="text-[9px] text-slate-600 shrink-0">ⓘ</span>
-                </button>
+        <div
+          className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in"
+          style={displayTeam ? TEAM_PAGE_BG[displayTeam] : undefined}
+        >
+          {/* ── Sticky header (phase row + role strip) ────────────── */}
+          <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md border-b border-white/8">
+            {/* Phase row */}
+            <div className="flex items-center gap-2 px-4 py-2.5">
+              <span className="text-base shrink-0">🌙</span>
+              <span className="text-sm font-black text-indigo-300 shrink-0">Đêm {dayCount + 1}</span>
+              <div className="flex-1" />
+              <button
+                onClick={() => setShowHandbook(true)}
+                className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10"
+              >📖</button>
+              {currentPlayer && (
+                <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                  currentPlayer.isAlive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'}`} />
+                  {currentPlayer.isAlive ? 'Sống' : 'Chết'}
+                </div>
               )}
+              <button onClick={handleLeave} className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10">
+                Thoát
+              </button>
             </div>
-            {/* Controls */}
-            <button
-              onClick={() => setShowHandbook(true)}
-              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10"
-              title="Sách hướng dẫn"
-            >
-              📖
-            </button>
-            {currentPlayer && (
-              <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                currentPlayer.isAlive
-                  ? 'bg-green-500/15 text-green-400'
-                  : 'bg-red-500/15 text-red-400'
-              }`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${
-                  currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'
-                }`} />
-                {currentPlayer.isAlive ? 'Sống' : 'Chết'}
-              </div>
+            {/* Role strip */}
+            {displayRole && displayTeam && (
+              <button
+                onClick={() => setShowRoleInfo(true)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 border-t ${TEAM_STRIP_BG[displayTeam]} active:opacity-75 transition-opacity`}
+              >
+                <span className="text-2xl shrink-0">{ROLE_ICONS[displayRole]}</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <span className="block text-sm font-black text-white leading-tight truncate">{displayRole}</span>
+                  <span className="block text-[11px] text-slate-400 leading-none">{ROLE_NAMES_VI[displayRole]}</span>
+                </div>
+                <span className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold ${TEAM_BADGE[displayTeam]}`}>
+                  {TEAM_EMOJI[displayTeam]} Phe {ROLE_TEAM_VI[displayTeam]}
+                </span>
+                <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
+              </button>
             )}
-            <button
-              onClick={handleLeave}
-              className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10 ml-1"
-            >
-              Thoát
-            </button>
           </div>
 
           {/* Night action fills remaining space */}
@@ -369,69 +397,67 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     return (
       <>
         {overlays}
-        <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
-        {/* Sticky top bar */}
-        <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-amber-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
-          <div className="flex min-w-0 flex-1 items-center gap-2">
-            <span className="shrink-0">⚖️</span>
-            <span className="shrink-0 text-sm font-bold text-amber-300">Phiên tòa</span>
-            {displayRole && (
+        <div
+          className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in"
+          style={displayTeam ? TEAM_PAGE_BG[displayTeam] : undefined}
+        >
+          {/* ── Sticky header ─────────────────────────────────────── */}
+          <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md border-b border-white/8">
+            {/* Phase row */}
+            <div className="flex items-center gap-2 px-4 py-2.5">
+              <span className="shrink-0">⚖️</span>
+              <span className="text-sm font-black text-amber-300 shrink-0">Phiên tòa</span>
+              <div className="flex-1" />
+              <button onClick={() => setShowHandbook(true)} className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10">📖</button>
+              {currentPlayer && (
+                <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                  currentPlayer.isAlive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'}`} />
+                  {currentPlayer.isAlive ? 'Sống' : 'Chết'}
+                </div>
+              )}
+              <button onClick={handleLeave} className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10">Thoát</button>
+            </div>
+            {/* Role strip */}
+            {displayRole && displayTeam && (
               <button
                 onClick={() => setShowRoleInfo(true)}
-                className="flex items-center gap-1.5 min-w-0 rounded-lg px-1.5 py-0.5 active:bg-white/10"
+                className={`w-full flex items-center gap-3 px-4 py-2.5 border-t ${TEAM_STRIP_BG[displayTeam]} active:opacity-75 transition-opacity`}
               >
-                <span className="text-white/20 text-sm">·</span>
-                <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
-                <div className="min-w-0 text-left">
-                  <span className="block truncate text-sm font-bold text-white leading-tight">{displayRole}</span>
-                  <span className="block text-[10px] text-amber-300 leading-none">{ROLE_NAMES_VI[displayRole]}</span>
+                <span className="text-2xl shrink-0">{ROLE_ICONS[displayRole]}</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <span className="block text-sm font-black text-white leading-tight truncate">{displayRole}</span>
+                  <span className="block text-[11px] text-slate-400 leading-none">{ROLE_NAMES_VI[displayRole]}</span>
                 </div>
-                <span className="text-[9px] text-slate-600 shrink-0">ⓘ</span>
+                <span className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold ${TEAM_BADGE[displayTeam]}`}>
+                  {TEAM_EMOJI[displayTeam]} Phe {ROLE_TEAM_VI[displayTeam]}
+                </span>
+                <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
           </div>
-          <button
-            onClick={() => setShowHandbook(true)}
-            className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10"
-          >
-            📖
-          </button>
-          {currentPlayer && (
-            <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-              currentPlayer.isAlive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
-            }`}>
-              <span className={`h-1.5 w-1.5 rounded-full ${currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'}`} />
-              {currentPlayer.isAlive ? 'Sống' : 'Chết'}
+
+          {/* VotingPanel owns flex-1, scroll + sticky vote buttons */}
+          {votingTarget && votingTargetName ? (
+            <VotingPanel
+              targetName={votingTargetName}
+              targetId={votingTarget}
+              players={players}
+              playerId={playerId}
+              votes={votes}
+              hasVoted={hasVoted}
+              voteCount={voteCount}
+              onVote={castVote}
+              isHost={false}
+              alivePlayers={alivePlayers}
+            />
+          ) : (
+            <div className="flex-1 flex items-center justify-center px-4">
+              <PlayerWaiting message="Đang chờ phiên tòa bắt đầu..." />
             </div>
           )}
-          <button
-            onClick={handleLeave}
-            className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10 ml-1"
-          >
-            Thoát
-          </button>
         </div>
-
-        {/* VotingPanel takes flex-1, handles its own scroll + sticky bottom */}
-        {votingTarget && votingTargetName ? (
-          <VotingPanel
-            targetName={votingTargetName}
-            targetId={votingTarget}
-            players={players}
-            playerId={playerId}
-            votes={votes}
-            hasVoted={hasVoted}
-            voteCount={voteCount}
-            onVote={castVote}
-            isHost={false}
-            alivePlayers={alivePlayers}
-          />
-        ) : (
-          <div className="flex-1 flex items-center justify-center px-4">
-            <PlayerWaiting message="Đang chờ phiên tòa bắt đầu..." />
-          </div>
-        )}
-      </div>
       </>
     );
   }
@@ -449,75 +475,60 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     return (
       <>
         {overlays}
-        <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
-        {/* Sticky top bar */}
-        <div className="sticky top-0 z-20 border-b border-amber-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
-          <div className="flex items-center gap-2">
-            <div className="flex min-w-0 flex-1 items-center gap-2">
+        <div
+          className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in"
+          style={displayTeam ? TEAM_PAGE_BG[displayTeam] : undefined}
+        >
+          {/* ── Sticky header ─────────────────────────────────────── */}
+          <div className="sticky top-0 z-20 bg-slate-950/95 backdrop-blur-md border-b border-white/8">
+            {/* Phase row */}
+            <div className="flex items-center gap-2 px-4 py-2.5">
               <span className="shrink-0">☀️</span>
-              <span className="shrink-0 text-sm font-bold text-amber-300">
-                Ngày {dayCount || 1}
-              </span>
-              {displayRole && (
-                <button
-                  onClick={() => setShowRoleInfo(true)}
-                  className="flex items-center gap-1.5 min-w-0 rounded-lg px-1.5 py-0.5 active:bg-white/10"
-                >
-                  <span className="text-white/20 text-sm">·</span>
-                  <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
-                  <div className="min-w-0 text-left">
-                    <span className="block truncate text-sm font-bold text-white leading-tight max-w-[80px]">{displayRole}</span>
-                    <span className="block text-[10px] text-amber-300 leading-none">{ROLE_NAMES_VI[displayRole]}</span>
-                  </div>
-                  <span className="text-[9px] text-slate-600 shrink-0">ⓘ</span>
-                </button>
+              <span className="text-sm font-black text-amber-300 shrink-0">Ngày {dayCount || 1}</span>
+              <div className="flex-1" />
+              <button onClick={() => setShowHandbook(true)} className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10">📖</button>
+              {currentPlayer && (
+                <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                  currentPlayer.isAlive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
+                }`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'}`} />
+                  {currentPlayer.isAlive ? 'Sống' : 'Chết'}
+                </div>
               )}
+              <button onClick={handleLeave} className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10">Thoát</button>
             </div>
-            {/* Handbook + alive + leave */}
-            <button
-              onClick={() => setShowHandbook(true)}
-              className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10"
-            >
-              📖
-            </button>
-            {currentPlayer && (
-              <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
-                currentPlayer.isAlive
-                  ? 'bg-green-500/15 text-green-400'
-                  : 'bg-red-500/15 text-red-400'
-              }`}>
-                <span className={`h-1.5 w-1.5 rounded-full ${
-                  currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'
-                }`} />
-                {currentPlayer.isAlive ? 'Sống' : 'Chết'}
+            {/* Role strip */}
+            {displayRole && displayTeam && (
+              <button
+                onClick={() => setShowRoleInfo(true)}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 border-t ${TEAM_STRIP_BG[displayTeam]} active:opacity-75 transition-opacity`}
+              >
+                <span className="text-2xl shrink-0">{ROLE_ICONS[displayRole]}</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <span className="block text-sm font-black text-white leading-tight truncate">{displayRole}</span>
+                  <span className="block text-[11px] text-slate-400 leading-none">{ROLE_NAMES_VI[displayRole]}</span>
+                </div>
+                <span className={`shrink-0 flex items-center gap-1.5 rounded-full px-3 py-1 text-[11px] font-bold ${TEAM_BADGE[displayTeam]}`}>
+                  {TEAM_EMOJI[displayTeam]} Phe {ROLE_TEAM_VI[displayTeam]}
+                </span>
+                <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
+              </button>
+            )}
+            {/* Nomination summary bar */}
+            {nominatedPlayerName && (
+              <div className="flex items-center gap-2 border-t border-amber-500/20 bg-amber-500/8 px-4 py-2">
+                <span className="text-xs text-amber-400 font-bold flex-1 min-w-0 truncate">
+                  ⚖️ Đề cử: <span className="text-amber-200">{nominatedPlayerName}</span>
+                </span>
+                <button onClick={() => castNomination(null)} className="shrink-0 text-[10px] text-slate-500 active:text-red-400 underline">
+                  Huỷ
+                </button>
               </div>
             )}
-            <button
-              onClick={handleLeave}
-              className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10 ml-1"
-            >
-              Thoát
-            </button>
           </div>
 
-          {/* My nomination summary bar */}
-          {nominatedPlayerName && (
-            <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-1.5">
-              <span className="text-xs text-amber-400 font-bold">
-                ⚖️ Bạn đang đề cử: <span className="text-amber-200">{nominatedPlayerName}</span>
-              </span>
-              <button
-                onClick={() => castNomination(null)}
-                className="ml-auto text-[10px] text-slate-500 hover:text-red-400 underline"
-              >
-                Huỷ
-              </button>
-            </div>
-          )}
-        </div>
-
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto pb-safe">
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto pb-safe">
 
           {/* Dead notice — prominently at top */}
           {currentPlayer && !currentPlayer.isAlive && (
