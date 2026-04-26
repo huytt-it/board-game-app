@@ -31,6 +31,11 @@ export interface RoomGameState {
   lastExecutedPlayerId?: string | null;  // Undertaker: who was executed last day
   lastExecutedRole?: string | null;      // Undertaker: their true role
   pendingSlayerAction?: { slayerName: string; targetId: string; targetName: string } | null; // Slayer public ability
+  pendingStarpassAction?: {
+    impPlayerId: string;
+    impPlayerName: string;
+    minions: Array<{ id: string; name: string; role: string }>;
+  } | null; // Imp self-kill → Minion becomes new Imp
 }
 
 // ─── Room Document ────────────────────────────────────────────────────
