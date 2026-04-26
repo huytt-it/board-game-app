@@ -120,20 +120,20 @@ export default function PlayerRoleCard({ role, onClose }: PlayerRoleCardProps) {
         {/* ── Scrollable details ─────────────────────────────────────── */}
         <div className="overflow-y-auto flex-1 px-4 py-4 space-y-3 pb-safe">
 
+          {/* Kỹ năng — prominent, always first */}
+          <div className={`rounded-2xl border-2 p-4 ${cfg.sectionBg}`} style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
+            <p className="text-[11px] uppercase tracking-widest font-black text-white/70 mb-3 flex items-center gap-2">
+              <span className="text-base">⚡</span> Kỹ năng
+            </p>
+            <p className="text-[15px] font-semibold text-white leading-relaxed">{ROLE_FULL_DESC_VI[role]}</p>
+          </div>
+
           {/* Mục tiêu */}
-          <div className={`rounded-2xl border p-4 ${cfg.sectionBg}`}>
+          <div className="rounded-2xl border border-white/8 bg-white/4 p-4">
             <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2 flex items-center gap-1.5">
               <span>{cfg.objIcon}</span> Mục tiêu
             </p>
-            <p className="text-sm text-slate-100 leading-relaxed">{cfg.objective}</p>
-          </div>
-
-          {/* Kỹ năng */}
-          <div className="rounded-2xl border border-white/8 bg-white/4 p-4">
-            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2 flex items-center gap-1.5">
-              <span>⚡</span> Kỹ năng
-            </p>
-            <p className="text-sm text-slate-200 leading-relaxed">{ROLE_FULL_DESC_VI[role]}</p>
+            <p className="text-sm text-slate-300 leading-relaxed">{cfg.objective}</p>
           </div>
 
           {/* Gợi ý chơi */}
