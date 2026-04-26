@@ -8,7 +8,7 @@ import { gameStorage } from '@/services/database/firebaseAdapter';
 import type { Player } from '@/types/player';
 import type { GameAction } from '@/types/actions';
 import type { RoomGameState } from '@/types/room';
-import { ROLE_ICONS, ROLE_TEAMS, ClocktowerRole } from '@/types/games/clocktower';
+import { ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAMS, ClocktowerRole } from '@/types/games/clocktower';
 import VotingPanel from './VotingPanel';
 import NightTimelinePanel from './NightTimelinePanel';
 import GameHistoryPanel from './GameHistoryPanel';
@@ -227,7 +227,53 @@ export default function HostDashboard({
       });
     }
 
-    // 5. Log the main night action (approved by host)
+    // 5. Imp self-kill → Starpass mechanic
+    if (actorRole === ClocktowerRole.Imp && action.targetId === action.playerId) {
+      const aliveMinions = players.filter(
+        (p) => !p.isHost && p.isAlive && ROLE_TEAMS[p.gameData?.role as ClocktowerRole] === 'minion'
+      );
+      if (aliveMinions.length > 0) {
+        await gameStorage.updateRoomGameState(roomId, {
+          pendingStarpassAction: {
+            impPlayerId: action.playerId,
+            impPlayerName: action.playerName,
+            minions: aliveMinions.map((p) => ({
+              id: p.id,
+              name: p.name,
+              role: String(p.gameData?.role ?? ''),
+            })),
+          },
+        } as any);
+        await addEvent({
+          type: 'state_change',
+          dayCount,
+          phase: 'night',
+          emoji: '🔁',
+          title: `${action.playerName} (Imp) tự giết — Starpass!`,
+          detail: `Đang chờ Quản trò chỉ định Minion trở thành Imp mới.`,
+          actorName: action.playerName,
+          actorRole: String(ClocktowerRole.Imp),
+          resultState: 'approved',
+        });
+        return; // Don't fall through to main log — the starpass event is sufficient
+      } else {
+        // No minions alive → Imp simply dies
+        await gameStorage.updatePlayerAlive(roomId, action.playerId, false);
+        await addEvent({
+          type: 'night_death',
+          dayCount,
+          phase: 'night',
+          emoji: '💀',
+          title: `${action.playerName} (Imp) tự giết — không có Minion, Imp chết!`,
+          actorName: action.playerName,
+          actorRole: String(ClocktowerRole.Imp),
+          resultState: 'killed',
+        });
+        return;
+      }
+    }
+
+    // 6. Log the main night action (approved by host)
     let title = `${action.playerName} (${actorRole || '?'}) sử dụng kỹ năng`;
     if (action.targetName) {
       title = `${action.playerName} (${actorRole || '?'}) → ${action.targetName}`;
@@ -292,6 +338,36 @@ export default function HostDashboard({
       targetRole: targetRole ? String(targetRole) : undefined,
       resultState: 'miss',
     });
+  };
+
+  // ─── Starpass: host assigns a Minion as the new Imp ──────────────────
+  const handleStarpassConfirm = async (minionId: string) => {
+    const starpass = gameState?.pendingStarpassAction;
+    if (!starpass) return;
+
+    const minion = players.find((p) => p.id === minionId);
+    const minionOldRole = minion?.gameData?.role as ClocktowerRole | undefined;
+
+    // Promote the chosen Minion → Imp
+    await gameStorage.updatePlayerGameData(roomId, minionId, { role: ClocktowerRole.Imp });
+    // Kill the old Imp
+    await gameStorage.updatePlayerAlive(roomId, starpass.impPlayerId, false);
+
+    await addEvent({
+      type: 'state_change',
+      dayCount,
+      phase: 'night',
+      emoji: '👹',
+      title: `${minion?.name ?? '?'} trở thành Imp mới! (Starpass)`,
+      detail: `${starpass.impPlayerName} (Imp cũ) đã chết · ${minion?.name} chuyển từ ${minionOldRole ?? '?'} thành Imp`,
+      actorName: starpass.impPlayerName,
+      actorRole: String(ClocktowerRole.Imp),
+      targetName: minion?.name,
+      targetRole: minionOldRole ? String(minionOldRole) : undefined,
+      resultState: 'approved',
+    });
+
+    await gameStorage.updateRoomGameState(roomId, { pendingStarpassAction: null } as any);
   };
 
   // ─── Direct private message ────────────────────────────────────────────
@@ -480,6 +556,56 @@ export default function HostDashboard({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* ── Starpass — Imp tự giết, chọn Minion kế vị ───────────────── */}
+      {gameState?.pendingStarpassAction && (
+        <div className="rounded-xl border-2 border-orange-500/50 bg-gradient-to-br from-orange-950/60 to-red-950/40 p-4 shadow-lg shadow-orange-500/10 animate-slide-up">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl">🔁</span>
+            <div>
+              <h3 className="text-base font-black text-orange-300">Starpass — Chọn Quỷ Mới!</h3>
+              <p className="text-xs text-slate-400">
+                <span className="font-bold text-orange-200">{gameState.pendingStarpassAction.impPlayerName}</span>
+                {' '}(Imp) đã tự giết. Chọn Tay Sai trở thành Imp mới:
+              </p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-2 mt-3">
+            {gameState.pendingStarpassAction.minions.map((m) => {
+              const roleEnum = m.role as ClocktowerRole;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => {
+                    if (confirm(`Xác nhận: ${m.name} (${m.role}) trở thành Imp mới?\n${gameState!.pendingStarpassAction!.impPlayerName} sẽ bị đánh dấu chết.`)) {
+                      handleStarpassConfirm(m.id);
+                    }
+                  }}
+                  className="flex items-center gap-3 rounded-xl border border-orange-500/30 bg-orange-500/10 px-4 py-3 text-left transition-all hover:bg-orange-500/20 hover:border-orange-500/50 active:scale-[0.98]"
+                >
+                  <span className="text-2xl shrink-0">
+                    {ROLE_ICONS[roleEnum] ?? '🎭'}
+                  </span>
+                  <div className="flex-1 min-w-0">
+                    <span className="block font-black text-white text-sm">{m.name}</span>
+                    <span className="block text-xs text-orange-300">
+                      {m.role} · {ROLE_NAMES_VI[roleEnum] ?? m.role}
+                    </span>
+                  </div>
+                  <span className="shrink-0 rounded-lg bg-orange-500/20 border border-orange-500/30 px-3 py-1.5 text-xs font-black text-orange-300">
+                    👹 Chọn làm Imp
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+
+          <p className="mt-3 text-[11px] text-slate-500 text-center">
+            ⚠️ Thao tác này sẽ cập nhật vai trò Firestore và đánh dấu Imp cũ là đã chết
+          </p>
         </div>
       )}
 
