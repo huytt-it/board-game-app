@@ -193,6 +193,48 @@
 body {
   background: linear-gradient(135deg, #0f0a1a 0%, #1a1025 35%, #0d1117 100%);
   min-height: 100vh;
+  /* Prevent overscroll bounce on iOS */
+  overscroll-behavior: none;
+}
+
+/* ─── Mobile / Touch ──────────────────────────────────────────────── */
+
+/* Remove blue tap highlight on iOS/Android */
+button, a, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* Dynamic viewport height — accounts for mobile browser chrome hiding/showing */
+.h-dvh  { height:  100dvh; }
+.min-h-dvh { min-height: 100dvh; }
+
+/* Safe area insets for notched phones (iOS, Android) */
+.pb-safe {
+  padding-bottom: max(1rem, env(safe-area-inset-bottom));
+}
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
+}
+
+/* Minimum 48 × 48 px touch target per WCAG / Apple HIG */
+.min-touch {
+  min-height: 48px;
+  min-width:  48px;
+}
+
+/* Gentle breathing pulse for "alive" indicators */
+@keyframes breathe {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.45; }
+}
+.animate-breathe {
+  animation: breathe 2.4s ease-in-out infinite;
+}
+
+/* Tap feedback scale */
+.active\:scale-tap:active {
+  transform: scale(0.96);
 }
 
 /* ─── Scrollbar ───────────────────────────────────────────────────── */

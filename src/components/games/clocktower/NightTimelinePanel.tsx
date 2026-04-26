@@ -61,58 +61,20 @@ function seededPick<T>(arr: T[], seed: string): T {
   return arr[seededIndex(seed, arr.length)];
 }
 
-// ─── Build recommendation for each action ─────────────────────────────
-function getRecommendation(
+// ─── Core role recommendation logic (shared by normal / Drunk / Poisoned) ──
+function getRoleRec(
+  role: ClocktowerRole,
   action: GameAction,
-  players: Player[],
+  actor: Player,
+  target: Player | undefined,
+  secondTarget: Player | undefined,
+  targetRole: ClocktowerRole | undefined,
+  secondTargetRole: ClocktowerRole | undefined,
+  gamePlayers: Player[],
+  isTargetProtected: boolean,
   allActions: GameAction[],
   gameState?: RoomGameState
 ): { emoji: string; lines: string[]; color: string } | null {
-  const actor = players.find((p) => p.id === action.playerId);
-  const target = players.find((p) => p.id === action.targetId);
-  const secondTarget = players.find((p) => p.id === action.secondTargetId);
-  if (!actor) return null;
-
-  const role = actor.gameData?.role as ClocktowerRole | undefined;
-  const isDrunk = actor.gameData?.isDrunk === true;
-  const drunkRole = actor.gameData?.drunkRole as ClocktowerRole | undefined;
-  const targetRole = target?.gameData?.role as ClocktowerRole | undefined;
-  const secondTargetRole = secondTarget?.gameData?.role as ClocktowerRole | undefined;
-  const isPoisoned = actor.gameData?.isPoisoned === true;
-
-  // Monk protection for this action's target
-  const monkAction = allActions.find((a) => {
-    const monkActor = players.find((p) => p.id === a.playerId);
-    return monkActor?.gameData?.role === ClocktowerRole.Monk && a.targetId === action.targetId;
-  });
-  const isTargetProtected = !!monkAction;
-
-  const gamePlayers = players.filter((p) => !p.isHost);
-
-  // ── Drunk: always false info ────────────────────────────────────────
-  if (isDrunk && drunkRole) {
-    return {
-      emoji: '🍺',
-      lines: [
-        `${actor.name} là KẺ SAY RƯỢU — họ nghĩ mình là ${drunkRole}.`,
-        `Đưa thông tin GIẢ (như thể họ là ${drunkRole} thật, nhưng sai sự thật).`,
-      ],
-      color: 'text-amber-300 bg-amber-500/10 border-amber-500/20',
-    };
-  }
-
-  // ── Poisoned actor: false info ──────────────────────────────────────
-  if (isPoisoned && role) {
-    return {
-      emoji: '🤢',
-      lines: [
-        `${actor.name} (${role}) đang bị NHIỄM ĐỘC.`,
-        `Đưa thông tin GIẢ cho họ đêm nay.`,
-      ],
-      color: 'text-green-300 bg-green-500/10 border-green-500/20',
-    };
-  }
-
   // ── Poisoner ────────────────────────────────────────────────────────
   if (role === ClocktowerRole.Poisoner && target) {
     return {
@@ -222,7 +184,7 @@ function getRecommendation(
     const hasDemon = [targetRole, secondTargetRole].includes(ClocktowerRole.Imp);
     const hasRecluse = [targetRole, secondTargetRole].includes(ClocktowerRole.Recluse);
     const hasRedHerring = ftRedHerring && targetIds.includes(ftRedHerring);
-    const redHerringPlayer = ftRedHerring ? players.find((p) => p.id === ftRedHerring) : undefined;
+    const redHerringPlayer = ftRedHerring ? gamePlayers.find((p) => p.id === ftRedHerring) : undefined;
 
     if (hasDemon) {
       return {
@@ -469,11 +431,84 @@ function getRecommendation(
   return null;
 }
 
+// ─── Build recommendation for each action ─────────────────────────────
+function getRecommendation(
+  action: GameAction,
+  players: Player[],
+  allActions: GameAction[],
+  gameState?: RoomGameState
+): { emoji: string; lines: string[]; color: string } | null {
+  const actor = players.find((p) => p.id === action.playerId);
+  const target = players.find((p) => p.id === action.targetId);
+  const secondTarget = players.find((p) => p.id === action.secondTargetId);
+  if (!actor) return null;
+
+  const role = actor.gameData?.role as ClocktowerRole | undefined;
+  const isDrunk = actor.gameData?.isDrunk === true;
+  const drunkRole = actor.gameData?.drunkRole as ClocktowerRole | undefined;
+  const targetRole = target?.gameData?.role as ClocktowerRole | undefined;
+  const secondTargetRole = secondTarget?.gameData?.role as ClocktowerRole | undefined;
+  const isPoisoned = actor.gameData?.isPoisoned === true;
+
+  // Monk protection for this action's target
+  const monkAction = allActions.find((a) => {
+    const monkActor = players.find((p) => p.id === a.playerId);
+    return monkActor?.gameData?.role === ClocktowerRole.Monk && a.targetId === action.targetId;
+  });
+  const isTargetProtected = !!monkAction;
+  const gamePlayers = players.filter((p) => !p.isHost);
+
+  // For Drunk players use drunkRole as the effective role so they get
+  // role-specific (but intentionally false) storyteller guidance.
+  const effectiveRole = (isDrunk && drunkRole) ? drunkRole : role;
+  if (!effectiveRole) return null;
+
+  const baseRec = getRoleRec(
+    effectiveRole, action, actor, target, secondTarget,
+    targetRole, secondTargetRole, gamePlayers, isTargetProtected, allActions, gameState,
+  );
+
+  // ── Drunk: role-specific false-info guidance with amber warning ─────
+  if (isDrunk && drunkRole) {
+    return {
+      emoji: '🍺',
+      lines: [
+        `⚠️ ${actor.name} là KẺ SAY RƯỢU — nghĩ mình là ${drunkRole}`,
+        `Kêu theo thứ tự ${drunkRole} · Đưa thông tin SAI:`,
+        ...(baseRec?.lines ?? [`Đưa thông tin GIẢ như thể họ là ${drunkRole} thật.`]),
+      ],
+      color: 'text-amber-300 bg-amber-500/10 border-amber-500/20',
+    };
+  }
+
+  // ── Poisoned: role-specific false-info guidance with green warning ──
+  if (isPoisoned && role) {
+    return {
+      emoji: '🤢',
+      lines: [
+        `⚠️ ${actor.name} (${role}) đang bị NHIỄM ĐỘC — Đưa thông tin SAI:`,
+        ...(baseRec?.lines ?? [`Đưa thông tin GIẢ cho hành động ${role} đêm nay.`]),
+      ],
+      color: 'text-green-300 bg-green-500/10 border-green-500/20',
+    };
+  }
+
+  return baseRec;
+}
+
 // ─── Night order display ────────────────────────────────────────────────
 function NightOrderDisplay({ players, dayCount }: { players: Player[]; dayCount: number }) {
   const nightOrder = dayCount === 0 ? NIGHT_ORDER_FIRST : NIGHT_ORDER_OTHER;
+
+  // Build active role set using drunkRole for Drunk players so they appear
+  // at their fake role's position in the night order, not as "Drunk" (no slot).
   const activeRoles = new Set(
-    players.filter((p) => !p.isHost && p.isAlive).map((p) => p.gameData?.role as ClocktowerRole)
+    players.filter((p) => !p.isHost && p.isAlive).map((p) => {
+      const pIsDrunk = p.gameData?.isDrunk === true;
+      const pDrunkRole = p.gameData?.drunkRole as ClocktowerRole | undefined;
+      if (pIsDrunk && pDrunkRole) return pDrunkRole;
+      return p.gameData?.role as ClocktowerRole;
+    })
   );
 
   const activeInOrder = nightOrder.filter((r) => activeRoles.has(r));
@@ -491,16 +526,31 @@ function NightOrderDisplay({ players, dayCount }: { players: Player[]; dayCount:
       </p>
       <div className="flex items-center gap-1 flex-wrap">
         {activeInOrder.map((role, idx) => {
-          const player = players.find((p) => p.gameData?.role === role && !p.isHost);
+          // Match by actual role OR by drunkRole (Drunk players slot in at their fake role)
+          const player = players.find((p) => {
+            if (p.isHost) return false;
+            const pIsDrunk = p.gameData?.isDrunk === true;
+            const pDrunkRole = p.gameData?.drunkRole as ClocktowerRole | undefined;
+            if (pIsDrunk && pDrunkRole === role) return true;
+            return (p.gameData?.role as ClocktowerRole) === role;
+          });
+          const isDrunkAtPosition = player?.gameData?.isDrunk === true;
           const label = passiveLabels[role];
           return (
             <div key={role} className="flex items-center gap-1">
               <div className={`flex flex-col items-center rounded-lg p-2 min-w-[56px] text-center border ${
-                label ? 'bg-slate-800/50 border-slate-600/20' : 'bg-white/5 border-white/10'
+                isDrunkAtPosition
+                  ? 'bg-amber-900/20 border-amber-500/30'
+                  : label
+                  ? 'bg-slate-800/50 border-slate-600/20'
+                  : 'bg-white/5 border-white/10'
               }`}>
                 <span className="text-lg">{ROLE_ICONS[role]}</span>
                 <span className="text-[10px] text-slate-400 leading-tight">{player?.name || role}</span>
-                {label && (
+                {isDrunkAtPosition && (
+                  <span className="text-[9px] text-amber-400 font-bold">🍺 say</span>
+                )}
+                {label && !isDrunkAtPosition && (
                   <span className="text-[9px] text-slate-600 italic">{label}</span>
                 )}
               </div>

@@ -27,27 +27,35 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
   const currentPlayer = players.find((p) => p.id === playerId);
   const playerRole = currentPlayer?.gameData?.role as ClocktowerRole | undefined;
-  // Drunk players see their fake Townsfolk role everywhere in the player-facing UI
-  const isDrunk = currentPlayer?.gameData?.isDrunk === true;
+  const isDrunk   = currentPlayer?.gameData?.isDrunk === true;
   const drunkRole = currentPlayer?.gameData?.drunkRole as ClocktowerRole | undefined;
+  // Drunk players see their fake role everywhere in player-facing UI
   const displayRole = isDrunk && drunkRole ? drunkRole : playerRole;
+  const dayCount = room.gameState?.dayCount ?? 0;
+
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
+  const {
+    nominations, votingTarget, votingTargetName,
+    votes, hasVoted, voteCount,
+    nominatePlayer, castNomination, castVote, resolveVote, cancelVote,
+  } = useVoting(room.id, playerId, room.gameState, alivePlayers);
 
-  const { nominations, votingTarget, votingTargetName, votes, hasVoted, voteCount, nominatePlayer, castNomination, castVote, resolveVote, cancelVote } =
-    useVoting(room.id, playerId, room.gameState, alivePlayers);
-
+  // ─── Slayer state ──────────────────────────────────────────────────
   const [slayerPickMode, setSlayerPickMode] = useState(false);
-  const isSlayer = displayRole === ClocktowerRole.Slayer;
+  const isSlayer   = displayRole === ClocktowerRole.Slayer;
   const slayerUsed = currentPlayer?.gameData?.hasUsedAbility === true;
 
-  const handleSlayerUse = useCallback(async (targetId: string, targetName: string) => {
-    if (!playerId || !currentPlayer) return;
-    await gameStorage.updatePlayerGameData(room.id, playerId, { hasUsedAbility: true });
-    await updateGameState({ pendingSlayerAction: { slayerName: currentPlayer.name, targetId, targetName } } as any);
-    setSlayerPickMode(false);
-  }, [playerId, currentPlayer, room.id, updateGameState]);
+  const handleSlayerUse = useCallback(
+    async (targetId: string, targetName: string) => {
+      if (!playerId || !currentPlayer) return;
+      await gameStorage.updatePlayerGameData(room.id, playerId, { hasUsedAbility: true });
+      await updateGameState({ pendingSlayerAction: { slayerName: currentPlayer.name, targetId, targetName } } as any);
+      setSlayerPickMode(false);
+    },
+    [playerId, currentPlayer, room.id, updateGameState]
+  );
 
-  // ─── Handle Start Game (Host) ──────────────────────────────────────
+  // ─── Start game ────────────────────────────────────────────────────
   const handleStartGame = useCallback(async () => {
     try {
       await startGame();
@@ -57,91 +65,73 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     }
   }, [startGame]);
 
-  // ─── After countdown animation completes ───────────────────────────
   const handleCountdownComplete = useCallback(() => {
     setAnimationPhase('none');
     updateStatus('night');
   }, [updateStatus]);
 
-  // ─── Handle role reveal for players ────────────────────────────────
-  // When night starts and player has a role but hasn't seen it yet
   const showRoleReveal = !isHost && room.status === 'night' && displayRole && !roleRevealed;
 
-  // ─── Room Management Actions ───────────────────────────────────────
+  // ─── Room actions ──────────────────────────────────────────────────
   const handleLeave = async () => {
-    if (confirm('Are you sure you want to leave this room?')) {
+    if (confirm('Bạn có chắc muốn rời phòng?')) {
       await leaveRoom(playerId);
       router.push('/');
     }
   };
-
   const handleDelete = async () => {
-    if (confirm('Are you sure you want to delete this room? This cannot be undone.')) {
+    if (confirm('Xoá phòng? Thao tác này không thể hoàn tác.')) {
       await deleteRoom();
       router.push('/');
     }
   };
-
   const handleReset = async () => {
-    if (confirm('Are you sure you want to start a new game?')) {
-      await resetRoom();
-    }
+    if (confirm('Bắt đầu ván mới?')) await resetRoom();
   };
 
   // ─── Animation overlays ────────────────────────────────────────────
   if (animationPhase === 'countdown') {
     return <GameStartAnimation onComplete={handleCountdownComplete} />;
   }
-
   if (showRoleReveal) {
-    return (
-      <RoleRevealAnimation
-        role={displayRole!}
-        onDismiss={() => setRoleRevealed(true)}
-      />
-    );
+    return <RoleRevealAnimation role={displayRole!} onDismiss={() => setRoleRevealed(true)} />;
   }
 
-  // ─── Lobby View ───────────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════
+  // LOBBY
+  // ══════════════════════════════════════════════════════════════════
   if (room.status === 'lobby') {
     return (
       <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
-        {/* Room Header Actions */}
         <div className="flex justify-end">
           <button
             onClick={isHost ? handleDelete : handleLeave}
             className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 transition-all hover:bg-red-500/10 hover:text-red-400"
           >
-            {isHost ? '🗑️ Delete Room' : '🚪 Leave Room'}
+            {isHost ? '🗑️ Xoá phòng' : '🚪 Rời phòng'}
           </button>
         </div>
 
-        {/* Room Header */}
         <div className="text-center">
-          <h1 className="mb-2 text-3xl font-black text-white">
-            🏰 Blood on the Clocktower
-          </h1>
-          <p className="text-slate-400">Waiting for players to join...</p>
+          <h1 className="mb-2 text-3xl font-black text-white">🏰 Blood on the Clocktower</h1>
+          <p className="text-slate-400">Đang chờ người chơi tham gia...</p>
         </div>
 
-        {/* QR Code & Room Info */}
         <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/80 to-slate-900/80 p-6">
           <QRCodeDisplay roomId={room.id} roomCode={room.roomCode} gameType={room.gameType} />
         </div>
 
-        {/* Room Settings (Host Only) */}
         {isHost && (
-          <RoomSettingsPanel 
+          <RoomSettingsPanel
             config={room.config}
             onUpdateConfig={updateConfig}
-            playerCount={players.filter(p => !p.isHost).length}
+            playerCount={players.filter((p) => !p.isHost).length}
           />
         )}
 
-        {/* Player List */}
         <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-            Players ({players.length}/{room.config.maxPlayers})
+            Người chơi ({players.length}/{room.config.maxPlayers})
           </h3>
           <div className="space-y-2">
             {players.map((p, idx) => (
@@ -150,7 +140,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 className="flex items-center gap-3 rounded-xl bg-white/5 px-4 py-3 animate-slide-up"
                 style={{ animationDelay: `${idx * 80}ms` }}
               >
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 text-sm font-bold text-white">
+                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 text-sm font-bold text-white">
                   {p.name.charAt(0).toUpperCase()}
                 </div>
                 <span className="font-medium text-white">{p.name}</span>
@@ -160,14 +150,13 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                   </span>
                 )}
                 {p.id === playerId && !p.isHost && (
-                  <span className="ml-auto text-xs text-slate-500">You</span>
+                  <span className="ml-auto text-xs text-slate-500">Bạn</span>
                 )}
               </div>
             ))}
           </div>
         </div>
 
-        {/* Start Game (Host only) — no minimum player restriction for testing */}
         {isHost && (
           <button
             onClick={handleStartGame}
@@ -176,46 +165,46 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
             id="start-game-btn"
           >
             {players.filter((p) => !p.isHost).length < 1
-              ? 'Need at least 1 player'
-              : '🎭 Start Night Phase'}
+              ? 'Cần ít nhất 1 người chơi'
+              : '🎭 Bắt đầu đêm đầu tiên'}
           </button>
         )}
       </div>
     );
   }
 
-  // ─── Game Over View ───────────────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════
+  // GAME OVER
+  // ══════════════════════════════════════════════════════════════════
   if (room.status === 'end') {
-    const winner = room.gameState?.winner;
+    const winner    = room.gameState?.winner;
     const isGoodWin = winner === 'good';
-    
     return (
       <div className="mx-auto max-w-2xl space-y-6 animate-fade-in text-center">
         <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-xl relative overflow-hidden">
           <div className={`absolute inset-0 bg-gradient-to-br opacity-20 ${isGoodWin ? 'from-cyan-500 to-blue-500' : 'from-red-500 to-orange-500'}`} />
           <div className="relative text-6xl mb-4">{isGoodWin ? '🌟' : '👹'}</div>
           <h1 className="relative mb-2 text-4xl font-black text-white">
-            {isGoodWin ? 'Good Wins!' : 'Evil Wins!'}
+            {isGoodWin ? 'Thiện thắng!' : 'Ác thắng!'}
           </h1>
           <p className="relative text-slate-300">
-            {isGoodWin ? 'The Town has successfully defeated the Demon.' : 'The Demon has destroyed the Town.'}
+            {isGoodWin ? 'Dân làng đã tiêu diệt Quỷ.' : 'Quỷ đã thống trị làng.'}
           </p>
         </div>
-
-        <div className="flex justify-center gap-4 mt-8">
+        <div className="flex justify-center gap-4">
           {isHost ? (
             <button
               onClick={handleReset}
               className="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-4 font-bold text-white transition-all hover:from-purple-500 hover:to-indigo-500"
             >
-              🔄 Start New Game
+              🔄 Ván mới
             </button>
           ) : (
             <button
               onClick={handleLeave}
               className="rounded-xl border border-white/10 bg-white/5 px-8 py-4 font-semibold text-white transition-all hover:bg-white/10"
             >
-              🚪 Return to Lobby
+              🚪 Về sảnh chờ
             </button>
           )}
         </div>
@@ -223,29 +212,31 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     );
   }
 
-  // ─── Host View (Day, Night, or Voting) ─────────────────────────────
+  // ══════════════════════════════════════════════════════════════════
+  // HOST VIEW (Day / Night / Voting)
+  // ══════════════════════════════════════════════════════════════════
   if (isHost) {
     return (
       <div className="mx-auto max-w-3xl space-y-6 animate-fade-in">
         <div className="flex items-center gap-3">
           <h1 className="text-2xl font-black text-white">🏰 Storyteller Dashboard</h1>
           <span className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider ${
-            room.status === 'night'
-              ? 'bg-indigo-500/20 text-indigo-300'
-              : room.status === 'voting'
-              ? 'bg-amber-500/20 text-amber-300'
-              : room.status === 'day'
-              ? 'bg-amber-500/20 text-amber-300'
-              : 'bg-slate-500/20 text-slate-300'
+            room.status === 'night'  ? 'bg-indigo-500/20 text-indigo-300'  :
+            room.status === 'voting' ? 'bg-amber-500/20 text-amber-300'    :
+            room.status === 'day'    ? 'bg-amber-500/20 text-amber-300'    :
+            'bg-slate-500/20 text-slate-300'
           }`}>
             {room.status === 'voting' ? '⚖️ Voting' : room.status}
           </span>
-          {room.gameState?.dayCount !== undefined && room.gameState.dayCount > 0 && (
-            <span className="text-xs text-slate-500">Day {room.gameState.dayCount}</span>
+          {dayCount > 0 && (
+            <span className="text-xs text-slate-500">Ngày {dayCount}</span>
           )}
           <div className="ml-auto">
-            <button onClick={handleDelete} className="rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20">
-              🗑️ Delete Room
+            <button
+              onClick={handleDelete}
+              className="rounded-lg border border-red-500/20 px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors"
+            >
+              🗑️ Xoá phòng
             </button>
           </div>
         </div>
@@ -254,21 +245,11 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           hostId={playerId}
           players={players}
           onChangePhase={(phase) => {
-            const resetVotingState = {
-              nominations: {},
-              votingTarget: null,
-              votingTargetName: null,
-              votes: {},
-            } as any;
-            
+            const resetVoting = { nominations: {}, votingTarget: null, votingTargetName: null, votes: {} } as any;
             if (phase === 'day') {
-              const currentDay = room.gameState?.dayCount || 0;
-              updateGameState({ 
-                dayCount: currentDay + 1,
-                ...resetVotingState
-              });
-            } else if (phase === 'night') {
-              updateGameState(resetVotingState);
+              updateGameState({ dayCount: (room.gameState?.dayCount || 0) + 1, ...resetVoting });
+            } else {
+              updateGameState(resetVoting);
             }
             updateStatus(phase);
           }}
@@ -283,57 +264,100 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     );
   }
 
-  // ─── Player View: Night Phase ─────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════
+  // PLAYER — NIGHT PHASE
+  // Full-height layout: sticky top bar + scrollable action panel
+  // ══════════════════════════════════════════════════════════════════
   if (room.status === 'night') {
     return (
-      <div className="mx-auto max-w-lg space-y-6 animate-fade-in">
-        <div className="flex items-start justify-between text-left">
-          <div>
-            <h1 className="mb-1 text-2xl font-black text-white">🌙 Night Phase</h1>
-            <p className="text-sm text-slate-400">Close your eyes...</p>
+      <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
+        {/* Sticky top bar */}
+        <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-indigo-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="shrink-0 text-base">🌙</span>
+            <span className="shrink-0 text-sm font-bold text-indigo-300">
+              Đêm {dayCount + 1}
+            </span>
+            {displayRole && (
+              <>
+                <span className="text-white/20 text-sm">·</span>
+                <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
+                <span className="min-w-0 truncate text-sm font-bold text-white">{displayRole}</span>
+              </>
+            )}
           </div>
-          <button onClick={handleLeave} className="rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20">
-            🚪 Leave Room
+          {/* Alive dot */}
+          {currentPlayer && (
+            <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+              currentPlayer.isAlive
+                ? 'bg-green-500/15 text-green-400'
+                : 'bg-red-500/15 text-red-400'
+            }`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${
+                currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'
+              }`} />
+              {currentPlayer.isAlive ? 'Sống' : 'Chết'}
+            </div>
+          )}
+          <button
+            onClick={handleLeave}
+            className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10 ml-1"
+          >
+            Thoát
           </button>
         </div>
 
-        {/* Role Card */}
-        {displayRole && (
-          <RoleCard role={displayRole} isRevealed={true} />
-        )}
-
-        {/* Night Action */}
-        <NightActionPanel
-          roomId={room.id}
-          playerId={playerId}
-          players={players}
-          dayCount={room.gameState?.dayCount || 0}
-        />
+        {/* Night action fills remaining space */}
+        <div className="flex-1 overflow-y-auto px-4 py-5 pb-safe">
+          <NightActionPanel
+            roomId={room.id}
+            playerId={playerId}
+            players={players}
+            dayCount={dayCount}
+          />
+        </div>
       </div>
     );
   }
 
-  // ─── Player View: Voting Phase ─────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════
+  // PLAYER — VOTING PHASE
+  // Full-height: header + VotingPanel (internal sticky buttons)
+  // ══════════════════════════════════════════════════════════════════
   if (room.status === 'voting') {
     return (
-      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
-        <div className="flex items-start justify-between text-left">
-          <div>
-            <h1 className="mb-1 text-2xl font-black text-white">⚖️ Town Vote</h1>
-            <p className="text-sm text-slate-400">A nomination has been called!</p>
+      <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
+        {/* Sticky top bar */}
+        <div className="sticky top-0 z-20 flex items-center gap-2 border-b border-amber-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
+          <div className="flex min-w-0 flex-1 items-center gap-2">
+            <span className="shrink-0">⚖️</span>
+            <span className="shrink-0 text-sm font-bold text-amber-300">Phiên tòa</span>
+            {displayRole && (
+              <>
+                <span className="text-white/20 text-sm">·</span>
+                <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
+                <span className="min-w-0 truncate text-sm font-bold text-white">{displayRole}</span>
+              </>
+            )}
           </div>
-          <button onClick={handleLeave} className="rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20">
-            🚪 Leave Room
+          {currentPlayer && (
+            <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+              currentPlayer.isAlive ? 'bg-green-500/15 text-green-400' : 'bg-red-500/15 text-red-400'
+            }`}>
+              <span className={`h-1.5 w-1.5 rounded-full ${currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'}`} />
+              {currentPlayer.isAlive ? 'Sống' : 'Chết'}
+            </div>
+          )}
+          <button
+            onClick={handleLeave}
+            className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10 ml-1"
+          >
+            Thoát
           </button>
         </div>
 
-        {/* Role Card (compact) */}
-        {displayRole && (
-          <RoleCard role={displayRole} isRevealed={true} compact />
-        )}
-
-        {/* Voting Panel */}
-        {votingTarget && votingTargetName && (
+        {/* VotingPanel takes flex-1, handles its own scroll + sticky bottom */}
+        {votingTarget && votingTargetName ? (
           <VotingPanel
             targetName={votingTargetName}
             targetId={votingTarget}
@@ -346,167 +370,296 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
             isHost={false}
             alivePlayers={alivePlayers}
           />
+        ) : (
+          <div className="flex-1 flex items-center justify-center px-4">
+            <PlayerWaiting message="Đang chờ phiên tòa bắt đầu..." />
+          </div>
         )}
       </div>
     );
   }
 
-  // ─── Player View: Day Phase ───────────────────────────────────────
+  // ══════════════════════════════════════════════════════════════════
+  // PLAYER — DAY PHASE
+  // Full-height: sticky top bar + scrollable content + nominations
+  // ══════════════════════════════════════════════════════════════════
   if (room.status === 'day') {
+    const myNominationId = nominations?.[playerId ?? ''];
+    const nominatedPlayerName = myNominationId
+      ? players.find((p) => p.id === myNominationId)?.name
+      : null;
+
     return (
-      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
-        <div className="flex items-start justify-between text-left">
-          <div>
-            <h1 className="mb-1 text-2xl font-black text-white">☀️ Day Phase</h1>
-            <p className="text-sm text-slate-400">Discuss, accuse, and nominate!</p>
-            {room.gameState?.dayCount !== undefined && room.gameState.dayCount > 0 && (
-              <p className="text-xs text-slate-500 mt-1">Day {room.gameState.dayCount}</p>
-            )}
-          </div>
-          <button onClick={handleLeave} className="rounded-lg px-3 py-1.5 text-xs font-bold text-red-400 hover:bg-red-500/10 transition-colors border border-red-500/20">
-            🚪 Leave Room
-          </button>
-        </div>
-
-        {/* Role Card (compact) */}
-        {displayRole && (
-          <RoleCard role={displayRole} isRevealed={true} compact />
-        )}
-
-        {/* Slayer Ability */}
-        {isSlayer && !slayerUsed && currentPlayer?.isAlive && (
-          <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
-            <h3 className="mb-1 flex items-center gap-2 text-sm font-semibold text-amber-400">
-              ⚔️ Slayer Ability
-            </h3>
-            <p className="mb-3 text-xs text-slate-400">Publicly declare you are slaying a player. If they are the Demon, they die.</p>
-            {!slayerPickMode ? (
-              <button
-                onClick={() => setSlayerPickMode(true)}
-                className="rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-amber-500"
-              >
-                ⚔️ Use Slayer Ability
-              </button>
-            ) : (
-              <div>
-                <p className="mb-2 text-xs text-amber-300 font-medium">Choose a player to slay:</p>
-                <div className="grid grid-cols-3 gap-2 mb-3">
-                  {players.filter((p) => !p.isHost && p.isAlive && p.id !== playerId).map((p) => (
-                    <button
-                      key={p.id}
-                      onClick={() => handleSlayerUse(p.id, p.name)}
-                      className="rounded-lg bg-white/5 px-3 py-2 text-sm font-medium text-white transition-all hover:bg-amber-500/20 hover:text-amber-300 border border-white/10 hover:border-amber-500/40"
-                    >
-                      {p.name}
-                    </button>
-                  ))}
-                </div>
-                <button onClick={() => setSlayerPickMode(false)} className="text-xs text-slate-500 underline">
-                  Cancel
-                </button>
+      <div className="flex flex-col min-h-dvh max-w-lg mx-auto animate-fade-in">
+        {/* Sticky top bar */}
+        <div className="sticky top-0 z-20 border-b border-amber-500/20 bg-slate-950/95 px-4 py-3 backdrop-blur-md">
+          <div className="flex items-center gap-2">
+            <div className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="shrink-0">☀️</span>
+              <span className="shrink-0 text-sm font-bold text-amber-300">
+                Ngày {dayCount || 1}
+              </span>
+              {displayRole && (
+                <>
+                  <span className="text-white/20 text-sm">·</span>
+                  <span className="shrink-0 text-xl">{ROLE_ICONS[displayRole]}</span>
+                  <span className="min-w-0 truncate text-sm font-bold text-white max-w-[100px]">
+                    {displayRole}
+                  </span>
+                </>
+              )}
+            </div>
+            {/* Alive badge */}
+            {currentPlayer && (
+              <div className={`shrink-0 flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-bold ${
+                currentPlayer.isAlive
+                  ? 'bg-green-500/15 text-green-400'
+                  : 'bg-red-500/15 text-red-400'
+              }`}>
+                <span className={`h-1.5 w-1.5 rounded-full ${
+                  currentPlayer.isAlive ? 'bg-green-500 animate-breathe' : 'bg-red-500'
+                }`} />
+                {currentPlayer.isAlive ? 'Còn sống' : 'Đã chết'}
               </div>
             )}
+            <button
+              onClick={handleLeave}
+              className="shrink-0 rounded-lg border border-red-500/20 px-2.5 py-1.5 text-xs font-medium text-red-400 active:bg-red-500/10 ml-1"
+            >
+              Thoát
+            </button>
           </div>
-        )}
-        {isSlayer && slayerUsed && (
-          <div className="rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-xs text-slate-500">
-            ⚔️ You have already used your Slayer ability this game.
-          </div>
-        )}
 
-        {/* Town Square */}
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-            Town Square
-          </h3>
-          <p className="mb-4 text-xs text-slate-500">
-            Click on a player to nominate them for execution. You can only nominate one player.
-          </p>
-          <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-            {players
-              .filter((p) => !p.isHost)
-              .map((p) => {
-                const role = p.gameData?.role as ClocktowerRole | undefined;
-                const isNominatedByMe = nominations?.[playerId] === p.id;
-                const nominatedCount = Object.values(nominations || {}).filter(id => id === p.id).length;
-
-                return (
-                  <button
-                    key={p.id}
-                    onClick={() => {
-                      if (room.status === 'day' && p.isAlive && p.id !== playerId) {
-                         castNomination(isNominatedByMe ? null : p.id);
-                      }
-                    }}
-                    disabled={room.status !== 'day' || !p.isAlive || p.id === playerId}
-                    className={`flex flex-col items-center gap-1 rounded-xl p-3 transition-all ${
-                      p.isAlive
-                        ? isNominatedByMe
-                          ? 'bg-amber-500/20 ring-1 ring-amber-500 hover:bg-amber-500/30'
-                          : 'bg-white/5 hover:bg-white/10'
-                        : 'bg-red-500/5 opacity-50 cursor-not-allowed'
-                    } relative`}
-                  >
-                    {nominatedCount > 0 && (
-                      <span className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 text-[10px] font-bold text-black shadow-lg">
-                        {nominatedCount}
-                      </span>
-                    )}
-                    <div
-                      className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${
-                        p.isAlive
-                          ? isNominatedByMe 
-                            ? 'bg-gradient-to-br from-amber-500 to-orange-500 text-white shadow-lg shadow-amber-500/50'
-                            : 'bg-gradient-to-br from-purple-500 to-cyan-500 text-white'
-                          : 'bg-slate-700 text-slate-500'
-                      }`}
-                    >
-                      {p.isAlive
-                        ? p.name.charAt(0).toUpperCase()
-                        : '💀'}
-                    </div>
-                    <span className={`text-xs font-medium truncate w-full ${!p.isAlive ? 'text-slate-500 line-through' : isNominatedByMe ? 'text-amber-400' : 'text-white'}`}>
-                      {p.name}
-                    </span>
-                    {!p.isAlive && <span className="text-[10px] text-red-400">💀 Dead</span>}
-                    {p.id === playerId && <span className="text-[10px] text-cyan-400">You</span>}
-                  </button>
-                );
-              })}
-          </div>
+          {/* My nomination summary bar */}
+          {nominatedPlayerName && (
+            <div className="mt-2 flex items-center gap-2 rounded-lg bg-amber-500/10 border border-amber-500/20 px-3 py-1.5">
+              <span className="text-xs text-amber-400 font-bold">
+                ⚖️ Bạn đang đề cử: <span className="text-amber-200">{nominatedPlayerName}</span>
+              </span>
+              <button
+                onClick={() => castNomination(null)}
+                className="ml-auto text-[10px] text-slate-500 hover:text-red-400 underline"
+              >
+                Huỷ
+              </button>
+            </div>
+          )}
         </div>
 
-        {/* Dead? */}
-        {currentPlayer && !currentPlayer.isAlive && (
-          <div className="rounded-xl border border-red-500/20 bg-red-500/5 p-4 text-center animate-scale-in">
-            <p className="text-sm text-red-400">💀 You have died. You may still participate in discussion but cannot vote or use abilities.</p>
+        {/* Scrollable content */}
+        <div className="flex-1 overflow-y-auto pb-safe">
+
+          {/* Dead notice — prominently at top */}
+          {currentPlayer && !currentPlayer.isAlive && (
+            <div className="mx-4 mt-4 rounded-2xl border border-red-500/20 bg-red-500/5 p-5 text-center animate-scale-in">
+              <div className="text-4xl mb-2">💀</div>
+              <h3 className="font-black text-red-400 mb-1">Bạn đã qua đời</h3>
+              <p className="text-xs text-slate-400 leading-relaxed">
+                Không thể bỏ phiếu hay đề cử. Tiếp tục theo dõi từ cõi chết...
+              </p>
+            </div>
+          )}
+
+          {/* Slayer ability */}
+          {isSlayer && currentPlayer?.isAlive && (
+            <div className="mx-4 mt-4">
+              {!slayerUsed ? (
+                <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4">
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xl">⚔️</span>
+                    <h3 className="text-base font-black text-amber-400">Kỹ năng Slayer</h3>
+                  </div>
+                  <p className="text-xs text-slate-400 mb-4 leading-relaxed">
+                    Tuyên bố công khai bạn hạ 1 người chơi. Nếu họ là Quỷ — họ chết ngay!
+                  </p>
+                  {!slayerPickMode ? (
+                    <button
+                      onClick={() => setSlayerPickMode(true)}
+                      className="w-full rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 py-4 text-base font-black text-white transition-all active:scale-95 hover:from-amber-500 hover:to-orange-500"
+                    >
+                      ⚔️ Sử dụng kỹ năng Slayer
+                    </button>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-sm text-amber-300 font-bold">Chọn mục tiêu:</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {players
+                          .filter((p) => !p.isHost && p.isAlive && p.id !== playerId)
+                          .map((p) => (
+                            <button
+                              key={p.id}
+                              onClick={() => handleSlayerUse(p.id, p.name)}
+                              className="flex items-center gap-2 rounded-xl border border-amber-500/20 bg-amber-500/5 px-3 py-3 text-sm font-semibold text-white transition-all active:scale-95 hover:bg-amber-500/15 hover:border-amber-500/40"
+                            >
+                              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 font-black">
+                                {p.name.charAt(0).toUpperCase()}
+                              </div>
+                              <span className="truncate">{p.name}</span>
+                            </button>
+                          ))}
+                      </div>
+                      <button
+                        onClick={() => setSlayerPickMode(false)}
+                        className="w-full text-xs text-slate-500 underline py-2"
+                      >
+                        Huỷ
+                      </button>
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="rounded-xl border border-white/8 bg-white/5 px-4 py-3 text-xs text-slate-500">
+                  ⚔️ Kỹ năng Slayer đã được sử dụng trong ván này.
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Town square */}
+          <div className="px-4 pt-4 pb-2">
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-sm font-black uppercase tracking-wider text-slate-300">
+                ⚖️ Đề cử xử tử
+              </h3>
+              <span className="text-xs text-slate-600">{alivePlayers} người còn sống</span>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Nhấn vào người chơi để đề cử · Nhấn lại để huỷ
+            </p>
+
+            <div className="grid grid-cols-2 gap-3">
+              {players
+                .filter((p) => !p.isHost)
+                .map((p) => {
+                  const isNominatedByMe  = nominations?.[playerId ?? ''] === p.id;
+                  const nominatedCount   = Object.values(nominations || {}).filter((id) => id === p.id).length;
+                  const canNominate      =
+                    room.status === 'day' &&
+                    p.isAlive &&
+                    p.id !== playerId &&
+                    (currentPlayer?.isAlive ?? false);
+
+                  return (
+                    <button
+                      key={p.id}
+                      onClick={() => {
+                        if (canNominate) castNomination(isNominatedByMe ? null : p.id);
+                      }}
+                      disabled={!canNominate && !isNominatedByMe}
+                      className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all active:scale-95 min-h-[100px] ${
+                        !p.isAlive
+                          ? 'border-red-500/10 bg-red-500/5 opacity-60 cursor-default'
+                          : isNominatedByMe
+                          ? 'border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/40 shadow-lg shadow-amber-500/10'
+                          : p.id === playerId
+                          ? 'border-cyan-500/20 bg-cyan-500/5 cursor-default'
+                          : !(currentPlayer?.isAlive)
+                          ? 'border-white/8 bg-white/3 opacity-50 cursor-default'
+                          : 'border-white/10 bg-white/5 hover:bg-white/8 hover:border-white/20'
+                      }`}
+                    >
+                      {/* Nomination count badge */}
+                      {nominatedCount > 0 && (
+                        <div className="absolute -top-2.5 -right-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-xs font-black text-black shadow-lg shadow-amber-500/40">
+                          {nominatedCount}
+                        </div>
+                      )}
+
+                      {/* Avatar */}
+                      <div className={`flex h-14 w-14 items-center justify-center rounded-full text-xl font-black text-white transition-all ${
+                        !p.isAlive
+                          ? 'bg-slate-800'
+                          : isNominatedByMe
+                          ? 'bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/40'
+                          : p.id === playerId
+                          ? 'bg-gradient-to-br from-cyan-600 to-cyan-800'
+                          : 'bg-gradient-to-br from-purple-500 to-cyan-500'
+                      }`}>
+                        {p.isAlive ? p.name.charAt(0).toUpperCase() : '💀'}
+                      </div>
+
+                      {/* Name */}
+                      <span className={`text-sm font-bold leading-tight truncate w-full ${
+                        !p.isAlive
+                          ? 'text-slate-500 line-through'
+                          : isNominatedByMe
+                          ? 'text-amber-200'
+                          : p.id === playerId
+                          ? 'text-cyan-300'
+                          : 'text-white'
+                      }`}>
+                        {p.name}
+                      </span>
+
+                      {/* Status labels */}
+                      {!p.isAlive && <span className="text-[10px] text-red-400">💀 Đã chết</span>}
+                      {isNominatedByMe && p.isAlive && (
+                        <span className="text-[10px] text-amber-400 font-black">✓ Bạn đề cử</span>
+                      )}
+                      {p.id === playerId && p.isAlive && (
+                        <span className="text-[10px] text-cyan-400 font-semibold">Bạn</span>
+                      )}
+                    </button>
+                  );
+                })}
+            </div>
           </div>
-        )}
+
+          {/* Nomination tally (shows when others have nominated) */}
+          {Object.values(nominations || {}).filter(Boolean).length > 0 && (
+            <div className="mx-4 mt-3 mb-4 rounded-2xl border border-white/8 bg-white/5 p-4">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
+                📊 Tình trạng đề cử
+              </p>
+              <div className="space-y-2">
+                {players
+                  .filter((p) => !p.isHost && p.isAlive)
+                  .map((p) => {
+                    const count = Object.values(nominations || {}).filter((id) => id === p.id).length;
+                    if (count === 0) return null;
+                    const pct = alivePlayers > 0 ? Math.round((count / alivePlayers) * 100) : 0;
+                    return (
+                      <div key={p.id} className="space-y-1">
+                        <div className="flex items-center justify-between text-xs">
+                          <span className="font-semibold text-white">{p.name}</span>
+                          <span className="text-amber-400 font-bold">{count} ({pct}%)</span>
+                        </div>
+                        <div className="h-1.5 rounded-full bg-white/5 overflow-hidden">
+                          <div
+                            className="h-full rounded-full bg-amber-500 transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
+              </div>
+            </div>
+          )}
+        </div>
       </div>
     );
   }
 
-  // ─── Game Over ────────────────────────────────────────────────────
+  // ── Fallback ───────────────────────────────────────────────────────
   return (
     <div className="flex flex-col items-center justify-center gap-4 py-16 text-center animate-scale-in">
       <div className="text-6xl animate-float">🎭</div>
       <h1 className="text-3xl font-black text-white">Game Over</h1>
-      <p className="text-slate-400">Thanks for playing Blood on the Clocktower!</p>
-
       <div className="mt-8 flex gap-4">
         {isHost && (
           <button
             onClick={handleReset}
-            className="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-3 font-semibold text-white transition-all hover:from-purple-500 hover:to-indigo-500 hover:shadow-lg hover:shadow-purple-500/25"
+            className="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-3 font-semibold text-white transition-all hover:from-purple-500 hover:to-indigo-500"
           >
-            🔄 Return to Lobby
+            🔄 Về sảnh
           </button>
         )}
         <button
           onClick={isHost ? handleDelete : handleLeave}
-          className="rounded-xl border border-white/10 px-6 py-3 font-semibold text-slate-300 transition-all hover:bg-white/5 hover:text-white"
+          className="rounded-xl border border-white/10 px-6 py-3 font-semibold text-slate-300 transition-all hover:bg-white/5"
         >
-          {isHost ? '🗑️ Delete Room' : '🚪 Leave Room'}
+          {isHost ? '🗑️ Xoá phòng' : '🚪 Rời phòng'}
         </button>
       </div>
     </div>

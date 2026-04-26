@@ -1,8 +1,6 @@
 'use client';
 
-import { useState } from 'react';
 import type { Player } from '@/types/player';
-import { ROLE_ICONS, type ClocktowerRole } from '@/types/games/clocktower';
 
 interface VotingPanelProps {
   targetName: string;
@@ -13,16 +11,12 @@ interface VotingPanelProps {
   hasVoted: boolean;
   voteCount: { agree: number; disagree: number; total: number };
   onVote: (vote: boolean) => void;
-  onResolve?: () => void;      // Host only
-  onCancel?: () => void;       // Host only
+  onResolve?: () => void;  // Host only
+  onCancel?: () => void;   // Host only
   isHost: boolean;
   alivePlayers: number;
 }
 
-/**
- * Voting panel during day phase — shows nominated player,
- * vote buttons, real-time vote progress, and result.
- */
 export default function VotingPanel({
   targetName,
   targetId,
@@ -38,170 +32,187 @@ export default function VotingPanel({
   alivePlayers,
 }: VotingPanelProps) {
   const majority = Math.ceil(alivePlayers / 2);
-  const agreePercent = alivePlayers > 0 ? (voteCount.agree / alivePlayers) * 100 : 0;
+  const agreePercent    = alivePlayers > 0 ? (voteCount.agree    / alivePlayers) * 100 : 0;
   const disagreePercent = alivePlayers > 0 ? (voteCount.disagree / alivePlayers) * 100 : 0;
   const currentPlayer = players.find((p) => p.id === playerId);
-  const isAlive = currentPlayer?.isAlive ?? false;
+  const isAlive  = currentPlayer?.isAlive ?? false;
   const isTarget = playerId === targetId;
+  const majorityReached = voteCount.agree >= majority;
 
-  // Get target player info
-  const targetPlayer = players.find((p) => p.id === targetId);
-  const targetRole = targetPlayer?.gameData?.role as ClocktowerRole | undefined;
+  // Players who vote (alive, non-host, non-target)
+  const voters = players.filter((p) => !p.isHost && p.isAlive && p.id !== targetId);
 
   return (
-    <div className="animate-slide-up space-y-5">
-      {/* Nomination Header */}
-      <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-900/20 to-orange-900/10 p-5">
-        <div className="text-center">
-          <p className="text-xs uppercase tracking-widest text-amber-400/80 font-semibold mb-2">
-            ⚖️ Nomination for Execution
+    <div className="flex flex-col flex-1 overflow-hidden animate-slide-up">
+
+      {/* ── Scrollable content area ─────────────────────────────────── */}
+      <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
+
+        {/* Nominee card */}
+        <div className="rounded-2xl border border-amber-500/30 bg-gradient-to-br from-amber-900/25 to-orange-900/10 p-5 text-center">
+          <p className="mb-3 text-xs font-bold uppercase tracking-widest text-amber-500/80">
+            ⚖️ Đang được xét xử
           </p>
-          <div className="flex items-center justify-center gap-3 mb-3">
-            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-red-500 text-2xl font-black text-white shadow-lg shadow-amber-500/30">
-              {targetName.charAt(0).toUpperCase()}
-            </div>
+          <div className="mx-auto mb-3 flex h-20 w-20 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-red-500 text-3xl font-black text-white shadow-xl shadow-amber-500/30">
+            {targetName.charAt(0).toUpperCase()}
           </div>
           <h3 className="text-2xl font-black text-white mb-1">{targetName}</h3>
-          <p className="text-sm text-slate-400">has been nominated for execution</p>
-        </div>
-      </div>
 
-      {/* Vote Progress */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4 space-y-3">
-        <div className="flex justify-between text-xs font-semibold uppercase tracking-wider text-slate-400">
-          <span>Votes Cast: {voteCount.total} / {alivePlayers}</span>
-          <span>Majority: {majority}</span>
-        </div>
-
-        {/* Agree bar */}
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-green-400 font-medium">👍 Agree ({voteCount.agree})</span>
-            <span className="text-slate-500">{Math.round(agreePercent)}%</span>
-          </div>
-          <div className="h-3 rounded-full bg-white/5 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-700 ease-out"
-              style={{ width: `${agreePercent}%` }}
-            />
-          </div>
+          {/* Target-is-me notice */}
+          {isTarget && (
+            <div className="mt-3 rounded-xl border border-amber-500/20 bg-amber-500/8 px-4 py-2.5 animate-shake">
+              <p className="text-sm text-amber-300 font-medium">
+                ⚖️ Bạn đang bị xét xử. Số phận trong tay mọi người...
+              </p>
+            </div>
+          )}
         </div>
 
-        {/* Disagree bar */}
-        <div>
-          <div className="flex justify-between text-xs mb-1">
-            <span className="text-red-400 font-medium">👎 Disagree ({voteCount.disagree})</span>
-            <span className="text-slate-500">{Math.round(disagreePercent)}%</span>
-          </div>
-          <div className="h-3 rounded-full bg-white/5 overflow-hidden">
-            <div
-              className="h-full rounded-full bg-gradient-to-r from-red-500 to-rose-400 transition-all duration-700 ease-out"
-              style={{ width: `${disagreePercent}%` }}
-            />
-          </div>
-        </div>
-
-        {/* Majority line indicator */}
-        {voteCount.agree >= majority && (
-          <div className="rounded-lg bg-green-500/10 border border-green-500/20 px-3 py-2 text-center animate-scale-in">
-            <span className="text-sm text-green-400 font-semibold">
-              ✅ Majority reached — execution will proceed
+        {/* Vote progress */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 space-y-4">
+          {/* Tally header */}
+          <div className="flex items-center justify-between text-xs font-semibold">
+            <span className="text-slate-400">{voteCount.total} / {alivePlayers} đã bỏ phiếu</span>
+            <span className={majorityReached ? 'text-green-400 font-bold' : 'text-slate-500'}>
+              Cần {majority} phiếu đồng ý
             </span>
+          </div>
+
+          {/* Agree bar */}
+          <div>
+            <div className="flex justify-between text-sm font-bold mb-2">
+              <span className="text-green-400">👍 Xử tử</span>
+              <span className="text-green-400">{voteCount.agree}</span>
+            </div>
+            <div className="h-4 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-green-500 to-emerald-400 transition-all duration-700 ease-out"
+                style={{ width: `${agreePercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Disagree bar */}
+          <div>
+            <div className="flex justify-between text-sm font-bold mb-2">
+              <span className="text-slate-400">👎 Tha bổng</span>
+              <span className="text-slate-400">{voteCount.disagree}</span>
+            </div>
+            <div className="h-4 rounded-full bg-white/5 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-gradient-to-r from-slate-600 to-slate-500 transition-all duration-700 ease-out"
+                style={{ width: `${disagreePercent}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Majority banner */}
+          {majorityReached && (
+            <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-2.5 text-center animate-scale-in">
+              <p className="text-sm font-black text-green-400">✅ Đủ phiếu — Sẽ bị xử tử!</p>
+            </div>
+          )}
+        </div>
+
+        {/* Individual votes */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+          <p className="text-xs uppercase tracking-wider text-slate-500 font-bold mb-3">
+            Phiếu bầu cá nhân
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {voters.map((p) => {
+              const vote = votes[p.id];
+              const agreed    = vote === true;
+              const disagreed = vote === false;
+              const pending   = vote === undefined;
+              return (
+                <div
+                  key={p.id}
+                  className={`flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm transition-all ${
+                    agreed
+                      ? 'bg-green-500/12 border border-green-500/20'
+                      : disagreed
+                      ? 'bg-slate-700/40 border border-white/5'
+                      : 'bg-white/5 border border-white/5'
+                  }`}
+                >
+                  <div className={`h-2 w-2 rounded-full shrink-0 ${
+                    agreed ? 'bg-green-500' : disagreed ? 'bg-slate-500' : 'bg-slate-700 animate-breathe'
+                  }`} />
+                  <span className={`font-medium truncate ${agreed ? 'text-green-300' : disagreed ? 'text-slate-400' : 'text-slate-600'}`}>
+                    {p.name}
+                  </span>
+                  {p.id === playerId && (
+                    <span className="text-[9px] text-slate-600 ml-auto shrink-0">bạn</span>
+                  )}
+                  {!pending && (
+                    <span className="ml-auto shrink-0 text-base">{agreed ? '👍' : '👎'}</span>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        {/* Host controls (inside scroll area so they're visible) */}
+        {isHost && (
+          <div className="flex gap-3 pt-1 pb-2">
+            <button
+              onClick={onResolve}
+              className="flex-1 rounded-2xl bg-gradient-to-r from-amber-600 to-orange-600 py-4 font-black text-white transition-all active:scale-[0.98] hover:from-amber-500 hover:to-orange-500 hover:shadow-lg"
+              id="resolve-vote-btn"
+            >
+              ⚖️ Chốt kết quả
+            </button>
+            <button
+              onClick={onCancel}
+              className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 font-semibold text-slate-400 transition-all active:scale-[0.98] hover:bg-white/10 hover:text-white"
+              id="cancel-vote-btn"
+            >
+              Huỷ
+            </button>
+          </div>
+        )}
+
+        {/* Dead message (inside scroll so always reachable) */}
+        {!isAlive && !isHost && (
+          <div className="rounded-2xl border border-red-500/20 bg-red-500/5 px-5 py-4 text-center">
+            <p className="text-sm text-red-400 font-medium">💀 Người chết không được bỏ phiếu.</p>
+          </div>
+        )}
+
+        {/* Already voted */}
+        {hasVoted && !isHost && (
+          <div className="rounded-2xl border border-white/10 bg-white/5 px-5 py-4 text-center">
+            <p className="text-sm text-slate-400">✅ Đã bỏ phiếu. Đang chờ mọi người...</p>
           </div>
         )}
       </div>
 
-      {/* Voter list */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-        <p className="text-xs uppercase tracking-wider text-slate-500 font-semibold mb-2">Individual Votes</p>
-        <div className="grid grid-cols-2 gap-1.5">
-          {players.filter((p) => !p.isHost && p.isAlive && p.id !== targetId).map((p) => {
-            const vote = votes[p.id];
-            return (
-              <div
-                key={p.id}
-                className={`flex items-center gap-2 rounded-lg px-2.5 py-1.5 text-xs transition-all ${
-                  vote === true
-                    ? 'bg-green-500/10 text-green-400'
-                    : vote === false
-                    ? 'bg-red-500/10 text-red-400'
-                    : 'bg-white/5 text-slate-500'
-                }`}
-              >
-                <div className={`h-1.5 w-1.5 rounded-full ${
-                  vote === true ? 'bg-green-500' : vote === false ? 'bg-red-500' : 'bg-slate-600'
-                }`} />
-                <span className="font-medium truncate">{p.name}</span>
-                {p.id === playerId && <span className="text-[9px] text-slate-600 ml-auto">You</span>}
-                {vote !== undefined && (
-                  <span className="ml-auto">{vote ? '👍' : '👎'}</span>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Vote Buttons (alive non-host non-target players only) */}
+      {/* ── Sticky bottom vote buttons (players only, not yet voted) ── */}
       {isAlive && !isHost && !isTarget && !hasVoted && (
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => onVote(true)}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-green-600 to-emerald-600 px-4 py-4 text-lg font-bold text-white transition-all hover:from-green-500 hover:to-emerald-500 hover:shadow-lg hover:shadow-green-500/25"
-            id="vote-agree-btn"
-          >
-            👍 Execute
-          </button>
-          <button
-            onClick={() => onVote(false)}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-rose-600 px-4 py-4 text-lg font-bold text-white transition-all hover:from-red-500 hover:to-rose-500 hover:shadow-lg hover:shadow-red-500/25"
-            id="vote-disagree-btn"
-          >
-            👎 Spare
-          </button>
-        </div>
-      )}
-
-      {/* Already voted */}
-      {hasVoted && !isHost && (
-        <div className="rounded-xl bg-white/5 border border-white/10 p-4 text-center">
-          <p className="text-sm text-slate-400">
-            ✅ Your vote has been cast. Waiting for others...
+        <div className="shrink-0 border-t border-white/10 bg-slate-950/98 px-4 pt-3 pb-safe backdrop-blur-sm">
+          <p className="mb-3 text-center text-xs font-semibold uppercase tracking-wider text-slate-500">
+            Bỏ phiếu của bạn
           </p>
-        </div>
-      )}
-
-      {/* Dead player message */}
-      {!isAlive && !isHost && (
-        <div className="rounded-xl bg-red-500/5 border border-red-500/20 p-4 text-center">
-          <p className="text-sm text-red-400">💀 Dead players cannot vote.</p>
-        </div>
-      )}
-
-      {/* Target message */}
-      {isTarget && (
-        <div className="rounded-xl bg-amber-500/5 border border-amber-500/20 p-4 text-center animate-shake">
-          <p className="text-sm text-amber-400">⚖️ You are on trial. Your fate is in others&apos; hands...</p>
-        </div>
-      )}
-
-      {/* Host controls */}
-      {isHost && (
-        <div className="flex gap-3">
-          <button
-            onClick={onResolve}
-            className="flex-1 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 px-4 py-3 font-bold text-white transition-all hover:from-amber-500 hover:to-orange-500 hover:shadow-lg"
-            id="resolve-vote-btn"
-          >
-            ⚖️ Finalize Vote
-          </button>
-          <button
-            onClick={onCancel}
-            className="rounded-xl bg-white/5 border border-white/10 px-4 py-3 font-medium text-slate-400 transition-all hover:bg-white/10 hover:text-white"
-            id="cancel-vote-btn"
-          >
-            Cancel
-          </button>
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => onVote(true)}
+              id="vote-agree-btn"
+              className="flex flex-col items-center justify-center gap-1.5 rounded-2xl bg-gradient-to-b from-green-500 to-green-700 py-5 font-black text-white shadow-lg shadow-green-600/30 transition-all active:scale-95 hover:from-green-400 hover:to-green-600"
+            >
+              <span className="text-4xl leading-none">👍</span>
+              <span className="text-sm tracking-wide">Xử tử</span>
+            </button>
+            <button
+              onClick={() => onVote(false)}
+              id="vote-disagree-btn"
+              className="flex flex-col items-center justify-center gap-1.5 rounded-2xl border border-white/10 bg-slate-800 py-5 font-bold text-slate-300 shadow-lg transition-all active:scale-95 hover:bg-slate-700 hover:text-white"
+            >
+              <span className="text-4xl leading-none">👎</span>
+              <span className="text-sm tracking-wide">Tha bổng</span>
+            </button>
+          </div>
         </div>
       )}
     </div>
