@@ -702,207 +702,239 @@ export default function HostDashboard({
         </div>
       </div>
 
-      {/* ── Sơ đồ chỗ ngồi ───────────────────────────────────────────── */}
+      {/* ══ Grimoire + Sơ đồ chỗ ngồi (combined) ══════════════════════════ */}
       {(() => {
-        const seated = players
-          .filter((p) => !p.isHost && p.gameData?.seatNumber != null)
+        // Sort players by seat number for consistent circular display
+        const seated = gamePlayers
+          .filter((p) => p.gameData?.seatNumber != null)
           .sort((a, b) => (a.gameData.seatNumber as number) - (b.gameData.seatNumber as number));
-        if (seated.length === 0) return null;
+        // Players without seats appended at end
+        const unseated = gamePlayers.filter((p) => p.gameData?.seatNumber == null);
+        const ordered = [...seated, ...unseated];
+        const n = seated.length;
+
         return (
-          <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-            <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-              🪑 Sơ đồ chỗ ngồi (vòng tròn)
-            </h3>
-            <div className="flex flex-wrap gap-1.5 items-center">
-              {seated.map((p, idx) => {
-                const role = p.gameData?.role as ClocktowerRole | undefined;
+          <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+
+            {/* ── Header bar ────────────────────────────────────────────── */}
+            <div className="flex items-center gap-3 px-4 py-3 border-b border-white/8 flex-wrap">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 shrink-0">
+                🔮 Grimoire · 🪑 Sơ đồ vòng tròn
+              </h3>
+              <span className="text-xs text-slate-600 shrink-0">{gamePlayers.length} người chơi</span>
+              <div className="ml-auto flex gap-2 flex-wrap">
+                {/* Good pill */}
+                <div className="flex items-center gap-1 rounded-xl border border-blue-500/25 bg-blue-900/20 px-2.5 py-1">
+                  <span className="text-xs">☀️</span>
+                  <span className="text-[11px] font-black text-blue-300">{goodAlive}</span>
+                  <span className="text-[10px] text-slate-500">sống</span>
+                  <span className="text-[10px] text-blue-400 font-bold ml-1">
+                    🌟{teamStats.find(t=>t.team==='townsfolk')?.alive ?? 0}
+                  </span>
+                  <span className="text-[10px] text-purple-400 font-bold">
+                    🌀{teamStats.find(t=>t.team==='outsider')?.alive ?? 0}
+                  </span>
+                </div>
+                {/* Evil pill */}
+                <div className="flex items-center gap-1 rounded-xl border border-red-500/25 bg-red-900/20 px-2.5 py-1">
+                  <span className="text-xs">🌑</span>
+                  <span className="text-[11px] font-black text-red-300">{evilAlive}</span>
+                  <span className="text-[10px] text-slate-500">sống</span>
+                  <span className="text-[10px] text-orange-400 font-bold ml-1">
+                    🗡️{teamStats.find(t=>t.team==='minion')?.alive ?? 0}
+                  </span>
+                  <span className="text-[10px] text-red-400 font-bold">
+                    👹{teamStats.find(t=>t.team==='demon')?.alive ?? 0}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* ── Seat ring strip (horizontal scroll) ───────────────────── */}
+            {n > 0 && (
+              <div className="border-b border-white/8 bg-black/20 px-3 py-3 overflow-x-auto">
+                <div className="flex items-center gap-1 w-max">
+                  {seated.map((p, idx) => {
+                    const role = p.gameData?.role as ClocktowerRole | undefined;
+                    const team = role ? ROLE_TEAMS[role] : undefined;
+                    const tc   = team ? TEAM_CARD[team] : null;
+                    return (
+                      <div key={p.id} className="flex items-center gap-1 shrink-0">
+                        {/* Seat node */}
+                        <div className={`flex flex-col items-center gap-0.5 rounded-xl border px-2 py-1.5 min-w-[52px] transition-all ${
+                          !p.isAlive
+                            ? 'border-red-500/15 bg-red-950/30 opacity-60'
+                            : tc
+                            ? `${tc.border} ${tc.bg}`
+                            : 'border-white/10 bg-white/5'
+                        }`}>
+                          <span className="text-[9px] font-black text-slate-500 leading-none">
+                            #{p.gameData.seatNumber as number}
+                          </span>
+                          <span className={`text-xl leading-none ${!p.isAlive ? 'grayscale opacity-50' : ''}`}>
+                            {role ? ROLE_ICONS[role] : '🎭'}
+                          </span>
+                          <span className={`text-[9px] font-bold leading-none max-w-[48px] truncate ${
+                            !p.isAlive ? 'text-slate-600 line-through' : tc ? tc.text : 'text-slate-300'
+                          }`}>
+                            {p.name}
+                          </span>
+                          {!p.isAlive && (
+                            <span className="text-[8px] text-red-500 leading-none">💀</span>
+                          )}
+                        </div>
+                        {/* Arrow between nodes */}
+                        <span className="text-slate-700 text-xs shrink-0">
+                          {idx < n - 1 ? '→' : '↩'}
+                        </span>
+                      </div>
+                    );
+                  })}
+                  {/* Back-to-start label */}
+                  {n > 1 && (
+                    <span className="text-[10px] font-black text-slate-600 shrink-0">
+                      #{seated[0].gameData.seatNumber as number}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* ── Player detail cards (sorted by seat) ──────────────────── */}
+            <div className="divide-y divide-white/5">
+              {ordered.map((p, cardIdx) => {
+                const role       = p.gameData?.role as ClocktowerRole | undefined;
+                const team       = role ? ROLE_TEAMS[role] : undefined;
+                const tc         = team ? TEAM_CARD[team] : null;
+                const isDrunk    = p.gameData?.isDrunk === true;
+                const drunkRole  = p.gameData?.drunkRole as ClocktowerRole | undefined;
+                const isPoisoned = p.gameData?.isPoisoned === true;
+                const seat       = p.gameData?.seatNumber as number | undefined;
+                const isMessaging = messagingPlayerId === p.id;
+
+                // Circular neighbours (seated players only)
+                const seatedIdx = seated.findIndex((s) => s.id === p.id);
+                const leftN  = seatedIdx >= 0 ? seated[(seatedIdx - 1 + n) % n] : null;
+                const rightN = seatedIdx >= 0 ? seated[(seatedIdx + 1) % n] : null;
+
                 return (
-                  <div key={p.id} className="flex items-center gap-1">
-                    <div className={`flex items-center gap-1.5 rounded-xl border px-2.5 py-1.5 text-xs ${
-                      p.isAlive
-                        ? 'bg-white/5 border-white/10 text-white'
-                        : 'bg-red-500/5 border-red-500/10 text-slate-500'
-                    }`}>
-                      <span className="font-black text-slate-500 text-[10px] shrink-0">
-                        #{p.gameData.seatNumber as number}
+                  <div key={p.id} className={`transition-all ${
+                    !p.isAlive ? 'bg-red-950/10 opacity-75' : cardIdx % 2 === 0 ? 'bg-white/[0.02]' : ''
+                  }`}>
+                    {/* Main row */}
+                    <div className="flex items-center gap-3 px-4 py-3">
+
+                      {/* Seat badge + left-border accent */}
+                      <div className={`flex flex-col items-center shrink-0 w-7 border-l-2 pl-1 ${
+                        tc ? tc.border.replace('border-', 'border-l-').replace('/35','/60').replace('/40','/70') : 'border-l-white/10'
+                      }`}>
+                        {seat != null && (
+                          <span className="text-[11px] font-black text-slate-500 leading-none">#{seat}</span>
+                        )}
+                      </div>
+
+                      {/* Role icon */}
+                      <span className={`text-2xl shrink-0 leading-none ${!p.isAlive ? 'grayscale opacity-40' : ''}`}>
+                        {role ? ROLE_ICONS[role] : '🎭'}
                       </span>
-                      {role && <span className="text-base leading-none">{ROLE_ICONS[role]}</span>}
-                      <span className={`font-semibold ${!p.isAlive ? 'line-through' : ''}`}>
-                        {p.name}
-                      </span>
-                      {!p.isAlive && <span className="text-[10px] text-red-500">💀</span>}
+
+                      {/* Name + role + status badges */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className={`text-sm font-black leading-tight ${!p.isAlive ? 'line-through text-slate-500' : 'text-white'}`}>
+                            {p.name}
+                          </span>
+                          {!p.isAlive && <span className="text-[10px] text-red-400">💀</span>}
+                        </div>
+                        <div className="flex items-center gap-1 flex-wrap mt-0.5">
+                          {role && (
+                            <span className={`text-[11px] font-bold ${tc ? tc.text : 'text-slate-400'}`}>
+                              {String(role)}
+                            </span>
+                          )}
+                          {isDrunk && drunkRole && (
+                            <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-black text-amber-300">
+                              🍺 {drunkRole}
+                            </span>
+                          )}
+                          {isPoisoned && (
+                            <span className="rounded-full bg-purple-500/20 px-1.5 py-0.5 text-[9px] font-black text-purple-300">
+                              ☠️ Nhiễm độc
+                            </span>
+                          )}
+                        </div>
+                        {/* Neighbour hint */}
+                        {leftN && rightN && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <span className={`text-[9px] font-semibold truncate max-w-[56px] ${leftN.isAlive ? 'text-slate-500' : 'text-slate-700 line-through'}`}>
+                              ← {leftN.name}
+                            </span>
+                            <span className="text-[9px] text-slate-700 shrink-0">·</span>
+                            <span className={`text-[9px] font-semibold truncate max-w-[56px] ${rightN.isAlive ? 'text-slate-500' : 'text-slate-700 line-through'}`}>
+                              {rightN.name} →
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action buttons */}
+                      <div className="flex items-center gap-1 shrink-0">
+                        <button
+                          onClick={() => { setMessagingPlayerId(isMessaging ? null : p.id); setInlineMessage(''); }}
+                          className={`flex h-8 w-8 items-center justify-center rounded-xl border text-sm transition-all active:scale-95 ${
+                            isMessaging
+                              ? 'border-cyan-500/50 bg-cyan-500/20 text-cyan-300'
+                              : 'border-white/10 bg-white/5 text-slate-500 hover:text-cyan-400 hover:border-cyan-500/30'
+                          }`}
+                          title="Gửi tin riêng"
+                        >
+                          💬
+                        </button>
+                        <button
+                          onClick={() => toggleAlive(p.id, p.isAlive)}
+                          className={`flex h-8 w-8 items-center justify-center rounded-xl border text-sm transition-all active:scale-95 ${
+                            p.isAlive
+                              ? 'border-red-500/25 bg-red-500/10 text-red-400 hover:bg-red-500/20'
+                              : 'border-green-500/25 bg-green-500/10 text-green-400 hover:bg-green-500/20'
+                          }`}
+                          title={p.isAlive ? 'Giết' : 'Hồi sinh'}
+                        >
+                          {p.isAlive ? '💀' : '💖'}
+                        </button>
+                      </div>
                     </div>
-                    {idx < seated.length - 1 && (
-                      <span className="text-slate-600 text-xs">→</span>
+
+                    {/* Inline DM compose */}
+                    {isMessaging && (
+                      <div className="border-t border-cyan-500/15 bg-cyan-950/20 px-4 py-2.5">
+                        <div className="flex gap-2 items-center">
+                          <span className="text-xs text-cyan-400 shrink-0">📬</span>
+                          <input
+                            type="text"
+                            value={inlineMessage}
+                            onChange={(e) => setInlineMessage(e.target.value)}
+                            onKeyDown={(e) => { if (e.key === 'Enter') handleInlineMessage(p.id); }}
+                            placeholder={`Tin nhắn riêng cho ${p.name}...`}
+                            autoFocus
+                            className="flex-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-500/50"
+                          />
+                          <button
+                            onClick={() => handleInlineMessage(p.id)}
+                            disabled={!inlineMessage.trim()}
+                            className="shrink-0 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-cyan-500 disabled:opacity-40 active:scale-95"
+                          >
+                            Gửi
+                          </button>
+                        </div>
+                      </div>
                     )}
                   </div>
                 );
               })}
-              {/* Close the circle */}
-              {seated.length > 1 && (
-                <span className="text-slate-600 text-xs">↩ #{seated[0].gameData.seatNumber as number}</span>
-              )}
             </div>
           </div>
         );
       })()}
-
-      {/* ── Grimoire ──────────────────────────────────────────────────────── */}
-      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-
-        {/* Header + team-count summary */}
-        <div className="flex items-start justify-between mb-4 gap-3 flex-wrap">
-          <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400 shrink-0">
-            🔮 Grimoire ({gamePlayers.length} người chơi)
-          </h3>
-          <div className="flex gap-2 flex-wrap">
-            <div className="flex items-center gap-1.5 rounded-xl border border-blue-500/25 bg-blue-900/20 px-3 py-1.5">
-              <span className="text-sm">☀️</span>
-              <div className="text-[11px] leading-tight">
-                <span className="font-black text-blue-300">{goodAlive}</span>
-                <span className="text-slate-400"> sống</span>
-                <div className="flex gap-1 mt-0.5">
-                  {teamStats.filter(t => t.team === 'townsfolk' || t.team === 'outsider').map(t => (
-                    <span key={t.team} className={`text-[10px] font-bold ${t.team === 'townsfolk' ? 'text-blue-400' : 'text-purple-400'}`}>
-                      {t.team === 'townsfolk' ? '🌟' : '🌀'}{t.alive}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-1.5 rounded-xl border border-red-500/25 bg-red-900/20 px-3 py-1.5">
-              <span className="text-sm">🌑</span>
-              <div className="text-[11px] leading-tight">
-                <span className="font-black text-red-300">{evilAlive}</span>
-                <span className="text-slate-400"> sống</span>
-                <div className="flex gap-1 mt-0.5">
-                  {teamStats.filter(t => t.team === 'minion' || t.team === 'demon').map(t => (
-                    <span key={t.team} className={`text-[10px] font-bold ${t.team === 'minion' ? 'text-orange-400' : 'text-red-400'}`}>
-                      {t.team === 'minion' ? '🗡️' : '👹'}{t.alive}
-                    </span>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Player cards — host excluded */}
-        <div className="grid grid-cols-1 gap-2">
-          {gamePlayers.map((p) => {
-            const role      = p.gameData?.role as ClocktowerRole | undefined;
-            const team      = role ? ROLE_TEAMS[role] : undefined;
-            const tc        = team ? TEAM_CARD[team] : null;
-            const isDrunk   = p.gameData?.isDrunk === true;
-            const drunkRole = p.gameData?.drunkRole as ClocktowerRole | undefined;
-            const isPoisoned = p.gameData?.isPoisoned === true;
-            const seat      = p.gameData?.seatNumber as number | undefined;
-            const isMessaging = messagingPlayerId === p.id;
-
-            return (
-              <div
-                key={p.id}
-                className={`rounded-2xl border shadow-sm transition-all ${
-                  !p.isAlive
-                    ? 'border-red-500/15 bg-red-950/20 opacity-70'
-                    : tc
-                    ? `${tc.border} ${tc.bg} shadow-lg ${tc.glow}`
-                    : 'border-white/10 bg-white/5'
-                }`}
-              >
-                {/* Main row */}
-                <div className="flex items-center gap-3 px-3 py-2.5">
-                  {seat != null && (
-                    <span className="shrink-0 text-[10px] font-black text-slate-500 w-5 text-center">
-                      #{seat}
-                    </span>
-                  )}
-                  <span className={`text-2xl shrink-0 leading-none ${!p.isAlive ? 'grayscale opacity-50' : ''}`}>
-                    {role ? ROLE_ICONS[role] : '🎭'}
-                  </span>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-1.5 flex-wrap">
-                      <span className={`text-sm font-black leading-tight ${!p.isAlive ? 'line-through text-slate-500' : 'text-white'}`}>
-                        {p.name}
-                      </span>
-                      {!p.isAlive && <span className="text-[10px] text-red-400 font-bold">💀</span>}
-                    </div>
-                    {role && (
-                      <div className="flex items-center gap-1 flex-wrap mt-0.5">
-                        <span className={`text-[11px] font-bold ${tc ? tc.text : 'text-slate-400'}`}>
-                          {String(role)}
-                        </span>
-                        {isDrunk && drunkRole && (
-                          <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-black text-amber-300">
-                            🍺 {drunkRole}
-                          </span>
-                        )}
-                        {isPoisoned && (
-                          <span className="rounded-full bg-purple-500/20 px-1.5 py-0.5 text-[9px] font-black text-purple-300">
-                            ☠️ Nhiễm độc
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center gap-1 shrink-0">
-                    <button
-                      onClick={() => {
-                        setMessagingPlayerId(isMessaging ? null : p.id);
-                        setInlineMessage('');
-                      }}
-                      className={`flex h-8 w-8 items-center justify-center rounded-xl border text-sm transition-all active:scale-95 ${
-                        isMessaging
-                          ? 'border-cyan-500/50 bg-cyan-500/20 text-cyan-300'
-                          : 'border-white/10 bg-white/5 text-slate-400 hover:text-cyan-400 hover:border-cyan-500/30'
-                      }`}
-                      title="Gửi tin riêng"
-                    >
-                      💬
-                    </button>
-                    <button
-                      onClick={() => toggleAlive(p.id, p.isAlive)}
-                      className={`flex h-8 w-8 items-center justify-center rounded-xl border text-sm transition-all active:scale-95 ${
-                        p.isAlive
-                          ? 'border-red-500/25 bg-red-500/10 text-red-400 hover:bg-red-500/20'
-                          : 'border-green-500/25 bg-green-500/10 text-green-400 hover:bg-green-500/20'
-                      }`}
-                      title={p.isAlive ? 'Giết' : 'Hồi sinh'}
-                    >
-                      {p.isAlive ? '💀' : '💖'}
-                    </button>
-                  </div>
-                </div>
-
-                {/* Inline DM compose */}
-                {isMessaging && (
-                  <div className="border-t border-cyan-500/20 bg-cyan-950/20 px-3 py-2.5 rounded-b-2xl">
-                    <div className="flex gap-2 items-center">
-                      <span className="text-xs text-cyan-400 shrink-0 font-bold">📬</span>
-                      <input
-                        type="text"
-                        value={inlineMessage}
-                        onChange={(e) => setInlineMessage(e.target.value)}
-                        onKeyDown={(e) => { if (e.key === 'Enter') handleInlineMessage(p.id); }}
-                        placeholder={`Tin nhắn riêng cho ${p.name}...`}
-                        autoFocus
-                        className="flex-1 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs text-white placeholder-slate-500 outline-none focus:border-cyan-500/50"
-                      />
-                      <button
-                        onClick={() => handleInlineMessage(p.id)}
-                        disabled={!inlineMessage.trim()}
-                        className="shrink-0 rounded-lg bg-cyan-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-cyan-500 disabled:opacity-40 active:scale-95"
-                      >
-                        Gửi
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
 
       {/* ── End Game ───────────────────────────────────────────────────── */}
       {onEndGame && (
