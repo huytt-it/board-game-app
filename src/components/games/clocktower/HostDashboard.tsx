@@ -32,7 +32,8 @@ export default function HostDashboard({
   gameState,
   onEndGame,
 }: HostDashboardProps) {
-  const { pendingActions, resolvedActions, resolveAction, sendPrivateMessage, clearAllActions } = useNightActions(roomId, hostId);
+  const { pendingActions, resolvedActions, resolveAction, sendPrivateMessage, clearAllActions } =
+    useNightActions(roomId, hostId);
   const [resolveMessages, setResolveMessages] = useState<Record<string, string>>({});
   const [directMessage, setDirectMessage] = useState('');
   const [directTarget, setDirectTarget] = useState('');
@@ -41,34 +42,59 @@ export default function HostDashboard({
   const { events: historyEvents, addEvent } = useGameHistory(roomId);
 
   const dayCount = gameState?.dayCount ?? 0;
-  const phase: 'night' | 'day' = (currentPhase === 'night') ? 'night' : 'day';
+  const phase: 'night' | 'day' = currentPhase === 'night' ? 'night' : 'day';
 
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
-  const { nominations, votingTarget, votingTargetName, votes, hasVoted, voteCount, nominatePlayer, castVote, resolveVote, cancelVote } =
-    useVoting(roomId, hostId, gameState, alivePlayers);
+  const {
+    nominations, votingTarget, votingTargetName,
+    votes, hasVoted, voteCount,
+    nominatePlayer, castVote, resolveVote, cancelVote,
+  } = useVoting(roomId, hostId, gameState, alivePlayers);
 
+  // ─── Vote: majority → execute ─────────────────────────────────────────
   const handleVoteResolve = async () => {
     if (!votingTarget || !votingTargetName) return;
     const targetPlayer = players.find((p) => p.id === votingTarget);
     const executedRole = targetPlayer?.gameData?.role as string | undefined;
+    const majority = Math.ceil(alivePlayers / 2);
+    const executed = voteCount.agree >= majority;
     await resolveVote(executedRole);
-    // Write execution to history
     await addEvent({
       type: 'execution',
       dayCount,
       phase: 'day',
-      emoji: '⚖️',
-      title: `${votingTargetName} bị đưa lên giá treo`,
-      detail: `${voteCount} phiếu đồng ý`,
+      emoji: executed ? '⚖️' : '🕊️',
+      title: executed
+        ? `${votingTargetName} bị xử tử`
+        : `${votingTargetName} được tha bổng (không đủ phiếu)`,
+      detail: `${voteCount.agree} đồng ý / ${voteCount.disagree} phản đối — cần ${majority} phiếu`,
+      targetName: votingTargetName,
+      targetRole: executedRole,
+      resultState: executed ? 'executed' : 'pardoned',
+    });
+  };
+
+  // ─── Vote: host cancels before resolution ─────────────────────────────
+  const handleVoteCancel = async () => {
+    if (!votingTargetName) return;
+    await cancelVote();
+    await addEvent({
+      type: 'host_decision',
+      dayCount,
+      phase: 'day',
+      emoji: '🚫',
+      title: `Phiên toà cho ${votingTargetName} bị huỷ bởi Quản trò`,
+      resultState: 'pardoned',
       targetName: votingTargetName,
     });
   };
 
+  // ─── Toggle alive (manual kill / revive by host) ──────────────────────
   const toggleAlive = async (playerId: string, currentAlive: boolean) => {
     const player = players.find((p) => p.id === playerId);
     const role = player?.gameData?.role as ClocktowerRole | undefined;
 
-    // ScarletWoman warning: if Imp is killed and 5+ players alive
+    // ScarletWoman warning when Imp is killed
     if (currentAlive && role === ClocktowerRole.Imp) {
       const aliveCount = players.filter((p) => !p.isHost && p.isAlive).length;
       const scarletWoman = players.find(
@@ -76,82 +102,215 @@ export default function HostDashboard({
       );
       if (scarletWoman && aliveCount >= 5) {
         alert(
-          `⚠️ SCARLET WOMAN!\n${scarletWoman.name} là Scarlet Woman và có ${aliveCount} người còn sống.\nScarlet Woman sẽ trở thành Imp mới! Cập nhật vai trò của họ trong Grimoire.`
+          `⚠️ SCARLET WOMAN!\n${scarletWoman.name} là Scarlet Woman và có ${aliveCount} người còn sống.\n` +
+          `Scarlet Woman sẽ trở thành Imp mới! Cập nhật vai trò của họ trong Grimoire.`
         );
       }
     }
 
     await gameStorage.updatePlayerAlive(roomId, playerId, !currentAlive);
+
     if (currentAlive) {
+      // Killed
       await addEvent({
         type: 'night_death',
         dayCount,
         phase,
         emoji: '💀',
         title: `${player?.name || playerId} đã chết`,
-        detail: 'Bị loại khỏi ván đấu bởi Quản trò',
+        detail: phase === 'night' ? 'Chết trong đêm (xử lý thủ công bởi Quản trò)' : 'Bị loại bởi Quản trò',
         targetName: player?.name,
         targetRole: role ? String(role) : undefined,
+        resultState: 'killed',
+      });
+    } else {
+      // Revived — host note only
+      await addEvent({
+        type: 'host_decision',
+        dayCount,
+        phase,
+        emoji: '💖',
+        title: `${player?.name || playerId} được hồi sinh (Quản trò)`,
+        targetName: player?.name,
+        targetRole: role ? String(role) : undefined,
+        resultState: 'approved',
       });
     }
   };
 
+  // ─── Night action: host resolves → approve / send info ───────────────
   const handleResolve = async (action: GameAction) => {
-    const msg = resolveMessages[action.id] || 'No information.';
-    await resolveAction(action.id, msg);
-    await sendPrivateMessage(action.playerId, msg);
-    setResolveMessages((prev) => { const copy = { ...prev }; delete copy[action.id]; return copy; });
+    const msg = resolveMessages[action.id] || '';
+    const hasMessage = msg.trim().length > 0;
 
-    // Auto-update isPoisoned when Poisoner resolves
-    const actorForResolve = players.find((p) => p.id === action.playerId);
-    if (actorForResolve?.gameData?.role === ClocktowerRole.Poisoner && action.targetId) {
-      // Clear previous victim first
-      const previousVictim = players.find((p) => p.gameData?.isPoisoned === true && p.id !== action.targetId);
-      if (previousVictim) {
-        await gameStorage.updatePlayerGameData(roomId, previousVictim.id, { isPoisoned: false });
-      }
-      await gameStorage.updatePlayerGameData(roomId, action.targetId, { isPoisoned: true });
-    }
+    // 1. Mark action resolved + send private message to player
+    await resolveAction(action.id, hasMessage ? msg : 'Không có thông tin.');
+    await sendPrivateMessage(action.playerId, hasMessage ? msg : 'Không có thông tin.');
+    setResolveMessages((prev) => {
+      const copy = { ...prev };
+      delete copy[action.id];
+      return copy;
+    });
 
-    // Write to history
     const actor = players.find((p) => p.id === action.playerId);
     const actorRole = actor?.gameData?.role as ClocktowerRole | undefined;
-    
-    const roleStr = actorRole ? `(${actorRole})` : '';
-    
-    let actionTitle = `${action.playerName} ${roleStr} đã sử dụng kỹ năng`;
-    if (action.targetName) {
-      if (actorRole === ClocktowerRole.Monk) {
-        actionTitle = `Người chơi ${action.targetName} đã được bảo vệ bởi ${action.playerName} ${roleStr}`;
-      } else {
-        actionTitle = `${action.playerName} ${roleStr} đã sử dụng kỹ năng lên người chơi ${action.targetName}`;
+    const targetPlayer = players.find((p) => p.id === action.targetId);
+    const targetRole = targetPlayer?.gameData?.role as ClocktowerRole | undefined;
+    const secondTargetPlayer = players.find((p) => p.id === action.secondTargetId);
+    const secondTargetRole = secondTargetPlayer?.gameData?.role as ClocktowerRole | undefined;
+
+    // 2. Auto-update isPoisoned when Poisoner resolves their action
+    if (actorRole === ClocktowerRole.Poisoner && action.targetId) {
+      // Clear previous victim
+      const previousVictim = players.find(
+        (p) => p.gameData?.isPoisoned === true && p.id !== action.targetId
+      );
+      if (previousVictim) {
+        await gameStorage.updatePlayerGameData(roomId, previousVictim.id, { isPoisoned: false });
+        await addEvent({
+          type: 'state_change',
+          dayCount,
+          phase: 'night',
+          emoji: '✅',
+          title: `${previousVictim.name} hết nhiễm độc`,
+          targetName: previousVictim.name,
+          targetRole: previousVictim.gameData?.role as string | undefined,
+          resultState: 'poison_cleared',
+        });
       }
+      await gameStorage.updatePlayerGameData(roomId, action.targetId, { isPoisoned: true });
+      await addEvent({
+        type: 'state_change',
+        dayCount,
+        phase: 'night',
+        emoji: '☠️',
+        title: `${action.targetName || '?'} bị nhiễm độc bởi Poisoner`,
+        actorName: action.playerName,
+        actorRole: String(ClocktowerRole.Poisoner),
+        targetName: action.targetName,
+        targetRole: targetRole ? String(targetRole) : undefined,
+        resultState: 'poisoned',
+      });
     }
 
-    const detailMsg = msg !== 'No information.'
-      ? `Quản trò đã đưa thông tin cho ${action.playerName} ${roleStr}: "${msg}"`
-      : undefined;
+    // 3. Monk protection — log state change
+    if (actorRole === ClocktowerRole.Monk && action.targetId) {
+      await addEvent({
+        type: 'state_change',
+        dayCount,
+        phase: 'night',
+        emoji: '🛡️',
+        title: `${action.targetName || '?'} được Monk bảo vệ đêm nay`,
+        actorName: action.playerName,
+        actorRole: String(ClocktowerRole.Monk),
+        targetName: action.targetName,
+        targetRole: targetRole ? String(targetRole) : undefined,
+        resultState: 'protected',
+      });
+    }
+
+    // 4. Butler master assignment — log state change
+    if (actorRole === ClocktowerRole.Butler && action.targetId) {
+      await addEvent({
+        type: 'state_change',
+        dayCount,
+        phase: 'night',
+        emoji: '🎩',
+        title: `${action.playerName} (Butler) chọn ${action.targetName || '?'} làm chủ nhân`,
+        actorName: action.playerName,
+        actorRole: String(ClocktowerRole.Butler),
+        targetName: action.targetName,
+        targetRole: targetRole ? String(targetRole) : undefined,
+        resultState: 'master_assigned',
+      });
+    }
+
+    // 5. Log the main night action (approved by host)
+    let title = `${action.playerName} (${actorRole || '?'}) sử dụng kỹ năng`;
+    if (action.targetName) {
+      title = `${action.playerName} (${actorRole || '?'}) → ${action.targetName}`;
+      if (action.secondTargetName) title += ` & ${action.secondTargetName}`;
+    }
 
     await addEvent({
       type: 'night_action',
       dayCount,
       phase: 'night',
       emoji: '🎯',
-      title: actionTitle,
-      detail: detailMsg,
+      title,
       actorName: action.playerName,
       actorRole: actorRole ? String(actorRole) : undefined,
       targetName: action.targetName,
+      targetRole: targetRole ? String(targetRole) : undefined,
+      secondTargetName: action.secondTargetName,
+      secondTargetRole: secondTargetRole ? String(secondTargetRole) : undefined,
+      messageSent: hasMessage ? msg : undefined,
+      resultState: 'approved',
     });
   };
 
+  // ─── Slayer: kill target ───────────────────────────────────────────────
+  const handleSlayerKill = async () => {
+    const slayer = gameState?.pendingSlayerAction;
+    if (!slayer) return;
+    const targetPlayer = players.find((p) => p.id === slayer.targetId);
+    const targetRole = targetPlayer?.gameData?.role as ClocktowerRole | undefined;
+    await gameStorage.updatePlayerAlive(roomId, slayer.targetId, false);
+    await gameStorage.updateRoomGameState(roomId, { pendingSlayerAction: null } as any);
+    await addEvent({
+      type: 'ability_used',
+      dayCount,
+      phase: 'day',
+      emoji: '⚔️',
+      title: `${slayer.slayerName} (Slayer) hạ gục ${slayer.targetName} — TRÚNG QUỶDỮ!`,
+      actorName: slayer.slayerName,
+      actorRole: String(ClocktowerRole.Slayer),
+      targetName: slayer.targetName,
+      targetRole: targetRole ? String(targetRole) : undefined,
+      resultState: 'killed',
+    });
+  };
+
+  // ─── Slayer: miss ──────────────────────────────────────────────────────
+  const handleSlayerMiss = async () => {
+    const slayer = gameState?.pendingSlayerAction;
+    if (!slayer) return;
+    const targetPlayer = players.find((p) => p.id === slayer.targetId);
+    const targetRole = targetPlayer?.gameData?.role as ClocktowerRole | undefined;
+    await gameStorage.updateRoomGameState(roomId, { pendingSlayerAction: null } as any);
+    await addEvent({
+      type: 'ability_used',
+      dayCount,
+      phase: 'day',
+      emoji: '⚔️',
+      title: `${slayer.slayerName} (Slayer) hạ ${slayer.targetName} — TRẬT! Không ai chết.`,
+      actorName: slayer.slayerName,
+      actorRole: String(ClocktowerRole.Slayer),
+      targetName: slayer.targetName,
+      targetRole: targetRole ? String(targetRole) : undefined,
+      resultState: 'miss',
+    });
+  };
+
+  // ─── Direct private message ────────────────────────────────────────────
   const handleDirectMessage = async () => {
     if (!directTarget || !directMessage.trim()) return;
+    const targetPlayer = players.find((p) => p.id === directTarget);
     await sendPrivateMessage(directTarget, directMessage.trim());
+    await addEvent({
+      type: 'host_decision',
+      dayCount,
+      phase,
+      emoji: '📬',
+      title: `Quản trò gửi tin riêng cho ${targetPlayer?.name || directTarget}`,
+      targetName: targetPlayer?.name,
+      messageSent: directMessage.trim(),
+    });
     setDirectMessage('');
     setDirectTarget('');
   };
 
+  // ─── Start new night ───────────────────────────────────────────────────
   const handleNewNight = async () => {
     await addEvent({
       type: 'phase_change',
@@ -166,7 +325,8 @@ export default function HostDashboard({
 
   return (
     <div className="space-y-6">
-      {/* Phase Controls */}
+
+      {/* ── Phase Controls ─────────────────────────────────────────────── */}
       <div className="flex items-center gap-3 rounded-xl border border-white/10 bg-white/5 p-4">
         <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">Phase Control</h3>
         <div className="ml-auto flex gap-2">
@@ -195,10 +355,11 @@ export default function HostDashboard({
         </div>
       </div>
 
-      {/* Voting Section (Day Phase) */}
+      {/* ── Day / Voting section ───────────────────────────────────────── */}
       {(currentPhase === 'day' || currentPhase === 'voting') && (
         <div className="space-y-4">
-          {/* Active voting */}
+
+          {/* Active voting panel */}
           {currentPhase === 'voting' && votingTarget && votingTargetName && (
             <VotingPanel
               targetName={votingTargetName}
@@ -210,118 +371,138 @@ export default function HostDashboard({
               voteCount={voteCount}
               onVote={(v) => castVote(v)}
               onResolve={handleVoteResolve}
-              onCancel={cancelVote}
+              onCancel={handleVoteCancel}
               isHost={true}
               alivePlayers={alivePlayers}
             />
           )}
 
-          {/* Pending Slayer Action */}
+          {/* Pending Slayer action — awaiting host decision */}
           {gameState?.pendingSlayerAction && (
             <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 p-4">
-              <h3 className="mb-2 text-sm font-semibold text-amber-400">⚔️ Slayer Action!</h3>
-              <p className="mb-3 text-sm text-white">
-                <span className="font-bold">{gameState.pendingSlayerAction.slayerName}</span> tuyên bố hạ{' '}
-                <span className="font-bold text-amber-300">{gameState.pendingSlayerAction.targetName}</span>.
+              <div className="flex items-center gap-2 mb-1">
+                <span className="text-lg">⚔️</span>
+                <h3 className="text-sm font-semibold text-amber-400">Kỹ năng Slayer — Chờ Quản trò quyết định</h3>
+              </div>
+              <p className="mb-1 text-xs text-slate-400">
+                Người chơi đã công khai tuyên bố sử dụng kỹ năng Slayer. Quản trò kiểm tra và quyết định kết quả.
               </p>
+              <div className="mb-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm">
+                <span className="font-bold text-white">{gameState.pendingSlayerAction.slayerName}</span>
+                <span className="text-slate-400"> tuyên bố hạ </span>
+                <span className="font-bold text-amber-300">{gameState.pendingSlayerAction.targetName}</span>
+              </div>
               <div className="flex gap-2">
                 <button
-                  onClick={async () => {
-                    const { targetId } = gameState.pendingSlayerAction!;
-                    await gameStorage.updatePlayerAlive(roomId, targetId, false);
-                    await gameStorage.updateRoomGameState(roomId, { pendingSlayerAction: null } as any);
-                  }}
-                  className="rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-red-500"
+                  onClick={handleSlayerKill}
+                  className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white transition-all hover:bg-red-500"
                 >
-                  💀 Trúng — Giết ngay
+                  💀 Trúng — Mục tiêu là Quỷ, giết ngay
                 </button>
                 <button
-                  onClick={() => gameStorage.updateRoomGameState(roomId, { pendingSlayerAction: null } as any)}
-                  className="rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-slate-500"
+                  onClick={handleSlayerMiss}
+                  className="flex-1 rounded-lg bg-slate-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-slate-500"
                 >
-                  ✗ Trật — Không ai chết
+                  ✗ Trật — Không phải Quỷ, không ai chết
                 </button>
               </div>
             </div>
           )}
 
-          {/* Live Nominations (only during day, not during active voting) */}
+          {/* Live Nominations — day only */}
           {currentPhase === 'day' && (
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-amber-400">
-                ⚖️ Live Nominations
+                ⚖️ Đề cử đang diễn ra
               </h3>
               <div className="space-y-2">
                 {players
                   .filter((p) => !p.isHost && p.isAlive)
                   .sort((a, b) => {
-                     const aCount = Object.values(nominations || {}).filter(id => id === a.id).length;
-                     const bCount = Object.values(nominations || {}).filter(id => id === b.id).length;
-                     return bCount - aCount;
+                    const aCount = Object.values(nominations || {}).filter((id) => id === a.id).length;
+                    const bCount = Object.values(nominations || {}).filter((id) => id === b.id).length;
+                    return bCount - aCount;
                   })
                   .map((p) => {
                     const role = p.gameData?.role as ClocktowerRole | undefined;
-                    const count = Object.values(nominations || {}).filter(id => id === p.id).length;
+                    const count = Object.values(nominations || {}).filter((id) => id === p.id).length;
                     const percentage = alivePlayers > 0 ? Math.round((count / alivePlayers) * 100) : 0;
-                    
                     if (count === 0) return null;
-
                     return (
                       <div key={p.id} className="flex items-center gap-3 rounded-lg border border-white/10 bg-white/5 p-3">
-                         <div className="flex-1">
-                           <div className="flex items-center justify-between mb-1">
-                             <div className="flex items-center gap-2 text-sm text-white font-medium">
-                               {role && <span>{ROLE_ICONS[role]}</span>}
-                               {p.name}
-                             </div>
-                             <span className="text-xs text-amber-400 font-bold">{count} votes ({percentage}%)</span>
-                           </div>
-                           <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
-                             <div className="h-full bg-amber-500 transition-all duration-500" style={{ width: `${percentage}%` }} />
-                           </div>
-                         </div>
-                         <button
-                           onClick={() => {
-                             if (role === ClocktowerRole.Virgin) {
-                               alert(`⚠️ VIRGIN!\n${p.name} là Virgin. Nếu người đề cử đầu tiên là Townsfolk, họ sẽ bị xử tử ngay lập tức thay vì ${p.name}.`);
-                             }
-                             nominatePlayer(p.id, p.name);
-                           }}
-                           className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-amber-500 shadow-lg shadow-amber-500/20"
-                         >
-                           ⚖️ Trial
-                         </button>
+                        <div className="flex-1">
+                          <div className="flex items-center justify-between mb-1">
+                            <div className="flex items-center gap-2 text-sm text-white font-medium">
+                              {role && <span>{ROLE_ICONS[role]}</span>}
+                              {p.name}
+                              {role === ClocktowerRole.Virgin && (
+                                <span className="rounded-full bg-pink-500/20 px-1.5 py-0.5 text-[10px] font-bold text-pink-300">
+                                  👼 Virgin
+                                </span>
+                              )}
+                            </div>
+                            <span className="text-xs text-amber-400 font-bold">
+                              {count} đề cử ({percentage}%)
+                            </span>
+                          </div>
+                          <div className="h-1.5 w-full bg-slate-800 rounded-full overflow-hidden">
+                            <div
+                              className="h-full bg-amber-500 transition-all duration-500"
+                              style={{ width: `${percentage}%` }}
+                            />
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            if (role === ClocktowerRole.Virgin) {
+                              alert(
+                                `⚠️ VIRGIN!\n${p.name} là Virgin.\n` +
+                                `Nếu người đề cử đầu tiên là Townsfolk, họ bị xử tử ngay lập tức (không cần bỏ phiếu).\n` +
+                                `Hãy hỏi ai đã đề cử đầu tiên trước khi bắt đầu phiên toà.`
+                              );
+                            }
+                            nominatePlayer(p.id, p.name);
+                          }}
+                          className="shrink-0 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white transition-all hover:bg-amber-500 shadow-lg shadow-amber-500/20"
+                        >
+                          ⚖️ Xét xử
+                        </button>
                       </div>
                     );
                   })}
-                  
-                  {Object.values(nominations || {}).length === 0 && (
-                     <p className="text-sm text-slate-500 italic text-center py-4">No one has been nominated yet.</p>
-                  )}
+                {Object.values(nominations || {}).filter(Boolean).length === 0 && (
+                  <p className="text-sm text-slate-500 italic text-center py-4">
+                    Chưa có ai bị đề cử.
+                  </p>
+                )}
               </div>
             </div>
           )}
         </div>
       )}
 
-      {/* Game History Panel */}
+      {/* ── Night actions / History tabs ───────────────────────────────── */}
       <div className="rounded-xl border border-white/10 bg-white/5">
         <div className="flex border-b border-white/10">
           <button
             onClick={() => setActiveTab('night')}
             className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
-              activeTab === 'night' ? 'text-purple-400 border-b-2 border-purple-500' : 'text-slate-500 hover:text-slate-300'
+              activeTab === 'night'
+                ? 'text-purple-400 border-b-2 border-purple-500'
+                : 'text-slate-500 hover:text-slate-300'
             }`}
           >
-            🌙 {currentPhase === 'night' ? 'Night Actions' : 'Night Log'}
+            🌙 {currentPhase === 'night' ? 'Hành động đêm' : 'Nhật ký đêm'}
           </button>
           <button
             onClick={() => setActiveTab('history')}
             className={`flex-1 py-3 text-xs font-bold uppercase tracking-wider transition-colors ${
-              activeTab === 'history' ? 'text-amber-400 border-b-2 border-amber-500' : 'text-slate-500 hover:text-slate-300'
+              activeTab === 'history'
+                ? 'text-amber-400 border-b-2 border-amber-500'
+                : 'text-slate-500 hover:text-slate-300'
             }`}
           >
-            📜 Game History ({historyEvents.filter(e => e.type !== 'phase_change').length})
+            📜 Lịch sử ({historyEvents.filter((e) => e.type !== 'phase_change').length})
           </button>
         </div>
         <div className="p-4">
@@ -340,18 +521,18 @@ export default function HostDashboard({
             />
           )}
           {activeTab === 'night' && currentPhase !== 'night' && (
-            <p className="text-center text-sm text-slate-500 py-4">Không phải đêm. Chuyển sang ngày...</p>
+            <p className="text-center text-sm text-slate-500 py-4">
+              Đang ban ngày. Chuyển sang đêm để xem hành động.
+            </p>
           )}
-          {activeTab === 'history' && (
-            <GameHistoryPanel events={historyEvents} />
-          )}
+          {activeTab === 'history' && <GameHistoryPanel events={historyEvents} />}
         </div>
       </div>
 
-      {/* Direct Private Message */}
+      {/* ── Direct private message ─────────────────────────────────────── */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-          📬 Send Private Message
+          📬 Gửi tin riêng cho người chơi
         </h3>
         <div className="space-y-2">
           <select
@@ -360,12 +541,12 @@ export default function HostDashboard({
             className="w-full rounded-lg border border-white/10 bg-slate-800 px-3 py-2 text-sm text-white outline-none focus:border-purple-500"
             id="direct-message-target"
           >
-            <option value="">Select player...</option>
+            <option value="">Chọn người chơi...</option>
             {players
               .filter((p) => p.id !== hostId)
               .map((p) => (
                 <option key={p.id} value={p.id}>
-                  {p.name} {!p.isAlive ? '(Dead)' : ''}
+                  {p.name} {!p.isAlive ? '(Đã chết)' : ''}
                 </option>
               ))}
           </select>
@@ -374,7 +555,7 @@ export default function HostDashboard({
               type="text"
               value={directMessage}
               onChange={(e) => setDirectMessage(e.target.value)}
-              placeholder="Type a private message..."
+              placeholder="Nhập tin nhắn riêng..."
               className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500"
               id="direct-message-input"
             />
@@ -384,16 +565,16 @@ export default function HostDashboard({
               className="rounded-lg bg-cyan-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-cyan-500 disabled:opacity-40"
               id="send-direct-message-btn"
             >
-              Send
+              Gửi
             </button>
           </div>
         </div>
       </div>
 
-      {/* Player Overview */}
+      {/* ── Player Overview (Grimoire) ─────────────────────────────────── */}
       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
         <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-          Players ({players.length})
+          Grimoire ({players.filter((p) => !p.isHost).length} người chơi)
         </h3>
         <div className="grid grid-cols-2 gap-2">
           {players.map((p) => {
@@ -424,12 +605,12 @@ export default function HostDashboard({
                     )}
                     {p.gameData?.isPoisoned === true && (
                       <span className="rounded-full bg-purple-500/20 px-1.5 py-0.5 text-[10px] font-bold text-purple-300">
-                        ☠️ Poisoned
+                        ☠️ Nhiễm độc
                       </span>
                     )}
                     {!p.isAlive && (
                       <span className="rounded-full bg-red-500/20 px-1.5 py-0.5 text-[10px] font-bold text-red-400">
-                        💀 Dead
+                        💀 Đã chết
                       </span>
                     )}
                   </div>
@@ -444,7 +625,7 @@ export default function HostDashboard({
                         : 'bg-green-500/10 text-green-400 hover:bg-green-500/20'
                     }`}
                   >
-                    {p.isAlive ? '💀 Kill' : '💖 Revive'}
+                    {p.isAlive ? '💀 Giết' : '💖 Hồi sinh'}
                   </button>
                 )}
               </div>
@@ -453,26 +634,28 @@ export default function HostDashboard({
         </div>
       </div>
 
-
-
-      {/* End Game Control */}
+      {/* ── End Game ───────────────────────────────────────────────────── */}
       {onEndGame && (
         <div className="rounded-xl border border-white/10 bg-white/5 p-4">
           <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-            End Game
+            Kết thúc ván đấu
           </h3>
           <div className="grid grid-cols-2 gap-3">
             <button
-              onClick={() => { if (confirm('Are you sure the Good team has won?')) { onEndGame('good'); } }}
+              onClick={() => {
+                if (confirm('Xác nhận đội Thiện thắng?')) onEndGame('good');
+              }}
               className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-600 to-blue-600 px-4 py-3 font-bold text-white transition-all hover:from-cyan-500 hover:to-blue-500"
             >
-              🌟 Good Wins
+              🌟 Thiện thắng
             </button>
             <button
-              onClick={() => { if (confirm('Are you sure the Evil team has won?')) { onEndGame('evil'); } }}
+              onClick={() => {
+                if (confirm('Xác nhận đội Ác thắng?')) onEndGame('evil');
+              }}
               className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-red-600 to-orange-600 px-4 py-3 font-bold text-white transition-all hover:from-red-500 hover:to-orange-500"
             >
-              👹 Evil Wins
+              👹 Ác thắng
             </button>
           </div>
         </div>
