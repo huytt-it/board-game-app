@@ -498,17 +498,21 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
   const ladyInspect = useCallback(
     async (targetId: string) => {
       if (!roomId || !state) return;
-      await writeState({ ladyTargetId: targetId, ladyShownCard: null });
+      // House rule: Lady soi ai thì biết phe ngay (target không có lựa chọn nói xạo).
+      const target = players.find((p) => p.id === targetId);
+      const team = (target?.gameData as Partial<AvalonGameData> | undefined)?.team;
+      const trueCard: 'good' | 'evil' = team === 'evil' ? 'evil' : 'good';
+      await writeState({ ladyTargetId: targetId, ladyShownCard: trueCard });
     },
-    [roomId, state, writeState]
+    [roomId, state, writeState, players]
   );
 
   const ladyShow = useCallback(
-    async (card: 'good' | 'evil') => {
-      if (!roomId) return;
-      await writeState({ ladyShownCard: card });
+    async (_card: 'good' | 'evil') => {
+      // No-op: target không còn quyền chọn lá; giữ hàm để khớp interface cũ.
+      return;
     },
-    [roomId, writeState]
+    []
   );
 
   const ladyFinish = useCallback(async () => {
