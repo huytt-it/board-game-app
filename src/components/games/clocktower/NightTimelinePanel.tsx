@@ -160,8 +160,9 @@ function getRoleRec(
       return {
         emoji: '🐦‍⬛',
         lines: [
-          `${target.name} là RAVENKEEPER — họ sẽ chết.`,
-          `⚠️ Đánh thức riêng tư, cho chọn 1 người để học vai trò trước khi chết.`,
+          `${target.name} là RAVENKEEPER — họ sẽ chết đêm nay.`,
+          `→ Nhấn nút "🐦‍⬛ Kích hoạt" trong Grimoire để đánh thức họ chọn người.`,
+          `Sau khi Ravenkeeper chọn xong, xử lý hành động và gửi thông tin nhân vật.`,
         ],
         color: 'text-slate-300 bg-slate-500/8 border-slate-500/20',
       };
@@ -290,6 +291,20 @@ function getRoleRec(
     }
     return { emoji: '⚰️', lines: [`Người bị xử tử: ${lastPlayer?.name || '?'}`, `Nhân vật thật: ${lastRole || '?'}`, `→ Trả lời: "${lastRole}".`], color: 'text-slate-300 bg-slate-500/8 border-slate-500/20' };
   }
+  if (role === ClocktowerRole.Ravenkeeper && target) {
+    const trueRole = target.gameData?.role as ClocktowerRole | undefined;
+    const trueRoleIcon = trueRole ? ROLE_ICONS[trueRole] : '?';
+    return {
+      emoji: '🐦‍⬛',
+      lines: [
+        `${actor.name} (Ravenkeeper) muốn biết nhân vật của ${target.name}.`,
+        `Nhân vật thật: ${trueRoleIcon} ${trueRole || '?'}`,
+        `→ Nhắn riêng: "${target.name} là ${trueRole || '?'}."`,
+        `Sau đó đánh dấu Ravenkeeper đã chết trong Grimoire.`,
+      ],
+      color: 'text-slate-300 bg-slate-500/8 border-slate-500/20',
+    };
+  }
   if (role === ClocktowerRole.Butler && target) {
     return {
       emoji: '🎩',
@@ -388,6 +403,8 @@ function getResolvedVerb(
       return { verb: 'nhận thông tin Minion', verbColor: 'text-blue-400', isInfoOnly: true };
     case ClocktowerRole.Spy:
       return { verb: 'xem Grimoire', verbColor: 'text-slate-400', isInfoOnly: true };
+    case ClocktowerRole.Ravenkeeper:
+      return { verb: 'xem nhân vật trước khi chết', verbColor: 'text-slate-300', isInfoOnly: false };
     default:
       return { verb: 'sử dụng kỹ năng', verbColor: 'text-slate-500', isInfoOnly: false };
   }
@@ -425,10 +442,12 @@ function NightOrderTracker({
       const isResolved = resolvedActions.some((a) => a.playerId === player.id);
       const isSubmitted = pendingActions.some((a) => a.playerId === player.id);
 
+      // submitted/resolved always take precedence over passive so triggered
+      // Ravenkeeper actions surface correctly even though Ravenkeeper is in PASSIVE_ROLES
       let status: SlotStatus;
-      if (isPassive) status = 'passive';
-      else if (isResolved) status = 'resolved';
+      if (isResolved) status = 'resolved';
       else if (isSubmitted) status = 'submitted';
+      else if (isPassive) status = 'passive';
       else status = 'waiting';
 
       return [{ role, player, status, step: idx + 1 }];

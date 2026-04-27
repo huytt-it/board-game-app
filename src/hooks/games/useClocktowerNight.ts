@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { gameStorage } from '@/services/database/firebaseAdapter';
 import type { Player } from '@/types/player';
 import type { SubmitActionPayload } from '@/types/actions';
-import { FIRST_NIGHT_ROLES, OTHER_NIGHT_ROLES, type ClocktowerRole } from '@/types/games/clocktower';
+import { FIRST_NIGHT_ROLES, OTHER_NIGHT_ROLES, ClocktowerRole } from '@/types/games/clocktower';
 
 interface UseClocktowerNightReturn {
   privateMessage: string | null;
@@ -13,6 +13,8 @@ interface UseClocktowerNightReturn {
   hasNightAction: boolean;
   displayRole: ClocktowerRole | null; // Fake role for Drunk, actual role otherwise
   isDrunk: boolean;
+  /** True when the Ravenkeeper's one-time triggered action has been unlocked by the host */
+  isTriggeredRavenkeeper: boolean;
   submitAction: (
     targetId?: string,
     targetName?: string,
@@ -41,16 +43,23 @@ export function useClocktowerNight(
   const [playerRole, setPlayerRole] = useState<ClocktowerRole | null>(null);
   const [drunkRole, setDrunkRole] = useState<ClocktowerRole | null>(null);
   const [isDrunk, setIsDrunk] = useState(false);
+  const [ravenkeeperTriggered, setRavenkeeperTriggered] = useState(false);
 
   // The role shown to the player (fake role for Drunk)
   const displayRole = isDrunk && drunkRole ? drunkRole : playerRole;
 
-  // Night action eligibility is based on what the player believes their role is
-  const hasNightAction = displayRole
-    ? dayCount === 0
-      ? FIRST_NIGHT_ROLES.includes(displayRole)
-      : OTHER_NIGHT_ROLES.includes(displayRole)
-    : false;
+  // Ravenkeeper only acts when the host explicitly triggers their one-time death ability
+  const isTriggeredRavenkeeper =
+    ravenkeeperTriggered && playerRole === ClocktowerRole.Ravenkeeper;
+
+  // Night action eligibility: triggered Ravenkeeper overrides the normal schedule check
+  const hasNightAction =
+    isTriggeredRavenkeeper ||
+    (displayRole
+      ? dayCount === 0
+        ? FIRST_NIGHT_ROLES.includes(displayRole)
+        : OTHER_NIGHT_ROLES.includes(displayRole)
+      : false);
 
   useEffect(() => {
     if (!roomId || !playerId) return;
@@ -66,6 +75,7 @@ export function useClocktowerNight(
         setPlayerRole(role);
         setIsDrunk(drunk);
         setDrunkRole(fake ?? null);
+        setRavenkeeperTriggered(player.gameData?.ravenkeeperTriggered === true);
 
         const msg = player.gameData?.privateMessage;
         if (msg && typeof msg === 'string') {
@@ -118,6 +128,7 @@ export function useClocktowerNight(
     hasNightAction,
     displayRole,
     isDrunk,
+    isTriggeredRavenkeeper,
     submitAction,
     clearMessage,
   };
