@@ -1,5 +1,5 @@
 import type { BaseGameData } from '../player';
-import type { RoomConfig } from '../room';
+import type { RoomConfig, RoomGameState } from '../room';
 
 // ─── Clocktower Roles ─────────────────────────────────────────────────
 export enum ClocktowerRole {
@@ -393,6 +393,11 @@ export const ROLE_TIPS_VI: Record<ClocktowerRole, string[]> = {
     'Điều phối bí mật với Poisoner để đảm bảo thông tin của làng luôn bị nhiễu loạn.',
   ],
 };
+
+// ─── Clocktower-Specific Game State ───────────────────────────────────
+// Extends RoomGameState — use this type in all Clocktower components instead
+// of RoomGameState so the intent is clear and the type can diverge later.
+export type ClocktowerGameState = RoomGameState;
 
 // ─── Clocktower-Specific Game Data ────────────────────────────────────
 export interface ClocktowerGameData extends BaseGameData {

@@ -7,8 +7,7 @@ import { useGameHistory } from '@/hooks/useGameHistory';
 import { gameStorage } from '@/services/database/firebaseAdapter';
 import type { Player } from '@/types/player';
 import type { GameAction } from '@/types/actions';
-import type { RoomGameState } from '@/types/room';
-import { ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAMS, ClocktowerRole } from '@/types/games/clocktower';
+import { ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAMS, ClocktowerRole, type ClocktowerGameState } from '@/types/games/clocktower';
 import VotingPanel from './VotingPanel';
 import NightTimelinePanel from './NightTimelinePanel';
 import GameHistoryPanel from './GameHistoryPanel';
@@ -20,7 +19,7 @@ interface HostDashboardProps {
   players: Player[];
   onChangePhase: (phase: 'day' | 'night') => void;
   currentPhase: string;
-  gameState?: RoomGameState;
+  gameState?: ClocktowerGameState;
   onEndGame?: (winner: 'good' | 'evil') => void;
 }
 
