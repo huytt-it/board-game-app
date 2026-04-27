@@ -641,6 +641,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   // Full-height: sticky top bar + scrollable content + nominations
   // ══════════════════════════════════════════════════════════════════
   if (room.status === 'day') {
+    const daySubPhase = room.gameState?.daySubPhase ?? 'discussion';
     const myNominationId = nominations?.[playerId ?? ''];
     const nominatedPlayerName = myNominationId
       ? players.find((p) => p.id === myNominationId)?.name
@@ -659,6 +660,14 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
             <div className="flex items-center gap-2 px-4 py-2.5">
               <span className="shrink-0">☀️</span>
               <span className="text-sm font-black text-amber-300 shrink-0">Ngày {dayCount || 1}</span>
+              {/* Day sub-phase pill */}
+              <span className={`rounded-full px-2 py-0.5 text-[10px] font-black border ${
+                daySubPhase === 'discussion'
+                  ? 'bg-sky-500/15 text-sky-400 border-sky-500/25'
+                  : 'bg-amber-500/15 text-amber-400 border-amber-500/25'
+              }`}>
+                {daySubPhase === 'discussion' ? '🗣️ Thảo luận' : '⚖️ Đề cử'}
+              </span>
               <div className="flex-1" />
               <button onClick={() => setShowHandbook(true)} className="shrink-0 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs font-bold text-slate-400 active:bg-white/10">📖</button>
               {currentPlayer && (
@@ -688,8 +697,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
-            {/* Nomination summary bar */}
-            {nominatedPlayerName && (
+            {/* Nomination summary bar — only during nomination sub-phase */}
+            {daySubPhase === 'nomination' && nominatedPlayerName && (
               <div className="flex items-center gap-2 border-t border-amber-500/20 bg-amber-500/8 px-4 py-2">
                 <span className="text-xs text-amber-400 font-bold flex-1 min-w-0 truncate">
                   ⚖️ Đề cử: <span className="text-amber-200">{nominatedPlayerName}</span>
@@ -778,16 +787,33 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           {/* Town square */}
           <div className="px-4 pt-4 pb-2">
             <div className="flex items-center justify-between mb-2">
-              <h3 className="text-sm font-black uppercase tracking-wider text-slate-300">
-                ⚖️ Đề cử xử tử
+              <h3 className={`text-sm font-black uppercase tracking-wider ${
+                daySubPhase === 'discussion' ? 'text-sky-400' : 'text-slate-300'
+              }`}>
+                {daySubPhase === 'discussion' ? '🗣️ Thảo luận' : '⚖️ Đề cử xử tử'}
               </h3>
               <span className="text-xs text-slate-600">{alivePlayers} người còn sống</span>
             </div>
-            <p className="text-xs text-slate-500 mb-4">
-              Nhấn vào người chơi để đề cử · Nhấn lại để huỷ
-            </p>
 
-            <div className="grid grid-cols-2 gap-3">
+            {/* Discussion state — nominations locked */}
+            {daySubPhase === 'discussion' && (
+              <div className="rounded-2xl border border-sky-500/20 bg-sky-900/10 px-4 py-5 text-center mb-4 animate-scale-in">
+                <div className="text-4xl mb-2">🗣️</div>
+                <h4 className="font-black text-sky-300 mb-1">Đang thảo luận</h4>
+                <p className="text-xs text-slate-400 leading-relaxed">
+                  Chưa thể đề cử ai.<br />
+                  Chờ Quản trò mở giai đoạn đề cử...
+                </p>
+              </div>
+            )}
+
+            {daySubPhase === 'nomination' && (
+              <p className="text-xs text-slate-500 mb-4">
+                Nhấn vào người chơi để đề cử · Nhấn lại để huỷ
+              </p>
+            )}
+
+            {daySubPhase === 'nomination' && <div className="grid grid-cols-2 gap-3">
               {players
                 .filter((p) => !p.isHost)
                 .sort((a, b) => {
@@ -804,6 +830,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                   const pSeat           = p.gameData?.seatNumber as number | undefined;
                   const canNominate     =
                     room.status === 'day' &&
+                    daySubPhase === 'nomination' &&
                     p.isAlive &&
                     p.id !== playerId &&
                     (currentPlayer?.isAlive ?? false);
@@ -893,11 +920,11 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                     </button>
                   );
                 })}
-            </div>
+            </div>}
           </div>
 
-          {/* Nomination tally (shows when others have nominated) */}
-          {Object.values(nominations || {}).filter(Boolean).length > 0 && (
+          {/* Nomination tally (shows when others have nominated, nomination sub-phase only) */}
+          {daySubPhase === 'nomination' && Object.values(nominations || {}).filter(Boolean).length > 0 && (
             <div className="mx-4 mt-3 mb-4 rounded-2xl border border-white/8 bg-white/5 p-4">
               <p className="text-xs font-bold uppercase tracking-wider text-slate-500 mb-3">
                 📊 Tình trạng đề cử
