@@ -394,6 +394,72 @@ export const ROLE_TIPS_VI: Record<ClocktowerRole, string[]> = {
   ],
 };
 
+// ─── Role Trait Types ─────────────────────────────────────────────────
+// When a role's night action fires
+export type RoleNightTiming =
+  | 'first-night-only'  // Đêm đầu tiên (Washerwoman, Chef…)
+  | 'every-night'       // Mỗi đêm (Empath, Poisoner…)
+  | 'after-first-night' // Sau đêm đầu tiên (Monk, Imp, Undertaker…)
+  | 'triggered'         // Khi bị giết vào ban đêm (Ravenkeeper)
+  | 'day-ability'       // Kỹ năng ban ngày (Virgin, Slayer)
+  | 'no-night';         // Không có hành động đêm (Soldier, Baron…)
+
+// The nature of the role's ability
+export type RoleSkillType =
+  | 'info'    // Lấy thông tin — receives information from ST
+  | 'active'  // Kỹ năng chủ động — player chooses a target each night/day
+  | 'passive' // Kỹ năng bị động — always-on effect, no player decision
+  | 'special' // Kỹ năng đặc biệt — unique trigger or conditional
+  | 'setup';  // Thiết lập ván — changes the game composition at start
+
+export interface RoleTraits {
+  timing: RoleNightTiming;
+  skillTypes: RoleSkillType[];
+}
+
+export const ROLE_TRAITS: Record<ClocktowerRole, RoleTraits> = {
+  [ClocktowerRole.Washerwoman]: { timing: 'first-night-only', skillTypes: ['info'] },
+  [ClocktowerRole.Librarian]:   { timing: 'first-night-only', skillTypes: ['info'] },
+  [ClocktowerRole.Investigator]:{ timing: 'first-night-only', skillTypes: ['info'] },
+  [ClocktowerRole.Chef]:        { timing: 'first-night-only', skillTypes: ['info'] },
+  [ClocktowerRole.Empath]:      { timing: 'every-night',       skillTypes: ['info'] },
+  [ClocktowerRole.FortuneTeller]:{ timing: 'every-night',      skillTypes: ['active', 'info'] },
+  [ClocktowerRole.Undertaker]:  { timing: 'after-first-night', skillTypes: ['info'] },
+  [ClocktowerRole.Monk]:        { timing: 'after-first-night', skillTypes: ['active'] },
+  [ClocktowerRole.Ravenkeeper]: { timing: 'triggered',         skillTypes: ['special'] },
+  [ClocktowerRole.Virgin]:      { timing: 'day-ability',       skillTypes: ['special'] },
+  [ClocktowerRole.Slayer]:      { timing: 'day-ability',       skillTypes: ['active'] },
+  [ClocktowerRole.Soldier]:     { timing: 'no-night',          skillTypes: ['passive'] },
+  [ClocktowerRole.Mayor]:       { timing: 'no-night',          skillTypes: ['passive', 'special'] },
+  [ClocktowerRole.Butler]:      { timing: 'every-night',       skillTypes: ['active'] },
+  [ClocktowerRole.Drunk]:       { timing: 'no-night',          skillTypes: ['special'] },
+  [ClocktowerRole.Recluse]:     { timing: 'no-night',          skillTypes: ['passive'] },
+  [ClocktowerRole.Saint]:       { timing: 'no-night',          skillTypes: ['passive'] },
+  [ClocktowerRole.Poisoner]:    { timing: 'every-night',       skillTypes: ['active'] },
+  [ClocktowerRole.Spy]:         { timing: 'every-night',       skillTypes: ['active', 'info'] },
+  [ClocktowerRole.ScarletWoman]:{ timing: 'no-night',          skillTypes: ['passive'] },
+  [ClocktowerRole.Baron]:       { timing: 'no-night',          skillTypes: ['setup'] },
+  [ClocktowerRole.Imp]:         { timing: 'after-first-night', skillTypes: ['active'] },
+};
+
+// ─── Display labels for role traits ──────────────────────────────────
+export const NIGHT_TIMING_DISPLAY: Record<RoleNightTiming, { label: string; icon: string; className: string }> = {
+  'first-night-only':  { label: 'Đêm đầu tiên',         icon: '🌙', className: 'text-indigo-300 bg-indigo-500/15 border-indigo-500/30' },
+  'every-night':       { label: 'Mỗi đêm',               icon: '🔄', className: 'text-blue-300   bg-blue-500/15   border-blue-500/30'   },
+  'after-first-night': { label: 'Sau đêm đầu tiên',      icon: '⏭️', className: 'text-cyan-300   bg-cyan-500/15   border-cyan-500/30'   },
+  'triggered':         { label: 'Khi bị giết',            icon: '⚡', className: 'text-yellow-300 bg-yellow-500/15 border-yellow-500/30' },
+  'day-ability':       { label: 'Kỹ năng ban ngày',       icon: '☀️', className: 'text-amber-300  bg-amber-500/15  border-amber-500/30'  },
+  'no-night':          { label: 'Không hành động đêm',    icon: '💤', className: 'text-slate-400  bg-slate-500/15  border-slate-500/30'  },
+};
+
+export const SKILL_TYPE_DISPLAY: Record<RoleSkillType, { label: string; icon: string; className: string }> = {
+  'info':    { label: 'Lấy thông tin',   icon: '🔍', className: 'text-green-300  bg-green-500/15  border-green-500/30'  },
+  'active':  { label: 'Chủ động',        icon: '✋', className: 'text-purple-300 bg-purple-500/15 border-purple-500/30' },
+  'passive': { label: 'Bị động',         icon: '🛡️', className: 'text-slate-300  bg-slate-500/15  border-slate-500/30'  },
+  'special': { label: 'Đặc biệt',        icon: '⭐', className: 'text-orange-300 bg-orange-500/15 border-orange-500/30' },
+  'setup':   { label: 'Thiết lập ván',   icon: '⚙️', className: 'text-pink-300   bg-pink-500/15   border-pink-500/30'   },
+};
+
 // ─── Clocktower-Specific Game State ───────────────────────────────────
 // Extends RoomGameState — use this type in all Clocktower components instead
 // of RoomGameState so the intent is clear and the type can diverge later.

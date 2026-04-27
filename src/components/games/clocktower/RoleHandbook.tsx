@@ -11,6 +11,9 @@ import {
   ROLE_SHORT_DESC,
   ROLE_FULL_DESC_VI,
   ROLE_TIPS_VI,
+  ROLE_TRAITS,
+  NIGHT_TIMING_DISPLAY,
+  SKILL_TYPE_DISPLAY,
 } from '@/types/games/clocktower';
 
 // ─── Team style config ──────────────────────────────────────────────────
@@ -77,6 +80,8 @@ function RoleCard({ role, team, defaultOpen = false }: {
   const [open, setOpen] = useState(defaultOpen);
   const style = TEAM_STYLE[team];
   const tips = ROLE_TIPS_VI[role];
+  const traits = ROLE_TRAITS[role];
+  const timingDisplay = NIGHT_TIMING_DISPLAY[traits.timing];
 
   return (
     <div className={`rounded-2xl border ${style.border} ${style.bg} overflow-hidden transition-all`}>
@@ -87,13 +92,32 @@ function RoleCard({ role, team, defaultOpen = false }: {
       >
         <span className="text-2xl shrink-0">{ROLE_ICONS[role]}</span>
         <div className="flex-1 min-w-0">
+          {/* Name row */}
           <div className="flex items-center gap-2 flex-wrap">
             <span className="font-black text-white text-sm leading-tight">{role}</span>
             <span className="text-[10px] text-slate-400 font-medium">·</span>
             <span className={`text-xs font-bold ${style.header}`}>{ROLE_NAMES_VI[role]}</span>
           </div>
+          {/* Trait badges — always visible */}
+          <div className="flex items-center gap-1.5 flex-wrap mt-1.5">
+            {/* Night timing */}
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none ${timingDisplay.className}`}>
+              <span>{timingDisplay.icon}</span>
+              <span>{timingDisplay.label}</span>
+            </span>
+            {/* Skill types */}
+            {traits.skillTypes.map((st) => {
+              const d = SKILL_TYPE_DISPLAY[st];
+              return (
+                <span key={st} className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none ${d.className}`}>
+                  <span>{d.icon}</span>
+                  <span>{d.label}</span>
+                </span>
+              );
+            })}
+          </div>
           {!open && (
-            <p className="text-[11px] text-slate-500 leading-snug mt-0.5 line-clamp-1">
+            <p className="text-[11px] text-slate-500 leading-snug mt-1.5 line-clamp-1">
               {ROLE_SHORT_DESC[role]}
             </p>
           )}

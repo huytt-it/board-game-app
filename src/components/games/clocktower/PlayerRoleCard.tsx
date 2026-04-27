@@ -9,6 +9,9 @@ import {
   ROLE_TEAMS,
   ROLE_FULL_DESC_VI,
   ROLE_TIPS_VI,
+  ROLE_TRAITS,
+  NIGHT_TIMING_DISPLAY,
+  SKILL_TYPE_DISPLAY,
 } from '@/types/games/clocktower';
 
 // ─── Per-team visual config ─────────────────────────────────────────────
@@ -67,6 +70,8 @@ export default function PlayerRoleCard({ role, onClose }: PlayerRoleCardProps) {
   const team = ROLE_TEAMS[role];
   const cfg = TEAM_CFG[team];
   const tips = ROLE_TIPS_VI[role];
+  const traits = ROLE_TRAITS[role];
+  const timingDisplay = NIGHT_TIMING_DISPLAY[traits.timing];
 
   return (
     /* Dark scrim */
@@ -119,6 +124,30 @@ export default function PlayerRoleCard({ role, onClose }: PlayerRoleCardProps) {
 
         {/* ── Scrollable details ─────────────────────────────────────── */}
         <div className="overflow-y-auto flex-1 px-4 py-4 space-y-3 pb-safe">
+
+          {/* Đặc tính vai trò */}
+          <div className="rounded-2xl border border-white/8 bg-white/4 px-4 py-3">
+            <p className="text-[10px] uppercase tracking-widest font-bold text-slate-500 mb-2.5 flex items-center gap-1.5">
+              <span>🏷️</span> Đặc tính
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {/* Night timing */}
+              <span className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold leading-none ${timingDisplay.className}`}>
+                <span className="text-sm">{timingDisplay.icon}</span>
+                <span>{timingDisplay.label}</span>
+              </span>
+              {/* Skill types */}
+              {traits.skillTypes.map((st) => {
+                const d = SKILL_TYPE_DISPLAY[st];
+                return (
+                  <span key={st} className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-bold leading-none ${d.className}`}>
+                    <span className="text-sm">{d.icon}</span>
+                    <span>{d.label}</span>
+                  </span>
+                );
+              })}
+            </div>
+          </div>
 
           {/* Kỹ năng — prominent, always first */}
           <div className={`rounded-2xl border-2 p-4 ${cfg.sectionBg}`} style={{ borderColor: 'rgba(255,255,255,0.12)' }}>
