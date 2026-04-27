@@ -300,7 +300,7 @@ function getRoleRec(
         `${actor.name} (Ravenkeeper) muốn biết nhân vật của ${target.name}.`,
         `Nhân vật thật: ${trueRoleIcon} ${trueRole || '?'}`,
         `→ Nhắn riêng: "${target.name} là ${trueRole || '?'}."`,
-        `Sau đó đánh dấu Ravenkeeper đã chết trong Grimoire.`,
+        `✅ Gửi tin xong → bấm 💀 trong Grimoire để đánh dấu Ravenkeeper chết.`,
       ],
       color: 'text-slate-300 bg-slate-500/8 border-slate-500/20',
     };
