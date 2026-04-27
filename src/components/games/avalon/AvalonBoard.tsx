@@ -12,6 +12,7 @@ import RoomSettings from './RoomSettings';
 import RoleGuide from './RoleGuide';
 import PlayerPanel from './PlayerPanel';
 import AvalonPreview from './AvalonPreview';
+import LobbyRoundTable from './LobbyRoundTable';
 import { useAvalon, defaultAvalonConfig } from './useAvalon';
 import { AvalonRole, type AvalonGameData, PHASE_TIMEOUTS_MS } from './types';
 import { PLAYER_COUNTS } from './constants';
@@ -320,55 +321,29 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/80 to-slate-900/80 p-4">
-            <QRCodeDisplay roomId={room.id} roomCode={room.roomCode} gameType={room.gameType} />
-          </div>
-
-          <div className="rounded-2xl border border-white/10 bg-white/5 p-4 flex flex-col">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold uppercase tracking-wider text-slate-400">
-                Người chơi
-              </h3>
-              <span className="text-sm font-black text-white">
-                {playerCount}
-                <span className="text-slate-500 font-normal">
-                  {' '}/ {room.config.maxPlayers ?? 10}
-                </span>
-              </span>
-            </div>
-            <div className="space-y-2 max-h-[60vh] md:max-h-[420px] overflow-y-auto pr-1">
-              {players.map((p, idx) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 rounded-xl bg-white/5 px-3 py-2 animate-slide-up"
-                  style={{ animationDelay: `${Math.min(idx, 5) * 60}ms` }}
-                >
-                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-blue-500 to-cyan-500 text-sm font-bold text-white">
-                    {p.name.charAt(0).toUpperCase()}
-                  </div>
-                  <span className="font-medium text-white truncate">{p.name}</span>
-                  {p.isHost && (
-                    <span className="ml-auto shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-medium text-amber-400">
-                      Chủ phòng
-                    </span>
-                  )}
-                  {p.id === playerId && !p.isHost && (
-                    <span className="ml-auto shrink-0 text-[10px] text-slate-500">Bạn</span>
-                  )}
-                </div>
-              ))}
-              {playerCount === 0 && (
-                <p className="text-xs text-slate-500 text-center py-4">
-                  Chưa có người chơi nào — quét QR để mời.
-                </p>
-              )}
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_320px] gap-4 items-start">
+          <div className="flex flex-col items-center">
+            <LobbyRoundTable
+              players={players}
+              myPlayerId={playerId}
+              roomCode={room.roomCode}
+              maxPlayers={(room.config.maxPlayers as number | undefined) ?? 10}
+              minPlayers={5}
+              reserveSeats={Math.max(playerCount, 5)}
+            />
             {!enoughPlayers && (
-              <p className="mt-3 text-[11px] text-amber-400 text-center">
+              <p className="mt-3 text-xs text-amber-400 text-center font-bold">
                 Cần 5–10 người để bắt đầu ván.
               </p>
             )}
+          </div>
+
+          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/80 to-slate-900/80 p-4">
+            <QRCodeDisplay
+              roomId={room.id}
+              roomCode={room.roomCode}
+              gameType={room.gameType}
+            />
           </div>
         </div>
 
@@ -408,51 +383,6 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           <p className="text-sm">Đang chia bài...</p>
         </div>
       </div>
-    );
-  }
-
-  if (room.status === 'end') {
-    return (
-      <>
-        <div className="absolute right-4 top-4 z-20 flex gap-2">
-          <button
-            onClick={isHost ? handleDelete : handleLeave}
-            className="rounded-lg border border-white/10 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 text-xs font-bold text-slate-400 hover:bg-red-500/10 hover:text-red-400"
-          >
-            {isHost ? '🗑️ Xoá' : '🚪 Rời'}
-          </button>
-        </div>
-        <PlayerPanel
-          state={state}
-          myPlayer={myPlayer}
-          players={players}
-          playerCount={playerCount}
-          onProposedTeamChange={setProposedTeam}
-          onSubmitTeam={submitTeam}
-          onCastVote={(v) => castTeamVote(playerId, v)}
-          onPlayQuestCard={(c) => playQuestCard(playerId, c)}
-          onLadyInspect={ladyInspect}
-          onLadyShow={ladyShow}
-          onLadyFinish={ladyFinish}
-          onAssassinate={assassinate}
-          onShowMyRole={() => setShowMyRoleCard(true)}
-          onAckRole={() => ackRole(playerId)}
-          onAckDiscussion={() => ackDiscussion(playerId)}
-        />
-        {isHost && (
-          <div className="fixed bottom-0 inset-x-0 z-20 px-4 pb-safe pt-2 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent">
-            <button
-              onClick={handleNewGame}
-              className="w-full max-w-lg mx-auto block rounded-2xl bg-gradient-to-r from-purple-600 to-indigo-600 py-4 font-black text-white hover:from-purple-500 hover:to-indigo-500"
-            >
-              🔄 Bắt đầu ván mới
-            </button>
-          </div>
-        )}
-        {showMyRoleCard && myRole && (
-          <RoleCard role={myRole} onClose={() => setShowMyRoleCard(false)} />
-        )}
-      </>
     );
   }
 
@@ -504,6 +434,9 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         onShowMyRole={() => setShowMyRoleCard(true)}
         onAckRole={() => ackRole(playerId)}
         onAckDiscussion={() => ackDiscussion(playerId)}
+        onPlayAgain={handleNewGame}
+        onLeaveRoom={isHost ? handleDelete : handleLeave}
+        isHost={isHost}
       />
       {showMyRoleCard && (
         <RoleCard role={myRole} onClose={() => setShowMyRoleCard(false)} />
