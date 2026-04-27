@@ -476,6 +476,7 @@ export interface ClocktowerGameData extends BaseGameData {
   hasUsedAbility: boolean;
   nightOrder: number;
   privateMessage?: string;
+  ravenkeeperTriggered?: boolean;      // Set by host when Imp kills Ravenkeeper; unlocks their one-time action
 }
 
 // ─── Clocktower Room Config ───────────────────────────────────────────
