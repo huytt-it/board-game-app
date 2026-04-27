@@ -6,9 +6,8 @@ import type { RoomGameState } from '@/types/room';
 import {
   ClocktowerRole,
   ROLE_ICONS,
+  ROLE_NAMES_VI,
   ROLE_TEAMS,
-  FIRST_NIGHT_ROLES,
-  OTHER_NIGHT_ROLES,
 } from '@/types/games/clocktower';
 
 interface NightTimelinePanelProps {
@@ -23,7 +22,6 @@ interface NightTimelinePanelProps {
 }
 
 // ─── Official Trouble Brewing night order ──────────────────────────────
-// Night 1: info roles wake, no Imp (Imp doesn't act night 1)
 const NIGHT_ORDER_FIRST: ClocktowerRole[] = [
   ClocktowerRole.Poisoner,
   ClocktowerRole.Washerwoman,
@@ -36,13 +34,12 @@ const NIGHT_ORDER_FIRST: ClocktowerRole[] = [
   ClocktowerRole.Spy,
 ];
 
-// Night 2+: Imp kills, then info roles, Ravenkeeper triggers on death (host handles)
 const NIGHT_ORDER_OTHER: ClocktowerRole[] = [
   ClocktowerRole.Poisoner,
   ClocktowerRole.Monk,
-  ClocktowerRole.ScarletWoman, // passive — shown so host remembers to check
+  ClocktowerRole.ScarletWoman,
   ClocktowerRole.Imp,
-  ClocktowerRole.Ravenkeeper,  // only if killed this night
+  ClocktowerRole.Ravenkeeper,
   ClocktowerRole.Empath,
   ClocktowerRole.FortuneTeller,
   ClocktowerRole.Undertaker,
@@ -50,18 +47,50 @@ const NIGHT_ORDER_OTHER: ClocktowerRole[] = [
   ClocktowerRole.Spy,
 ];
 
-// ─── Stable seeded index for deterministic-but-varied suggestions ──────
-function seededIndex(seed: string, max: number): number {
-  if (max === 0) return 0;
-  const hash = seed.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xfffffff, 7);
-  return hash % max;
+// Roles that are passive/conditional — no player submission required
+const PASSIVE_ROLES = new Set<ClocktowerRole>([
+  ClocktowerRole.ScarletWoman,
+  ClocktowerRole.Ravenkeeper,
+]);
+
+// ─── Helpers ───────────────────────────────────────────────────────────
+
+/** Find the player assigned to a given role (Drunk players match by drunkRole) */
+function findPlayerForRole(role: ClocktowerRole, players: Player[]): Player | undefined {
+  return players.find((p) => {
+    if (p.isHost || !p.isAlive) return false;
+    const isDrunk = p.gameData?.isDrunk === true;
+    const drunkRole = p.gameData?.drunkRole as ClocktowerRole | undefined;
+    if (isDrunk && drunkRole === role) return true;
+    return (p.gameData?.role as ClocktowerRole) === role;
+  });
 }
 
+/** Night order index for a given player's action (Drunk acts at drunkRole slot) */
+function getNightOrderIndex(playerId: string, players: Player[], nightOrder: ClocktowerRole[]): number {
+  const actor = players.find((p) => p.id === playerId);
+  if (!actor) return 999;
+  const isDrunk = actor.gameData?.isDrunk === true;
+  const drunkRole = actor.gameData?.drunkRole as ClocktowerRole | undefined;
+  const effectiveRole = isDrunk && drunkRole ? drunkRole : (actor.gameData?.role as ClocktowerRole | undefined);
+  if (!effectiveRole) return 999;
+  const idx = nightOrder.indexOf(effectiveRole);
+  return idx === -1 ? 999 : idx;
+}
+
+/** Step number (1-based) for a role in the current night order */
+function getStepNumber(playerId: string, players: Player[], nightOrder: ClocktowerRole[]): number {
+  const idx = getNightOrderIndex(playerId, players, nightOrder);
+  return idx === 999 ? 0 : idx + 1;
+}
+
+// ─── Stable seeded index ───────────────────────────────────────────────
 function seededPick<T>(arr: T[], seed: string): T {
-  return arr[seededIndex(seed, arr.length)];
+  const hash = seed.split('').reduce((acc, c) => (acc * 31 + c.charCodeAt(0)) & 0xfffffff, 7);
+  return arr[hash % arr.length];
 }
 
-// ─── Core role recommendation logic (shared by normal / Drunk / Poisoned) ──
+// ─── Recommendation logic (unchanged) ─────────────────────────────────
 function getRoleRec(
   role: ClocktowerRole,
   action: GameAction,
@@ -75,20 +104,17 @@ function getRoleRec(
   allActions: GameAction[],
   gameState?: RoomGameState
 ): { emoji: string; lines: string[]; color: string } | null {
-  // ── Poisoner ────────────────────────────────────────────────────────
   if (role === ClocktowerRole.Poisoner && target) {
     return {
       emoji: '☠️',
       lines: [
         `${target.name} bị NHIỄM ĐỘC đêm nay và ngày mai.`,
-        `→ Hệ thống sẽ tự đánh dấu Poisoned khi bạn xác nhận.`,
+        `→ Hệ thống tự đánh dấu Poisoned khi bạn xác nhận.`,
         `Nhớ đưa thông tin SAI cho mọi hành động của họ.`,
       ],
-      color: 'text-purple-300 bg-purple-500/10 border-purple-500/20',
+      color: 'text-purple-300 bg-purple-500/8 border-purple-500/20',
     };
   }
-
-  // ── Monk ────────────────────────────────────────────────────────────
   if (role === ClocktowerRole.Monk && target) {
     return {
       emoji: '🛡️',
@@ -96,13 +122,10 @@ function getRoleRec(
         `${target.name} được BẢO VỆ khỏi Quỷ đêm nay.`,
         `Nếu Imp tấn công họ → không ai chết.`,
       ],
-      color: 'text-green-300 bg-green-500/10 border-green-500/20',
+      color: 'text-green-300 bg-green-500/8 border-green-500/20',
     };
   }
-
-  // ── Imp ─────────────────────────────────────────────────────────────
   if (role === ClocktowerRole.Imp && target) {
-    // Self-kill (starpass)
     if (action.targetId === action.playerId) {
       const minions = gamePlayers.filter(
         (p) => p.isAlive && ROLE_TEAMS[p.gameData?.role as ClocktowerRole] === 'minion'
@@ -110,272 +133,141 @@ function getRoleRec(
       return {
         emoji: '🔁',
         lines: [
-          `Imp TỰ GIẾT bản thân! (Starpass)`,
+          `Imp TỰ GIẾT! (Starpass)`,
           minions.length > 0
             ? `Tay Sai còn sống: ${minions.map((p) => `${p.name} (${p.gameData?.role})`).join(', ')}`
-            : `⚠️ Không có Tay Sai nào còn sống — Imp chết, phe Thiện thắng!`,
-          minions.length > 0
-            ? `Nhấn ✓ Xác nhận để mở giao diện chọn Tay Sai kế vị.`
-            : `Nhấn ✓ Xác nhận để đánh dấu Imp chết.`,
+            : `⚠️ Không có Tay Sai — Imp chết, phe Thiện thắng!`,
+          `Nhấn ✓ Xác nhận để mở giao diện chọn kế vị.`,
         ],
-        color: 'text-orange-300 bg-orange-500/10 border-orange-500/20',
+        color: 'text-orange-300 bg-orange-500/8 border-orange-500/20',
       };
     }
-    // Protected by Monk
     if (isTargetProtected) {
       return {
         emoji: '✅',
-        lines: [
-          `${target.name} được Monk bảo vệ — KHÔNG AI CHẾT đêm nay.`,
-          `Không tiết lộ điều này với ai.`,
-        ],
-        color: 'text-green-300 bg-green-500/10 border-green-500/20',
+        lines: [`${target.name} được Monk bảo vệ — KHÔNG AI CHẾT.`, `Không tiết lộ.`],
+        color: 'text-green-300 bg-green-500/8 border-green-500/20',
       };
     }
-    // Soldier is immune
     if (targetRole === ClocktowerRole.Soldier) {
       return {
         emoji: '🛡️',
-        lines: [
-          `${target.name} là SOLDIER — miễn nhiễm với Quỷ.`,
-          `KHÔNG AI CHẾT đêm nay.`,
-        ],
-        color: 'text-cyan-300 bg-cyan-500/10 border-cyan-500/20',
+        lines: [`${target.name} là SOLDIER — miễn nhiễm. KHÔNG AI CHẾT.`],
+        color: 'text-cyan-300 bg-cyan-500/8 border-cyan-500/20',
       };
     }
-    // Ravenkeeper gets triggered on death
     if (targetRole === ClocktowerRole.Ravenkeeper) {
       return {
         emoji: '🐦‍⬛',
         lines: [
           `${target.name} là RAVENKEEPER — họ sẽ chết.`,
-          `⚠️ Trước khi đánh dấu chết: Đánh thức họ riêng tư, cho họ chọn 1 người.`,
-          `Sau đó cho họ biết nhân vật của người được chọn đó, rồi mới đánh dấu chết.`,
+          `⚠️ Đánh thức riêng tư, cho chọn 1 người để học vai trò trước khi chết.`,
         ],
-        color: 'text-slate-300 bg-slate-500/10 border-slate-500/20',
+        color: 'text-slate-300 bg-slate-500/8 border-slate-500/20',
       };
     }
-    // Mayor redirect
     if (targetRole === ClocktowerRole.Mayor) {
       return {
         emoji: '👑',
         lines: [
           `${target.name} là MAYOR.`,
-          `Nếu Mayor chết ban đêm, ANOTHER player có thể chết thay (bạn chọn ai).`,
-          `Hoặc cho Mayor chết bình thường nếu không có ai thích hợp hơn.`,
+          `Có thể chuyển cái chết sang người khác (bạn chọn), hoặc để Mayor chết bình thường.`,
         ],
-        color: 'text-amber-300 bg-amber-500/10 border-amber-500/20',
+        color: 'text-amber-300 bg-amber-500/8 border-amber-500/20',
       };
     }
     return {
       emoji: '💀',
-      lines: [
-        `${target.name} SẼ CHẾT đêm nay.`,
-        `Đánh dấu họ là đã chết khi bắt đầu ngày.`,
-      ],
-      color: 'text-red-300 bg-red-500/10 border-red-500/20',
+      lines: [`${target.name} SẼ CHẾT đêm nay.`, `Đánh dấu chết khi bắt đầu ngày.`],
+      color: 'text-red-300 bg-red-500/8 border-red-500/20',
     };
   }
-
-  // ── Fortune Teller ─────────────────────────────────────────────────
   if (role === ClocktowerRole.FortuneTeller) {
     const ftRedHerring = actor.gameData?.fortuneTellerRedHerring as string | undefined;
     const targets = [target, secondTarget].filter(Boolean);
     const targetNames = targets.map((t) => t!.name).join(' & ');
     const targetIds = [action.targetId, action.secondTargetId].filter(Boolean);
-
     const hasDemon = [targetRole, secondTargetRole].includes(ClocktowerRole.Imp);
     const hasRecluse = [targetRole, secondTargetRole].includes(ClocktowerRole.Recluse);
     const hasRedHerring = ftRedHerring && targetIds.includes(ftRedHerring);
     const redHerringPlayer = ftRedHerring ? gamePlayers.find((p) => p.id === ftRedHerring) : undefined;
-
     if (hasDemon) {
-      return {
-        emoji: '🔮',
-        lines: [`[${targetNames}] — Có 1 người là Quỷ.`, `→ Trả lời: CÓ (Yes).`],
-        color: 'text-red-300 bg-red-500/10 border-red-500/20',
-      };
+      return { emoji: '🔮', lines: [`[${targetNames}] — CÓ 1 người là Quỷ.`, `→ Trả lời: CÓ (Yes).`], color: 'text-red-300 bg-red-500/8 border-red-500/20' };
     }
     if (hasRecluse) {
-      return {
-        emoji: '🔮',
-        lines: [
-          `[${targetNames}] — Có Recluse (có thể đăng ký như Quỷ).`,
-          `→ Bạn CÓ THỂ trả lời CÓ hoặc KHÔNG tùy ý.`,
-        ],
-        color: 'text-indigo-300 bg-indigo-500/10 border-indigo-500/20',
-      };
+      return { emoji: '🔮', lines: [`[${targetNames}] — Có Recluse (có thể đăng ký như Quỷ).`, `→ Có thể trả lời CÓ hoặc KHÔNG.`], color: 'text-indigo-300 bg-indigo-500/8 border-indigo-500/20' };
     }
     if (hasRedHerring) {
-      return {
-        emoji: '🔮',
-        lines: [
-          `[${targetNames}] — ${redHerringPlayer?.name} là "mồi nhử" của FT.`,
-          `→ Trả lời: CÓ (Yes) — mồi nhử luôn đăng ký như Quỷ với FT.`,
-        ],
-        color: 'text-indigo-300 bg-indigo-500/10 border-indigo-500/20',
-      };
+      return { emoji: '🔮', lines: [`[${targetNames}] — ${redHerringPlayer?.name} là mồi nhử của FT.`, `→ Trả lời: CÓ (Yes).`], color: 'text-indigo-300 bg-indigo-500/8 border-indigo-500/20' };
     }
-    return {
-      emoji: '🔮',
-      lines: [`[${targetNames}] — Không có Quỷ hay mồi nhử.`, `→ Trả lời: KHÔNG (No).`],
-      color: 'text-indigo-300 bg-indigo-500/10 border-indigo-500/20',
-    };
+    return { emoji: '🔮', lines: [`[${targetNames}] — Không có Quỷ hay mồi nhử.`, `→ Trả lời: KHÔNG (No).`], color: 'text-indigo-300 bg-indigo-500/8 border-indigo-500/20' };
   }
-
-  // ── Spy ──────────────────────────────────────────────────────────
   if (role === ClocktowerRole.Spy) {
     const grimoire = gamePlayers
       .map((p) => {
         const pRole = p.gameData?.role as ClocktowerRole | undefined;
         const tags: string[] = [];
-        if (p.gameData?.isDrunk === true) tags.push('🍺Drunk');
-        if (p.gameData?.isPoisoned === true) tags.push('☠️Poisoned');
+        if (p.gameData?.isDrunk) tags.push('🍺Drunk');
+        if (p.gameData?.isPoisoned) tags.push('☠️Poisoned');
         if (!p.isAlive) tags.push('💀Dead');
         return `${p.name}: ${pRole ? ROLE_ICONS[pRole] : '?'}${pRole || '?'}${tags.length ? ` [${tags.join(',')}]` : ''}`;
       })
       .join('\n');
-    return {
-      emoji: '🕵️',
-      lines: [`Cho Spy xem Grimoire:`, grimoire],
-      color: 'text-slate-300 bg-slate-500/10 border-slate-500/20',
-    };
+    return { emoji: '🕵️', lines: [`Cho Spy xem Grimoire:`, grimoire], color: 'text-slate-300 bg-slate-500/8 border-slate-500/20' };
   }
-
-  // ── Empath ──────────────────────────────────────────────────────
   if (role === ClocktowerRole.Empath) {
-    // Sort alive players by seat number so left/right neighbour is accurate
     const aliveSorted = gamePlayers
       .filter((p) => p.isAlive)
       .sort((a, b) => ((a.gameData?.seatNumber as number) ?? 0) - ((b.gameData?.seatNumber as number) ?? 0));
     const myIndex = aliveSorted.findIndex((p) => p.id === actor.id);
     if (myIndex === -1 || aliveSorted.length < 2) {
-      return {
-        emoji: '💗',
-        lines: ['Không đủ người để tính hàng xóm.'],
-        color: 'text-pink-300 bg-pink-500/10 border-pink-500/20',
-      };
+      return { emoji: '💗', lines: ['Không đủ người để tính hàng xóm.'], color: 'text-pink-300 bg-pink-500/8 border-pink-500/20' };
     }
     const left = aliveSorted[(myIndex - 1 + aliveSorted.length) % aliveSorted.length];
     const right = aliveSorted[(myIndex + 1) % aliveSorted.length];
     const leftRole = left?.gameData?.role as ClocktowerRole | undefined;
     const rightRole = right?.gameData?.role as ClocktowerRole | undefined;
-    // Recluse might register as evil; Spy might register as good
     const leftEvil = leftRole ? (ROLE_TEAMS[leftRole] === 'minion' || ROLE_TEAMS[leftRole] === 'demon') : false;
     const rightEvil = rightRole ? (ROLE_TEAMS[rightRole] === 'minion' || ROLE_TEAMS[rightRole] === 'demon') : false;
     const evilCount = [leftEvil, rightEvil].filter(Boolean).length;
-
     const notes: string[] = [];
-    if (leftRole === ClocktowerRole.Recluse || rightRole === ClocktowerRole.Recluse) {
-      notes.push('Recluse có thể đăng ký như ác → bạn có thể tăng số lên 1.');
-    }
-    if (leftRole === ClocktowerRole.Spy || rightRole === ClocktowerRole.Spy) {
-      notes.push('Spy có thể đăng ký như thiện → bạn có thể giảm số xuống 1.');
-    }
-
+    if (leftRole === ClocktowerRole.Recluse || rightRole === ClocktowerRole.Recluse) notes.push('Recluse có thể đăng ký như ác → có thể tăng số lên 1.');
+    if (leftRole === ClocktowerRole.Spy || rightRole === ClocktowerRole.Spy) notes.push('Spy có thể đăng ký như thiện → có thể giảm số xuống 1.');
     return {
       emoji: '💗',
-      lines: [
-        `Hàng xóm: ${left?.name || '?'} (${leftRole || '?'}) | ${right?.name || '?'} (${rightRole || '?'})`,
-        `→ Trả lời: ${evilCount} hàng xóm ác.`,
-        ...notes,
-      ],
-      color: 'text-pink-300 bg-pink-500/10 border-pink-500/20',
+      lines: [`← ${left?.name || '?'} (${leftRole || '?'})  |  ${right?.name || '?'} (${rightRole || '?'}) →`, `→ Trả lời: ${evilCount} hàng xóm ác.`, ...notes],
+      color: 'text-pink-300 bg-pink-500/8 border-pink-500/20',
     };
   }
-
-  // ── Washerwoman ─────────────────────────────────────────────────
   if (role === ClocktowerRole.Washerwoman) {
-    const townsfolk = gamePlayers.filter(
-      (p) => p.isAlive && ROLE_TEAMS[p.gameData?.role as ClocktowerRole] === 'townsfolk'
-    );
-    if (townsfolk.length === 0) {
-      return {
-        emoji: '🧺',
-        lines: ['Không có Townsfolk nào còn sống để chỉ điểm.'],
-        color: 'text-blue-300 bg-blue-500/10 border-blue-500/20',
-      };
-    }
+    const townsfolk = gamePlayers.filter((p) => p.isAlive && ROLE_TEAMS[p.gameData?.role as ClocktowerRole] === 'townsfolk');
+    if (townsfolk.length === 0) return { emoji: '🧺', lines: ['Không có Townsfolk nào còn sống.'], color: 'text-blue-300 bg-blue-500/8 border-blue-500/20' };
     const real = seededPick(townsfolk, action.id + 'real');
     const decoyPool = gamePlayers.filter((p) => p.id !== real.id);
     const decoy = decoyPool.length > 0 ? seededPick(decoyPool, action.id + 'decoy') : null;
-    return {
-      emoji: '🧺',
-      lines: [
-        `Chỉ cho họ: "${real.name}" và "${decoy?.name || '?'}"`,
-        `→ Nói: "Một trong hai người là ${real.gameData?.role}."`,
-      ],
-      color: 'text-blue-300 bg-blue-500/10 border-blue-500/20',
-    };
+    return { emoji: '🧺', lines: [`Chỉ: "${real.name}" và "${decoy?.name || '?'}"`, `→ Nói: "Một trong hai là ${real.gameData?.role}."`], color: 'text-blue-300 bg-blue-500/8 border-blue-500/20' };
   }
-
-  // ── Librarian ───────────────────────────────────────────────────
   if (role === ClocktowerRole.Librarian) {
-    // Drunk counts as an Outsider and Librarian can learn about them
-    const outsiders = gamePlayers.filter(
-      (p) => p.isAlive && ROLE_TEAMS[p.gameData?.role as ClocktowerRole] === 'outsider'
-    );
-    if (outsiders.length === 0) {
-      return {
-        emoji: '📚',
-        lines: [
-          `Không có Outsider trong ván đấu.`,
-          `→ Trả lời: "Không có Outsider nào."`,
-        ],
-        color: 'text-blue-300 bg-blue-500/10 border-blue-500/20',
-      };
-    }
+    const outsiders = gamePlayers.filter((p) => p.isAlive && ROLE_TEAMS[p.gameData?.role as ClocktowerRole] === 'outsider');
+    if (outsiders.length === 0) return { emoji: '📚', lines: ['Không có Outsider trong ván.', `→ Trả lời: "Không có Outsider nào."`], color: 'text-blue-300 bg-blue-500/8 border-blue-500/20' };
     const real = seededPick(outsiders, action.id + 'real');
     const decoyPool = gamePlayers.filter((p) => p.id !== real.id);
     const decoy = decoyPool.length > 0 ? seededPick(decoyPool, action.id + 'decoy') : null;
-    // If the outsider is Drunk, show their actual role (Drunk), not drunkRole
     const shownRole = real.gameData?.isDrunk === true ? ClocktowerRole.Drunk : (real.gameData?.role as ClocktowerRole);
-    return {
-      emoji: '📚',
-      lines: [
-        `Chỉ cho họ: "${real.name}" và "${decoy?.name || '?'}"`,
-        `→ Nói: "Một trong hai người là ${shownRole}."`,
-      ],
-      color: 'text-blue-300 bg-blue-500/10 border-blue-500/20',
-    };
+    return { emoji: '📚', lines: [`Chỉ: "${real.name}" và "${decoy?.name || '?'}"`, `→ Nói: "Một trong hai là ${shownRole}."`], color: 'text-blue-300 bg-blue-500/8 border-blue-500/20' };
   }
-
-  // ── Investigator ────────────────────────────────────────────────
   if (role === ClocktowerRole.Investigator) {
-    const minions = gamePlayers.filter(
-      (p) => p.isAlive && ROLE_TEAMS[p.gameData?.role as ClocktowerRole] === 'minion'
-    );
-    if (minions.length === 0) {
-      return {
-        emoji: '🔍',
-        lines: ['Không có Minion trong ván đấu — kết quả bất thường.'],
-        color: 'text-blue-300 bg-blue-500/10 border-blue-500/20',
-      };
-    }
+    const minions = gamePlayers.filter((p) => p.isAlive && ROLE_TEAMS[p.gameData?.role as ClocktowerRole] === 'minion');
+    if (minions.length === 0) return { emoji: '🔍', lines: ['Không có Minion trong ván.'], color: 'text-blue-300 bg-blue-500/8 border-blue-500/20' };
     const real = seededPick(minions, action.id + 'real');
     const decoyPool = gamePlayers.filter((p) => p.id !== real.id);
     const decoy = decoyPool.length > 0 ? seededPick(decoyPool, action.id + 'decoy') : null;
     const notes: string[] = [];
-    if (real.gameData?.role === ClocktowerRole.Spy) {
-      notes.push('Spy có thể đăng ký như Townsfolk/Outsider → bạn có thể đưa thông tin khác.');
-    }
-    return {
-      emoji: '🔍',
-      lines: [
-        `Chỉ cho họ: "${real.name}" và "${decoy?.name || '?'}"`,
-        `→ Nói: "Một trong hai người là ${real.gameData?.role}."`,
-        ...notes,
-      ],
-      color: 'text-blue-300 bg-blue-500/10 border-blue-500/20',
-    };
+    if (real.gameData?.role === ClocktowerRole.Spy) notes.push('Spy có thể đăng ký như Townsfolk/Outsider.');
+    return { emoji: '🔍', lines: [`Chỉ: "${real.name}" và "${decoy?.name || '?'}"`, `→ Nói: "Một trong hai là ${real.gameData?.role}."`, ...notes], color: 'text-blue-300 bg-blue-500/8 border-blue-500/20' };
   }
-
-  // ── Chef ────────────────────────────────────────────────────────
   if (role === ClocktowerRole.Chef) {
-    // Sort all players (alive + dead) by seat number for a complete circle
-    const bySeat = [...gamePlayers].sort(
-      (a, b) => ((a.gameData?.seatNumber as number) ?? 0) - ((b.gameData?.seatNumber as number) ?? 0)
-    );
+    const bySeat = [...gamePlayers].sort((a, b) => ((a.gameData?.seatNumber as number) ?? 0) - ((b.gameData?.seatNumber as number) ?? 0));
     let evilPairs = 0;
     for (let i = 0; i < bySeat.length; i++) {
       const a = bySeat[i];
@@ -386,62 +278,31 @@ function getRoleRec(
       const bEvil = bRole ? (ROLE_TEAMS[bRole] === 'minion' || ROLE_TEAMS[bRole] === 'demon') : false;
       if (aEvil && bEvil) evilPairs++;
     }
-    const seatList = bySeat.map((p) => `${p.gameData?.seatNumber ?? '?'}. ${p.name}`).join(' → ');
-    return {
-      emoji: '👨‍🍳',
-      lines: [
-        `Vòng tròn: ${seatList}`,
-        `Số cặp ác ngồi cạnh nhau: ${evilPairs}.`,
-        `→ Trả lời: ${evilPairs}.`,
-      ],
-      color: 'text-yellow-300 bg-yellow-500/10 border-yellow-500/20',
-    };
+    const seatList = bySeat.map((p) => `${p.gameData?.seatNumber ?? '?'}.${p.name}`).join(' → ');
+    return { emoji: '👨‍🍳', lines: [`Vòng: ${seatList}`, `Cặp ác ngồi cạnh nhau: ${evilPairs}`, `→ Trả lời: ${evilPairs}.`], color: 'text-yellow-300 bg-yellow-500/8 border-yellow-500/20' };
   }
-
-  // ── Undertaker ──────────────────────────────────────────────────
   if (role === ClocktowerRole.Undertaker) {
     const lastRole = gameState?.lastExecutedRole;
     const lastId = gameState?.lastExecutedPlayerId;
     const lastPlayer = lastId ? gamePlayers.find((p) => p.id === lastId) : null;
-
     if (!lastRole && !lastPlayer) {
-      return {
-        emoji: '⚰️',
-        lines: [
-          `Chưa có ai bị xử tử hôm nay.`,
-          `→ Undertaker không nhận thông tin (không có ai chết ban ngày).`,
-        ],
-        color: 'text-slate-300 bg-slate-500/10 border-slate-500/20',
-      };
+      return { emoji: '⚰️', lines: ['Chưa có ai bị xử tử hôm nay.', `→ Không có thông tin cho Undertaker.`], color: 'text-slate-300 bg-slate-500/8 border-slate-500/20' };
     }
-    return {
-      emoji: '⚰️',
-      lines: [
-        `Người bị xử tử hôm nay: ${lastPlayer?.name || '?'}`,
-        `Nhân vật thật của họ: ${lastRole || '?'}`,
-        `→ Trả lời: "${lastRole}".`,
-      ],
-      color: 'text-slate-300 bg-slate-500/10 border-slate-500/20',
-    };
+    return { emoji: '⚰️', lines: [`Người bị xử tử: ${lastPlayer?.name || '?'}`, `Nhân vật thật: ${lastRole || '?'}`, `→ Trả lời: "${lastRole}".`], color: 'text-slate-300 bg-slate-500/8 border-slate-500/20' };
   }
-
-  // ── Butler ──────────────────────────────────────────────────────
   if (role === ClocktowerRole.Butler && target) {
     return {
       emoji: '🎩',
       lines: [
         `${actor.name} chọn ${target.name} làm chủ.`,
         `Ngày mai Butler chỉ được bỏ phiếu nếu ${target.name} bỏ phiếu trước.`,
-        `Quản trò theo dõi và nhắc nếu Butler bỏ phiếu sai.`,
       ],
-      color: 'text-teal-300 bg-teal-500/10 border-teal-500/20',
+      color: 'text-teal-300 bg-teal-500/8 border-teal-500/20',
     };
   }
-
   return null;
 }
 
-// ─── Build recommendation for each action ─────────────────────────────
 function getRecommendation(
   action: GameAction,
   players: Player[],
@@ -460,119 +321,174 @@ function getRecommendation(
   const secondTargetRole = secondTarget?.gameData?.role as ClocktowerRole | undefined;
   const isPoisoned = actor.gameData?.isPoisoned === true;
 
-  // Monk protection for this action's target
   const monkAction = allActions.find((a) => {
     const monkActor = players.find((p) => p.id === a.playerId);
     return monkActor?.gameData?.role === ClocktowerRole.Monk && a.targetId === action.targetId;
   });
   const isTargetProtected = !!monkAction;
   const gamePlayers = players.filter((p) => !p.isHost);
-
-  // For Drunk players use drunkRole as the effective role so they get
-  // role-specific (but intentionally false) storyteller guidance.
-  const effectiveRole = (isDrunk && drunkRole) ? drunkRole : role;
+  const effectiveRole = isDrunk && drunkRole ? drunkRole : role;
   if (!effectiveRole) return null;
 
-  const baseRec = getRoleRec(
-    effectiveRole, action, actor, target, secondTarget,
-    targetRole, secondTargetRole, gamePlayers, isTargetProtected, allActions, gameState,
-  );
+  const baseRec = getRoleRec(effectiveRole, action, actor, target, secondTarget, targetRole, secondTargetRole, gamePlayers, isTargetProtected, allActions, gameState);
 
-  // ── Drunk: role-specific false-info guidance with amber warning ─────
   if (isDrunk && drunkRole) {
     return {
       emoji: '🍺',
       lines: [
-        `⚠️ ${actor.name} là KẺ SAY RƯỢU — nghĩ mình là ${drunkRole}`,
+        `⚠️ ${actor.name} là KẺ SAY RƯỢU — nghĩ là ${drunkRole}`,
         `Kêu theo thứ tự ${drunkRole} · Đưa thông tin SAI:`,
-        ...(baseRec?.lines ?? [`Đưa thông tin GIẢ như thể họ là ${drunkRole} thật.`]),
+        ...(baseRec?.lines ?? [`Đưa thông tin GIẢ như ${drunkRole} thật.`]),
       ],
-      color: 'text-amber-300 bg-amber-500/10 border-amber-500/20',
+      color: 'text-amber-300 bg-amber-500/8 border-amber-500/20',
     };
   }
-
-  // ── Poisoned: role-specific false-info guidance with green warning ──
   if (isPoisoned && role) {
     return {
       emoji: '🤢',
       lines: [
-        `⚠️ ${actor.name} (${role}) đang bị NHIỄM ĐỘC — Đưa thông tin SAI:`,
-        ...(baseRec?.lines ?? [`Đưa thông tin GIẢ cho hành động ${role} đêm nay.`]),
+        `⚠️ ${actor.name} (${role}) bị NHIỄM ĐỘC — Đưa thông tin SAI:`,
+        ...(baseRec?.lines ?? [`Đưa thông tin GIẢ cho ${role} đêm nay.`]),
       ],
-      color: 'text-green-300 bg-green-500/10 border-green-500/20',
+      color: 'text-green-300 bg-green-500/8 border-green-500/20',
     };
   }
-
   return baseRec;
 }
 
-// ─── Night order display ────────────────────────────────────────────────
-function NightOrderDisplay({ players, dayCount }: { players: Player[]; dayCount: number }) {
+// ─── Night Order Tracker ───────────────────────────────────────────────
+type SlotStatus = 'resolved' | 'submitted' | 'waiting' | 'passive';
+
+interface NightSlot {
+  role: ClocktowerRole;
+  player: Player | undefined;
+  status: SlotStatus;
+  step: number;
+}
+
+function NightOrderTracker({
+  players,
+  pendingActions,
+  resolvedActions,
+  dayCount,
+}: {
+  players: Player[];
+  pendingActions: GameAction[];
+  resolvedActions: GameAction[];
+  dayCount: number;
+}) {
   const nightOrder = dayCount === 0 ? NIGHT_ORDER_FIRST : NIGHT_ORDER_OTHER;
 
-  // Build active role set using drunkRole for Drunk players so they appear
-  // at their fake role's position in the night order, not as "Drunk" (no slot).
-  const activeRoles = new Set(
-    players.filter((p) => !p.isHost && p.isAlive).map((p) => {
-      const pIsDrunk = p.gameData?.isDrunk === true;
-      const pDrunkRole = p.gameData?.drunkRole as ClocktowerRole | undefined;
-      if (pIsDrunk && pDrunkRole) return pDrunkRole;
-      return p.gameData?.role as ClocktowerRole;
-    })
-  );
+  const slots: NightSlot[] = nightOrder
+    .flatMap((role, idx) => {
+      const player = findPlayerForRole(role, players);
+      if (!player) return [];
 
-  const activeInOrder = nightOrder.filter((r) => activeRoles.has(r));
-  if (activeInOrder.length === 0) return null;
+      const isPassive = PASSIVE_ROLES.has(role);
+      const isResolved = resolvedActions.some((a) => a.playerId === player.id);
+      const isSubmitted = pendingActions.some((a) => a.playerId === player.id);
 
-  const passiveLabels: Partial<Record<ClocktowerRole, string>> = {
-    [ClocktowerRole.ScarletWoman]: 'passif',
-    [ClocktowerRole.Ravenkeeper]: 'si tử',
-  };
+      let status: SlotStatus;
+      if (isPassive) status = 'passive';
+      else if (isResolved) status = 'resolved';
+      else if (isSubmitted) status = 'submitted';
+      else status = 'waiting';
+
+      return [{ role, player, status, step: idx + 1 }];
+    });
+
+  if (slots.length === 0) return null;
+
+  const resolvedCount = slots.filter((s) => s.status === 'resolved').length;
+  const actionableCount = slots.filter((s) => s.status !== 'passive').length;
 
   return (
-    <div className="mb-4 overflow-x-auto rounded-xl border border-white/10 bg-black/20 p-3">
-      <p className="mb-2 text-xs font-bold uppercase tracking-widest text-slate-500">
-        Thứ tự đêm {dayCount === 0 ? '(Đêm 1)' : '(Đêm 2+)'}
-      </p>
-      <div className="flex items-center gap-1 flex-wrap">
-        {activeInOrder.map((role, idx) => {
-          // Match by actual role OR by drunkRole (Drunk players slot in at their fake role)
-          const player = players.find((p) => {
-            if (p.isHost) return false;
-            const pIsDrunk = p.gameData?.isDrunk === true;
-            const pDrunkRole = p.gameData?.drunkRole as ClocktowerRole | undefined;
-            if (pIsDrunk && pDrunkRole === role) return true;
-            return (p.gameData?.role as ClocktowerRole) === role;
-          });
-          const isDrunkAtPosition = player?.gameData?.isDrunk === true;
-          const label = passiveLabels[role];
-          return (
-            <div key={role} className="flex items-center gap-1">
-              <div className={`flex flex-col items-center rounded-lg p-2 min-w-[56px] text-center border ${
-                isDrunkAtPosition
-                  ? 'bg-amber-900/20 border-amber-500/30'
-                  : label
-                  ? 'bg-slate-800/50 border-slate-600/20'
-                  : 'bg-white/5 border-white/10'
-              }`}>
-                <span className="text-lg">{ROLE_ICONS[role]}</span>
-                <span className="text-[10px] text-slate-400 leading-tight">{player?.name || role}</span>
-                {isDrunkAtPosition && (
-                  <span className="text-[9px] text-amber-400 font-bold">🍺 say</span>
-                )}
-                {label && !isDrunkAtPosition && (
-                  <span className="text-[9px] text-slate-600 italic">{label}</span>
+    <div className="rounded-xl border border-white/10 bg-black/25 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-3 py-2 border-b border-white/8">
+        <span className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+          🌙 Thứ tự đêm {dayCount === 0 ? '1' : `${dayCount + 1}`}
+        </span>
+        <span className="text-[11px] font-bold text-slate-400">
+          <span className="text-green-400">{resolvedCount}</span>
+          <span className="text-slate-600">/{actionableCount}</span>
+          <span className="text-slate-600 ml-1">hoàn thành</span>
+        </span>
+      </div>
+
+      {/* Slots — horizontal scroll */}
+      <div className="overflow-x-auto px-3 py-3">
+        <div className="flex items-center gap-1.5 min-w-max">
+          {slots.map((slot, idx) => {
+            const isDrunkHere = slot.player?.gameData?.isDrunk === true;
+
+            // Visual config per status
+            const cfg = {
+              resolved: {
+                wrap: 'border-green-500/40 bg-green-950/40',
+                dot: <span className="text-green-400 text-[10px] font-black leading-none">✓</span>,
+                name: 'text-green-300',
+                step: 'text-green-600',
+              },
+              submitted: {
+                wrap: 'border-amber-500/50 bg-amber-950/40',
+                dot: (
+                  <span className="relative flex h-2 w-2 shrink-0">
+                    <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
+                  </span>
+                ),
+                name: 'text-amber-200',
+                step: 'text-amber-600',
+              },
+              waiting: {
+                wrap: 'border-white/10 bg-white/[0.03]',
+                dot: <span className="h-1.5 w-1.5 rounded-full bg-slate-600 shrink-0" />,
+                name: 'text-slate-400',
+                step: 'text-slate-700',
+              },
+              passive: {
+                wrap: 'border-white/5 bg-white/[0.02] opacity-60',
+                dot: <span className="h-1.5 w-1.5 rounded-full bg-slate-700 shrink-0" />,
+                name: 'text-slate-600',
+                step: 'text-slate-800',
+              },
+            }[slot.status];
+
+            return (
+              <div key={slot.role} className="flex items-center gap-1">
+                <div className={`flex flex-col items-center gap-1 rounded-lg border px-2 py-1.5 min-w-[62px] text-center ${cfg.wrap}`}>
+                  {/* Step + status dot row */}
+                  <div className="flex items-center gap-1 w-full justify-between">
+                    <span className={`text-[9px] font-black ${cfg.step}`}>{slot.step}</span>
+                    {cfg.dot}
+                  </div>
+                  {/* Role icon */}
+                  <span className="text-base leading-none">{ROLE_ICONS[slot.role]}</span>
+                  {/* Player name */}
+                  <span className={`text-[10px] font-semibold leading-tight truncate w-full text-center ${cfg.name}`}>
+                    {slot.player?.name ?? slot.role}
+                  </span>
+                  {isDrunkHere && (
+                    <span className="text-[8px] text-amber-500 font-bold leading-none">🍺 say</span>
+                  )}
+                  {slot.status === 'passive' && (
+                    <span className="text-[8px] text-slate-700 italic leading-none">passif</span>
+                  )}
+                </div>
+                {idx < slots.length - 1 && (
+                  <span className="text-slate-700 text-[10px] shrink-0">›</span>
                 )}
               </div>
-              {idx < activeInOrder.length - 1 && <span className="text-slate-600 text-xs">→</span>}
-            </div>
-          );
-        })}
+            );
+          })}
+        </div>
       </div>
     </div>
   );
 }
 
+// ─── Main Panel ────────────────────────────────────────────────────────
 export default function NightTimelinePanel({
   players,
   pendingActions,
@@ -584,106 +500,145 @@ export default function NightTimelinePanel({
   onResolve,
 }: NightTimelinePanelProps) {
   const allActions = [...pendingActions, ...resolvedActions];
+  const nightOrder = dayCount === 0 ? NIGHT_ORDER_FIRST : NIGHT_ORDER_OTHER;
 
+  // Sort pending actions by night order — host processes them in sequence
   const sortedPending = [...pendingActions].sort(
-    (a, b) => ((a.createdAt as any)?.seconds ?? 0) - ((b.createdAt as any)?.seconds ?? 0)
+    (a, b) =>
+      getNightOrderIndex(a.playerId, players, nightOrder) -
+      getNightOrderIndex(b.playerId, players, nightOrder)
   );
+
+  // Sort resolved log by night order too (consistent ordering)
   const sortedResolved = [...resolvedActions].sort(
-    (a, b) => ((a.createdAt as any)?.seconds ?? 0) - ((b.createdAt as any)?.seconds ?? 0)
+    (a, b) =>
+      getNightOrderIndex(a.playerId, players, nightOrder) -
+      getNightOrderIndex(b.playerId, players, nightOrder)
   );
 
   return (
     <div className="space-y-4">
-      <NightOrderDisplay players={players} dayCount={dayCount} />
 
-      {/* Pending Actions */}
+      {/* ── Night Order Tracker ──────────────────────────────────────── */}
+      <NightOrderTracker
+        players={players}
+        pendingActions={pendingActions}
+        resolvedActions={resolvedActions}
+        dayCount={dayCount}
+      />
+
+      {/* ── Pending Actions ──────────────────────────────────────────── */}
       <div>
-        <h3 className="flex items-center gap-2 mb-3 text-sm font-semibold uppercase tracking-wider text-slate-400">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-purple-400 opacity-75" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-purple-500" />
+        {/* Section header */}
+        <div className="flex items-center gap-2 mb-3">
+          <span className="relative flex h-2 w-2 shrink-0">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+            <span className="relative inline-flex h-2 w-2 rounded-full bg-amber-500" />
           </span>
-          Đang chờ xử lý ({pendingActions.length})
-        </h3>
+          <h3 className="text-sm font-bold uppercase tracking-wider text-slate-300">
+            Chờ xử lý
+          </h3>
+          <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[11px] font-black text-amber-400">
+            {pendingActions.length}
+          </span>
+          {pendingActions.length > 0 && (
+            <span className="text-[10px] text-slate-600 ml-auto">sắp theo thứ tự gọi đêm</span>
+          )}
+        </div>
 
+        {/* Empty state */}
         {sortedPending.length === 0 && (
-          <p className="rounded-xl bg-white/5 px-4 py-6 text-center text-sm text-slate-500">
-            Đang chờ người chơi nộp hành động...
-          </p>
+          <div className="rounded-xl border border-dashed border-white/10 px-4 py-8 text-center">
+            <p className="text-sm text-slate-600">Đang chờ người chơi nộp hành động...</p>
+          </div>
         )}
 
+        {/* Action cards */}
         <div className="space-y-3">
           {sortedPending.map((action) => {
             const actor = players.find((p) => p.id === action.playerId);
             const role = actor?.gameData?.role as ClocktowerRole | undefined;
+            const isDrunk = actor?.gameData?.isDrunk === true;
+            const isPoisoned = actor?.gameData?.isPoisoned === true;
+            const drunkRole = actor?.gameData?.drunkRole as ClocktowerRole | undefined;
+            const displayRole = isDrunk && drunkRole ? drunkRole : role;
+            const step = getStepNumber(action.playerId, players, nightOrder);
             const rec = getRecommendation(action, players, allActions, gameState);
 
             return (
               <div
                 key={action.id}
-                className="rounded-xl border border-purple-500/20 bg-gradient-to-r from-purple-900/20 to-indigo-900/10 p-4 space-y-3"
+                className="rounded-xl border border-amber-500/15 bg-gradient-to-b from-amber-950/20 to-slate-900/40 overflow-hidden"
               >
-                {/* Header */}
-                <div className="flex items-center justify-between gap-2 flex-wrap">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    {role && <span className="text-xl">{ROLE_ICONS[role]}</span>}
-                    <div>
-                      <span className="font-semibold text-white">{action.playerName}</span>
-                      {role && (
-                        <span className="ml-2 text-xs text-purple-400">
-                          {role}
-                          {actor?.gameData?.isDrunk === true && (
-                            <span className="ml-1 text-amber-400 font-bold">🍺 DRUNK</span>
-                          )}
-                          {actor?.gameData?.isPoisoned === true && (
-                            <span className="ml-1 text-green-400 font-bold">☠️ POISONED</span>
-                          )}
-                        </span>
+                {/* Card header */}
+                <div className="flex items-center gap-2.5 px-3.5 py-3 border-b border-white/5">
+                  {/* Step badge */}
+                  {step > 0 && (
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-amber-500/20 text-[11px] font-black text-amber-400 border border-amber-500/30">
+                      {step}
+                    </span>
+                  )}
+                  {/* Role icon */}
+                  {displayRole && (
+                    <span className="text-xl shrink-0 leading-none">{ROLE_ICONS[displayRole]}</span>
+                  )}
+                  {/* Name + role */}
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="font-bold text-white text-sm leading-tight">{action.playerName}</span>
+                      {isDrunk && (
+                        <span className="rounded-full bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-black text-amber-400">🍺 SAY</span>
+                      )}
+                      {isPoisoned && (
+                        <span className="rounded-full bg-purple-500/20 px-1.5 py-0.5 text-[9px] font-black text-purple-400">☠️ ĐỘC</span>
                       )}
                     </div>
-                    {(action.targetName || action.secondTargetName) ? (
-                      <>
-                        <span className="text-slate-500">→</span>
-                        <span className="text-purple-300 font-medium">
-                          {action.targetName || '—'}
-                          {action.secondTargetName && (
-                            <span className="text-cyan-300"> & {action.secondTargetName}</span>
-                          )}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="text-slate-500">→</span>
-                        <span className="text-slate-500 text-xs italic">Chờ thông tin từ Quản trò</span>
-                      </>
+                    {role && (
+                      <span className="text-[11px] text-slate-500 leading-none">
+                        {String(role)}
+                        {isDrunk && drunkRole && <span className="text-amber-600"> · nghĩ là {drunkRole}</span>}
+                      </span>
                     )}
                   </div>
+                  {/* Target(s) */}
+                  {(action.targetName || action.secondTargetName) ? (
+                    <div className="shrink-0 flex items-center gap-1 text-xs">
+                      <span className="text-slate-600">→</span>
+                      <span className="font-semibold text-white">
+                        {action.targetName}
+                        {action.secondTargetName && (
+                          <span className="text-cyan-300"> & {action.secondTargetName}</span>
+                        )}
+                      </span>
+                    </div>
+                  ) : (
+                    <span className="shrink-0 text-[10px] text-slate-600 italic">Chờ thông tin từ ST</span>
+                  )}
                 </div>
 
                 {/* Recommendation */}
                 {rec && (
-                  <div className={`rounded-lg border p-3 text-sm space-y-1 ${rec.color}`}>
-                    <p className="font-semibold">
-                      {rec.emoji} Gợi ý Quản trò:
-                    </p>
+                  <div className={`mx-3.5 mt-3 rounded-lg border px-3 py-2.5 text-xs space-y-1 ${rec.color}`}>
+                    <p className="font-bold text-[11px] uppercase tracking-wide opacity-70">{rec.emoji} Gợi ý Storyteller</p>
                     {rec.lines.map((line, i) => (
-                      <p key={i} className={i === 0 ? '' : 'text-xs opacity-90'}>{line}</p>
+                      <p key={i} className={i === 0 ? 'font-semibold' : 'opacity-80'}>{line}</p>
                     ))}
                   </div>
                 )}
 
-                {/* Resolve */}
-                <div className="flex gap-2">
+                {/* Input + confirm */}
+                <div className="flex gap-2 px-3.5 py-3">
                   <input
                     type="text"
                     value={resolveMessages[action.id] || ''}
                     onChange={(e) => onResolveMessageChange(action.id, e.target.value)}
-                    placeholder="Nhập thông tin gửi cho người chơi..."
-                    className="flex-1 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder-slate-500 outline-none focus:border-purple-500"
+                    onKeyDown={(e) => { if (e.key === 'Enter') onResolve(action); }}
+                    placeholder="Thông tin gửi cho người chơi... (Enter để gửi)"
+                    className="flex-1 rounded-lg border border-white/10 bg-black/30 px-3 py-2 text-xs text-white placeholder-slate-600 outline-none focus:border-amber-500/50 focus:bg-black/40 transition-colors"
                   />
                   <button
                     onClick={() => onResolve(action)}
-                    className="rounded-lg bg-purple-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-purple-500 shrink-0"
+                    className="shrink-0 rounded-lg bg-amber-600 px-4 py-2 text-xs font-black text-white transition-all hover:bg-amber-500 active:scale-95 shadow-lg shadow-amber-500/20"
                     id={`resolve-${action.id}`}
                   >
                     ✓ Xác nhận
@@ -695,35 +650,45 @@ export default function NightTimelinePanel({
         </div>
       </div>
 
-      {/* Resolved log */}
+      {/* ── Resolved log ─────────────────────────────────────────────── */}
       {sortedResolved.length > 0 && (
         <div>
-          <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-slate-500">
-            📜 Nhật ký Đêm ({sortedResolved.length})
+          <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+            <span className="h-2 w-2 rounded-full bg-green-700 shrink-0" />
+            Đã xử lý ({sortedResolved.length})
           </h3>
-          <div className="relative space-y-0 border-l-2 border-white/10 ml-3">
+          <div className="relative border-l-2 border-white/8 ml-2 space-y-0">
             {sortedResolved.map((action) => {
               const actor = players.find((p) => p.id === action.playerId);
               const role = actor?.gameData?.role as ClocktowerRole | undefined;
+              const step = getStepNumber(action.playerId, players, nightOrder);
               return (
-                <div key={action.id} className="relative pl-5 pb-3">
-                  <div className="absolute -left-[7px] top-1 h-3 w-3 rounded-full bg-green-500 border-2 border-slate-900" />
-                  <div className="rounded-lg bg-white/5 border border-white/5 px-3 py-2 text-sm">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
-                      {role && <span>{ROLE_ICONS[role]}</span>}
-                      <span className="font-medium text-slate-300">{action.playerName}</span>
-                      <span className="text-slate-600">→</span>
-                      <span className="text-slate-400">
-                        {action.targetName || '—'}
-                        {action.secondTargetName && (
-                          <span className="text-cyan-400"> & {action.secondTargetName}</span>
-                        )}
-                      </span>
-                      <span className="ml-auto text-xs text-green-500">✓ Đã xử lý</span>
+                <div key={action.id} className="relative pl-5 pb-2.5">
+                  {/* Timeline dot */}
+                  <div className="absolute -left-[7px] top-2 h-3 w-3 rounded-full bg-green-700 border-2 border-slate-900" />
+                  <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      {step > 0 && (
+                        <span className="text-[9px] font-black text-green-800 bg-green-950/60 rounded px-1">
+                          {step}
+                        </span>
+                      )}
+                      {role && <span className="text-sm leading-none">{ROLE_ICONS[role]}</span>}
+                      <span className="text-xs font-semibold text-slate-400">{action.playerName}</span>
+                      {(action.targetName || action.secondTargetName) && (
+                        <>
+                          <span className="text-slate-700 text-[10px]">→</span>
+                          <span className="text-xs text-slate-500">
+                            {action.targetName || '—'}
+                            {action.secondTargetName && <span className="text-cyan-700"> & {action.secondTargetName}</span>}
+                          </span>
+                        </>
+                      )}
+                      <span className="ml-auto text-[10px] text-green-700 font-bold">✓</span>
                     </div>
-                    {action.result?.message && (
-                      <p className="text-xs text-slate-500 italic">
-                        💬 Đã gửi: "{action.result.message}"
+                    {action.result?.message && action.result.message !== 'Không có thông tin.' && (
+                      <p className="mt-1 text-[10px] text-slate-600 italic">
+                        💬 "{action.result.message}"
                       </p>
                     )}
                   </div>
