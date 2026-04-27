@@ -356,6 +356,43 @@ function getRecommendation(
   return baseRec;
 }
 
+// ─── Resolved action verb ─────────────────────────────────────────────
+function getResolvedVerb(
+  effectiveRole: ClocktowerRole | undefined,
+  action: GameAction
+): { verb: string; verbColor: string; isInfoOnly: boolean } {
+  switch (effectiveRole) {
+    case ClocktowerRole.Poisoner:
+      return { verb: 'đầu độc', verbColor: 'text-purple-400', isInfoOnly: false };
+    case ClocktowerRole.Monk:
+      return { verb: 'bảo vệ', verbColor: 'text-green-400', isInfoOnly: false };
+    case ClocktowerRole.Imp:
+      if (action.targetId === action.playerId)
+        return { verb: 'tự giết → Starpass', verbColor: 'text-orange-400', isInfoOnly: false };
+      return { verb: 'giết', verbColor: 'text-red-400', isInfoOnly: false };
+    case ClocktowerRole.Butler:
+      return { verb: 'chọn chủ nhân', verbColor: 'text-teal-400', isInfoOnly: false };
+    case ClocktowerRole.FortuneTeller:
+      return { verb: 'kiểm tra', verbColor: 'text-indigo-400', isInfoOnly: false };
+    case ClocktowerRole.Empath:
+      return { verb: 'nhận thông tin hàng xóm', verbColor: 'text-pink-400', isInfoOnly: true };
+    case ClocktowerRole.Chef:
+      return { verb: 'nhận thông tin cặp ác', verbColor: 'text-yellow-400', isInfoOnly: true };
+    case ClocktowerRole.Undertaker:
+      return { verb: 'nhận thông tin xử tử', verbColor: 'text-slate-400', isInfoOnly: true };
+    case ClocktowerRole.Washerwoman:
+      return { verb: 'nhận thông tin Townsfolk', verbColor: 'text-blue-400', isInfoOnly: true };
+    case ClocktowerRole.Librarian:
+      return { verb: 'nhận thông tin Outsider', verbColor: 'text-blue-400', isInfoOnly: true };
+    case ClocktowerRole.Investigator:
+      return { verb: 'nhận thông tin Minion', verbColor: 'text-blue-400', isInfoOnly: true };
+    case ClocktowerRole.Spy:
+      return { verb: 'xem Grimoire', verbColor: 'text-slate-400', isInfoOnly: true };
+    default:
+      return { verb: 'sử dụng kỹ năng', verbColor: 'text-slate-500', isInfoOnly: false };
+  }
+}
+
 // ─── Night Order Tracker ───────────────────────────────────────────────
 type SlotStatus = 'resolved' | 'submitted' | 'waiting' | 'passive';
 
@@ -653,43 +690,114 @@ export default function NightTimelinePanel({
       {/* ── Resolved log ─────────────────────────────────────────────── */}
       {sortedResolved.length > 0 && (
         <div>
-          <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-600">
+          <h3 className="mb-3 flex items-center gap-2 text-[11px] font-bold uppercase tracking-wider text-slate-500">
             <span className="h-2 w-2 rounded-full bg-green-700 shrink-0" />
-            Đã xử lý ({sortedResolved.length})
+            Đã xử lý
+            <span className="rounded-full bg-green-900/60 border border-green-700/30 px-2 py-0.5 text-[10px] font-black text-green-600">
+              {sortedResolved.length}
+            </span>
           </h3>
-          <div className="relative border-l-2 border-white/8 ml-2 space-y-0">
+
+          <div className="space-y-2">
             {sortedResolved.map((action) => {
               const actor = players.find((p) => p.id === action.playerId);
               const role = actor?.gameData?.role as ClocktowerRole | undefined;
+              const isDrunk = actor?.gameData?.isDrunk === true;
+              const drunkRole = actor?.gameData?.drunkRole as ClocktowerRole | undefined;
+              const isPoisoned = actor?.gameData?.isPoisoned === true;
+              const effectiveRole = isDrunk && drunkRole ? drunkRole : role;
+
+              const target = players.find((p) => p.id === action.targetId);
+              const targetRole = target?.gameData?.role as ClocktowerRole | undefined;
+              const secondTarget = players.find((p) => p.id === action.secondTargetId);
+              const secondTargetRole = secondTarget?.gameData?.role as ClocktowerRole | undefined;
+
               const step = getStepNumber(action.playerId, players, nightOrder);
+              const { verb, verbColor, isInfoOnly } = getResolvedVerb(effectiveRole, action);
+              const hasMessage = action.result?.message && action.result.message !== 'Không có thông tin.';
+
               return (
-                <div key={action.id} className="relative pl-5 pb-2.5">
-                  {/* Timeline dot */}
-                  <div className="absolute -left-[7px] top-2 h-3 w-3 rounded-full bg-green-700 border-2 border-slate-900" />
-                  <div className="rounded-lg border border-white/5 bg-white/[0.03] px-3 py-2">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      {step > 0 && (
-                        <span className="text-[9px] font-black text-green-800 bg-green-950/60 rounded px-1">
-                          {step}
-                        </span>
-                      )}
-                      {role && <span className="text-sm leading-none">{ROLE_ICONS[role]}</span>}
-                      <span className="text-xs font-semibold text-slate-400">{action.playerName}</span>
-                      {(action.targetName || action.secondTargetName) && (
+                <div
+                  key={action.id}
+                  className="rounded-xl border border-green-500/10 bg-gradient-to-b from-green-950/15 to-slate-900/20 overflow-hidden"
+                >
+                  {/* ── Actor row ── */}
+                  <div className="flex items-center gap-2 px-3 py-2 border-b border-white/5">
+                    {/* Step badge */}
+                    {step > 0 && (
+                      <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-green-900/60 border border-green-700/30 text-[9px] font-black text-green-600">
+                        {step}
+                      </span>
+                    )}
+                    {/* Role icon */}
+                    {effectiveRole && (
+                      <span className="text-lg leading-none shrink-0">{ROLE_ICONS[effectiveRole]}</span>
+                    )}
+                    {/* Name · role */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-xs font-bold text-slate-300 leading-tight">{action.playerName}</span>
+                        {role && (
+                          <span className="text-[10px] text-slate-600">· {String(role)}</span>
+                        )}
+                        {isDrunk && (
+                          <span className="rounded-full bg-amber-500/15 px-1.5 py-0.5 text-[8px] font-black text-amber-500">🍺 say</span>
+                        )}
+                        {isPoisoned && (
+                          <span className="rounded-full bg-purple-500/15 px-1.5 py-0.5 text-[8px] font-black text-purple-400">☠️ độc</span>
+                        )}
+                      </div>
+                    </div>
+                    <span className="shrink-0 text-[10px] font-black text-green-600">✓</span>
+                  </div>
+
+                  {/* ── Action summary row ── */}
+                  <div className="px-3 py-2 space-y-1.5">
+                    {/* Verb + targets */}
+                    <div className="flex items-center gap-1.5 flex-wrap text-xs">
+                      <span className={`font-bold ${verbColor}`}>{verb}</span>
+
+                      {/* Targets (for non-info-only roles) */}
+                      {!isInfoOnly && action.targetName && (
                         <>
-                          <span className="text-slate-700 text-[10px]">→</span>
-                          <span className="text-xs text-slate-500">
-                            {action.targetName || '—'}
-                            {action.secondTargetName && <span className="text-cyan-700"> & {action.secondTargetName}</span>}
-                          </span>
+                          <span className="text-slate-700">→</span>
+                          {/* Target 1 */}
+                          <div className="flex items-center gap-1">
+                            {targetRole && (
+                              <span className="text-sm leading-none">{ROLE_ICONS[targetRole]}</span>
+                            )}
+                            <span className="font-semibold text-white">{action.targetName}</span>
+                            {targetRole && (
+                              <span className="text-[10px] text-slate-500">({String(targetRole)})</span>
+                            )}
+                          </div>
+                          {/* Target 2 (FortuneTeller dual-pick) */}
+                          {action.secondTargetName && (
+                            <>
+                              <span className="text-slate-600">&amp;</span>
+                              <div className="flex items-center gap-1">
+                                {secondTargetRole && (
+                                  <span className="text-sm leading-none">{ROLE_ICONS[secondTargetRole]}</span>
+                                )}
+                                <span className="font-semibold text-cyan-300">{action.secondTargetName}</span>
+                                {secondTargetRole && (
+                                  <span className="text-[10px] text-slate-500">({String(secondTargetRole)})</span>
+                                )}
+                              </div>
+                            </>
+                          )}
                         </>
                       )}
-                      <span className="ml-auto text-[10px] text-green-700 font-bold">✓</span>
                     </div>
-                    {action.result?.message && action.result.message !== 'Không có thông tin.' && (
-                      <p className="mt-1 text-[10px] text-slate-600 italic">
-                        💬 "{action.result.message}"
-                      </p>
+
+                    {/* Message sent to player */}
+                    {hasMessage && (
+                      <div className="flex items-start gap-1.5 rounded-lg bg-black/20 border border-white/5 px-2.5 py-1.5">
+                        <span className="text-[11px] text-slate-600 shrink-0 mt-px">💬</span>
+                        <p className="text-[11px] text-slate-400 italic leading-relaxed">
+                          "{action.result!.message}"
+                        </p>
+                      </div>
                     )}
                   </div>
                 </div>
