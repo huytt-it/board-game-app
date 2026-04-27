@@ -20,6 +20,9 @@ export interface RoomConfig {
 }
 
 // ─── Game State (stored in room doc for real-time sync) ───────────────
+// Generic fields shared by all games. Game-specific extensions live in each
+// game's own GameState type (e.g. ClocktowerGameState in clocktower.ts).
+// Clocktower-specific fields are kept here until Avalon requires a clean split.
 export interface RoomGameState {
   dayCount: number;
   nominations?: Record<string, string | null>; // playerId -> targetId
@@ -30,7 +33,7 @@ export interface RoomGameState {
   winner?: 'good' | 'evil' | null;
   lastExecutedPlayerId?: string | null;  // Undertaker: who was executed last day
   lastExecutedRole?: string | null;      // Undertaker: their true role
-  pendingSlayerAction?: { slayerName: string; targetId: string; targetName: string } | null; // Slayer public ability
+  pendingSlayerAction?: { slayerName: string; targetId: string; targetName: string } | null;
   pendingStarpassAction?: {
     impPlayerId: string;
     impPlayerName: string;

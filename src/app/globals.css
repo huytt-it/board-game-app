@@ -183,6 +183,23 @@
   animation: sparkle 1.5s ease-in-out infinite;
 }
 
+/* ─── Card deal (fly-in from above) ──────────────────────────────── */
+@keyframes card-deal {
+  0%   { transform: translateY(-260px) scale(0.55); opacity: 0; }
+  65%  { transform: translateY(10px)   scale(1.04); opacity: 1; }
+  100% { transform: translateY(0)      scale(1);    opacity: 1; }
+}
+
+/* ─── Stage reveal (blur + scale in) ─────────────────────────────── */
+@keyframes reveal-stage {
+  0%   { opacity: 0; transform: scale(0.88) translateY(18px); filter: blur(8px); }
+  100% { opacity: 1; transform: scale(1)    translateY(0);    filter: blur(0); }
+}
+
+.animate-reveal-stage {
+  animation: reveal-stage 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
 /* ─── 3D perspective container ────────────────────────────────────── */
 .perspective-container {
   perspective: 1000px;

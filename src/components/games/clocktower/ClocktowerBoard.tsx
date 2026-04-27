@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom } from '@/hooks/useRoom';
+import { useClocktowerRoles } from '@/hooks/games/useClocktowerRoles';
 import { useVoting } from '@/hooks/games/useVoting';
 import { gameStorage } from '@/services/database/firebaseAdapter';
 import QRCodeDisplay from '@/components/core/QRCodeDisplay';
@@ -16,6 +17,8 @@ import VotingPanel from './VotingPanel';
 import RoomSettingsPanel from './RoomSettingsPanel';
 import PlayerRoleCard from './PlayerRoleCard';
 import RoleHandbook from './RoleHandbook';
+import GameHistoryPanel from './GameHistoryPanel';
+import { useGameHistory } from '@/hooks/useGameHistory';
 import type { GameModuleProps } from '@/lib/gameRegistry';
 import {
   ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAM_VI, ROLE_TEAMS,
@@ -55,9 +58,29 @@ const TEAM_EMOJI: Record<ClocktowerTeam, string> = {
 
 export default function ClocktowerBoard({ room, players, playerId, isHost }: GameModuleProps) {
   const router = useRouter();
-  const { updateStatus, updateGameState, updateConfig, startGame, leaveRoom, deleteRoom, resetRoom } = useRoom(room.id, playerId);
+  const { updateStatus, updateGameState, updateConfig, leaveRoom, deleteRoom, resetRoom } = useRoom(room.id, playerId);
+  const { assignRoles } = useClocktowerRoles(room.id, players, room);
   const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('none');
   const [roleRevealed, setRoleRevealed] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const { events: historyEvents } = useGameHistory(room.id);
+  // Track how many games have started so we only show the countdown on the very first one
+  const gamesStartedRef = useRef(0);
+
+  // ─── Game start helpers (Clocktower-specific) ──────────────────────
+  const startGame = useCallback(async () => {
+    await assignRoles();
+    // Status is updated by handleStartGame after animation (or skipped for 2nd+ games)
+  }, [assignRoles]);
+
+  const startNewGame = useCallback(async () => {
+    // Wipe all per-game data without changing room status (avoids lobby flash)
+    await gameStorage.clearGameData(room.id);
+    // Assign fresh roles (reads current players + config from live room prop)
+    await assignRoles();
+    // Jump directly to night — no lobby detour
+    await updateStatus('night');
+  }, [room.id, assignRoles, updateStatus]);
 
   const currentPlayer = players.find((p) => p.id === playerId);
   const playerRole = currentPlayer?.gameData?.role as ClocktowerRole | undefined;
@@ -68,6 +91,19 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   // Team is derived from displayRole so Drunk players appear as Townsfolk
   const displayTeam: ClocktowerTeam | null = displayRole ? ROLE_TEAMS[displayRole] : null;
   const dayCount = room.gameState?.dayCount ?? 0;
+
+  // ─── Seat / neighbour info ─────────────────────────────────────────
+  const mySeat = currentPlayer?.gameData?.seatNumber as number | undefined;
+  const seatedPlayers = players
+    .filter((p) => !p.isHost && p.gameData?.seatNumber != null)
+    .sort((a, b) => (a.gameData.seatNumber as number) - (b.gameData.seatNumber as number));
+  const mySeatedIdx = seatedPlayers.findIndex((p) => p.id === playerId);
+  const leftNeighbour = mySeatedIdx >= 0
+    ? seatedPlayers[(mySeatedIdx - 1 + seatedPlayers.length) % seatedPlayers.length]
+    : null;
+  const rightNeighbour = mySeatedIdx >= 0
+    ? seatedPlayers[(mySeatedIdx + 1) % seatedPlayers.length]
+    : null;
 
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
   const {
@@ -98,12 +134,20 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   // ─── Start game ────────────────────────────────────────────────────
   const handleStartGame = useCallback(async () => {
     try {
+      setRoleRevealed(false); // reset so players see role reveal every new game
       await startGame();
-      setAnimationPhase('countdown');
+      if (gamesStartedRef.current === 0) {
+        // First game: play the full countdown animation
+        setAnimationPhase('countdown');
+      } else {
+        // Subsequent games: skip animation, go straight to night
+        await updateStatus('night');
+      }
+      gamesStartedRef.current += 1;
     } catch (err: any) {
       alert(err.message || 'Failed to start game');
     }
-  }, [startGame]);
+  }, [startGame, updateStatus]);
 
   const handleCountdownComplete = useCallback(() => {
     setAnimationPhase('none');
@@ -125,9 +169,19 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
       router.push('/');
     }
   };
-  const handleReset = async () => {
-    if (confirm('Bắt đầu ván mới?')) await resetRoom();
-  };
+  // Used only in the fallback Game-Over screen (edge case)
+  const handleReset = async () => { await resetRoom(); };
+
+  // End-screen "Bắt đầu ván mới": wipe data → assign roles → go straight to night
+  const handleStartNewGame = useCallback(async () => {
+    try {
+      setRoleRevealed(false);
+      await startNewGame();
+      gamesStartedRef.current += 1;
+    } catch (err: any) {
+      alert(err.message || 'Failed to start new game');
+    }
+  }, [startNewGame]);
 
   // ─── Animation overlays ────────────────────────────────────────────
   if (animationPhase === 'countdown') {
@@ -139,6 +193,26 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
   // ─── Role info / handbook overlays (rendered on top of current view) ─
   // We render these as fragments that wrap the main content so they can
+  // ─── Seat bar — shown under role strip in every player phase ─────────
+  const seatBar = mySeat != null && leftNeighbour && rightNeighbour ? (
+    <div className="flex items-center gap-2 border-t border-white/5 bg-black/20 px-4 py-1.5">
+      <span className="text-[10px] text-slate-600 shrink-0">Hàng xóm</span>
+      <div className="flex items-center gap-1 flex-1 min-w-0 justify-center">
+        <span className={`text-[11px] font-semibold truncate max-w-[80px] ${leftNeighbour.isAlive ? 'text-slate-300' : 'text-slate-600 line-through'}`}>
+          {leftNeighbour.name}
+        </span>
+        <span className="text-slate-600 text-[10px] shrink-0 mx-1">←</span>
+        <span className="text-xs font-black text-white shrink-0">
+          #{mySeat} Bạn
+        </span>
+        <span className="text-slate-600 text-[10px] shrink-0 mx-1">→</span>
+        <span className={`text-[11px] font-semibold truncate max-w-[80px] ${rightNeighbour.isAlive ? 'text-slate-300' : 'text-slate-600 line-through'}`}>
+          {rightNeighbour.name}
+        </span>
+      </div>
+    </div>
+  ) : null;
+
   // be dismissed without remounting the phase below.
   const overlays = (
     <>
@@ -247,9 +321,40 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   if (room.status === 'end') {
     const winner    = room.gameState?.winner;
     const isGoodWin = winner === 'good';
+
+    // ── History overlay for players ────────────────────────────────
+    if (!isHost && showHistory) {
+      return (
+        <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-fade-in">
+          {/* Header bar */}
+          <div className="flex items-center gap-3 border-b border-white/10 bg-slate-950/95 backdrop-blur-md px-4 py-3 shrink-0">
+            <button
+              onClick={() => setShowHistory(false)}
+              className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-bold text-slate-300 active:bg-white/10"
+            >
+              ← Quay lại
+            </button>
+            <h2 className="text-base font-black text-white">📜 Lịch sử ván đấu</h2>
+          </div>
+          {/* Scrollable history */}
+          <div className="flex-1 overflow-y-auto px-4 py-4 pb-safe">
+            {historyEvents.length === 0 ? (
+              <div className="flex flex-col items-center justify-center gap-3 py-20 text-center">
+                <span className="text-4xl opacity-40">📭</span>
+                <p className="text-slate-500 text-sm">Chưa có sự kiện nào được ghi lại.</p>
+              </div>
+            ) : (
+              <GameHistoryPanel events={historyEvents} />
+            )}
+          </div>
+        </div>
+      );
+    }
+
     return (
-      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in text-center">
-        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-xl relative overflow-hidden">
+      <div className="mx-auto max-w-2xl space-y-6 animate-fade-in">
+        {/* Winner banner */}
+        <div className="rounded-2xl border border-white/10 bg-white/5 p-8 shadow-xl relative overflow-hidden text-center">
           <div className={`absolute inset-0 bg-gradient-to-br opacity-20 ${isGoodWin ? 'from-cyan-500 to-blue-500' : 'from-red-500 to-orange-500'}`} />
           <div className="relative text-6xl mb-4">{isGoodWin ? '🌟' : '👹'}</div>
           <h1 className="relative mb-2 text-4xl font-black text-white">
@@ -259,21 +364,52 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
             {isGoodWin ? 'Dân làng đã tiêu diệt Quỷ.' : 'Quỷ đã thống trị làng.'}
           </p>
         </div>
-        <div className="flex justify-center gap-4">
+
+        {/* Host: settings panel for next game */}
+        {isHost && (
+          <RoomSettingsPanel
+            config={room.config}
+            onUpdateConfig={updateConfig}
+            playerCount={players.filter((p) => !p.isHost).length}
+          />
+        )}
+
+        {/* Role reveal for players — show their real role if they were drunk */}
+        {!isHost && playerRole && playerRole !== displayRole && (
+          <div className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4 text-center">
+            <p className="text-xs text-amber-400 font-bold mb-1">🍺 Bạn đã bị Say rượu!</p>
+            <p className="text-sm text-slate-300">
+              Vai trò thật của bạn là{' '}
+              <span className="font-black text-white">
+                {ROLE_ICONS[playerRole]} {playerRole}
+              </span>
+            </p>
+          </div>
+        )}
+
+        <div className="flex flex-wrap justify-center gap-3">
           {isHost ? (
             <button
-              onClick={handleReset}
-              className="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-4 font-bold text-white transition-all hover:from-purple-500 hover:to-indigo-500"
+              onClick={handleStartNewGame}
+              className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-8 py-4 font-bold text-white transition-all hover:from-purple-500 hover:to-indigo-500 active:scale-[0.98]"
             >
-              🔄 Ván mới
+              🔄 Bắt đầu ván mới
             </button>
           ) : (
-            <button
-              onClick={handleLeave}
-              className="rounded-xl border border-white/10 bg-white/5 px-8 py-4 font-semibold text-white transition-all hover:bg-white/10"
-            >
-              🚪 Về sảnh chờ
-            </button>
+            <>
+              <button
+                onClick={() => setShowHistory(true)}
+                className="rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 px-6 py-4 font-bold text-white transition-all hover:from-indigo-500 hover:to-purple-500 active:scale-95"
+              >
+                📜 Xem lịch sử ván đấu
+              </button>
+              <button
+                onClick={handleLeave}
+                className="rounded-xl border border-white/10 bg-white/5 px-6 py-4 font-semibold text-white transition-all hover:bg-white/10 active:scale-95"
+              >
+                🚪 Rời phòng
+              </button>
+            </>
           )}
         </div>
       </div>
@@ -384,6 +520,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
+            {seatBar}
           </div>
 
           {/* Night action fills remaining space */}
@@ -447,6 +584,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
+            {seatBar}
           </div>
 
           {/* VotingPanel owns flex-1, scroll + sticky vote buttons */}
@@ -525,6 +663,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
+            {seatBar}
             {/* Nomination summary bar */}
             {nominatedPlayerName && (
               <div className="flex items-center gap-2 border-t border-amber-500/20 bg-amber-500/8 px-4 py-2">
