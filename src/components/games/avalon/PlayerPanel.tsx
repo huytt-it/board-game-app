@@ -1981,7 +1981,6 @@ function LadySection({
   myTeam,
   gamePlayers,
   onLadyInspect,
-  onLadyShow,
   onLadyFinish,
 }: {
   state: AvalonGameState;
@@ -2000,87 +1999,32 @@ function LadySection({
 
   if (isTarget) {
     const isEvil = myTeam === 'evil';
-
-    if (!shown && isEvil) {
-      return (
-        <div className="rounded-2xl border-2 border-red-500/60 bg-red-500/10 p-5">
-          <p className="text-[11px] uppercase font-black text-red-300 mb-1">
-            🌊 {holder?.name} đang soi bạn
-          </p>
-          <h3 className="text-base font-black text-white mb-1">Bạn là Phe Quỷ — chọn lá hiện ra</h3>
-          <p className="text-xs text-slate-300 mb-4">
-            Có thể nói xạo: hiện lá Phe Người để gạt người soi, hoặc hiện lá Phe Quỷ để nói thật.
-            Sau khi chọn, kết quả sẽ tự gửi cho Lady — không cần đưa máy.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => onLadyShow('good')}
-              className="rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-5 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30"
-            >
-              <div className="text-3xl mb-1">🛡️</div>
-              HIỆN PHE NGƯỜI
-              <div className="text-[10px] font-bold text-blue-100/80 mt-1">(Nói xạo)</div>
-            </button>
-            <button
-              onClick={() => onLadyShow('evil')}
-              className="rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 py-5 font-black text-white text-base hover:from-red-500 hover:to-rose-500 active:scale-95 shadow-lg shadow-red-500/30"
-            >
-              <div className="text-3xl mb-1">🗡️</div>
-              HIỆN PHE QUỶ
-              <div className="text-[10px] font-bold text-red-100/80 mt-1">(Nói thật)</div>
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (!shown && !isEvil) {
-      return (
-        <div className="rounded-2xl border-2 border-blue-500/60 bg-blue-500/10 p-5">
-          <p className="text-[11px] uppercase font-black text-blue-300 mb-1">
-            🌊 {holder?.name} đang soi bạn
-          </p>
-          <h3 className="text-base font-black text-white mb-1">Bạn là Phe Người</h3>
-          <p className="text-xs text-slate-300 mb-4">
-            Phe Người bắt buộc hiện thật. Bấm để gửi kết quả cho Lady.
-          </p>
-          <button
-            onClick={() => onLadyShow('good')}
-            className="w-full rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-5 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30"
-          >
-            <div className="text-4xl mb-1">🛡️</div>
-            GỬI LÁ PHE THIỆN
-          </button>
-        </div>
-      );
-    }
-
-    const cardSent: 'good' | 'evil' = shown ?? 'good';
-    const isGoodCard = cardSent === 'good';
     return (
       <div
-        className={`rounded-2xl border-2 p-6 text-center ${isGoodCard ? 'border-blue-500/40 bg-blue-500/10' : 'border-red-500/40 bg-red-500/10'
-          }`}
+        className={`rounded-2xl border-2 p-6 text-center ${
+          isEvil
+            ? 'border-red-500/60 bg-red-500/10'
+            : 'border-blue-500/60 bg-blue-500/10'
+        }`}
       >
-        <p className="text-[11px] uppercase font-bold text-slate-400 mb-2">
-          🌊 Đã gửi cho {holder?.name}
+        <p className="text-[11px] uppercase font-black text-slate-300 mb-2 tracking-widest">
+          🌊 {holder?.name} đang soi bạn
         </p>
-        <div className="text-6xl mb-2">{isGoodCard ? '🛡️' : '🗡️'}</div>
+        <div className="text-6xl mb-2">{isEvil ? '🗡️' : '🛡️'}</div>
         <p
-          className={`text-2xl font-black mb-1 ${isGoodCard ? 'text-blue-200' : 'text-red-200'
-            }`}
+          className={`text-2xl font-black mb-1 ${
+            isEvil ? 'text-red-200' : 'text-blue-200'
+          }`}
         >
-          {isGoodCard ? 'PHE THIỆN' : 'PHE ÁC'}
+          {isEvil ? 'PHE ÁC' : 'PHE THIỆN'}
         </p>
-        {isEvil && (
-          <p className="text-[11px] text-amber-400/80 italic mb-2">
-            {shown === 'good' ? '(Bạn đang nói xạo)' : '(Bạn đang nói thật)'}
-          </p>
-        )}
-        <p className="text-xs text-slate-400 mt-2">
-          Lady đã thấy kết quả. Chờ Lady bấm hoàn tất để chuyển token...
+        <p className="text-[11px] text-slate-400 mt-2">
+          Lady tự động thấy phe thật của bạn — không thể nói xạo.
         </p>
-        <div className="mt-3 text-2xl animate-pulse">⏳</div>
+        <p className="mt-3 text-xs text-slate-400">
+          Chờ {holder?.name} hoàn tất để chuyển token...
+        </p>
+        <div className="mt-2 text-2xl animate-pulse">⏳</div>
       </div>
     );
   }
