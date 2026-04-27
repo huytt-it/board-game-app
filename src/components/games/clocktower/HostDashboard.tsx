@@ -273,7 +273,26 @@ export default function HostDashboard({
       }
     }
 
-    // 6. Log the main night action (approved by host)
+    // 6. Ravenkeeper — auto-kill after resolving their last action
+    if (actorRole === ClocktowerRole.Ravenkeeper) {
+      await gameStorage.updatePlayerAlive(roomId, action.playerId, false);
+      await addEvent({
+        type: 'night_death',
+        dayCount,
+        phase: 'night',
+        emoji: '🐦‍⬛',
+        title: `${action.playerName} (Ravenkeeper) qua đời sau khi xem nhân vật ${action.targetName || '?'}`,
+        detail: hasMessage ? `Thông tin đã gửi: "${msg}"` : undefined,
+        actorName: action.playerName,
+        actorRole: String(ClocktowerRole.Ravenkeeper),
+        targetName: action.targetName,
+        targetRole: targetRole ? String(targetRole) : undefined,
+        resultState: 'killed',
+      });
+      return;
+    }
+
+    // 7. Log the main night action (approved by host)
     let title = `${action.playerName} (${actorRole || '?'}) sử dụng kỹ năng`;
     if (action.targetName) {
       title = `${action.playerName} (${actorRole || '?'}) → ${action.targetName}`;
@@ -368,6 +387,29 @@ export default function HostDashboard({
     });
 
     await gameStorage.updateRoomGameState(roomId, { pendingStarpassAction: null } as any);
+  };
+
+  // ─── Ravenkeeper: host triggers their one-time death ability ─────────
+  const handleTriggerRavenkeeper = async (ravenkeeperPlayer: Player) => {
+    const deathMsg =
+      '🐦‍⬛ Đêm nay bạn sẽ qua đời... Hãy chọn 1 người chơi để Quản trò tiết lộ nhân vật thật của họ cho bạn.';
+    // Unlock the action on the player side
+    await gameStorage.updatePlayerGameData(roomId, ravenkeeperPlayer.id, {
+      ravenkeeperTriggered: true,
+    } as any);
+    // Send private death notification (player sees this first, then the target picker)
+    await sendPrivateMessage(ravenkeeperPlayer.id, deathMsg);
+    await addEvent({
+      type: 'state_change',
+      dayCount,
+      phase: 'night',
+      emoji: '🐦‍⬛',
+      title: `${ravenkeeperPlayer.name} (Ravenkeeper) bị Quỷ giết — đang đánh thức để chọn người`,
+      detail: 'Ravenkeeper được chọn 1 người để biết nhân vật trước khi chết.',
+      actorName: ravenkeeperPlayer.name,
+      actorRole: String(ClocktowerRole.Ravenkeeper),
+      resultState: 'approved',
+    });
   };
 
   // ─── Inline direct private message ────────────────────────────────────
@@ -832,6 +874,20 @@ export default function HostDashboard({
 
                       {/* Action buttons */}
                       <div className="flex items-center gap-1 shrink-0">
+                        {/* Ravenkeeper trigger — only shown during night for alive Ravenkeeper */}
+                        {phase === 'night' && p.isAlive && role === ClocktowerRole.Ravenkeeper && (
+                          <button
+                            onClick={() => {
+                              if (confirm(`Kích hoạt Ravenkeeper cho ${p.name}?\n\nThao tác này sẽ:\n• Gửi thông báo "Đêm nay bạn sẽ chết" cho ${p.name}\n• Mở giao diện cho họ chọn 1 người xem nhân vật\n\nChỉ bấm khi chắc chắn họ bị Quỷ giết đêm nay.`)) {
+                                handleTriggerRavenkeeper(p);
+                              }
+                            }}
+                            className="flex h-8 items-center gap-1 px-2 rounded-xl border border-slate-500/30 bg-slate-800/50 text-[11px] font-bold text-slate-300 transition-all active:scale-95 hover:border-slate-400/50 hover:bg-slate-700/60"
+                            title="Kích hoạt Ravenkeeper (bị Quỷ giết)"
+                          >
+                            🐦‍⬛
+                          </button>
+                        )}
                         <button
                           onClick={() => { setMessagingPlayerId(isMessaging ? null : p.id); setInlineMessage(''); }}
                           className={`flex h-8 w-8 items-center justify-center rounded-xl border text-sm transition-all active:scale-95 ${
