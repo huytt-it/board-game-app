@@ -3,6 +3,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom } from '@/hooks/useRoom';
+import { useClocktowerRoles } from '@/hooks/games/useClocktowerRoles';
 import { useVoting } from '@/hooks/games/useVoting';
 import { gameStorage } from '@/services/database/firebaseAdapter';
 import QRCodeDisplay from '@/components/core/QRCodeDisplay';
@@ -57,13 +58,29 @@ const TEAM_EMOJI: Record<ClocktowerTeam, string> = {
 
 export default function ClocktowerBoard({ room, players, playerId, isHost }: GameModuleProps) {
   const router = useRouter();
-  const { updateStatus, updateGameState, updateConfig, startGame, startNewGame, leaveRoom, deleteRoom, resetRoom } = useRoom(room.id, playerId);
+  const { updateStatus, updateGameState, updateConfig, leaveRoom, deleteRoom, resetRoom } = useRoom(room.id, playerId);
+  const { assignRoles } = useClocktowerRoles(room.id, players, room);
   const [animationPhase, setAnimationPhase] = useState<AnimationPhase>('none');
   const [roleRevealed, setRoleRevealed] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const { events: historyEvents } = useGameHistory(room.id);
   // Track how many games have started so we only show the countdown on the very first one
   const gamesStartedRef = useRef(0);
+
+  // ─── Game start helpers (Clocktower-specific) ──────────────────────
+  const startGame = useCallback(async () => {
+    await assignRoles();
+    // Status is updated by handleStartGame after animation (or skipped for 2nd+ games)
+  }, [assignRoles]);
+
+  const startNewGame = useCallback(async () => {
+    // Wipe all per-game data without changing room status (avoids lobby flash)
+    await gameStorage.clearGameData(room.id);
+    // Assign fresh roles (reads current players + config from live room prop)
+    await assignRoles();
+    // Jump directly to night — no lobby detour
+    await updateStatus('night');
+  }, [room.id, assignRoles, updateStatus]);
 
   const currentPlayer = players.find((p) => p.id === playerId);
   const playerRole = currentPlayer?.gameData?.role as ClocktowerRole | undefined;
