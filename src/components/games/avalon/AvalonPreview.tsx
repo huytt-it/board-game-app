@@ -576,6 +576,8 @@ function buildScene(phase: PreviewPhase): { players: Player[]; state: AvalonGame
       quests[2].failCount = 1;
       quests[3].result = 'success';
       quests[3].failCount = 0;
+      quests[4].result = 'fail';
+      quests[4].failCount = 1;
       return {
         players,
         state: { ...base, phase: 'assassinate', quests, currentQuest: 4 },
@@ -590,6 +592,8 @@ function buildScene(phase: PreviewPhase): { players: Player[]; state: AvalonGame
       quests[2].result = 'fail';
       quests[2].failCount = 1;
       quests[3].result = 'success';
+      quests[4].result = 'fail';
+      quests[4].failCount = 1;
       return {
         players,
         state: { ...base, phase: 'assassinate', quests, currentQuest: 4 },
@@ -604,6 +608,8 @@ function buildScene(phase: PreviewPhase): { players: Player[]; state: AvalonGame
       quests[2].result = 'fail';
       quests[2].failCount = 1;
       quests[3].result = 'success';
+      quests[4].result = 'fail';
+      quests[4].failCount = 1;
       return {
         players,
         state: { ...base, phase: 'assassinate', quests, currentQuest: 4 },
@@ -793,6 +799,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             onAssassinate={noop}
             onShowMyRole={() => setShowRoleCard(true)}
             onAckRole={stub}
+            onAckDiscussion={stub}
           />
         )}
       </div>

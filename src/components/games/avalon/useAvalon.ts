@@ -55,7 +55,7 @@ export function readState(room: Room): AvalonGameState | null {
 
 export function readConfig(room: Room): AvalonRoomConfig {
   const cfg = room.config as Record<string, unknown>;
-  const optionalRoles = (cfg.optionalRoles as AvalonRole[] | undefined) ?? [AvalonRole.Morgana];
+  const optionalRoles = (cfg.optionalRoles as AvalonRole[] | undefined) ?? [];
   const useLadyOfLake = (cfg.useLadyOfLake as boolean | undefined) ?? false;
   return { optionalRoles, useLadyOfLake };
 }
@@ -391,23 +391,23 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     const failures = state.quests.filter((q) => q.result === 'fail').length;
     const allQuestsDone = state.quests.every((q) => q.result !== null);
 
-    // Evil reaches 3 fails — game over, no need to continue
-    if (failures >= QUESTS_TO_WIN) {
-      await writeState({
-        phase: 'end',
-        winner: 'evil',
-        proposedTeam: [],
-        teamVotes: {},
-        questPlayedBy: [],
-      });
-      await gameStorage.updateRoomStatus(roomId, 'end');
-      return;
-    }
-
-    // After all 5 quests played, decide outcome based on Good's score
+    // Game-end checks only apply AFTER all 5 quests are played.
+    // (House rule: phải hoàn tất đủ 5 quest rồi mới chốt thắng/thua.)
     if (allQuestsDone) {
+      // Evil wins outright on 3+ failed quests (no assassinate chance).
+      if (failures >= QUESTS_TO_WIN) {
+        await writeState({
+          phase: 'end',
+          winner: 'evil',
+          proposedTeam: [],
+          teamVotes: {},
+          questPlayedBy: [],
+        });
+        await gameStorage.updateRoomStatus(roomId, 'end');
+        return;
+      }
+      // Good wins outright (4-1 or 5-0) — no assassinate chance.
       if (successes >= 4) {
-        // Good wins outright (4-1 or 5-0) — no assassinate chance
         await writeState({
           phase: 'end',
           winner: 'good',
@@ -418,8 +418,8 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
         await gameStorage.updateRoomStatus(roomId, 'end');
         return;
       }
+      // Good 3 / Evil 2 — only now assassin gets a shot at Merlin.
       if (successes === 3) {
-        // Good 3-2 — assassinate phase
         await writeState({
           phase: 'assassinate',
           proposedTeam: [],
@@ -461,18 +461,39 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       await gameStorage.updateRoomStatus(roomId, 'day');
     } else {
       await writeState({
-        phase: 'team-build',
+        phase: 'discussion',
         proposedTeam: [],
         teamVotes: {},
         questPlayedBy: [],
         currentQuest: nextQuest,
         currentLeaderId: nextLeaderId,
         leadersUsed: nextUsed,
+        roleAcks: {},
         phaseStartedAt: Date.now(),
       });
       await gameStorage.updateRoomStatus(roomId, 'day');
     }
   }, [roomId, state, gamePlayers, playerCount, writeState]);
+
+  const proceedAfterDiscussion = useCallback(async () => {
+    if (!roomId || !state) return;
+    if (state.phase !== 'discussion') return;
+    await writeState({
+      phase: 'team-build',
+      roleAcks: {},
+      phaseStartedAt: Date.now(),
+    });
+    await gameStorage.updateRoomStatus(roomId, 'day');
+  }, [roomId, state, writeState]);
+
+  const ackDiscussion = useCallback(
+    async (playerId: string) => {
+      if (!roomId) return;
+      const payload = { [`roleAcks.${playerId}`]: true };
+      await gameStorage.updateRoomGameState(roomId, payload as never);
+    },
+    [roomId]
+  );
 
   const ladyInspect = useCallback(
     async (targetId: string) => {
@@ -494,11 +515,12 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     if (!roomId || !state || !state.ladyTargetId) return;
     const newHistory = [...state.ladyHistory, state.ladyHolderId!].filter(Boolean) as string[];
     await writeState({
-      phase: 'team-build',
+      phase: 'discussion',
       ladyHolderId: state.ladyTargetId,
       ladyHistory: newHistory,
       ladyTargetId: null,
       ladyShownCard: null,
+      roleAcks: {},
       phaseStartedAt: Date.now(),
     });
   }, [roomId, state, writeState]);
@@ -543,6 +565,8 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     playQuestCard,
     resolveQuest,
     proceedAfterQuestResult,
+    proceedAfterDiscussion,
+    ackDiscussion,
     ladyInspect,
     ladyShow,
     ladyFinish,
@@ -552,7 +576,7 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
 
 export function defaultAvalonConfig(): AvalonRoomConfig {
   return {
-    optionalRoles: [AvalonRole.Morgana],
+    optionalRoles: [],
     useLadyOfLake: false,
   };
 }

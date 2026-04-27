@@ -39,6 +39,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     playQuestCard,
     resolveQuest,
     proceedAfterQuestResult,
+    proceedAfterDiscussion,
+    ackDiscussion,
     ladyInspect,
     ladyShow,
     ladyFinish,
@@ -211,6 +213,21 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     const t = setTimeout(() => proceedAfterQuestResult(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
   }, [state, proceedAfterQuestResult]);
+
+  // Auto-progression: discussion → team-build (all-ack or 10-min timeout)
+  useEffect(() => {
+    if (!state || state.phase !== 'discussion') return;
+    const ackCount = Object.keys(state.roleAcks ?? {}).length;
+    const allAcked = ackCount >= playerCount && playerCount > 0;
+    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
+    const remaining = PHASE_TIMEOUTS_MS['discussion'] - elapsed;
+    if (allAcked || remaining <= 0) {
+      proceedAfterDiscussion();
+      return;
+    }
+    const t = setTimeout(() => proceedAfterDiscussion(), Math.max(500, remaining + 250));
+    return () => clearTimeout(t);
+  }, [state, playerCount, proceedAfterDiscussion]);
 
   const handleLeave = useCallback(async () => {
     if (confirm('Rời phòng?')) {
@@ -420,6 +437,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           onAssassinate={assassinate}
           onShowMyRole={() => setShowMyRoleCard(true)}
           onAckRole={() => ackRole(playerId)}
+          onAckDiscussion={() => ackDiscussion(playerId)}
         />
         {isHost && (
           <div className="fixed bottom-0 inset-x-0 z-20 px-4 pb-safe pt-2 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent">
@@ -485,6 +503,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         onAssassinate={assassinate}
         onShowMyRole={() => setShowMyRoleCard(true)}
         onAckRole={() => ackRole(playerId)}
+        onAckDiscussion={() => ackDiscussion(playerId)}
       />
       {showMyRoleCard && (
         <RoleCard role={myRole} onClose={() => setShowMyRoleCard(false)} />

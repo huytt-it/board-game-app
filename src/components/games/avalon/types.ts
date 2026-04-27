@@ -24,6 +24,7 @@ export type AvalonPhase =
   | 'team-vote-result'
   | 'quest-play'
   | 'quest-result'
+  | 'discussion'
   | 'lady-of-lake'
   | 'assassinate'
   | 'end';
@@ -80,6 +81,7 @@ export const PHASE_TIMEOUTS_MS: Record<AvalonPhase, number> = {
   'team-vote-result': 8_000,
   'quest-play': 120_000,
   'quest-result': 8_000,
+  'discussion': 600_000,
   'lady-of-lake': 0,
   'assassinate': 0,
   'end': 0,

@@ -8,6 +8,7 @@ import {
   ROLE_NAMES_VI,
   ROLE_TEAM,
   TEAM_NAME_VI,
+  questNeedsTwoFails,
 } from './constants';
 import QuestTrack from './QuestTrack';
 import VoteTrack from './VoteTrack';
@@ -27,6 +28,7 @@ interface PlayerPanelProps {
   onAssassinate: (targetId: string) => void;
   onShowMyRole: () => void;
   onAckRole: () => void;
+  onAckDiscussion: () => void;
 }
 
 export default function PlayerPanel(props: PlayerPanelProps) {
@@ -50,173 +52,325 @@ export default function PlayerPanel(props: PlayerPanelProps) {
 
   return (
     <div
-      className={`flex flex-col min-h-dvh max-w-lg mx-auto ${isGood
+      className={`min-h-dvh ${isGood
         ? 'bg-gradient-to-b from-blue-950/40 via-slate-950 to-slate-950'
         : 'bg-gradient-to-b from-red-950/40 via-slate-950 to-slate-950'
         }`}
     >
-      <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-md border-b border-white/10">
-        <div className="flex items-center gap-2 px-4 py-2.5">
-          <PhaseChip phase={state.phase} />
-          <span className="text-xs text-slate-500">Quest {state.currentQuest + 1}/5</span>
-          <div className="ml-auto">
-            <VoteTrack rejectStreak={state.voteRejectStreak} />
-          </div>
-        </div>
+      <div className="lg:grid lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] lg:gap-4 lg:max-w-6xl lg:mx-auto lg:px-4">
 
-        {myRole && myTeam && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal' && (
-          <button
-            onClick={onShowMyRole}
-            className={`w-full flex items-center gap-3 px-4 py-2.5 border-t active:opacity-75 ${isGood ? 'bg-blue-950/40 border-blue-500/20' : 'bg-red-950/40 border-red-500/20'
-              }`}
-          >
-            <span className="text-2xl shrink-0">{ROLE_ICONS[myRole]}</span>
-            <div className="flex-1 min-w-0 text-left">
-              <span className="block text-sm font-black text-white truncate">{myRole}</span>
-              <span className="block text-[11px] text-slate-400 leading-none">{ROLE_NAMES_VI[myRole]}</span>
-            </div>
-            <span
-              className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${isGood ? 'bg-blue-500/20 text-blue-300' : 'bg-red-500/20 text-red-300'
-                }`}
-            >
-              {TEAM_NAME_VI[myTeam]}
-            </span>
-            <span className="text-[10px] text-slate-600">ⓘ</span>
-          </button>
-        )}
-
-        {isLeader && state.phase !== 'role-reveal' && state.phase !== 'end' && (
-          <div className="bg-amber-500/10 border-t border-amber-500/30 px-4 py-1.5 text-center">
-            <span className="text-xs font-black text-amber-300">👑 Bạn là Leader</span>
-          </div>
-        )}
-      </div>
-
-      <div className="flex-1 overflow-y-auto px-4 py-4 pb-safe space-y-4">
-        {state.phase !== 'lineup-preview' && (
-          <QuestTrack
-            quests={state.quests}
-            currentQuest={state.currentQuest}
-            playerCount={playerCount}
+        <aside className="hidden lg:block sticky top-0 self-start max-h-dvh overflow-y-auto py-4">
+          <PlayerRoster
+            gamePlayers={gamePlayers}
+            state={state}
+            myPlayerId={myPlayer.id}
+            showVoteStatus={state.phase === 'team-vote'}
+            title="Danh sách người chơi"
             compact
           />
-        )}
+        </aside>
 
-        {state.phase === 'lineup-preview' && (
-          <LineupPreviewSection
-            state={state}
-            myPlayer={myPlayer}
-            gamePlayers={gamePlayers}
-            onAckRole={props.onAckRole}
+        <div className="flex flex-col max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-none mx-auto w-full">
+          <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-md border-b border-white/10">
+            <div className="flex items-center gap-2 px-4 py-2.5">
+              <PhaseChip phase={state.phase} />
+              <span className="text-xs text-slate-500">Quest {state.currentQuest + 1}/5</span>
+              <div className="ml-auto">
+                <VoteTrack rejectStreak={state.voteRejectStreak} />
+              </div>
+            </div>
+
+            {myRole && myTeam && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal' && (
+              <button
+                onClick={onShowMyRole}
+                className={`w-full flex items-center gap-3 px-4 py-2.5 border-t active:opacity-75 ${isGood ? 'bg-blue-950/40 border-blue-500/20' : 'bg-red-950/40 border-red-500/20'
+                  }`}
+              >
+                <span className="text-2xl shrink-0">{ROLE_ICONS[myRole]}</span>
+                <div className="flex-1 min-w-0 text-left">
+                  <span className="block text-sm font-black text-white truncate">{myRole}</span>
+                  <span className="block text-[11px] text-slate-400 leading-none">{ROLE_NAMES_VI[myRole]}</span>
+                </div>
+                <span
+                  className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${isGood ? 'bg-blue-500/20 text-blue-300' : 'bg-red-500/20 text-red-300'
+                    }`}
+                >
+                  {TEAM_NAME_VI[myTeam]}
+                </span>
+                <span className="text-[10px] text-slate-600">ⓘ</span>
+              </button>
+            )}
+
+            {isLeader && state.phase !== 'role-reveal' && state.phase !== 'end' && (
+              <div className="bg-amber-500/10 border-t border-amber-500/30 px-4 py-1.5 text-center">
+                <span className="text-xs font-black text-amber-300">👑 Bạn là Leader</span>
+              </div>
+            )}
+          </div>
+
+          <div className="flex-1 overflow-y-auto px-4 py-4 pb-safe space-y-4">
+            {state.phase !== 'lineup-preview' && (
+              <QuestTrack
+                quests={state.quests}
+                currentQuest={state.currentQuest}
+                playerCount={playerCount}
+                players={gamePlayers}
+                compact
+              />
+            )}
+
+            {(state.phase === 'team-build' ||
+              state.phase === 'team-vote' ||
+              state.phase === 'quest-play') &&
+              questNeedsTwoFails(playerCount, state.currentQuest) && (
+                <div className="rounded-2xl border-2 border-rose-500/50 bg-rose-500/10 p-3 flex items-start gap-3">
+                  <span className="text-2xl shrink-0 leading-none">⚠️</span>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-black text-rose-200 uppercase tracking-wider">
+                      Quest {state.currentQuest + 1} — Luật đặc biệt
+                    </p>
+                    <p className="mt-1 text-xs text-slate-200 leading-relaxed">
+                      Cần <strong className="text-rose-300">≥ 2 lá Phe Ác</strong> để Quest này thất bại.
+                      1 lá Phe Ác đơn lẻ vẫn coi như Phe Thiện thắng Quest.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+            {state.phase === 'lineup-preview' && (
+              <LineupPreviewSection
+                state={state}
+                myPlayer={myPlayer}
+                gamePlayers={gamePlayers}
+                onAckRole={props.onAckRole}
+              />
+            )}
+
+            {state.phase === 'role-reveal' && (
+              <RoleRevealWaitingSection
+                state={state}
+                myPlayer={myPlayer}
+                gamePlayers={gamePlayers}
+                onShowMyRole={onShowMyRole}
+              />
+            )}
+
+            {state.phase === 'night-evils' && (
+              <NightEvilsSection
+                state={state}
+                myPlayer={myPlayer}
+                myRole={myRole}
+                myTeam={myTeam}
+                gamePlayers={gamePlayers}
+                onAckRole={props.onAckRole}
+              />
+            )}
+
+            {state.phase === 'night-merlin' && (
+              <NightMerlinSection
+                state={state}
+                myPlayer={myPlayer}
+                myRole={myRole}
+                gamePlayers={gamePlayers}
+                onAckRole={props.onAckRole}
+              />
+            )}
+
+            {state.phase === 'night-percival' && (
+              <NightPercivalSection
+                state={state}
+                myPlayer={myPlayer}
+                myRole={myRole}
+                gamePlayers={gamePlayers}
+                onAckRole={props.onAckRole}
+              />
+            )}
+
+            {state.phase === 'team-build' && (
+              <TeamBuildSection
+                isLeader={isLeader}
+                state={state}
+                gamePlayers={gamePlayers}
+                teamSize={teamSize}
+                myPlayerId={myPlayer.id}
+                onProposedTeamChange={props.onProposedTeamChange}
+                onSubmitTeam={props.onSubmitTeam}
+              />
+            )}
+
+            {state.phase === 'team-vote' && (
+              <TeamVoteSection
+                state={state}
+                myPlayer={myPlayer}
+                gamePlayers={gamePlayers}
+                onCastVote={props.onCastVote}
+              />
+            )}
+
+            {state.phase === 'team-vote-result' && (
+              <TeamVoteResultSection
+                state={state}
+                gamePlayers={gamePlayers}
+              />
+            )}
+
+            {state.phase === 'quest-play' && (
+              <QuestPlaySection
+                state={state}
+                myPlayer={myPlayer}
+                myTeam={myTeam}
+                onTeam={onTeam}
+                gamePlayers={gamePlayers}
+                onPlayQuestCard={props.onPlayQuestCard}
+              />
+            )}
+
+            {state.phase === 'quest-result' && (
+              <QuestResultSection state={state} playerCount={playerCount} />
+            )}
+
+            {state.phase === 'discussion' && (
+              <DiscussionSection
+                state={state}
+                myPlayer={myPlayer}
+                gamePlayers={gamePlayers}
+                onAckDiscussion={props.onAckDiscussion}
+              />
+            )}
+
+            {state.phase === 'lady-of-lake' && (
+              <LadySection
+                state={state}
+                myPlayer={myPlayer}
+                myTeam={myTeam}
+                gamePlayers={gamePlayers}
+                onLadyInspect={props.onLadyInspect}
+                onLadyShow={props.onLadyShow}
+                onLadyFinish={props.onLadyFinish}
+              />
+            )}
+
+            {state.phase === 'assassinate' && (
+              <AssassinSection
+                state={state}
+                myPlayer={myPlayer}
+                myRole={myRole}
+                gamePlayers={gamePlayers}
+                onAssassinate={props.onAssassinate}
+              />
+            )}
+
+            {state.phase === 'end' && (
+              <EndSection state={state} myRole={myRole} gamePlayers={gamePlayers} />
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function DiscussionSection({
+  state,
+  myPlayer,
+  gamePlayers,
+  onAckDiscussion,
+}: {
+  state: AvalonGameState;
+  myPlayer: Player;
+  gamePlayers: Player[];
+  onAckDiscussion: () => void;
+}) {
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+
+  const TIMEOUT_MS = PHASE_TIMEOUTS_MS['discussion'];
+  const elapsed = now - (state.phaseStartedAt ?? now);
+  const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+  const mins = Math.floor(remaining / 60000);
+  const secs = Math.floor((remaining % 60000) / 1000);
+  const timeStr = `${mins}:${String(secs).padStart(2, '0')}`;
+
+  const ackedIds = Object.keys(state.roleAcks ?? {});
+  const myAcked = ackedIds.includes(myPlayer.id);
+  const ackCount = ackedIds.length;
+  const total = gamePlayers.length;
+  const allAcked = ackCount >= total && total > 0;
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/10 p-5 text-center">
+        <p className="text-[11px] uppercase font-black text-emerald-300 mb-2 tracking-widest">
+          💬 Thảo luận trước Quest {state.currentQuest + 1}
+        </p>
+        <div className={`text-5xl font-black mb-2 ${remaining < 60_000 ? 'text-amber-300' : 'text-white'}`}>
+          {timeStr}
+        </div>
+        <p className="text-xs text-slate-300">
+          Thời gian thảo luận tối đa <strong className="text-white">10 phút</strong>.
+          Khi tất cả nhấn <strong className="text-emerald-300">Sẵn sàng</strong>, sẽ vào ngay{' '}
+          <strong>Quest {state.currentQuest + 1}</strong>.
+        </p>
+      </div>
+
+      {!myAcked ? (
+        <button
+          onClick={onAckDiscussion}
+          className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-4 text-base font-black text-white hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] shadow-lg shadow-emerald-500/30"
+        >
+          ✓ Tôi sẵn sàng — Bỏ qua thảo luận
+        </button>
+      ) : (
+        <button
+          disabled
+          className="w-full rounded-2xl border border-emerald-400/40 bg-emerald-500/10 py-4 text-base font-black text-emerald-200"
+        >
+          ✓ Bạn đã sẵn sàng — Chờ những người còn lại
+        </button>
+      )}
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+        <div className="flex items-center justify-between mb-2 px-1">
+          <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">
+            Sẵn sàng kết thúc thảo luận
+          </span>
+          <span className="text-sm font-black text-white">
+            {ackCount} / {total}
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-emerald-500 to-teal-500 transition-all duration-500"
+            style={{ width: `${total > 0 ? (ackCount / total) * 100 : 0}%` }}
           />
-        )}
-
-        {state.phase === 'role-reveal' && (
-          <RoleRevealWaitingSection
-            state={state}
-            myPlayer={myPlayer}
-            gamePlayers={gamePlayers}
-            onShowMyRole={onShowMyRole}
-          />
-        )}
-
-        {state.phase === 'night-evils' && (
-          <NightEvilsSection
-            state={state}
-            myPlayer={myPlayer}
-            myRole={myRole}
-            myTeam={myTeam}
-            gamePlayers={gamePlayers}
-            onAckRole={props.onAckRole}
-          />
-        )}
-
-        {state.phase === 'night-merlin' && (
-          <NightMerlinSection
-            state={state}
-            myPlayer={myPlayer}
-            myRole={myRole}
-            gamePlayers={gamePlayers}
-            onAckRole={props.onAckRole}
-          />
-        )}
-
-        {state.phase === 'night-percival' && (
-          <NightPercivalSection
-            state={state}
-            myPlayer={myPlayer}
-            myRole={myRole}
-            gamePlayers={gamePlayers}
-            onAckRole={props.onAckRole}
-          />
-        )}
-
-        {state.phase === 'team-build' && (
-          <TeamBuildSection
-            isLeader={isLeader}
-            state={state}
-            gamePlayers={gamePlayers}
-            teamSize={teamSize}
-            onProposedTeamChange={props.onProposedTeamChange}
-            onSubmitTeam={props.onSubmitTeam}
-          />
-        )}
-
-        {state.phase === 'team-vote' && (
-          <TeamVoteSection
-            state={state}
-            myPlayer={myPlayer}
-            gamePlayers={gamePlayers}
-            onCastVote={props.onCastVote}
-          />
-        )}
-
-        {state.phase === 'team-vote-result' && (
-          <TeamVoteResultSection
-            state={state}
-            gamePlayers={gamePlayers}
-          />
-        )}
-
-        {state.phase === 'quest-play' && (
-          <QuestPlaySection
-            state={state}
-            myPlayer={myPlayer}
-            myTeam={myTeam}
-            onTeam={onTeam}
-            gamePlayers={gamePlayers}
-            onPlayQuestCard={props.onPlayQuestCard}
-          />
-        )}
-
-        {state.phase === 'quest-result' && (
-          <QuestResultSection state={state} playerCount={playerCount} />
-        )}
-
-        {state.phase === 'lady-of-lake' && (
-          <LadySection
-            state={state}
-            myPlayer={myPlayer}
-            myTeam={myTeam}
-            gamePlayers={gamePlayers}
-            onLadyInspect={props.onLadyInspect}
-            onLadyShow={props.onLadyShow}
-            onLadyFinish={props.onLadyFinish}
-          />
-        )}
-
-        {state.phase === 'assassinate' && (
-          <AssassinSection
-            state={state}
-            myPlayer={myPlayer}
-            myRole={myRole}
-            gamePlayers={gamePlayers}
-            onAssassinate={props.onAssassinate}
-          />
-        )}
-
-        {state.phase === 'end' && (
-          <EndSection state={state} myRole={myRole} gamePlayers={gamePlayers} />
+        </div>
+        <div className="mt-3 grid grid-cols-2 gap-1.5">
+          {gamePlayers.map((p) => {
+            const acked = ackedIds.includes(p.id);
+            return (
+              <div
+                key={p.id}
+                className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 ${acked
+                  ? 'border-emerald-500/40 bg-emerald-500/10'
+                  : 'border-white/10 bg-white/5'
+                  }`}
+              >
+                <span className="text-base shrink-0">{acked ? '✅' : '💬'}</span>
+                <span className="text-xs font-bold text-white truncate flex-1">
+                  {p.name}
+                  {p.id === myPlayer.id && <span className="text-blue-300"> (bạn)</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+        {allAcked && (
+          <p className="mt-2 text-[11px] text-emerald-300 text-center font-bold">
+            Tất cả sẵn sàng — đang chuyển sang Quest...
+          </p>
         )}
       </div>
     </div>
@@ -235,6 +389,7 @@ function PhaseChip({ phase }: { phase: AvalonGameState['phase'] }) {
     'team-vote-result': { emoji: '📊', text: 'Kết quả phiếu', cls: 'bg-cyan-500/20 text-cyan-300' },
     'quest-play': { emoji: '🎴', text: 'Chơi Quest', cls: 'bg-purple-500/20 text-purple-300' },
     'quest-result': { emoji: '📜', text: 'Kết quả Quest', cls: 'bg-purple-500/20 text-purple-300' },
+    'discussion': { emoji: '💬', text: 'Thảo luận', cls: 'bg-emerald-500/20 text-emerald-300' },
     'lady-of-lake': { emoji: '🌊', text: 'Lady', cls: 'bg-cyan-500/20 text-cyan-300' },
     assassinate: { emoji: '🗡️', text: 'Ám sát', cls: 'bg-red-500/20 text-red-300' },
     end: { emoji: '🏁', text: 'Kết thúc', cls: 'bg-slate-500/20 text-slate-300' },
@@ -271,6 +426,254 @@ function TokenBadges({
           🌊 Lady
         </span>
       )}
+    </div>
+  );
+}
+
+interface RosterMark {
+  type:
+  | 'leader'
+  | 'lady-holder'
+  | 'lady-target'
+  | 'team-member'
+  | 'me'
+  | 'was-leader'
+  | 'was-lady'
+  | 'voted'
+  | 'not-voted'
+  | 'quest-history';
+  className: string;
+  label: string;
+  key?: string;
+}
+
+function deriveAutoHighlight(state: AvalonGameState): {
+  ids: string[];
+  emphasis: 'team' | 'lady' | 'none';
+} {
+  const teamPhases: AvalonGameState['phase'][] = [
+    'team-build',
+    'team-vote',
+    'team-vote-result',
+    'quest-play',
+    'quest-result',
+  ];
+  if (teamPhases.includes(state.phase)) {
+    return { ids: state.proposedTeam, emphasis: 'team' };
+  }
+  if (state.phase === 'lady-of-lake') {
+    return {
+      ids: state.ladyTargetId ? [state.ladyTargetId] : [],
+      emphasis: 'lady',
+    };
+  }
+  return { ids: [], emphasis: 'none' };
+}
+
+function buildRosterMarks(
+  playerId: string,
+  state: AvalonGameState,
+  myPlayerId: string,
+  options: {
+    showProposedTeam?: boolean;
+    showLadyTarget?: boolean;
+    showVoteStatus?: boolean;
+  } = {}
+): RosterMark[] {
+  const marks: RosterMark[] = [];
+  if (state.currentLeaderId === playerId) {
+    marks.push({
+      type: 'leader',
+      className: 'bg-amber-500/30 border border-amber-400/50 text-amber-100',
+      label: '👑 Leader',
+    });
+  }
+  if (state.ladyHolderId === playerId) {
+    marks.push({
+      type: 'lady-holder',
+      className: 'bg-cyan-500/30 border border-cyan-400/50 text-cyan-100',
+      label: '🌊 Lady',
+    });
+  }
+  if (options.showProposedTeam && state.proposedTeam.includes(playerId)) {
+    marks.push({
+      type: 'team-member',
+      className: 'bg-orange-500/30 border border-orange-400/50 text-orange-100',
+      label: '✓ Đề cử',
+    });
+  }
+  if (options.showLadyTarget && state.ladyTargetId === playerId) {
+    marks.push({
+      type: 'lady-target',
+      className: 'bg-fuchsia-500/30 border border-fuchsia-400/50 text-fuchsia-100',
+      label: '🎯 Bị soi',
+    });
+  }
+  if (options.showVoteStatus) {
+    const voted = state.teamVotes && state.teamVotes[playerId];
+    if (voted) {
+      marks.push({
+        type: 'voted',
+        className: 'bg-emerald-500/30 border border-emerald-400/50 text-emerald-100',
+        label: '✓ Đã bầu',
+      });
+    } else {
+      marks.push({
+        type: 'not-voted',
+        className: 'bg-slate-500/20 border border-slate-400/30 text-slate-300',
+        label: '⏳ Chưa bầu',
+      });
+    }
+  }
+  if (playerId === myPlayerId) {
+    marks.push({
+      type: 'me',
+      className: 'bg-blue-500/20 border border-blue-400/40 text-blue-200',
+      label: 'Bạn',
+    });
+  }
+  return marks;
+}
+
+function buildHistoryMarks(playerId: string, state: AvalonGameState): RosterMark[] {
+  const marks: RosterMark[] = [];
+
+  // Quest participation history with outcome
+  state.quests.forEach((q, idx) => {
+    if (q.result !== null && q.teamIds.includes(playerId)) {
+      const success = q.result === 'success';
+      marks.push({
+        type: 'quest-history',
+        key: `quest-${idx}`,
+        className: success
+          ? 'bg-blue-500/15 border border-blue-400/30 text-blue-200'
+          : 'bg-red-500/15 border border-red-400/30 text-red-200',
+        label: `Q${idx + 1}${success ? '✓' : '✕'}`,
+      });
+    }
+  });
+
+  // Was Lady (in history but not current holder)
+  if (state.ladyHistory.includes(playerId) && state.ladyHolderId !== playerId) {
+    marks.push({
+      type: 'was-lady',
+      className: 'bg-cyan-500/10 border border-cyan-400/25 text-cyan-300',
+      label: '🌊 đã cầm',
+    });
+  }
+
+  // Was Leader (in leadersUsed but not current)
+  if (
+    (state.leadersUsed ?? []).includes(playerId) &&
+    state.currentLeaderId !== playerId
+  ) {
+    marks.push({
+      type: 'was-leader',
+      className: 'bg-amber-500/10 border border-amber-400/25 text-amber-300',
+      label: '👑 đã làm',
+    });
+  }
+
+  return marks;
+}
+
+function PlayerRoster({
+  gamePlayers,
+  state,
+  myPlayerId,
+  highlightedIds,
+  showLadyTarget,
+  showVoteStatus = false,
+  title = 'Danh sách người chơi',
+  emphasis,
+  showHistory = true,
+  compact = false,
+}: {
+  gamePlayers: Player[];
+  state: AvalonGameState;
+  myPlayerId: string;
+  highlightedIds?: string[];
+  showLadyTarget?: boolean;
+  showVoteStatus?: boolean;
+  title?: string;
+  emphasis?: 'team' | 'lady' | 'none';
+  showHistory?: boolean;
+  compact?: boolean;
+}) {
+  const auto = deriveAutoHighlight(state);
+  const finalIds = highlightedIds ?? auto.ids;
+  const finalEmphasis = emphasis ?? auto.emphasis;
+  const autoLadyTarget = state.phase === 'lady-of-lake';
+  const finalShowLadyTarget = showLadyTarget ?? autoLadyTarget;
+
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+      <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-2 px-1">
+        {title}
+      </p>
+      <div className={`grid gap-2 ${compact ? 'grid-cols-1' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-1'}`}>
+        {gamePlayers.map((p) => {
+          const isHighlighted = finalIds.includes(p.id);
+          const liveMarks = buildRosterMarks(p.id, state, myPlayerId, {
+            showProposedTeam: finalEmphasis === 'team' && !isHighlighted,
+            showLadyTarget: finalShowLadyTarget,
+            showVoteStatus,
+          });
+          const historyMarks = showHistory ? buildHistoryMarks(p.id, state) : [];
+          const highlightCls =
+            isHighlighted && finalEmphasis === 'team'
+              ? 'border-orange-400/60 bg-orange-500/15 ring-1 ring-orange-400/40 shadow shadow-orange-500/20'
+              : isHighlighted && finalEmphasis === 'lady'
+                ? 'border-fuchsia-400/60 bg-fuchsia-500/15 ring-1 ring-fuchsia-400/40 shadow shadow-fuchsia-500/20'
+                : 'border-white/10 bg-white/5';
+          return (
+            <div
+              key={p.id}
+              className={`rounded-xl border p-2 transition-all ${highlightCls}`}
+            >
+              <div className="flex items-center gap-2 min-w-0">
+                <div
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white ${isHighlighted && finalEmphasis === 'team'
+                    ? 'bg-gradient-to-br from-orange-500 to-amber-500'
+                    : isHighlighted && finalEmphasis === 'lady'
+                      ? 'bg-gradient-to-br from-fuchsia-500 to-purple-500'
+                      : 'bg-gradient-to-br from-purple-500 to-cyan-500'
+                    }`}
+                >
+                  {p.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="text-xs font-bold text-white truncate flex-1 min-w-0">
+                  {p.name}
+                </span>
+              </div>
+              {liveMarks.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1">
+                  {liveMarks.map((m) => (
+                    <span
+                      key={m.key ?? m.type}
+                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
+                    >
+                      {m.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+              {historyMarks.length > 0 && (
+                <div className="mt-1 flex flex-wrap gap-1 opacity-90">
+                  {historyMarks.map((m) => (
+                    <span
+                      key={m.key ?? m.type}
+                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${m.className}`}
+                    >
+                      {m.label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
@@ -970,6 +1373,7 @@ function TeamBuildSection({
   state,
   gamePlayers,
   teamSize,
+  myPlayerId,
   onProposedTeamChange,
   onSubmitTeam,
 }: {
@@ -977,6 +1381,7 @@ function TeamBuildSection({
   state: AvalonGameState;
   gamePlayers: Player[];
   teamSize: number;
+  myPlayerId: string;
   onProposedTeamChange: (ids: string[]) => void;
   onSubmitTeam: () => void;
 }) {
@@ -984,34 +1389,51 @@ function TeamBuildSection({
   const team = state.proposedTeam;
 
   if (!isLeader) {
+    const emptySlots = Math.max(0, teamSize - team.length);
     return (
-      <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-5">
-        <p className="text-xs font-bold text-amber-300 mb-2">⚔️ ĐANG CHỌN ĐỘI</p>
-        <p className="text-sm text-slate-300 mb-3">
-          Leader <span className="font-black text-white">{leader?.name ?? '?'}</span> đang chọn{' '}
-          <span className="font-black text-amber-300">{teamSize} người</span> cho Quest{' '}
-          {state.currentQuest + 1}.
-        </p>
-        {team.length > 0 && (
-          <>
-            <p className="text-[10px] uppercase font-bold text-slate-500 mb-2">
-              Đội đang được chọn ({team.length}/{teamSize})
-            </p>
-            <div className="flex flex-wrap gap-1.5">
-              {team.map((id) => {
-                const p = gamePlayers.find((pp) => pp.id === id);
-                return (
-                  <span
-                    key={id}
-                    className="rounded-full bg-amber-500/20 px-2.5 py-1 text-xs font-bold text-amber-200"
-                  >
-                    {p?.name ?? '?'}
-                  </span>
-                );
-              })}
-            </div>
-          </>
-        )}
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 sm:p-5">
+          <p className="text-xs font-bold text-amber-300 mb-2">⚔️ ĐANG CHỌN ĐỘI — QUEST {state.currentQuest + 1}</p>
+          <p className="text-sm text-slate-300 mb-3">
+            Leader <span className="font-black text-white">{leader?.name ?? '?'}</span> đang chọn{' '}
+            <span className="font-black text-amber-300">{teamSize} người tham gia</span>.
+          </p>
+          <p className="text-[10px] uppercase font-bold text-slate-500 mb-2">
+            Đội đang được chọn ({team.length}/{teamSize})
+          </p>
+          <div className="flex flex-wrap gap-1.5">
+            {team.map((id) => {
+              const p = gamePlayers.find((pp) => pp.id === id);
+              return (
+                <span
+                  key={id}
+                  className="rounded-full bg-amber-500/25 border border-amber-400/40 px-2.5 py-1 text-xs font-black text-amber-100"
+                >
+                  ✓ {p?.name ?? '?'}
+                </span>
+              );
+            })}
+            {Array.from({ length: emptySlots }).map((_, i) => (
+              <span
+                key={`empty-${i}`}
+                className="rounded-full border border-dashed border-amber-500/30 bg-amber-500/5 px-2.5 py-1 text-xs font-bold text-amber-300/60"
+              >
+                ⬚ trống
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="lg:hidden">
+          <PlayerRoster
+            gamePlayers={gamePlayers}
+            state={state}
+            myPlayerId={myPlayerId}
+            highlightedIds={team}
+            title="Tất cả người chơi (highlight = đang được đề cử)"
+            emphasis="team"
+          />
+        </div>
       </div>
     );
   }
@@ -1120,6 +1542,32 @@ function TeamVoteSection({
         </p>
       </div>
 
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+        <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-2 px-1">
+          Tiến độ bầu phiếu (không lộ ai bầu thế nào)
+        </p>
+        <div className="grid grid-cols-2 gap-1.5">
+          {gamePlayers.map((p) => {
+            const voted = !!state.teamVotes[p.id];
+            return (
+              <div
+                key={p.id}
+                className={`flex items-center gap-2 rounded-lg border px-2 py-1.5 ${voted
+                  ? 'border-emerald-500/40 bg-emerald-500/10'
+                  : 'border-amber-500/30 bg-amber-500/5'
+                  }`}
+              >
+                <span className="text-base shrink-0">{voted ? '✅' : '⏳'}</span>
+                <span className="text-xs font-bold text-white truncate flex-1">
+                  {p.name}
+                  {p.id === myPlayer.id && <span className="text-blue-300"> (bạn)</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
       {!myVote ? (
         <div className="grid grid-cols-2 gap-3">
           <button
@@ -1154,6 +1602,18 @@ function TeamVoteSection({
           <p className="mt-2 text-xs text-slate-400">Chờ Leader lật phiếu...</p>
         </div>
       )}
+
+      <div className="lg:hidden">
+        <PlayerRoster
+          gamePlayers={gamePlayers}
+          state={state}
+          myPlayerId={myPlayer.id}
+          highlightedIds={state.proposedTeam}
+          showVoteStatus
+          title="Tất cả người chơi (✓ = đã bầu, ⏳ = chưa bầu)"
+          emphasis="team"
+        />
+      </div>
     </div>
   );
 }
@@ -1178,22 +1638,35 @@ function QuestPlaySection({
 
   if (!onTeam) {
     return (
-      <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-5 text-center">
-        <p className="text-[11px] uppercase font-bold text-purple-300 mb-2">⚔️ Đội đang chơi Quest</p>
-        <div className="flex flex-wrap gap-2 justify-center mb-3">
-          {team.map((p) => (
-            <span
-              key={p.id}
-              className="rounded-full bg-amber-500/20 px-3 py-1.5 text-sm font-bold text-amber-200"
-            >
-              {p.name}
-            </span>
-          ))}
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-5 text-center">
+          <p className="text-[11px] uppercase font-bold text-purple-300 mb-2">⚔️ Đội đang chơi Quest</p>
+          <div className="flex flex-wrap gap-2 justify-center mb-3">
+            {team.map((p) => (
+              <span
+                key={p.id}
+                className="rounded-full bg-amber-500/20 px-3 py-1.5 text-sm font-bold text-amber-200"
+              >
+                {p.name}
+              </span>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400">
+            Bạn không trong đội — chờ kết quả...
+          </p>
+          <div className="mt-3 text-3xl animate-pulse">⏳</div>
         </div>
-        <p className="text-xs text-slate-400">
-          Bạn không trong đội — chờ kết quả...
-        </p>
-        <div className="mt-3 text-3xl animate-pulse">⏳</div>
+
+        <div className="lg:hidden">
+          <PlayerRoster
+            gamePlayers={gamePlayers}
+            state={state}
+            myPlayerId={myPlayer.id}
+            highlightedIds={state.proposedTeam}
+            title="Tất cả người chơi (highlight = đang đi Quest)"
+            emphasis="team"
+          />
+        </div>
       </div>
     );
   }
@@ -1539,14 +2012,27 @@ function LadySection({
 
     if (state.ladyTargetId) {
       return (
-        <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-5 text-center">
-          <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">
-            🌊 Đang chờ {target?.name} chọn lá...
-          </p>
-          <p className="text-sm text-slate-300 mb-3">
-            {target?.name} đang xem màn hình của họ và quyết định hiện lá nào cho bạn.
-          </p>
-          <div className="text-3xl animate-pulse">⏳</div>
+        <div className="space-y-3">
+          <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-5 text-center">
+            <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">
+              🌊 Đang chờ {target?.name} chọn lá...
+            </p>
+            <p className="text-sm text-slate-300 mb-3">
+              {target?.name} đang xem màn hình của họ và quyết định hiện lá nào cho bạn.
+            </p>
+            <div className="text-3xl animate-pulse">⏳</div>
+          </div>
+          <div className="lg:hidden">
+            <PlayerRoster
+              gamePlayers={gamePlayers}
+              state={state}
+              myPlayerId={myPlayer.id}
+              highlightedIds={state.ladyTargetId ? [state.ladyTargetId] : []}
+              showLadyTarget
+              title="Tất cả người chơi (highlight = bị soi)"
+              emphasis="lady"
+            />
+          </div>
         </div>
       );
     }
@@ -1560,7 +2046,7 @@ function LadySection({
     return (
       <div className="rounded-2xl border border-cyan-500/40 bg-cyan-500/5 p-4">
         <p className="text-[11px] uppercase font-black text-cyan-300 mb-1">🌊 Lady of the Lake</p>
-        <h3 className="text-base font-black text-white mb-1">Chọn 1 người để soi loyalty</h3>
+        <h3 className="text-base font-black text-white mb-1">Chọn 1 người để soi</h3>
         <p className="text-xs text-slate-400 mb-4">
           Người đã từng cầm token không được soi lại. Sau khi soi, người được soi trở thành Lady kế tiếp.
         </p>
@@ -1586,15 +2072,28 @@ function LadySection({
   }
 
   return (
-    <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-center">
-      <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">🌊 Lady of the Lake</p>
-      <p className="text-sm text-slate-300">
-        <span className="font-black text-white">{holder?.name}</span> đang soi loyalty của 1 người chơi.
-      </p>
-      {target && (
-        <p className="mt-2 text-xs text-slate-400">→ {target.name}</p>
-      )}
-      <div className="mt-3 text-3xl animate-pulse">⏳</div>
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-center">
+        <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">🌊 Lady of the Lake</p>
+        <p className="text-sm text-slate-300">
+          <span className="font-black text-white">{holder?.name}</span> đang soi loyalty của 1 người chơi.
+        </p>
+        {target && (
+          <p className="mt-2 text-xs text-slate-400">→ {target.name}</p>
+        )}
+        <div className="mt-3 text-3xl animate-pulse">⏳</div>
+      </div>
+      <div className="lg:hidden">
+        <PlayerRoster
+          gamePlayers={gamePlayers}
+          state={state}
+          myPlayerId={myPlayer.id}
+          highlightedIds={state.ladyTargetId ? [state.ladyTargetId] : []}
+          showLadyTarget
+          title="Tất cả người chơi (highlight = bị Lady soi)"
+          emphasis="lady"
+        />
+      </div>
     </div>
   );
 }
