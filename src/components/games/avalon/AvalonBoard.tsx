@@ -34,6 +34,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     ackRole,
     setProposedTeam,
     submitTeam,
+    teamBuildTimeoutAdvance,
     castTeamVote,
     resolveTeamVote,
     proceedAfterTeamVoteResult,
@@ -43,9 +44,12 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     proceedAfterDiscussion,
     ackDiscussion,
     ladyInspect,
+    ladyConfirm,
     ladyShow,
     ladyFinish,
+    ladyTimeoutAdvance,
     assassinate,
+    assassinTimeoutAdvance,
   } = useAvalon(room.id, room, players);
 
   const [localRoleSeen, setLocalRoleSeen] = useState(false);
@@ -153,6 +157,21 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     return () => clearTimeout(t);
   }, [state, players, beginTeamBuild]);
 
+  // Auto-progression fallback: team-build → vote (auto-submit) hoặc rotate Leader
+  // sau 60s nếu Leader idle. Chỉ submit khi proposedTeam đủ size, ngược lại
+  // bỏ qua Leader này, xoay sang người kế tiếp clockwise.
+  useEffect(() => {
+    if (!state || state.phase !== 'team-build') return;
+    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
+    const remaining = PHASE_TIMEOUTS_MS['team-build'] - elapsed;
+    if (remaining <= 0) {
+      teamBuildTimeoutAdvance();
+      return;
+    }
+    const t = setTimeout(() => teamBuildTimeoutAdvance(), Math.max(500, remaining + 250));
+    return () => clearTimeout(t);
+  }, [state, teamBuildTimeoutAdvance]);
+
   // Auto-progression: team-vote → resolve (when everyone voted or timeout)
   useEffect(() => {
     if (!state || state.phase !== 'team-vote') return;
@@ -169,19 +188,21 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   }, [state, playerCount, resolveTeamVote]);
 
   // Auto-progression: quest-play → resolve (when team played all or timeout)
+  // Dùng allCardsSynced (đọc questCard per-player) làm nguồn chân lý — tránh
+  // race condition trên array state.questPlayedBy khi nhiều player nộp đồng thời.
   useEffect(() => {
     if (!state || state.phase !== 'quest-play') return;
     const teamSize = state.proposedTeam.length;
-    const playedCount = state.questPlayedBy.length;
-    const allPlayed = teamSize > 0 && playedCount >= teamSize;
-    const allCardsSynced = state.proposedTeam.every((id) => {
-      const p = players.find((pp) => pp.id === id);
-      const card = (p?.gameData as Partial<AvalonGameData> | undefined)?.questCard;
-      return card === 'success' || card === 'fail';
-    });
+    const allCardsSynced =
+      teamSize > 0 &&
+      state.proposedTeam.every((id) => {
+        const p = players.find((pp) => pp.id === id);
+        const card = (p?.gameData as Partial<AvalonGameData> | undefined)?.questCard;
+        return card === 'success' || card === 'fail';
+      });
     const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
     const remaining = PHASE_TIMEOUTS_MS['quest-play'] - elapsed;
-    if ((allPlayed && allCardsSynced) || remaining <= 0) {
+    if (allCardsSynced || remaining <= 0) {
       resolveQuest();
       return;
     }
@@ -230,6 +251,33 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     return () => clearTimeout(t);
   }, [state, playerCount, proceedAfterDiscussion]);
 
+  // Auto-progression fallback: lady-of-lake → discussion (90s timeout)
+  // Holder mất kết nối / không bấm Finish → tự chuyển token (nếu đã pick) hoặc skip.
+  useEffect(() => {
+    if (!state || state.phase !== 'lady-of-lake') return;
+    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
+    const remaining = PHASE_TIMEOUTS_MS['lady-of-lake'] - elapsed;
+    if (remaining <= 0) {
+      ladyTimeoutAdvance();
+      return;
+    }
+    const t = setTimeout(() => ladyTimeoutAdvance(), Math.max(500, remaining + 250));
+    return () => clearTimeout(t);
+  }, [state, ladyTimeoutAdvance]);
+
+  // Auto-progression fallback: assassinate → end (Phe Người thắng nếu Sát Thủ idle 180s)
+  useEffect(() => {
+    if (!state || state.phase !== 'assassinate') return;
+    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
+    const remaining = PHASE_TIMEOUTS_MS['assassinate'] - elapsed;
+    if (remaining <= 0) {
+      assassinTimeoutAdvance();
+      return;
+    }
+    const t = setTimeout(() => assassinTimeoutAdvance(), Math.max(500, remaining + 250));
+    return () => clearTimeout(t);
+  }, [state, assassinTimeoutAdvance]);
+
   const handleLeave = useCallback(async () => {
     if (confirm('Rời phòng?')) {
       await leaveRoom(playerId);
@@ -265,6 +313,19 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       await ackRole(playerId);
     }
   }, [ackRole, playerId]);
+
+  const handleKickPlayer = useCallback(
+    async (targetId: string, targetName: string) => {
+      if (!confirm(`Kick "${targetName}" khỏi phòng?`)) return;
+      try {
+        await gameStorage.removePlayer(room.id, targetId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Không thể kick người chơi';
+        alert(msg);
+      }
+    },
+    [room.id]
+  );
 
   if (room.status === 'lobby') {
     const enoughPlayers = (PLAYER_COUNTS as readonly number[]).includes(playerCount);
@@ -329,7 +390,10 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
               roomCode={room.roomCode}
               maxPlayers={(room.config.maxPlayers as number | undefined) ?? 10}
               minPlayers={5}
-              reserveSeats={Math.max(playerCount, 5)}
+              // Số ghế trên bàn = maxPlayers trong cài đặt phòng. Ghế chưa có
+              // người sẽ hiện dạng dashed "+".
+              reserveSeats={(room.config.maxPlayers as number | undefined) ?? 10}
+              onKick={isHost ? handleKickPlayer : undefined}
             />
             {!enoughPlayers && (
               <p className="mt-3 text-xs text-amber-400 text-center font-bold">
@@ -428,6 +492,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         onCastVote={(v) => castTeamVote(playerId, v)}
         onPlayQuestCard={(c) => playQuestCard(playerId, c)}
         onLadyInspect={ladyInspect}
+        onLadyConfirm={ladyConfirm}
         onLadyShow={ladyShow}
         onLadyFinish={ladyFinish}
         onAssassinate={assassinate}

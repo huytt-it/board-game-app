@@ -877,7 +877,8 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
               roomCode="DEMO42"
               maxPlayers={10}
               minPlayers={5}
-              reserveSeats={Math.max(players.length, 7)}
+              reserveSeats={10}
+              onKick={(_id, name) => alert(`(Demo) Kick "${name}"?`)}
             />
           </div>
         ) : phase === 'role-reveal' ? (
@@ -893,6 +894,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             onCastVote={noop}
             onPlayQuestCard={noop}
             onLadyInspect={noop}
+            onLadyConfirm={stub}
             onLadyShow={noop}
             onLadyFinish={stub}
             onAssassinate={noop}

@@ -22,6 +22,7 @@ interface PlayerPanelProps {
   onCastVote: (vote: TeamVote) => void;
   onPlayQuestCard: (card: QuestCard) => void;
   onLadyInspect: (targetId: string) => void;
+  onLadyConfirm: () => void;
   onLadyShow: (card: 'good' | 'evil') => void;
   onLadyFinish: () => void;
   onAssassinate: (targetId: string) => void;
@@ -224,6 +225,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           myTeam={myTeam}
           gamePlayers={gamePlayers}
           onLadyInspect={props.onLadyInspect}
+          onLadyConfirm={props.onLadyConfirm}
           onLadyShow={props.onLadyShow}
           onLadyFinish={props.onLadyFinish}
         />
@@ -828,128 +830,153 @@ function LineupPreviewSection({
   const lineup = state.roleLineup ?? [];
   const goodRoles = lineup.filter((r) => ROLE_TEAM[r] === 'good');
   const evilRoles = lineup.filter((r) => ROLE_TEAM[r] === 'evil');
+  const leader = gamePlayers.find((p) => p.id === state.currentLeaderId);
+  const lady = gamePlayers.find((p) => p.id === state.ladyHolderId);
 
+  // Đếm số lượng từng role để hiện tổng quan (vd "LoyalServant ×2") —
+  // KHÔNG gắn với player nào, chỉ cho biết ván có những role gì.
   const goodCounts: Record<string, number> = {};
   for (const r of goodRoles) goodCounts[r] = (goodCounts[r] ?? 0) + 1;
   const evilCounts: Record<string, number> = {};
   for (const r of evilRoles) evilCounts[r] = (evilCounts[r] ?? 0) + 1;
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-5 text-center">
-        <p className="text-[11px] uppercase font-black text-fuchsia-300 mb-1 tracking-widest">
-          🎭 Vai trò trong ván này
-        </p>
-        <p className="text-sm text-slate-300">
-          {goodRoles.length} Phe Người · {evilRoles.length} Phe Quỷ
-        </p>
-        <p className="mt-1 text-[11px] text-slate-500">
-          (Vai trò của bạn sẽ được hiện ở bước sau)
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-blue-500/30 bg-blue-900/15 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-base">🛡️</span>
-          <h3 className="text-sm font-black text-blue-200">Phe Người ({goodRoles.length})</h3>
+    <div className="space-y-2.5">
+      {/* Header gọn: tổng quan + đếm ngược inline */}
+      <div className="rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase font-black text-fuchsia-300 tracking-widest">
+            🎭 Các vai trò trong ván
+          </p>
+          <p className="text-xs text-slate-300 mt-0.5">
+            {goodRoles.length} Phe Người · {evilRoles.length} Phe Quỷ
+          </p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(goodCounts).map(([role, count]) => (
-            <RoleLineChip
-              key={role}
-              role={role as AvalonRole}
-              count={count}
-              tone="good"
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-red-500/30 bg-red-900/15 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-base">🗡️</span>
-          <h3 className="text-sm font-black text-red-200">Phe Quỷ ({evilRoles.length})</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(evilCounts).map(([role, count]) => (
-            <RoleLineChip
-              key={role}
-              role={role as AvalonRole}
-              count={count}
-              tone="evil"
-            />
-          ))}
-        </div>
-      </div>
-
-      {!myAcked && (
-        <button
-          onClick={onAckRole}
-          className="w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 to-purple-600 py-4 text-base font-black text-white hover:from-fuchsia-500 hover:to-purple-500 active:scale-[0.98] shadow-lg shadow-fuchsia-500/30"
-        >
-          ✓ Đã xem — Sẵn sàng nhận vai
-        </button>
-      )}
-
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] uppercase font-bold text-slate-400">
-            Tiến độ
-          </span>
-          <span className="text-sm font-black text-white">
-            {ackCount} / {total}
-          </span>
-        </div>
-        <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-purple-500 transition-all duration-500"
-            style={{ width: `${total > 0 ? (ackCount / total) * 100 : 0}%` }}
-          />
-        </div>
-        <div className="mt-3 space-y-1.5">
-          {gamePlayers.map((p) => {
-            const acked = ackedIds.includes(p.id);
-            return (
-              <div
-                key={p.id}
-                className="flex items-center justify-between text-xs"
-              >
-                <span className={acked ? 'text-white font-bold' : 'text-slate-500'}>
-                  {p.name}
-                  {p.id === myPlayer.id && (
-                    <span className="text-cyan-400 ml-1">(bạn)</span>
-                  )}
-                </span>
-                <span className={acked ? 'text-emerald-400 font-black' : 'text-slate-600'}>
-                  {acked ? '✓ Sẵn sàng' : '⏳ Đang xem'}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div
-        className={`rounded-2xl border p-4 text-center ${allAcked
-          ? 'border-emerald-500/40 bg-emerald-500/10'
-          : remaining < 15000
-            ? 'border-amber-500/40 bg-amber-500/10'
-            : 'border-white/10 bg-white/5'
-          }`}
-      >
-        <p className="text-[11px] uppercase font-bold text-slate-400 mb-1">
-          {allAcked ? 'Đang chia vai...' : 'Tự động chia vai sau'}
-        </p>
-        <p
-          className={`text-2xl font-black ${allAcked
-            ? 'text-emerald-300'
+        <div
+          className={`shrink-0 text-center rounded-xl border px-3 py-1.5 ${allAcked
+            ? 'border-emerald-500/40 bg-emerald-500/10'
             : remaining < 15000
-              ? 'text-amber-300'
-              : 'text-white'
+              ? 'border-amber-500/40 bg-amber-500/10'
+              : 'border-white/10 bg-white/5'
             }`}
         >
-          {allAcked ? '✓' : timeStr}
-        </p>
+          <p className="text-[9px] uppercase font-bold text-slate-400">
+            {allAcked ? 'Chia vai' : 'Tự chia sau'}
+          </p>
+          <p
+            className={`text-lg font-black tabular-nums leading-tight ${allAcked
+              ? 'text-emerald-300'
+              : remaining < 15000
+                ? 'text-amber-300'
+                : 'text-white'
+              }`}
+          >
+            {allAcked ? '✓' : timeStr}
+          </p>
+        </div>
+      </div>
+
+      {/* 2-cột: Phe Người | Phe Quỷ — ô role chip nhỏ gọn */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-blue-500/30 bg-blue-900/15 p-2.5">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-sm">🛡️</span>
+            <h3 className="text-xs font-black text-blue-200">Phe Người ({goodRoles.length})</h3>
+          </div>
+          <div className="grid grid-cols-1 gap-1.5">
+            {Object.entries(goodCounts).map(([role, count]) => (
+              <RoleLineChip
+                key={role}
+                role={role as AvalonRole}
+                count={count}
+                tone="good"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-red-500/30 bg-red-900/15 p-2.5">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-sm">🗡️</span>
+            <h3 className="text-xs font-black text-red-200">Phe Quỷ ({evilRoles.length})</h3>
+          </div>
+          <div className="grid grid-cols-1 gap-1.5">
+            {Object.entries(evilCounts).map(([role, count]) => (
+              <RoleLineChip
+                key={role}
+                role={role as AvalonRole}
+                count={count}
+                tone="evil"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 2-cột: Leader | Lady (Lady chỉ hiện khi ≥7) — gọn 1 hàng */}
+      <div className={`grid gap-2 ${lady ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-2.5 flex items-center gap-2">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-sm border-2 border-amber-300 shadow shadow-amber-500/40">
+            👑
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] uppercase font-black tracking-widest text-amber-300">
+              Leader đầu
+            </p>
+            <p className="text-sm font-black text-white truncate">
+              {leader?.name ?? '?'}
+              {leader?.id === myPlayer.id && (
+                <span className="ml-1 text-[10px] text-amber-200">(bạn)</span>
+              )}
+            </p>
+          </div>
+        </div>
+        {lady && (
+          <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-2.5 flex items-center gap-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 text-sm border-2 border-cyan-300 shadow shadow-cyan-500/40">
+              🌊
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] uppercase font-black tracking-widest text-cyan-300">
+                Lady đầu
+              </p>
+              <p className="text-sm font-black text-white truncate">
+                {lady.name}
+                {lady.id === myPlayer.id && (
+                  <span className="ml-1 text-[10px] text-cyan-200">(bạn)</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Ack button + progress bar gộp 1 card */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-3 space-y-2">
+        {!myAcked ? (
+          <button
+            onClick={onAckRole}
+            className="w-full rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 py-3 text-sm font-black text-white hover:from-fuchsia-500 hover:to-purple-500 active:scale-[0.98] shadow shadow-fuchsia-500/30"
+          >
+            ✓ Đã xem — Sẵn sàng nhận vai
+          </button>
+        ) : (
+          <button
+            disabled
+            className="w-full rounded-xl border border-emerald-400/40 bg-emerald-500/10 py-3 text-sm font-black text-emerald-200"
+          >
+            ✓ Bạn sẵn sàng — Chờ những người khác
+          </button>
+        )}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase font-bold text-slate-400">Tiến độ</span>
+          <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-purple-500 transition-all duration-500"
+              style={{ width: `${total > 0 ? (ackCount / total) * 100 : 0}%` }}
+            />
+          </div>
+          <span className="text-xs font-black text-white tabular-nums">{ackCount}/{total}</span>
+        </div>
       </div>
     </div>
   );
@@ -966,24 +993,19 @@ function RoleLineChip({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 ${tone === 'good'
+      className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 ${tone === 'good'
         ? 'border-blue-500/30 bg-blue-500/10'
         : 'border-red-500/30 bg-red-500/10'
         }`}
+      title={ROLE_NAMES_VI[role]}
     >
-      <span className="text-xl shrink-0">{ROLE_ICONS[role]}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-black text-white truncate">{role}</p>
-        <p
-          className={`text-[10px] font-bold ${tone === 'good' ? 'text-blue-300' : 'text-red-300'
-            }`}
-        >
-          {ROLE_NAMES_VI[role]}
-        </p>
-      </div>
+      <span className="text-base shrink-0 leading-none">{ROLE_ICONS[role]}</span>
+      <span className="flex-1 min-w-0 text-[11px] font-black text-white truncate">
+        {role}
+      </span>
       {count > 1 && (
         <span
-          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${tone === 'good'
+          className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-black ${tone === 'good'
             ? 'bg-blue-500/30 text-blue-200'
             : 'bg-red-500/30 text-red-200'
             }`}
@@ -1346,7 +1368,7 @@ function NightMerlinSection({
         </p>
         <h3 className="text-base font-black text-white mb-1">Phe Quỷ lộ diện trước bạn</h3>
         <p className="text-xs text-slate-300 mb-3">
-          Bạn nhìn thấy {visibleEvils.length} kẻ ác. <strong>Mordred</strong> ẩn — không hiện ở đây.
+          Bạn nhìn thấy {visibleEvils.length} quỷ. <strong>Mordred</strong> ẩn — không hiện ở đây.
           Hãy bí mật dẫn dắt Phe Người, đừng để Sát Thủ tìm ra bạn.
         </p>
         <div className="space-y-2">
@@ -1496,12 +1518,31 @@ function TeamBuildSection({
   const leader = gamePlayers.find((p) => p.id === state.currentLeaderId);
   const team = state.proposedTeam;
 
+  // Countdown 60s cho Leader chọn đội. Hết giờ: auto-submit nếu đủ size,
+  // ngược lại xoay sang Leader kế tiếp (xử lý trong useAvalon).
+  const TIMEOUT_MS = PHASE_TIMEOUTS_MS['team-build'];
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const elapsed = now - (state.phaseStartedAt ?? now);
+  const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+  const secs = Math.ceil(remaining / 1000);
+  const timeStr = `${secs}s`;
+  const lowTime = remaining < 15_000;
+
   if (!isLeader) {
     const emptySlots = Math.max(0, teamSize - team.length);
     return (
       <div className="space-y-3">
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 sm:p-5">
-          <p className="text-xs font-bold text-amber-300 mb-2">⚔️ ĐANG CHỌN ĐỘI — QUEST {state.currentQuest + 1}</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-amber-300">⚔️ ĐANG CHỌN ĐỘI — QUEST {state.currentQuest + 1}</p>
+            <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-red-300 animate-pulse' : 'text-amber-200'}`}>
+              ⏱ {timeStr}
+            </span>
+          </div>
           <p className="text-sm text-slate-300 mb-3">
             Leader <span className="font-black text-white">{leader?.name ?? '?'}</span> đang chọn{' '}
             <span className="font-black text-amber-300">{teamSize} người tham gia</span>.
@@ -1559,12 +1600,20 @@ function TeamBuildSection({
 
   return (
     <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
-      <p className="text-[11px] uppercase font-black text-amber-300 mb-1">⚔️ Bạn là Leader</p>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[11px] uppercase font-black text-amber-300">⚔️ Bạn là Leader</p>
+        <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-red-300 animate-pulse' : 'text-amber-200'}`}>
+          ⏱ {timeStr}
+        </span>
+      </div>
       <h3 className="text-base font-black text-white mb-1">
         Chọn {teamSize} người cho Quest {state.currentQuest + 1}
       </h3>
-      <p className="text-xs text-slate-400 mb-4">
+      <p className="text-xs text-slate-400 mb-1">
         Bạn có thể tự chọn mình. Nhấn lại để bỏ chọn.
+      </p>
+      <p className="text-[10px] text-amber-300/80 mb-4">
+        ⚠ Còn {timeStr} — hết giờ sẽ tự trình đội (nếu đủ) hoặc chuyển Leader.
       </p>
 
       <div className="grid grid-cols-2 gap-2 mb-4">
@@ -1628,10 +1677,27 @@ function TeamVoteSection({
   const leader = gamePlayers.find((p) => p.id === state.currentLeaderId);
   const votedCount = Object.keys(state.teamVotes).length;
 
+  // Đếm ngược 30s — hết giờ player chưa bầu = REJECT mặc định.
+  const TIMEOUT_MS = PHASE_TIMEOUTS_MS['team-vote'];
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const elapsed = now - (state.phaseStartedAt ?? now);
+  const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+  const secs = Math.ceil(remaining / 1000);
+  const lowTime = remaining < 10_000;
+
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4">
-        <p className="text-[11px] uppercase font-black text-cyan-300 mb-1">🗳️ Bỏ phiếu đội</p>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-[11px] uppercase font-black text-cyan-300">🗳️ Bỏ phiếu đội</p>
+          <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-red-300 animate-pulse' : 'text-cyan-200'}`}>
+            ⏱ {secs}s
+          </span>
+        </div>
         <p className="text-sm text-slate-300 mb-3">
           Leader <span className="font-black text-white">{leader?.name ?? '?'}</span> đề xuất đội cho Quest{' '}
           {state.currentQuest + 1}:
@@ -1648,6 +1714,9 @@ function TeamVoteSection({
         </div>
         <p className="text-[11px] text-slate-500">
           Đã bầu: {votedCount}/{gamePlayers.length}
+          {!myVote && (
+            <span className="ml-2 text-amber-400/80">⚠ Chưa bầu trong {secs}s sẽ bị tính là Từ chối</span>
+          )}
         </p>
       </div>
 
@@ -1796,7 +1865,7 @@ function QuestPlaySection({
           className={`text-3xl font-black ${myCard === 'success' ? 'text-blue-300' : 'text-red-300'
             }`}
         >
-          {myCard === 'success' ? 'PHE THIỆN' : 'PHE ÁC'}
+          {myCard === 'success' ? 'PHE NGƯỜI' : 'PHE QUỶ'}
         </p>
         <p className="mt-3 text-xs text-slate-400">Chờ các thành viên còn lại đặt bài...</p>
       </div>
@@ -1828,7 +1897,7 @@ function QuestPlaySection({
           className="rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-6 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30"
         >
           <div className="text-4xl mb-1">🛡️</div>
-          PHE THIỆN
+          PHE NGƯỜI
         </button>
         <button
           onClick={() => {
@@ -1842,7 +1911,7 @@ function QuestPlaySection({
           className="rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 py-6 font-black text-white text-base hover:from-red-500 hover:to-rose-500 active:scale-95 shadow-lg shadow-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
         >
           <div className="text-4xl mb-1">🗡️</div>
-          PHE ÁC
+          PHE QUỶ
         </button>
       </div>
     </div>
@@ -1951,7 +2020,7 @@ function QuestResultSection({
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <p className="text-[11px] uppercase font-bold text-slate-400 mb-3 text-center">
-          Số lá bài (không lộ ai đặt)
+          Tổng lựa chọn
         </p>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border-2 border-blue-500/30 bg-blue-500/10 p-4 text-center">
@@ -1967,7 +2036,7 @@ function QuestResultSection({
         </div>
         {playerCount >= 7 && state.currentQuest === 3 && (
           <p className="mt-3 text-[11px] text-slate-400 text-center">
-            ⚠️ Quest này cần ≥2 lá Phe Quỷ để fail
+            ⚠️ Quest này cần ≥2 lá Phe Quỷ để Thất bại Quest
           </p>
         )}
       </div>
@@ -1981,6 +2050,7 @@ function LadySection({
   myTeam,
   gamePlayers,
   onLadyInspect,
+  onLadyConfirm,
   onLadyFinish,
 }: {
   state: AvalonGameState;
@@ -1988,6 +2058,7 @@ function LadySection({
   myTeam: 'good' | 'evil' | undefined;
   gamePlayers: Player[];
   onLadyInspect: (id: string) => void;
+  onLadyConfirm: () => void;
   onLadyShow: (card: 'good' | 'evil') => void;
   onLadyFinish: () => void;
 }) {
@@ -1996,30 +2067,55 @@ function LadySection({
   const holder = gamePlayers.find((p) => p.id === state.ladyHolderId);
   const target = state.ladyTargetId ? gamePlayers.find((p) => p.id === state.ladyTargetId) : null;
   const shown = state.ladyShownCard;
+  const inspected = shown !== null;
+
+  // Đếm ngược 45s — hiển thị cho cả Lady, target và bystander.
+  const TIMEOUT_MS = PHASE_TIMEOUTS_MS['lady-of-lake'];
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const elapsed = now - (state.phaseStartedAt ?? now);
+  const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+  const secs = Math.ceil(remaining / 1000);
+  const timeStr = `${secs}s`;
 
   if (isTarget) {
     const isEvil = myTeam === 'evil';
+    if (!inspected) {
+      return (
+        <div className="rounded-2xl border-2 border-fuchsia-500/60 bg-fuchsia-500/10 p-5 text-center">
+          <p className="text-[11px] uppercase font-black text-fuchsia-200 mb-2 tracking-widest">
+            🎯 {holder?.name} đang ngắm bạn
+          </p>
+          <p className="text-sm text-slate-300 mb-3">
+            Chờ Lady bấm <strong className="text-white">Xác nhận soi vai trò</strong> để xem phe của bạn.
+          </p>
+          <div className="text-3xl mb-1 animate-pulse">👁️</div>
+          <p className="text-[11px] text-slate-400">Còn lại {timeStr}</p>
+        </div>
+      );
+    }
     return (
       <div
-        className={`rounded-2xl border-2 p-6 text-center ${
-          isEvil
-            ? 'border-red-500/60 bg-red-500/10'
-            : 'border-blue-500/60 bg-blue-500/10'
-        }`}
+        className={`rounded-2xl border-2 p-6 text-center ${isEvil
+          ? 'border-red-500/60 bg-red-500/10'
+          : 'border-blue-500/60 bg-blue-500/10'
+          }`}
       >
         <p className="text-[11px] uppercase font-black text-slate-300 mb-2 tracking-widest">
-          🌊 {holder?.name} đang soi bạn
+          🌊 {holder?.name} đã soi vai trò của bạn
         </p>
         <div className="text-6xl mb-2">{isEvil ? '🗡️' : '🛡️'}</div>
         <p
-          className={`text-2xl font-black mb-1 ${
-            isEvil ? 'text-red-200' : 'text-blue-200'
-          }`}
+          className={`text-2xl font-black mb-1 ${isEvil ? 'text-red-200' : 'text-blue-200'
+            }`}
         >
           {isEvil ? 'PHE ÁC' : 'PHE THIỆN'}
         </p>
         <p className="text-[11px] text-slate-400 mt-2">
-          Lady tự động thấy phe thật của bạn — không thể nói xạo.
+          Lady đã thấy phe thật của bạn — không thể nói xạo.
         </p>
         <p className="mt-3 text-xs text-slate-400">
           Chờ {holder?.name} hoàn tất để chuyển token...
@@ -2030,7 +2126,8 @@ function LadySection({
   }
 
   if (isHolder) {
-    if (state.ladyTargetId && shown) {
+    // Bước 3: đã confirm → reveal + Hoàn tất.
+    if (state.ladyTargetId && inspected) {
       const isGoodCard = shown === 'good';
       return (
         <div className="space-y-3">
@@ -2042,7 +2139,7 @@ function LadySection({
               🌊 Kết quả soi
             </p>
             <p className="text-base font-black text-white mb-3">
-              {target?.name} đã hiện
+              {target?.name} là
             </p>
             <div className="text-7xl mb-2">{isGoodCard ? '🛡️' : '🗡️'}</div>
             <p
@@ -2051,8 +2148,8 @@ function LadySection({
             >
               {isGoodCard ? 'PHE THIỆN' : 'PHE ÁC'}
             </p>
-            <p className="mt-3 text-[11px] text-amber-400/80 italic">
-              ⚠️ Lưu ý: Phe Quỷ có thể nói xạo. Bạn cũng có thể chia sẻ thật/xạo với nhóm.
+            <p className="mt-3 text-[11px] text-slate-400 italic">
+              Bạn có thể chia sẻ thật / nói xạo với nhóm tuỳ ý.
             </p>
           </div>
           <button
@@ -2065,77 +2162,109 @@ function LadySection({
       );
     }
 
-    if (state.ladyTargetId) {
-      return (
-        <div className="space-y-3">
-          <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-5 text-center">
-            <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">
-              🌊 Đang chờ {target?.name} chọn lá...
-            </p>
-            <p className="text-sm text-slate-300 mb-3">
-              {target?.name} đang xem màn hình của họ và quyết định hiện lá nào cho bạn.
-            </p>
-            <div className="text-3xl animate-pulse">⏳</div>
-          </div>
-          <div className="lg:hidden">
-            <PlayerRoster
-              gamePlayers={gamePlayers}
-              state={state}
-              myPlayerId={myPlayer.id}
-              highlightedIds={state.ladyTargetId ? [state.ladyTargetId] : []}
-              showLadyTarget
-              title="Tất cả người chơi (highlight = bị soi)"
-              emphasis="lady"
-              viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
-            />
-          </div>
-        </div>
-      );
-    }
-
+    // Bước 1+2 gộp: luôn hiện candidate list. Click 1 người → highlight + sáng
+    // nút "Xác nhận soi". Click người khác → highlight chuyển + đồng hồ reset
+    // (thực hiện trong useAvalon.ladyInspect bằng cách ghi phaseStartedAt mới).
     const candidates = gamePlayers.filter((p) => {
       if (p.id === myPlayer.id) return false;
       if (state.ladyHistory.includes(p.id)) return false;
       return true;
     });
+    const hasPick = !!state.ladyTargetId;
 
     return (
-      <div className="rounded-2xl border border-cyan-500/40 bg-cyan-500/5 p-4">
-        <p className="text-[11px] uppercase font-black text-cyan-300 mb-1">🌊 Lady of the Lake</p>
-        <h3 className="text-base font-black text-white mb-1">Chọn 1 người để soi</h3>
-        <p className="text-xs text-slate-400 mb-4">
-          Người đã từng cầm token không được soi lại. Sau khi soi, người được soi trở thành Lady kế tiếp.
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          {candidates.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => onLadyInspect(p.id)}
-              className="rounded-xl border border-white/10 bg-white/5 p-3 text-left hover:bg-white/10 active:scale-95"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 text-sm font-black text-white">
-                  {p.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-sm font-bold text-white truncate">{p.name}</span>
-              </div>
-              <TokenBadges playerId={p.id} state={state} />
-            </button>
-          ))}
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-cyan-500/40 bg-cyan-500/5 p-4">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[11px] uppercase font-black text-cyan-300">🌊 Lady of the Lake</p>
+            <span className={`text-xs font-black tabular-nums ${remaining < 10_000 ? 'text-red-300 animate-pulse' : 'text-cyan-200'}`}>
+              ⏱ {timeStr}
+            </span>
+          </div>
+          <h3 className="text-base font-black text-white mb-1">
+            {hasPick ? `Đã chọn ${target?.name} — bấm Xác nhận soi` : 'Chọn 1 người để soi'}
+          </h3>
+          <p className="text-xs text-slate-400 mb-3">
+            Người đã từng cầm token không được soi lại. Đổi người: bấm vào người khác trong danh sách (đồng hồ sẽ reset).
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {candidates.map((p) => {
+              const picked = state.ladyTargetId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => onLadyInspect(p.id)}
+                  className={`rounded-xl border p-3 text-left transition-all active:scale-95 ${picked
+                    ? 'border-fuchsia-400 bg-fuchsia-500/20 ring-2 ring-fuchsia-400/60 shadow-lg shadow-fuchsia-500/40'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                    }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black text-white ${picked
+                        ? 'bg-gradient-to-br from-fuchsia-500 to-purple-500 border-2 border-fuchsia-200'
+                        : 'bg-gradient-to-br from-cyan-500 to-teal-500'
+                        }`}
+                    >
+                      {p.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-bold text-white truncate">{p.name}</span>
+                  </div>
+                  <TokenBadges playerId={p.id} state={state} />
+                  {picked && (
+                    <p className="mt-1 text-[10px] font-black text-fuchsia-200">🎯 Đang ngắm</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        <button
+          onClick={onLadyConfirm}
+          disabled={!hasPick}
+          className={`w-full rounded-2xl py-3.5 text-base font-black text-white transition-all active:scale-95 ${hasPick
+            ? 'bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 shadow-lg shadow-fuchsia-500/40'
+            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+            }`}
+        >
+          👁️ Xác nhận soi {hasPick ? target?.name : '(chọn 1 người)'}
+        </button>
       </div>
     );
   }
 
+  // Bystander view — thấy ai đang được Lady ngắm/đã soi.
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-center">
         <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">🌊 Lady of the Lake</p>
-        <p className="text-sm text-slate-300">
-          <span className="text-[11px] uppercase font-bold text-cyan-300 mb-2">Lady</span> <span className="font-black text-white">{holder?.name}</span> đang soi 1 người chơi.
-        </p>
-        {target && (
-          <p className="mt-2 text-xs text-slate-400">→ {target.name}</p>
+        {!target && (
+          <>
+            <p className="text-sm text-slate-300">
+              <span className="font-black text-white">{holder?.name}</span> đang chọn người để soi...
+            </p>
+            <p className="mt-2 text-[11px] text-amber-300/80">⏱ Còn lại {timeStr}</p>
+          </>
+        )}
+        {target && !inspected && (
+          <>
+            <p className="text-sm text-slate-300">
+              <span className="font-black text-white">{holder?.name}</span> đang ngắm{' '}
+              <span className="font-black text-fuchsia-200">{target.name}</span>.
+            </p>
+            <p className="mt-1 text-xs text-slate-400">Chờ Lady xác nhận soi...</p>
+            <p className="mt-2 text-[11px] text-amber-300/80">⏱ Còn lại {timeStr}</p>
+          </>
+        )}
+        {target && inspected && (
+          <>
+            <p className="text-sm text-slate-300">
+              <span className="font-black text-white">{holder?.name}</span> đã soi{' '}
+              <span className="font-black text-fuchsia-200">{target.name}</span>.
+            </p>
+            <p className="mt-1 text-xs text-slate-400">Chờ Lady chuyển token...</p>
+          </>
         )}
         <div className="mt-3 text-3xl animate-pulse">⏳</div>
       </div>
@@ -2146,7 +2275,7 @@ function LadySection({
           myPlayerId={myPlayer.id}
           highlightedIds={state.ladyTargetId ? [state.ladyTargetId] : []}
           showLadyTarget
-          title="Tất cả người chơi (highlight = bị Lady soi)"
+          title="Tất cả người chơi (highlight = đang bị ngắm)"
           emphasis="lady"
           viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
         />

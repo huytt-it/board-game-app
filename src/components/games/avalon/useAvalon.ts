@@ -35,17 +35,26 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+// Leader đầu game được random, từ Q2 trở đi xoay theo CHIỀU KIM ĐỒNG HỒ
+// (index tăng dần quanh bàn). Người ngồi cạnh phải Leader hiện tại làm Leader kế.
 function pickNextLeader(
   allPlayers: Player[],
+  currentLeaderId: string | null,
   used: string[]
 ): { leaderId: string; nextUsed: string[] } {
-  const candidates = allPlayers.filter((p) => !used.includes(p.id));
-  if (candidates.length === 0) {
-    const pick = allPlayers[Math.floor(Math.random() * allPlayers.length)];
-    return { leaderId: pick.id, nextUsed: [pick.id] };
+  const n = allPlayers.length;
+  if (n === 0) {
+    return { leaderId: '', nextUsed: used };
   }
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
-  return { leaderId: pick.id, nextUsed: [...used, pick.id] };
+  const currentIdx = currentLeaderId
+    ? allPlayers.findIndex((p) => p.id === currentLeaderId)
+    : -1;
+  const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % n : Math.floor(Math.random() * n);
+  const pick = allPlayers[nextIdx];
+  return {
+    leaderId: pick.id,
+    nextUsed: used.includes(pick.id) ? used : [...used, pick.id],
+  };
 }
 
 export function readState(room: Room): AvalonGameState | null {
@@ -117,6 +126,26 @@ function emptyQuests(playerCount: SupportedPlayerCount): AvalonQuestRecord[] {
   }));
 }
 
+// House rule cho game từ 7 người trở lên: nếu Phe Người win 3 Quest LIÊN TIẾP
+// (chuỗi 3 success không bị fail xen giữa, ở bất kỳ vị trí nào trong 5 quest),
+// Phe Quỷ KHÔNG có cơ hội ám sát — Phe Người thắng outright.
+// Phe Quỷ chỉ được đâm khi đạt đủ 3-2 NHƯNG có ít nhất 1 fail xen giữa 3 success
+// (ví dụ S-F-S-S-F hoặc F-S-S-F-S, tức không có chuỗi 3 liên tiếp).
+function hasThreeConsecutiveSuccesses(quests: AvalonQuestRecord[]): boolean {
+  let streak = 0;
+  for (const q of quests) {
+    if (q.result === 'success') {
+      streak++;
+      if (streak >= 3) return true;
+    } else if (q.result === 'fail') {
+      streak = 0;
+    }
+    // result === null: chưa chơi quest này — giữ nguyên streak vì các quest sau
+    // cũng chưa chơi (quests xử lý tuần tự theo index).
+  }
+  return false;
+}
+
 export function useAvalon(roomId: string | undefined, room: Room | null, players: Player[]) {
   const config = useMemo(() => (room ? readConfig(room) : null), [room]);
   const state = useMemo(() => (room ? readState(room) : null), [room]);
@@ -160,12 +189,12 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       });
     }
 
-    const firstLeader = gamePlayers[Math.floor(Math.random() * gamePlayers.length)];
-    const ladyCandidates = gamePlayers.filter((p) => p.id !== firstLeader.id);
-    const initialLady =
-      playerCount >= 7 && ladyCandidates.length > 0
-        ? ladyCandidates[Math.floor(Math.random() * ladyCandidates.length)]
-        : null;
+    // Leader đầu: random. Lady đầu: người ngồi BÊN TRÁI Leader đầu — vòng quanh
+    // bàn xếp clockwise theo index 0..n-1, nên "bên trái" của index i = (i-1+n)%n.
+    const firstLeaderIdx = Math.floor(Math.random() * gamePlayers.length);
+    const firstLeader = gamePlayers[firstLeaderIdx];
+    const ladyIdx = (firstLeaderIdx - 1 + gamePlayers.length) % gamePlayers.length;
+    const initialLady = playerCount >= 7 ? gamePlayers[ladyIdx] : null;
 
     const fresh: AvalonGameState = {
       rolesAssigned: true,
@@ -257,6 +286,39 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     await gameStorage.updateRoomStatus(roomId, 'voting');
   }, [roomId, writeState]);
 
+  // Fallback khi Leader idle/disconnect quá 60s ở phase team-build:
+  //   - Nếu proposedTeam đã đúng số lượng yêu cầu → auto-submit sang vote.
+  //   - Nếu chưa đủ → bỏ qua Leader này, xoay sang Leader kế tiếp (clockwise),
+  //     KHÔNG burn vote-reject-streak (vì chưa có vote nào diễn ra).
+  const teamBuildTimeoutAdvance = useCallback(async () => {
+    if (!roomId || !state) return;
+    if (state.phase !== 'team-build') return;
+    const requiredSize =
+      state.quests[state.currentQuest]?.teamSize ?? 0;
+    if (state.proposedTeam.length === requiredSize && requiredSize > 0) {
+      await writeState({
+        phase: 'team-vote',
+        teamVotes: {},
+        phaseStartedAt: Date.now(),
+      });
+      await gameStorage.updateRoomStatus(roomId, 'voting');
+    } else {
+      const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
+        gamePlayers,
+        state.currentLeaderId,
+        state.leadersUsed ?? []
+      );
+      await writeState({
+        phase: 'team-build',
+        currentLeaderId: nextLeaderId,
+        leadersUsed: nextUsed,
+        proposedTeam: [],
+        teamVotes: {},
+        phaseStartedAt: Date.now(),
+      });
+    }
+  }, [roomId, state, gamePlayers, writeState]);
+
   const castTeamVote = useCallback(
     async (playerId: string, vote: TeamVote) => {
       if (!roomId) return;
@@ -269,9 +331,12 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
   const resolveTeamVote = useCallback(async () => {
     if (!roomId || !room || !state) return;
     if (state.phase !== 'team-vote') return;
+    // Bất kỳ player nào không bỏ phiếu trong 30s đều được tính là REJECT.
+    // Vì vậy: rejects = totalPlayers - approves (kể cả khi vote sớm xong).
+    const totalPlayers = gamePlayers.length;
     const votes = Object.values(state.teamVotes);
     const approves = votes.filter((v) => v === 'approve').length;
-    const rejects = votes.filter((v) => v === 'reject').length;
+    const rejects = Math.max(0, totalPlayers - approves);
     const approved = approves > rejects;
 
     if (approved) {
@@ -307,7 +372,7 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
         });
       }
     }
-  }, [roomId, room, state, writeState]);
+  }, [roomId, room, state, gamePlayers, writeState]);
 
   const proceedAfterTeamVoteResult = useCallback(async () => {
     if (!roomId || !state) return;
@@ -329,6 +394,7 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     } else {
       const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
         gamePlayers,
+        state.currentLeaderId,
         state.leadersUsed ?? []
       );
       await writeState({
@@ -345,15 +411,14 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
 
   const playQuestCard = useCallback(
     async (playerId: string, card: QuestCard) => {
-      if (!roomId || !state) return;
+      if (!roomId) return;
+      // Chỉ ghi questCard per-player. Source of truth cho "đã chơi" là
+      // mỗi player.gameData.questCard, KHÔNG phải state.questPlayedBy.
+      // (Trước đây đọc-rồi-ghi state.questPlayedBy gây race khi nhiều
+      // người chơi nộp đồng thời, làm phase quest-play kẹt đến khi timeout.)
       await gameStorage.updatePlayerGameData(roomId, playerId, { questCard: card });
-      const next = state.questPlayedBy.includes(playerId)
-        ? state.questPlayedBy
-        : [...state.questPlayedBy, playerId];
-      const payload = { [`questPlayedBy`]: next };
-      await gameStorage.updateRoomGameState(roomId, payload as never);
     },
-    [roomId, state]
+    [roomId]
   );
 
   const resolveQuest = useCallback(async () => {
@@ -390,47 +455,51 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     const successes = state.quests.filter((q) => q.result === 'success').length;
     const failures = state.quests.filter((q) => q.result === 'fail').length;
     const allQuestsDone = state.quests.every((q) => q.result !== null);
+    // Chỉ áp dụng cho game từ 7 người trở lên.
+    const goodHasStreak =
+      playerCount >= 7 && hasThreeConsecutiveSuccesses(state.quests);
 
-    // Game-end checks only apply AFTER all 5 quests are played.
-    // (House rule: phải hoàn tất đủ 5 quest rồi mới chốt thắng/thua.)
-    if (allQuestsDone) {
-      // Evil wins outright on 3+ failed quests (no assassinate chance).
-      if (failures >= QUESTS_TO_WIN) {
-        await writeState({
-          phase: 'end',
-          winner: 'evil',
-          proposedTeam: [],
-          teamVotes: {},
-          questPlayedBy: [],
-        });
-        await gameStorage.updateRoomStatus(roomId, 'end');
-        return;
-      }
-      // Good wins outright (4-1 or 5-0) — no assassinate chance.
-      if (successes >= 4) {
-        await writeState({
-          phase: 'end',
-          winner: 'good',
-          proposedTeam: [],
-          teamVotes: {},
-          questPlayedBy: [],
-        });
-        await gameStorage.updateRoomStatus(roomId, 'end');
-        return;
-      }
-      // Good 3 / Evil 2 — only now assassin gets a shot at Merlin.
-      if (successes === 3) {
-        await writeState({
-          phase: 'assassinate',
-          proposedTeam: [],
-          teamVotes: {},
-          questPlayedBy: [],
-          roleAcks: {},
-          phaseStartedAt: Date.now(),
-        });
-        await gameStorage.updateRoomStatus(roomId, 'day');
-        return;
-      }
+    // Decisive end-conditions kích hoạt NGAY khi đạt, không cần đợi đủ 5 quest:
+    //   - ≥ 3 fail → Phe Quỷ thắng outright
+    //   - ≥ 4 success → Phe Người thắng outright
+    //   - 7+ người, Người win 3 quest LIÊN TIẾP → Người thắng outright,
+    //     Sát Thủ KHÔNG có cơ hội đâm (kể cả khi tỉ số 3-2)
+    if (failures >= QUESTS_TO_WIN) {
+      await writeState({
+        phase: 'end',
+        winner: 'evil',
+        proposedTeam: [],
+        teamVotes: {},
+        questPlayedBy: [],
+      });
+      await gameStorage.updateRoomStatus(roomId, 'end');
+      return;
+    }
+    if (successes >= 4 || goodHasStreak) {
+      await writeState({
+        phase: 'end',
+        winner: 'good',
+        proposedTeam: [],
+        teamVotes: {},
+        questPlayedBy: [],
+      });
+      await gameStorage.updateRoomStatus(roomId, 'end');
+      return;
+    }
+    // Sát Thủ chỉ được đâm khi đã chơi đủ 5 quest, tỉ số 3-2 và KHÔNG có
+    // chuỗi 3 success liên tiếp (vd S-F-S-S-F hoặc F-S-S-F-S).
+    // Với 5-6 người: rule streak không áp dụng → 3-2 luôn assassinate.
+    if (allQuestsDone && successes === 3) {
+      await writeState({
+        phase: 'assassinate',
+        proposedTeam: [],
+        teamVotes: {},
+        questPlayedBy: [],
+        roleAcks: {},
+        phaseStartedAt: Date.now(),
+      });
+      await gameStorage.updateRoomStatus(roomId, 'day');
+      return;
     }
 
     const justFinishedQuest = state.currentQuest;
@@ -442,6 +511,7 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     const nextQuest = state.currentQuest + 1;
     const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
       gamePlayers,
+      state.currentLeaderId,
       state.leadersUsed ?? []
     );
 
@@ -495,17 +565,29 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     [roomId]
   );
 
+  // Bước 1: Lady chọn / đổi target. CHỈ set ladyTargetId, KHÔNG reveal phe.
+  // Mọi đổi người đều RESET đồng hồ 45s để Lady có đủ thời gian cân nhắc.
+  // Truyền chuỗi rỗng để CLEAR target (không dùng trong UI mới nhưng giữ).
   const ladyInspect = useCallback(
     async (targetId: string) => {
       if (!roomId || !state) return;
-      // House rule: Lady soi ai thì biết phe ngay (target không có lựa chọn nói xạo).
-      const target = players.find((p) => p.id === targetId);
-      const team = (target?.gameData as Partial<AvalonGameData> | undefined)?.team;
-      const trueCard: 'good' | 'evil' = team === 'evil' ? 'evil' : 'good';
-      await writeState({ ladyTargetId: targetId, ladyShownCard: trueCard });
+      await writeState({
+        ladyTargetId: targetId || null,
+        ladyShownCard: null,
+        phaseStartedAt: Date.now(),
+      });
     },
-    [roomId, state, writeState, players]
+    [roomId, state, writeState]
   );
+
+  // Bước 2: Lady bấm Xác nhận → tính phe thật của target và reveal cho Lady.
+  const ladyConfirm = useCallback(async () => {
+    if (!roomId || !state || !state.ladyTargetId) return;
+    const target = players.find((p) => p.id === state.ladyTargetId);
+    const team = (target?.gameData as Partial<AvalonGameData> | undefined)?.team;
+    const trueCard: 'good' | 'evil' = team === 'evil' ? 'evil' : 'good';
+    await writeState({ ladyShownCard: trueCard });
+  }, [roomId, state, writeState, players]);
 
   const ladyShow = useCallback(
     async (_card: 'good' | 'evil') => {
@@ -529,6 +611,46 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     });
   }, [roomId, state, writeState]);
 
+  // Fallback khi hết 45s. Lady chỉ thực sự "soi" khi đã CONFIRM (ladyShownCard
+  // được set). Nếu CHƯA confirm → bỏ qua lượt soi, đồng thời RANDOM 1 Lady mới
+  // từ những player chưa từng cầm token (loại current Lady và lịch sử).
+  const ladyTimeoutAdvance = useCallback(async () => {
+    if (!roomId || !state || state.phase !== 'lady-of-lake') return;
+    const inspectionConfirmed = state.ladyShownCard !== null && !!state.ladyTargetId;
+    if (inspectionConfirmed) {
+      const newHistory = [...state.ladyHistory, state.ladyHolderId!].filter(Boolean) as string[];
+      await writeState({
+        phase: 'discussion',
+        ladyHolderId: state.ladyTargetId,
+        ladyHistory: newHistory,
+        ladyTargetId: null,
+        ladyShownCard: null,
+        roleAcks: {},
+        phaseStartedAt: Date.now(),
+      });
+    } else {
+      const used = new Set(state.ladyHistory ?? []);
+      if (state.ladyHolderId) used.add(state.ladyHolderId);
+      const candidates = gamePlayers.filter((p) => !used.has(p.id));
+      const fallback =
+        candidates.length > 0
+          ? candidates[Math.floor(Math.random() * candidates.length)].id
+          : state.ladyHolderId; // không còn ai → giữ nguyên holder
+      const newHistory = state.ladyHolderId
+        ? [...state.ladyHistory, state.ladyHolderId].filter(Boolean) as string[]
+        : state.ladyHistory ?? [];
+      await writeState({
+        phase: 'discussion',
+        ladyHolderId: fallback,
+        ladyHistory: newHistory,
+        ladyTargetId: null,
+        ladyShownCard: null,
+        roleAcks: {},
+        phaseStartedAt: Date.now(),
+      });
+    }
+  }, [roomId, state, gamePlayers, writeState]);
+
   const assassinate = useCallback(
     async (targetId: string) => {
       if (!roomId || !state) return;
@@ -544,6 +666,18 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     },
     [roomId, state, players, writeState]
   );
+
+  // Fallback: nếu Sát Thủ idle/disconnect, kết thúc với Phe Người thắng
+  // (vì Phe Người đã đạt 3 Quest và không bị ám sát trúng).
+  const assassinTimeoutAdvance = useCallback(async () => {
+    if (!roomId || !state || state.phase !== 'assassinate') return;
+    await writeState({
+      phase: 'end',
+      winner: 'good',
+      merlinTargetId: null,
+    });
+    await gameStorage.updateRoomStatus(roomId, 'end');
+  }, [roomId, state, writeState]);
 
   return {
     config,
@@ -563,6 +697,7 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     ackRole,
     setProposedTeam,
     submitTeam,
+    teamBuildTimeoutAdvance,
     castTeamVote,
     resolveTeamVote,
     proceedAfterTeamVoteResult,
@@ -572,9 +707,12 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     proceedAfterDiscussion,
     ackDiscussion,
     ladyInspect,
+    ladyConfirm,
     ladyShow,
     ladyFinish,
+    ladyTimeoutAdvance,
     assassinate,
+    assassinTimeoutAdvance,
   };
 }
 
