@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom } from '@/hooks/useRoom';
 import { useClocktowerRoles } from '@/hooks/games/useClocktowerRoles';
@@ -64,23 +64,6 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   const [roleRevealed, setRoleRevealed] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
   const { events: historyEvents } = useGameHistory(room.id);
-  // Track how many games have started so we only show the countdown on the very first one
-  const gamesStartedRef = useRef(0);
-
-  // ─── Game start helpers (Clocktower-specific) ──────────────────────
-  const startGame = useCallback(async () => {
-    await assignRoles();
-    // Status is updated by handleStartGame after animation (or skipped for 2nd+ games)
-  }, [assignRoles]);
-
-  const startNewGame = useCallback(async () => {
-    // Wipe all per-game data without changing room status (avoids lobby flash)
-    await gameStorage.clearGameData(room.id);
-    // Assign fresh roles (reads current players + config from live room prop)
-    await assignRoles();
-    // Jump directly to night — no lobby detour
-    await updateStatus('night');
-  }, [room.id, assignRoles, updateStatus]);
 
   const currentPlayer = players.find((p) => p.id === playerId);
   const playerRole = currentPlayer?.gameData?.role as ClocktowerRole | undefined;
@@ -131,23 +114,16 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     [playerId, currentPlayer, room.id, updateGameState]
   );
 
-  // ─── Start game ────────────────────────────────────────────────────
+  // ─── Start game (from lobby) ───────────────────────────────────────
   const handleStartGame = useCallback(async () => {
     try {
-      setRoleRevealed(false); // reset so players see role reveal every new game
-      await startGame();
-      if (gamesStartedRef.current === 0) {
-        // First game: play the full countdown animation
-        setAnimationPhase('countdown');
-      } else {
-        // Subsequent games: skip animation, go straight to night
-        await updateStatus('night');
-      }
-      gamesStartedRef.current += 1;
+      setRoleRevealed(false); // ensure players see role reveal animation every game
+      await assignRoles();
+      setAnimationPhase('countdown'); // always play countdown from lobby
     } catch (err: any) {
       alert(err.message || 'Failed to start game');
     }
-  }, [startGame, updateStatus]);
+  }, [assignRoles]);
 
   const handleCountdownComplete = useCallback(() => {
     setAnimationPhase('none');
@@ -169,19 +145,14 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
       router.push('/');
     }
   };
-  // Used only in the fallback Game-Over screen (edge case)
-  const handleReset = async () => { await resetRoom(); };
-
-  // End-screen "Bắt đầu ván mới": wipe data → assign roles → go straight to night
+  // End-screen "Bắt đầu ván mới": reset về lobby sạch hoàn toàn
   const handleStartNewGame = useCallback(async () => {
     try {
-      setRoleRevealed(false);
-      await startNewGame();
-      gamesStartedRef.current += 1;
+      await resetRoom(); // xóa toàn bộ dữ liệu ván cũ, đưa status về 'lobby'
     } catch (err: any) {
-      alert(err.message || 'Failed to start new game');
+      alert(err.message || 'Failed to reset room');
     }
-  }, [startNewGame]);
+  }, [resetRoom]);
 
   // ─── Animation overlays ────────────────────────────────────────────
   if (animationPhase === 'countdown') {
@@ -881,7 +852,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
       <div className="mt-8 flex gap-4">
         {isHost && (
           <button
-            onClick={handleReset}
+            onClick={resetRoom}
             className="rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-3 font-semibold text-white transition-all hover:from-purple-500 hover:to-indigo-500"
           >
             🔄 Về sảnh
