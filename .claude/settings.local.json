@@ -4,7 +4,8 @@
       "Bash(xargs ls *)",
       "Bash(xargs basename *)",
       "Bash(npx tsc *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(echo \"EXIT=$?\")"
     ]
   }
 }

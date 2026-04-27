@@ -1974,7 +1974,7 @@ function LadySection({
               className="rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-5 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30"
             >
               <div className="text-3xl mb-1">🛡️</div>
-              HIỆN PHE THIỆN
+              HIỆN PHE NGƯỜI
               <div className="text-[10px] font-bold text-blue-100/80 mt-1">(Nói xạo)</div>
             </button>
             <button
@@ -1982,7 +1982,7 @@ function LadySection({
               className="rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 py-5 font-black text-white text-base hover:from-red-500 hover:to-rose-500 active:scale-95 shadow-lg shadow-red-500/30"
             >
               <div className="text-3xl mb-1">🗡️</div>
-              HIỆN PHE ÁC
+              HIỆN PHE QUỶ
               <div className="text-[10px] font-bold text-red-100/80 mt-1">(Nói thật)</div>
             </button>
           </div>
@@ -2144,7 +2144,7 @@ function LadySection({
       <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-center">
         <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">🌊 Lady of the Lake</p>
         <p className="text-sm text-slate-300">
-          <span className="font-black text-white">{holder?.name}</span> đang soi loyalty của 1 người chơi.
+          <span className="text-[11px] uppercase font-bold text-cyan-300 mb-2">Lady</span> <span className="font-black text-white">{holder?.name}</span> đang soi 1 người chơi.
         </p>
         {target && (
           <p className="mt-2 text-xs text-slate-400">→ {target.name}</p>
