@@ -26,6 +26,7 @@ export default function NightActionPanel({ roomId, playerId, players, dayCount }
     hasSubmitted,
     hasNightAction,
     displayRole,
+    isTriggeredRavenkeeper,
     submitAction,
     clearMessage,
   } = useClocktowerNight(roomId, playerId, dayCount);
@@ -117,13 +118,28 @@ export default function NightActionPanel({ roomId, playerId, players, dayCount }
 
   if (actionType === 'single-target') {
     return (
-      <SingleTargetAction
-        role={displayRole}
-        playerId={playerId}
-        players={players}
-        canTargetSelf={false}
-        onSubmit={(targetId, targetName) => submitAction(targetId, targetName)}
-      />
+      <div className="space-y-3">
+        {/* Ravenkeeper death banner — shown when triggered by host */}
+        {isTriggeredRavenkeeper && (
+          <div className="rounded-2xl border border-slate-500/30 bg-gradient-to-br from-slate-900/80 to-slate-800/40 p-5 text-center animate-scale-in shadow-lg shadow-black/30">
+            <div className="text-5xl mb-3 animate-float">🐦‍⬛</div>
+            <h3 className="font-black text-slate-100 text-lg mb-2 leading-tight">
+              Đêm nay bạn sẽ qua đời...
+            </h3>
+            <p className="text-sm text-slate-400 leading-relaxed">
+              Trước khi ra đi, hãy chọn <span className="text-white font-bold">1 người chơi</span> bất kỳ.
+              <br />Quản trò sẽ tiết lộ <span className="text-slate-200 font-semibold">nhân vật thật</span> của họ cho bạn.
+            </p>
+          </div>
+        )}
+        <SingleTargetAction
+          role={displayRole}
+          playerId={playerId}
+          players={players}
+          canTargetSelf={false}
+          onSubmit={(targetId, targetName) => submitAction(targetId, targetName)}
+        />
+      </div>
     );
   }
 
