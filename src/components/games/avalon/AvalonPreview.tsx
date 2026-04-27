@@ -6,9 +6,11 @@ import { AvalonRole, type AvalonGameState, type AvalonGameData, type AvalonQuest
 import PlayerPanel from './PlayerPanel';
 import RoleReveal from './RoleReveal';
 import RoleCard from './RoleCard';
+import LobbyRoundTable from './LobbyRoundTable';
 import { QUEST_TEAM_SIZES } from './constants';
 
 type PreviewPhase =
+  | 'lobby'
   | 'lineup-preview'
   | 'role-reveal'
   | 'night-evils-as-evil'
@@ -50,6 +52,7 @@ type PreviewPhase =
   | 'end-evil-rejects';
 
 const PHASE_LABELS: Record<PreviewPhase, string> = {
+  lobby: '🛋️ Phòng chờ (lobby)',
   'lineup-preview': '🎭 Vai trong ván (preview)',
   'role-reveal': '🌙 Lộ vai (Merlin)',
   'night-evils-as-evil': '🗡️ Đêm — Phe Quỷ (xem đồng đội)',
@@ -92,6 +95,7 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
 };
 
 const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
+  { label: 'Phòng chờ', items: ['lobby'] },
   { label: 'Trước ván', items: ['lineup-preview'] },
   { label: 'Lộ vai', items: ['role-reveal'] },
   {
@@ -223,6 +227,14 @@ function buildScene(phase: PreviewPhase): { players: Player[]; state: AvalonGame
   };
 
   switch (phase) {
+    case 'lobby':
+      // Lobby phase doesn't use AvalonGameState; PlayerPanel is bypassed.
+      return {
+        players,
+        state: { ...base, rolesAssigned: false, phase: 'lineup-preview' },
+        viewerId: 'p3',
+      };
+
     case 'lineup-preview':
       return {
         players,
@@ -857,7 +869,18 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
       </header>
 
       <div className="flex-1 overflow-y-auto">
-        {phase === 'role-reveal' ? (
+        {phase === 'lobby' ? (
+          <div className="p-4">
+            <LobbyRoundTable
+              players={players}
+              myPlayerId={viewerId}
+              roomCode="DEMO42"
+              maxPlayers={10}
+              minPlayers={5}
+              reserveSeats={Math.max(players.length, 7)}
+            />
+          </div>
+        ) : phase === 'role-reveal' ? (
           <RoleReveal myRole={myRole} myPlayerId={viewerId} players={players} onDone={() => setPhase('team-build-follower')} />
         ) : (
           <PlayerPanel
@@ -876,6 +899,9 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             onShowMyRole={() => setShowRoleCard(true)}
             onAckRole={stub}
             onAckDiscussion={stub}
+            onPlayAgain={stub}
+            onLeaveRoom={onClose}
+            isHost={true}
           />
         )}
       </div>
