@@ -4,6 +4,7 @@ import { useState } from 'react';
 import {
   ClocktowerRole,
   ClocktowerTeam,
+  RoleSkillType,
   ROLE_ICONS,
   ROLE_NAMES_VI,
   ROLE_TEAM_VI,
@@ -158,6 +159,9 @@ function RoleCard({ role, team, defaultOpen = false }: {
   );
 }
 
+// ─── Skill type filter order ────────────────────────────────────────────
+const SKILL_TYPE_ORDER: RoleSkillType[] = ['info', 'active', 'passive', 'special', 'setup'];
+
 // ─── Main Handbook component ────────────────────────────────────────────
 interface RoleHandbookProps {
   onClose: () => void;
@@ -166,89 +170,222 @@ interface RoleHandbookProps {
 }
 
 export default function RoleHandbook({ onClose, highlightRole }: RoleHandbookProps) {
+  const [searchQuery, setSearchQuery] = useState('');
   const [activeTeam, setActiveTeam] = useState<ClocktowerTeam | 'all'>('all');
+  const [activeSkillType, setActiveSkillType] = useState<RoleSkillType | null>(null);
 
-  const shownTeams = activeTeam === 'all' ? TEAM_ORDER : [activeTeam];
+  const q = searchQuery.toLowerCase().trim();
+  const isFiltering = q !== '' || activeSkillType !== null;
+
+  // Build filtered role set per team, respecting all active filters
+  const filteredByTeam = TEAM_ORDER.reduce<Partial<Record<ClocktowerTeam, ClocktowerRole[]>>>(
+    (acc, team) => {
+      if (activeTeam !== 'all' && activeTeam !== team) return acc;
+      const roles = ROLES_BY_TEAM[team].filter((role) => {
+        const matchSearch =
+          !q ||
+          role.toLowerCase().includes(q) ||
+          ROLE_NAMES_VI[role].toLowerCase().includes(q);
+        const matchSkill =
+          !activeSkillType ||
+          ROLE_TRAITS[role].skillTypes.includes(activeSkillType);
+        return matchSearch && matchSkill;
+      });
+      if (roles.length > 0) acc[team] = roles;
+      return acc;
+    },
+    {},
+  );
+
+  const shownTeams = TEAM_ORDER.filter((t) => filteredByTeam[t]?.length);
+  const totalResults = shownTeams.reduce(
+    (sum, t) => sum + (filteredByTeam[t]?.length ?? 0),
+    0,
+  );
+
+  function clearFilters() {
+    setSearchQuery('');
+    setActiveSkillType(null);
+  }
 
   return (
     /* Full-screen overlay */
     <div className="fixed inset-0 z-50 flex flex-col bg-slate-950 animate-slide-up">
-      {/* Top bar */}
-      <div className="sticky top-0 z-10 flex items-center gap-3 border-b border-white/10 bg-slate-950/98 px-4 py-3 backdrop-blur-md pt-safe">
-        <span className="text-xl">📖</span>
-        <div className="flex-1 min-w-0">
-          <h2 className="font-black text-white text-base leading-tight">Sách Hướng Dẫn</h2>
-          <p className="text-[11px] text-slate-500">Blood on the Clocktower · Trouble Brewing</p>
+
+      {/* ── Sticky header stack ────────────────────────────────────── */}
+      <div className="sticky top-0 z-10 flex flex-col border-b border-white/10 bg-slate-950/98 backdrop-blur-md pt-safe">
+
+        {/* Title row */}
+        <div className="flex items-center gap-3 px-4 py-3">
+          <span className="text-xl">📖</span>
+          <div className="flex-1 min-w-0">
+            <h2 className="font-black text-white text-base leading-tight">Sách Hướng Dẫn</h2>
+            <p className="text-[11px] text-slate-500">Blood on the Clocktower · Trouble Brewing</p>
+          </div>
+          <button
+            onClick={onClose}
+            className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-bold text-slate-300 active:bg-white/10"
+          >
+            ✕ Đóng
+          </button>
         </div>
-        <button
-          onClick={onClose}
-          className="shrink-0 rounded-xl border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-bold text-slate-300 active:bg-white/10"
-        >
-          ✕ Đóng
-        </button>
+
+        {/* Search bar */}
+        <div className="px-4 pb-2.5">
+          <div className="relative">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm select-none">
+              🔎
+            </span>
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Tìm theo tên (Monk, Tu Sĩ, Imp…)"
+              className="w-full rounded-xl border border-white/10 bg-white/5 pl-9 pr-8 py-2.5 text-sm text-white placeholder:text-slate-500 focus:outline-none focus:border-white/25 focus:bg-white/8 transition-all"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-500 text-xs active:text-slate-300 leading-none"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Team filter row */}
+        <div className="shrink-0 flex gap-2 overflow-x-auto px-4 pb-2.5 no-scrollbar">
+          {(['all', ...TEAM_ORDER] as const).map((t) => {
+            const isActive = activeTeam === t;
+            const style = t !== 'all' ? TEAM_STYLE[t] : null;
+            return (
+              <button
+                key={t}
+                onClick={() => setActiveTeam(t)}
+                className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
+                  isActive
+                    ? style
+                      ? `${style.badge} ring-1 ring-white/20`
+                      : 'bg-white/15 text-white ring-1 ring-white/20'
+                    : 'bg-white/5 text-slate-400'
+                }`}
+              >
+                {t === 'all' ? 'Tất cả' : ROLE_TEAM_VI[t]}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Skill type filter row */}
+        <div className="shrink-0 flex gap-2 overflow-x-auto px-4 pb-3 no-scrollbar border-t border-white/5 pt-2.5">
+          {/* "All" pill */}
+          <button
+            onClick={() => setActiveSkillType(null)}
+            className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold transition-all ${
+              activeSkillType === null
+                ? 'bg-white/15 text-white ring-1 ring-white/20'
+                : 'bg-white/5 text-slate-400'
+            }`}
+          >
+            Mọi kỹ năng
+          </button>
+          {SKILL_TYPE_ORDER.map((st) => {
+            const d = SKILL_TYPE_DISPLAY[st];
+            const isActive = activeSkillType === st;
+            return (
+              <button
+                key={st}
+                onClick={() => setActiveSkillType(isActive ? null : st)}
+                className={`shrink-0 inline-flex items-center gap-1 rounded-full border px-3 py-1 text-[11px] font-bold transition-all ${
+                  isActive
+                    ? `${d.className} ring-1 ring-white/20`
+                    : 'border-white/10 bg-white/5 text-slate-400'
+                }`}
+              >
+                <span>{d.icon}</span>
+                <span>{d.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
-      {/* Team filter tabs */}
-      <div className="shrink-0 flex gap-2 overflow-x-auto px-4 py-3 border-b border-white/5 no-scrollbar">
-        {(['all', ...TEAM_ORDER] as const).map((t) => {
-          const isActive = activeTeam === t;
-          const style = t !== 'all' ? TEAM_STYLE[t] : null;
-          return (
-            <button
-              key={t}
-              onClick={() => setActiveTeam(t)}
-              className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-bold transition-all ${
-                isActive
-                  ? style
-                    ? `${style.badge} ring-1 ring-white/20`
-                    : 'bg-white/15 text-white ring-1 ring-white/20'
-                  : 'bg-white/5 text-slate-400 hover:bg-white/8'
-              }`}
-            >
-              {t === 'all' ? 'Tất cả' : `${ROLE_TEAM_VI[t]}`}
-            </button>
-          );
-        })}
-      </div>
+      {/* Result count bar — only when a filter is active */}
+      {isFiltering && (
+        <div className="shrink-0 flex items-center justify-between px-4 py-2 border-b border-white/5 bg-slate-950/60">
+          <p className="text-[11px] text-slate-500">
+            {totalResults > 0
+              ? `${totalResults} vai trò phù hợp`
+              : 'Không tìm thấy vai trò nào'}
+          </p>
+          <button
+            onClick={clearFilters}
+            className="text-[11px] text-slate-500 underline underline-offset-2 active:text-slate-300"
+          >
+            Xóa bộ lọc
+          </button>
+        </div>
+      )}
 
-      {/* Scrollable role list */}
+      {/* ── Scrollable role list ───────────────────────────────────── */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-6 pb-safe">
-        {shownTeams.map((team) => {
-          const style = TEAM_STYLE[team];
-          const roles = ROLES_BY_TEAM[team];
-          return (
-            <section key={team}>
-              {/* Team header */}
-              <div className={`flex items-center gap-2 rounded-xl border ${style.border} ${style.bg} px-4 py-3 mb-3`}>
-                <div className={`h-2.5 w-2.5 rounded-full ${style.dot}`} />
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className={`font-black text-sm ${style.header}`}>{ROLE_TEAM_VI[team]}</span>
-                    <span className="text-slate-600 text-xs">({team})</span>
-                    <span className={`ml-auto text-[10px] rounded-full px-2 py-0.5 font-bold ${style.badge}`}>
-                      {roles.length} vai
-                    </span>
+        {shownTeams.length === 0 ? (
+          /* Empty state */
+          <div className="flex flex-col items-center justify-center py-24 gap-4">
+            <span className="text-6xl opacity-20 select-none">🔍</span>
+            <div className="text-center space-y-1">
+              <p className="text-sm text-slate-400 font-semibold">Không tìm thấy vai trò nào</p>
+              <p className="text-xs text-slate-600">Thử từ khóa khác hoặc thay đổi bộ lọc</p>
+            </div>
+            <button
+              onClick={clearFilters}
+              className="mt-2 rounded-xl border border-white/10 bg-white/5 px-5 py-2 text-sm font-bold text-slate-400 active:bg-white/10"
+            >
+              Xóa bộ lọc
+            </button>
+          </div>
+        ) : (
+          shownTeams.map((team) => {
+            const style = TEAM_STYLE[team];
+            const roles = filteredByTeam[team]!;
+            const totalForTeam = ROLES_BY_TEAM[team].length;
+            return (
+              <section key={team}>
+                {/* Team header */}
+                <div className={`flex items-center gap-2 rounded-xl border ${style.border} ${style.bg} px-4 py-3 mb-3`}>
+                  <div className={`h-2.5 w-2.5 rounded-full ${style.dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className={`font-black text-sm ${style.header}`}>{ROLE_TEAM_VI[team]}</span>
+                      <span className="text-slate-600 text-xs">({team})</span>
+                      <span className={`ml-auto text-[10px] rounded-full px-2 py-0.5 font-bold ${style.badge}`}>
+                        {isFiltering && roles.length !== totalForTeam
+                          ? `${roles.length}/${totalForTeam} vai`
+                          : `${roles.length} vai`}
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
+                      {TEAM_WIN_CONDITION[team]}
+                    </p>
                   </div>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-snug">
-                    {TEAM_WIN_CONDITION[team]}
-                  </p>
                 </div>
-              </div>
 
-              {/* Role cards */}
-              <div className="space-y-2">
-                {roles.map((role) => (
-                  <RoleCard
-                    key={role}
-                    role={role}
-                    team={team}
-                    defaultOpen={role === highlightRole}
-                  />
-                ))}
-              </div>
-            </section>
-          );
-        })}
+                {/* Role cards */}
+                <div className="space-y-2">
+                  {roles.map((role) => (
+                    <RoleCard
+                      key={role}
+                      role={role}
+                      team={team}
+                      defaultOpen={role === highlightRole}
+                    />
+                  ))}
+                </div>
+              </section>
+            );
+          })
+        )}
       </div>
     </div>
   );
