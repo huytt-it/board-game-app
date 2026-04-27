@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom } from '@/hooks/useRoom';
 import { useClocktowerRoles } from '@/hooks/games/useClocktowerRoles';
@@ -129,6 +129,13 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
     setAnimationPhase('none');
     updateStatus('night');
   }, [updateStatus]);
+
+  // Reset roleRevealed when the room returns to lobby (new game started by host)
+  useEffect(() => {
+    if (room.status === 'lobby') {
+      setRoleRevealed(false);
+    }
+  }, [room.status]);
 
   const showRoleReveal = !isHost && room.status === 'night' && displayRole && !roleRevealed;
 

@@ -18,8 +18,8 @@ export default function GameStartAnimation({ onComplete }: GameStartAnimationPro
       setTimeout(() => setStep(1), 1000),
       setTimeout(() => setStep(2), 2000),
       setTimeout(() => setStep(3), 3000),
-      setTimeout(() => setStep(4), 5000),
-      setTimeout(() => onComplete(), 5500),
+      setTimeout(() => setStep(4), 4500),
+      setTimeout(() => onComplete(), 5000),
     ];
     return () => timers.forEach(clearTimeout);
   }, [onComplete]);
