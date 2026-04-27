@@ -274,21 +274,20 @@ export default function HostDashboard({
       }
     }
 
-    // 6. Ravenkeeper — auto-kill after resolving their last action
+    // 6. Ravenkeeper — log that info was sent; host kills manually via Grimoire 💀 button
     if (actorRole === ClocktowerRole.Ravenkeeper) {
-      await gameStorage.updatePlayerAlive(roomId, action.playerId, false);
       await addEvent({
-        type: 'night_death',
+        type: 'night_action',
         dayCount,
         phase: 'night',
         emoji: '🐦‍⬛',
-        title: `${action.playerName} (Ravenkeeper) qua đời sau khi xem nhân vật ${action.targetName || '?'}`,
-        detail: hasMessage ? `Thông tin đã gửi: "${msg}"` : undefined,
+        title: `${action.playerName} (Ravenkeeper) đã xem nhân vật của ${action.targetName || '?'}`,
+        detail: hasMessage ? `Thông tin đã gửi: "${msg}" — Hãy bấm 💀 trong Grimoire để đánh dấu Ravenkeeper đã chết.` : `Hãy bấm 💀 trong Grimoire để đánh dấu Ravenkeeper đã chết.`,
         actorName: action.playerName,
         actorRole: String(ClocktowerRole.Ravenkeeper),
         targetName: action.targetName,
         targetRole: targetRole ? String(targetRole) : undefined,
-        resultState: 'killed',
+        resultState: 'approved',
       });
       return;
     }
