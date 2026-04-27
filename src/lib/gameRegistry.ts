@@ -31,6 +31,11 @@ const ClocktowerBoard = dynamic(
   { ssr: false }
 );
 
+const AvalonBoard = dynamic(
+  () => import('@/components/games/avalon/AvalonBoard'),
+  { ssr: false }
+);
+
 // ─── Game Registry ────────────────────────────────────────────────────
 export const GAME_REGISTRY: GameRegistryEntry[] = [
   {
@@ -58,10 +63,10 @@ export const GAME_REGISTRY: GameRegistryEntry[] = [
     label: 'The Resistance: Avalon',
     description: 'Merlin knows the spies, but can he guide Arthur\'s knights without revealing himself? 5-10 players.',
     icon: '⚔️',
-    enabled: false,
+    enabled: true,
     minPlayers: 5,
     maxPlayers: 10,
-    component: null,
+    component: AvalonBoard,
   },
 ];
 
