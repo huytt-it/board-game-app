@@ -22,7 +22,7 @@ interface RoomSettingsProps {
 
 export default function RoomSettings({ config, onUpdateConfig, playerCount }: RoomSettingsProps) {
   const optionalRoles =
-    (config.optionalRoles as AvalonRole[] | undefined) ?? [AvalonRole.Morgana];
+    (config.optionalRoles as AvalonRole[] | undefined) ?? [];
   const maxPlayers = config.maxPlayers ?? 10;
 
   const isSupported = (PLAYER_COUNTS as readonly number[]).includes(playerCount);
