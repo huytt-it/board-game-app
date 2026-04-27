@@ -164,22 +164,106 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
 
   // ─── Role info / handbook overlays (rendered on top of current view) ─
   // We render these as fragments that wrap the main content so they can
-  // ─── Seat bar — shown under role strip in every player phase ─────────
-  const seatBar = mySeat != null && leftNeighbour && rightNeighbour ? (
-    <div className="flex items-center gap-2 border-t border-white/5 bg-black/20 px-4 py-1.5">
-      <span className="text-[10px] text-slate-600 shrink-0">Hàng xóm</span>
-      <div className="flex items-center gap-1 flex-1 min-w-0 justify-center">
-        <span className={`text-[11px] font-semibold truncate max-w-[80px] ${leftNeighbour.isAlive ? 'text-slate-300' : 'text-slate-600 line-through'}`}>
-          {leftNeighbour.name}
-        </span>
-        <span className="text-slate-600 text-[10px] shrink-0 mx-1">←</span>
-        <span className="text-xs font-black text-white shrink-0">
-          #{mySeat} Bạn
-        </span>
-        <span className="text-slate-600 text-[10px] shrink-0 mx-1">→</span>
-        <span className={`text-[11px] font-semibold truncate max-w-[80px] ${rightNeighbour.isAlive ? 'text-slate-300' : 'text-slate-600 line-through'}`}>
-          {rightNeighbour.name}
-        </span>
+
+  // ─── Seat bar — compact 3-col strip in the sticky header ─────────────
+  const seatBar = mySeat != null ? (
+    <div className="border-t border-white/8 bg-black/20 px-4 py-2">
+      {leftNeighbour && rightNeighbour ? (
+        <div className="flex items-center gap-2">
+          {/* Left neighbour */}
+          <div className="flex items-center gap-1.5 flex-1 min-w-0">
+            <span className={`h-2 w-2 rounded-full shrink-0 ${leftNeighbour.isAlive ? 'bg-green-500' : 'bg-red-500/60'}`} />
+            <div className="min-w-0">
+              <div className={`text-[11px] font-bold leading-tight truncate ${leftNeighbour.isAlive ? 'text-slate-200' : 'text-slate-600 line-through'}`}>
+                {leftNeighbour.name}
+              </div>
+              <div className="text-[9px] text-slate-600 leading-none">
+                #{leftNeighbour.gameData?.seatNumber as number} · ← Trái
+              </div>
+            </div>
+          </div>
+          {/* Self */}
+          <div className="shrink-0 flex flex-col items-center px-2.5 py-0.5 rounded-full border border-cyan-500/40 bg-cyan-900/30">
+            <span className="text-[11px] font-black text-cyan-300 leading-none">#{mySeat}</span>
+            <span className="text-[9px] text-cyan-500/70 font-bold leading-none">BẠN</span>
+          </div>
+          {/* Right neighbour */}
+          <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
+            <div className="min-w-0 text-right">
+              <div className={`text-[11px] font-bold leading-tight truncate ${rightNeighbour.isAlive ? 'text-slate-200' : 'text-slate-600 line-through'}`}>
+                {rightNeighbour.name}
+              </div>
+              <div className="text-[9px] text-slate-600 leading-none">
+                Phải → · #{rightNeighbour.gameData?.seatNumber as number}
+              </div>
+            </div>
+            <span className={`h-2 w-2 rounded-full shrink-0 ${rightNeighbour.isAlive ? 'bg-green-500' : 'bg-red-500/60'}`} />
+          </div>
+        </div>
+      ) : (
+        /* fallback: seat number only */
+        <div className="flex justify-center">
+          <span className="text-[11px] font-black text-cyan-400">#{mySeat} Ghế của bạn</span>
+        </div>
+      )}
+    </div>
+  ) : null;
+
+  // ─── Seating circle strip — horizontal scroll of all players in order ─
+  const seatingStrip = seatedPlayers.length > 1 ? (
+    <div className="px-4 pt-4">
+      <div className="flex items-center justify-between mb-2">
+        <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
+          🪑 Vòng tròn chỗ ngồi
+        </p>
+        <p className="text-[10px] text-slate-600">{seatedPlayers.length} người</p>
+      </div>
+      <div className="overflow-x-auto no-scrollbar">
+        <div className="flex items-stretch min-w-max rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden">
+          {seatedPlayers.map((p) => {
+            const isMe       = p.id === playerId;
+            const isLeft     = p.id === leftNeighbour?.id;
+            const isRight    = p.id === rightNeighbour?.id;
+            const pSeat      = p.gameData?.seatNumber as number;
+            return (
+              <div
+                key={p.id}
+                className={`flex flex-col items-center justify-center px-3 py-2.5 min-w-[62px] border-r border-white/5 last:border-r-0 transition-colors ${
+                  isMe    ? 'bg-cyan-900/40'   :
+                  isLeft  ? 'bg-amber-900/25'  :
+                  isRight ? 'bg-amber-900/25'  :
+                  !p.isAlive ? 'opacity-30'    : ''
+                }`}
+              >
+                {/* Seat number */}
+                <span className={`text-[10px] font-black leading-none mb-0.5 ${
+                  isMe             ? 'text-cyan-400'  :
+                  isLeft || isRight ? 'text-amber-400' :
+                  'text-slate-600'
+                }`}>#{pSeat}</span>
+
+                {/* Name */}
+                <span className={`text-[11px] font-semibold leading-tight text-center max-w-[54px] truncate ${
+                  !p.isAlive       ? 'text-slate-600 line-through' :
+                  isMe             ? 'text-cyan-200'  :
+                  isLeft || isRight ? 'text-amber-200' :
+                  'text-slate-300'
+                }`}>{p.name}</span>
+
+                {/* Label */}
+                <span className={`text-[9px] font-bold mt-0.5 leading-none ${
+                  isMe    ? 'text-cyan-500'   :
+                  isLeft  ? 'text-amber-500'  :
+                  isRight ? 'text-amber-500'  :
+                  !p.isAlive ? 'text-red-500' :
+                  'text-transparent'
+                }`}>
+                  {isMe ? 'BẠN' : isLeft ? '← Trái' : isRight ? 'Phải →' : !p.isAlive ? '💀' : '·'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   ) : null;
@@ -495,13 +579,18 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
           </div>
 
           {/* Night action fills remaining space */}
-          <div className="flex-1 overflow-y-auto px-4 py-5 pb-safe">
-            <NightActionPanel
-              roomId={room.id}
-              playerId={playerId}
-              players={players}
-              dayCount={dayCount}
-            />
+          <div className="flex-1 overflow-y-auto pb-safe">
+            {seatingStrip && (
+              <div className="border-b border-white/5 pb-4 mb-2">{seatingStrip}</div>
+            )}
+            <div className="px-4 py-5">
+              <NightActionPanel
+                roomId={room.id}
+                playerId={playerId}
+                players={players}
+                dayCount={dayCount}
+              />
+            </div>
           </div>
         </div>
       </>
@@ -717,6 +806,11 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
             </div>
           )}
 
+          {/* Seating circle strip */}
+          {seatingStrip && (
+            <div className="border-b border-white/5 pb-4 mb-2">{seatingStrip}</div>
+          )}
+
           {/* Town square */}
           <div className="px-4 pt-4 pb-2">
             <div className="flex items-center justify-between mb-2">
@@ -732,10 +826,19 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
             <div className="grid grid-cols-2 gap-3">
               {players
                 .filter((p) => !p.isHost)
+                .sort((a, b) => {
+                  const sa = (a.gameData?.seatNumber as number) ?? 999;
+                  const sb = (b.gameData?.seatNumber as number) ?? 999;
+                  return sa - sb;
+                })
                 .map((p) => {
-                  const isNominatedByMe  = nominations?.[playerId ?? ''] === p.id;
-                  const nominatedCount   = Object.values(nominations || {}).filter((id) => id === p.id).length;
-                  const canNominate      =
+                  const isNominatedByMe = nominations?.[playerId ?? ''] === p.id;
+                  const nominatedCount  = Object.values(nominations || {}).filter((id) => id === p.id).length;
+                  const isLeftNeighbour = p.id === leftNeighbour?.id;
+                  const isRightNeighbour= p.id === rightNeighbour?.id;
+                  const isNeighbour     = isLeftNeighbour || isRightNeighbour;
+                  const pSeat           = p.gameData?.seatNumber as number | undefined;
+                  const canNominate     =
                     room.status === 'day' &&
                     p.isAlive &&
                     p.id !== playerId &&
@@ -748,19 +851,31 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                         if (canNominate) castNomination(isNominatedByMe ? null : p.id);
                       }}
                       disabled={!canNominate && !isNominatedByMe}
-                      className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all active:scale-95 min-h-[100px] ${
+                      className={`relative flex flex-col items-center gap-2 rounded-2xl border p-4 text-center transition-all active:scale-95 min-h-[110px] ${
                         !p.isAlive
                           ? 'border-red-500/10 bg-red-500/5 opacity-60 cursor-default'
                           : isNominatedByMe
                           ? 'border-amber-500/50 bg-amber-500/10 ring-1 ring-amber-500/40 shadow-lg shadow-amber-500/10'
                           : p.id === playerId
-                          ? 'border-cyan-500/20 bg-cyan-500/5 cursor-default'
+                          ? 'border-cyan-500/25 bg-cyan-500/5 cursor-default'
+                          : isNeighbour
+                          ? 'border-amber-500/20 bg-amber-500/5 hover:bg-amber-500/10 hover:border-amber-500/35'
                           : !(currentPlayer?.isAlive)
                           ? 'border-white/8 bg-white/3 opacity-50 cursor-default'
                           : 'border-white/10 bg-white/5 hover:bg-white/8 hover:border-white/20'
                       }`}
                     >
-                      {/* Nomination count badge */}
+                      {/* Seat number badge — top-left */}
+                      {pSeat != null && (
+                        <div className="absolute top-2 left-2.5">
+                          <span className={`text-[10px] font-black leading-none ${
+                            p.id === playerId ? 'text-cyan-500' :
+                            isNeighbour ? 'text-amber-500' : 'text-slate-600'
+                          }`}>#{pSeat}</span>
+                        </div>
+                      )}
+
+                      {/* Nomination count badge — top-right */}
                       {nominatedCount > 0 && (
                         <div className="absolute -top-2.5 -right-2.5 flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-xs font-black text-black shadow-lg shadow-amber-500/40">
                           {nominatedCount}
@@ -775,6 +890,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                           ? 'bg-gradient-to-br from-amber-500 to-orange-500 shadow-lg shadow-amber-500/40'
                           : p.id === playerId
                           ? 'bg-gradient-to-br from-cyan-600 to-cyan-800'
+                          : isNeighbour
+                          ? 'bg-gradient-to-br from-amber-600 to-orange-700'
                           : 'bg-gradient-to-br from-purple-500 to-cyan-500'
                       }`}>
                         {p.isAlive ? p.name.charAt(0).toUpperCase() : '💀'}
@@ -788,6 +905,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                           ? 'text-amber-200'
                           : p.id === playerId
                           ? 'text-cyan-300'
+                          : isNeighbour
+                          ? 'text-amber-200'
                           : 'text-white'
                       }`}>
                         {p.name}
@@ -800,6 +919,12 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                       )}
                       {p.id === playerId && p.isAlive && (
                         <span className="text-[10px] text-cyan-400 font-semibold">Bạn</span>
+                      )}
+                      {isLeftNeighbour && p.isAlive && !isNominatedByMe && (
+                        <span className="text-[10px] text-amber-400 font-bold">← Hàng xóm</span>
+                      )}
+                      {isRightNeighbour && p.isAlive && !isNominatedByMe && (
+                        <span className="text-[10px] text-amber-400 font-bold">Hàng xóm →</span>
                       )}
                     </button>
                   );
