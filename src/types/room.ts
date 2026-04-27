@@ -25,6 +25,8 @@ export interface RoomConfig {
 // Clocktower-specific fields are kept here until Avalon requires a clean split.
 export interface RoomGameState {
   dayCount: number;
+  /** Controls day-time player actions. 'discussion' = no nominations; 'nomination' = nominations open */
+  daySubPhase?: 'discussion' | 'nomination';
   nominations?: Record<string, string | null>; // playerId -> targetId
   votingTarget?: string | null;
   votingTargetName?: string | null;

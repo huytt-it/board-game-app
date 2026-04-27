@@ -45,6 +45,7 @@ export default function HostDashboard({
 
   const dayCount = gameState?.dayCount ?? 0;
   const phase: 'night' | 'day' = currentPhase === 'night' ? 'night' : 'day';
+  const daySubPhase = gameState?.daySubPhase ?? 'discussion';
 
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
   const {
@@ -431,6 +432,23 @@ export default function HostDashboard({
     setMessagingPlayerId(null);
   };
 
+  // ─── Day sub-phase: switch between discussion and nomination ──────────
+  const handleSetDaySubPhase = async (subPhase: 'discussion' | 'nomination') => {
+    if (subPhase === daySubPhase) return;
+    // When switching back to discussion, clear all pending nominations
+    const extra = subPhase === 'discussion' ? { nominations: {} } : {};
+    await gameStorage.updateRoomGameState(roomId, { daySubPhase: subPhase, ...extra } as any);
+    await addEvent({
+      type: 'phase_change',
+      dayCount,
+      phase: 'day',
+      emoji: subPhase === 'discussion' ? '🗣️' : '⚖️',
+      title: subPhase === 'discussion'
+        ? `Ngày ${dayCount} — Thảo luận`
+        : `Ngày ${dayCount} — Mở đề cử`,
+    });
+  };
+
   // ─── Start new night ───────────────────────────────────────────────────
   const handleNewNight = async () => {
     await addEvent({
@@ -440,6 +458,8 @@ export default function HostDashboard({
       emoji: '🌙',
       title: `Bắt đầu Đêm ${dayCount + 1}`,
     });
+    // Reset day sub-phase for the next morning
+    await gameStorage.updateRoomGameState(roomId, { daySubPhase: 'discussion' } as any);
     await clearAllActions();
     onChangePhase('night');
   };
@@ -516,6 +536,53 @@ export default function HostDashboard({
       {(currentPhase === 'day' || currentPhase === 'voting') && (
         <div className="space-y-4">
 
+          {/* ── Day sub-phase switcher ──────────────────────────────────── */}
+          {currentPhase === 'day' && !votingTarget && (
+            <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+              <div className="flex items-center gap-3 mb-3">
+                <h3 className="text-sm font-bold uppercase tracking-wider text-slate-400 shrink-0">
+                  🗓️ Giai đoạn ban ngày
+                </h3>
+                <span className={`rounded-full px-2.5 py-0.5 text-[11px] font-black ${
+                  daySubPhase === 'discussion'
+                    ? 'bg-sky-500/20 text-sky-300 border border-sky-500/30'
+                    : 'bg-amber-500/20 text-amber-300 border border-amber-500/30'
+                }`}>
+                  {daySubPhase === 'discussion' ? '🗣️ Đang thảo luận' : '⚖️ Đang đề cử'}
+                </span>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => handleSetDaySubPhase('discussion')}
+                  disabled={daySubPhase === 'discussion'}
+                  className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition-all active:scale-95 ${
+                    daySubPhase === 'discussion'
+                      ? 'border-sky-500/50 bg-sky-500/20 text-sky-300 cursor-default ring-1 ring-sky-500/30'
+                      : 'border-white/10 bg-white/5 text-slate-400 hover:bg-sky-500/10 hover:border-sky-500/30 hover:text-sky-300'
+                  }`}
+                >
+                  🗣️ Thảo luận
+                </button>
+                <button
+                  onClick={() => handleSetDaySubPhase('nomination')}
+                  disabled={daySubPhase === 'nomination'}
+                  className={`flex items-center justify-center gap-2 rounded-xl border px-4 py-3 text-sm font-bold transition-all active:scale-95 ${
+                    daySubPhase === 'nomination'
+                      ? 'border-amber-500/50 bg-amber-500/20 text-amber-300 cursor-default ring-1 ring-amber-500/30'
+                      : 'border-white/10 bg-white/5 text-slate-400 hover:bg-amber-500/10 hover:border-amber-500/30 hover:text-amber-300'
+                  }`}
+                >
+                  ⚖️ Mở đề cử
+                </button>
+              </div>
+              {daySubPhase === 'discussion' && (
+                <p className="mt-2 text-center text-[10px] text-slate-600">
+                  Người chơi chưa thể đề cử — bấm "Mở đề cử" để bắt đầu.
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Active voting panel */}
           {currentPhase === 'voting' && votingTarget && votingTargetName && (
             <VotingPanel
@@ -566,8 +633,8 @@ export default function HostDashboard({
             </div>
           )}
 
-          {/* Live Nominations — day only */}
-          {currentPhase === 'day' && (
+          {/* Live Nominations — day + nomination sub-phase only */}
+          {currentPhase === 'day' && daySubPhase === 'nomination' && (
             <div className="rounded-xl border border-white/10 bg-white/5 p-4">
               <h3 className="mb-3 text-sm font-semibold uppercase tracking-wider text-amber-400">
                 ⚖️ Đề cử đang diễn ra
