@@ -12,14 +12,14 @@ import {
 } from '@/types/games/clocktower';
 
 // ─── Stage types ────────────────────────────────────────────────────
-// 0 = card shuffle   (auto 2.2 s)
-// 1 = alignment      (auto 2.0 s)  Thiện / Ác
-// 2 = faction        (auto 2.0 s)  Dân Làng / Ngoại Nhân / Tay Sai / Quỷ Dữ
-// 3 = role name      (auto 2.0 s)  icon + EN + VI
+// 0 = card shuffle   (auto 1.5 s)
+// 1 = alignment      (auto 1.5 s)  Thiện / Ác
+// 2 = faction        (auto 1.5 s)  Dân Làng / Ngoại Nhân / Tay Sai / Quỷ Dữ
+// 3 = role name      (auto 1.5 s)  icon + EN + VI
 // 4 = full skill     (manual)      Vietnamese ability + confirm button
 type Stage = 0 | 1 | 2 | 3 | 4;
 
-const STAGE_DURATIONS: number[] = [2200, 2000, 2000, 2000];
+const STAGE_DURATIONS: number[] = [1500, 1500, 1500, 1500];
 
 // Deterministic card fan positions (no Math.random in render)
 const SHUFFLE_CARDS = [
