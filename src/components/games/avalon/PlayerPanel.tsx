@@ -67,6 +67,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
             showVoteStatus={state.phase === 'team-vote'}
             title="Danh sách người chơi"
             compact
+            viewerRole={myRole}
           />
         </aside>
 
@@ -130,8 +131,8 @@ export default function PlayerPanel(props: PlayerPanelProps) {
                       Quest {state.currentQuest + 1} — Luật đặc biệt
                     </p>
                     <p className="mt-1 text-xs text-slate-200 leading-relaxed">
-                      Cần <strong className="text-rose-300">≥ 2 lá Phe Ác</strong> để Quest này thất bại.
-                      1 lá Phe Ác đơn lẻ vẫn coi như Phe Thiện thắng Quest.
+                      Cần <strong className="text-rose-300">≥ 2 lá Phe Quỷ</strong> để Quest này thất bại.
+                      1 lá Phe Quỷ đơn lẻ vẫn coi như Phe Người thắng Quest.
                     </p>
                   </div>
                 </div>
@@ -381,7 +382,7 @@ function PhaseChip({ phase }: { phase: AvalonGameState['phase'] }) {
   const map: Record<string, { emoji: string; text: string; cls: string }> = {
     'lineup-preview': { emoji: '🎭', text: 'Vai trong ván', cls: 'bg-fuchsia-500/20 text-fuchsia-300' },
     'role-reveal': { emoji: '🌙', text: 'Lộ vai', cls: 'bg-purple-500/20 text-purple-300' },
-    'night-evils': { emoji: '🗡️', text: 'Đêm — Phe Ác', cls: 'bg-red-500/20 text-red-300' },
+    'night-evils': { emoji: '🗡️', text: 'Đêm — Phe Quỷ', cls: 'bg-red-500/20 text-red-300' },
     'night-merlin': { emoji: '🧙', text: 'Đêm — Merlin', cls: 'bg-blue-500/20 text-blue-300' },
     'night-percival': { emoji: '🛡️', text: 'Đêm — Percival', cls: 'bg-indigo-500/20 text-indigo-300' },
     'team-build': { emoji: '⚔️', text: 'Chọn đội', cls: 'bg-amber-500/20 text-amber-300' },
@@ -441,7 +442,10 @@ interface RosterMark {
   | 'was-lady'
   | 'voted'
   | 'not-voted'
-  | 'quest-history';
+  | 'quest-history'
+  | 'evil-ally'
+  | 'merlin-sees'
+  | 'percival-sees';
   className: string;
   label: string;
   key?: string;
@@ -588,6 +592,7 @@ function PlayerRoster({
   emphasis,
   showHistory = true,
   compact = false,
+  viewerRole,
 }: {
   gamePlayers: Player[];
   state: AvalonGameState;
@@ -599,12 +604,23 @@ function PlayerRoster({
   emphasis?: 'team' | 'lady' | 'none';
   showHistory?: boolean;
   compact?: boolean;
+  viewerRole?: AvalonRole;
 }) {
   const auto = deriveAutoHighlight(state);
   const finalIds = highlightedIds ?? auto.ids;
   const finalEmphasis = emphasis ?? auto.emphasis;
   const autoLadyTarget = state.phase === 'lady-of-lake';
   const finalShowLadyTarget = showLadyTarget ?? autoLadyTarget;
+  // Non-Oberon evils know each other after the night reveal — keep the marker
+  // visible to them for the rest of the game so they don't forget who's who.
+  const viewerIsVisibleEvil =
+    viewerRole !== undefined &&
+    ROLE_TEAM[viewerRole] === 'evil' &&
+    viewerRole !== AvalonRole.Oberon;
+  // Merlin sees all Quỷ except Mordred — keep that knowledge persistent.
+  const viewerIsMerlin = viewerRole === AvalonRole.Merlin;
+  // Percival sees Merlin & Morgana but doesn't know which is which.
+  const viewerIsPercival = viewerRole === AvalonRole.Percival;
 
   return (
     <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
@@ -619,13 +635,61 @@ function PlayerRoster({
             showLadyTarget: finalShowLadyTarget,
             showVoteStatus,
           });
+          if (viewerIsVisibleEvil && p.id !== myPlayerId) {
+            const targetData = p.gameData as Partial<AvalonGameData>;
+            const targetIsVisibleEvil =
+              targetData.team === 'evil' && targetData.role !== AvalonRole.Oberon;
+            if (targetIsVisibleEvil) {
+              liveMarks.unshift({
+                type: 'evil-ally',
+                className:
+                  'bg-red-500/30 border border-red-400/50 text-red-100',
+                label: '🗡️ Đồng đội Quỷ',
+              });
+            }
+          }
+          if (viewerIsMerlin && p.id !== myPlayerId) {
+            const targetData = p.gameData as Partial<AvalonGameData>;
+            const targetIsSeenByMerlin =
+              targetData.team === 'evil' && targetData.role !== AvalonRole.Mordred;
+            if (targetIsSeenByMerlin) {
+              liveMarks.unshift({
+                type: 'merlin-sees',
+                className:
+                  'bg-red-500/25 border border-red-400/40 text-red-100',
+                label: '🗡️ Quỷ (bạn thấy)',
+              });
+            }
+          }
+          if (viewerIsPercival && p.id !== myPlayerId) {
+            const targetData = p.gameData as Partial<AvalonGameData>;
+            const targetIsSuspect =
+              targetData.role === AvalonRole.Merlin ||
+              targetData.role === AvalonRole.Morgana;
+            if (targetIsSuspect) {
+              liveMarks.unshift({
+                type: 'percival-sees',
+                className:
+                  'bg-indigo-500/25 border border-indigo-400/40 text-indigo-100',
+                label: '❓ Merlin/Morgana',
+              });
+            }
+          }
           const historyMarks = showHistory ? buildHistoryMarks(p.id, state) : [];
+          const hasRedClueMark = liveMarks.some(
+            (m) => m.type === 'evil-ally' || m.type === 'merlin-sees'
+          );
+          const hasPercivalClueMark = liveMarks.some((m) => m.type === 'percival-sees');
           const highlightCls =
             isHighlighted && finalEmphasis === 'team'
               ? 'border-orange-400/60 bg-orange-500/15 ring-1 ring-orange-400/40 shadow shadow-orange-500/20'
               : isHighlighted && finalEmphasis === 'lady'
                 ? 'border-fuchsia-400/60 bg-fuchsia-500/15 ring-1 ring-fuchsia-400/40 shadow shadow-fuchsia-500/20'
-                : 'border-white/10 bg-white/5';
+                : hasRedClueMark
+                  ? 'border-red-500/40 bg-red-500/10'
+                  : hasPercivalClueMark
+                    ? 'border-indigo-500/40 bg-indigo-500/10'
+                    : 'border-white/10 bg-white/5';
           return (
             <div
               key={p.id}
@@ -733,7 +797,7 @@ function LineupPreviewSection({
           🎭 Vai trò trong ván này
         </p>
         <p className="text-sm text-slate-300">
-          {goodRoles.length} Phe Thiện · {evilRoles.length} Phe Ác
+          {goodRoles.length} Phe Người · {evilRoles.length} Phe Quỷ
         </p>
         <p className="mt-1 text-[11px] text-slate-500">
           (Vai trò của bạn sẽ được hiện ở bước sau)
@@ -743,7 +807,7 @@ function LineupPreviewSection({
       <div className="rounded-2xl border border-blue-500/30 bg-blue-900/15 p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-base">🛡️</span>
-          <h3 className="text-sm font-black text-blue-200">Phe Thiện ({goodRoles.length})</h3>
+          <h3 className="text-sm font-black text-blue-200">Phe Người ({goodRoles.length})</h3>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {Object.entries(goodCounts).map(([role, count]) => (
@@ -760,7 +824,7 @@ function LineupPreviewSection({
       <div className="rounded-2xl border border-red-500/30 bg-red-900/15 p-4">
         <div className="flex items-center gap-2 mb-3">
           <span className="text-base">🗡️</span>
-          <h3 className="text-sm font-black text-red-200">Phe Ác ({evilRoles.length})</h3>
+          <h3 className="text-sm font-black text-red-200">Phe Quỷ ({evilRoles.length})</h3>
         </div>
         <div className="grid grid-cols-2 gap-2">
           {Object.entries(evilCounts).map(([role, count]) => (
@@ -1111,11 +1175,11 @@ function NightEvilsSection({
       <div className="space-y-3">
         <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 text-center">
           <p className="text-[11px] uppercase font-black text-red-300 mb-2">
-            🗡️ Đêm — Phe Ác đang nhận biết nhau
+            🗡️ Đêm — Phe Quỷ đang nhận biết nhau
           </p>
           <div className="text-5xl mb-2 animate-pulse">😴</div>
           <p className="text-sm text-slate-300">
-            Hãy nhắm mắt. Phe Ác đang lộ diện với nhau.
+            Hãy nhắm mắt. Phe Quỷ đang lộ diện với nhau.
           </p>
         </div>
         <NightCountdown state={state} phase="night-evils" allActiveAcked={allActiveAcked} />
@@ -1129,13 +1193,13 @@ function NightEvilsSection({
     <div className="space-y-3">
       <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-red-300 mb-1">
-          🗡️ Đêm — Phe Ác lộ diện
+          🗡️ Đêm — Phe Quỷ lộ diện
         </p>
         {isOberon ? (
           <>
             <h3 className="text-base font-black text-white mb-1">Bạn là Oberon — đơn độc</h3>
             <p className="text-xs text-slate-300 mb-3">
-              Bạn không biết đồng đội Ác là ai. Đồng đội Ác cũng không biết bạn.
+              Bạn không biết đồng đội Quỷ là ai. Đồng đội Quỷ cũng không biết bạn.
               Tự xoay xở phá Quest.
             </p>
             <div className="rounded-xl border border-red-500/20 bg-red-950/30 p-4 text-center">
@@ -1145,7 +1209,7 @@ function NightEvilsSection({
           </>
         ) : (
           <>
-            <h3 className="text-base font-black text-white mb-1">Đồng đội Phe Ác của bạn</h3>
+            <h3 className="text-base font-black text-white mb-1">Đồng đội Phe Quỷ của bạn</h3>
             <p className="text-xs text-slate-300 mb-3">
               {otherEvils.length === 0
                 ? 'Bạn là kẻ ác duy nhất hiện ra (Oberon nếu có sẽ ẩn).'
@@ -1162,7 +1226,7 @@ function NightEvilsSection({
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-white truncate">{p.name}</p>
-                    <p className="text-[11px] font-bold text-red-300">Phe Ác</p>
+                    <p className="text-[11px] font-bold text-red-300">Phe Quỷ</p>
                   </div>
                 </div>
               ))}
@@ -1222,7 +1286,7 @@ function NightMerlinSection({
           </p>
           <div className="text-5xl mb-2 animate-pulse">🌙</div>
           <p className="text-sm text-slate-300">
-            Hãy nhắm mắt. Merlin đang nhìn ra Phe Ác.
+            Hãy nhắm mắt. Merlin đang nhìn ra Phe Quỷ.
           </p>
         </div>
         <NightCountdown state={state} phase="night-merlin" allActiveAcked={allActiveAcked} />
@@ -1236,10 +1300,10 @@ function NightMerlinSection({
         <p className="text-[11px] uppercase font-black text-blue-300 mb-1">
           🧙 Bạn là Merlin
         </p>
-        <h3 className="text-base font-black text-white mb-1">Phe Ác lộ diện trước bạn</h3>
+        <h3 className="text-base font-black text-white mb-1">Phe Quỷ lộ diện trước bạn</h3>
         <p className="text-xs text-slate-300 mb-3">
           Bạn nhìn thấy {visibleEvils.length} kẻ ác. <strong>Mordred</strong> ẩn — không hiện ở đây.
-          Hãy bí mật dẫn dắt phe Thiện, đừng để Sát Thủ tìm ra bạn.
+          Hãy bí mật dẫn dắt Phe Người, đừng để Sát Thủ tìm ra bạn.
         </p>
         <div className="space-y-2">
           {visibleEvils.map((p) => (
@@ -1252,7 +1316,7 @@ function NightMerlinSection({
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-black text-white truncate">{p.name}</p>
-                <p className="text-[11px] font-bold text-red-300">Phe Ác</p>
+                <p className="text-[11px] font-bold text-red-300">Phe Quỷ</p>
               </div>
             </div>
           ))}
@@ -1432,6 +1496,7 @@ function TeamBuildSection({
             highlightedIds={team}
             title="Tất cả người chơi (highlight = đang được đề cử)"
             emphasis="team"
+            viewerRole={(gamePlayers.find((pp) => pp.id === myPlayerId)?.gameData as Partial<AvalonGameData> | undefined)?.role}
           />
         </div>
       </div>
@@ -1612,6 +1677,7 @@ function TeamVoteSection({
           showVoteStatus
           title="Tất cả người chơi (✓ = đã bầu, ⏳ = chưa bầu)"
           emphasis="team"
+          viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
         />
       </div>
     </div>
@@ -1665,6 +1731,7 @@ function QuestPlaySection({
             highlightedIds={state.proposedTeam}
             title="Tất cả người chơi (highlight = đang đi Quest)"
             emphasis="team"
+            viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
           />
         </div>
       </div>
@@ -1701,12 +1768,12 @@ function QuestPlaySection({
         </p>
         {myTeam === 'good' && (
           <p className="mt-2 text-xs text-blue-300/80">
-            ⚠️ Phe Thiện BẮT BUỘC phải đặt lá Phe Thiện.
+            ⚠️ Phe Người BẮT BUỘC phải đặt lá Phe Người.
           </p>
         )}
         {myTeam === 'evil' && (
           <p className="mt-2 text-xs text-red-300/80">
-            🗡️ Phe Ác có thể đặt lá Phe Thiện hoặc Phe Ác tuỳ chiến thuật.
+            🗡️ Phe Quỷ có thể đặt lá Phe Người hoặc Phe Quỷ tuỳ chiến thuật.
           </p>
         )}
       </div>
@@ -1722,7 +1789,7 @@ function QuestPlaySection({
         <button
           onClick={() => {
             if (myTeam === 'good') {
-              alert('Phe Thiện không được đặt lá Phe Ác — bắt buộc phải đặt lá Phe Thiện.');
+              alert('Phe Người không được đặt lá Phe Quỷ — bắt buộc phải đặt lá Phe Người.');
               return;
             }
             onPlayQuestCard('fail');
@@ -1845,18 +1912,18 @@ function QuestResultSection({
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border-2 border-blue-500/30 bg-blue-500/10 p-4 text-center">
             <div className="text-3xl mb-1">🛡️</div>
-            <p className="text-[10px] uppercase font-bold text-blue-300 mb-0.5">Phe Thiện</p>
+            <p className="text-[10px] uppercase font-bold text-blue-300 mb-0.5">Phe Người</p>
             <p className="text-3xl font-black text-blue-200">{goodCount}</p>
           </div>
           <div className="rounded-xl border-2 border-red-500/30 bg-red-500/10 p-4 text-center">
             <div className="text-3xl mb-1">🗡️</div>
-            <p className="text-[10px] uppercase font-bold text-red-300 mb-0.5">Phe Ác</p>
+            <p className="text-[10px] uppercase font-bold text-red-300 mb-0.5">Phe Quỷ</p>
             <p className="text-3xl font-black text-red-200">{evilCount}</p>
           </div>
         </div>
         {playerCount >= 7 && state.currentQuest === 3 && (
           <p className="mt-3 text-[11px] text-slate-400 text-center">
-            ⚠️ Quest này cần ≥2 lá Phe Ác để fail
+            ⚠️ Quest này cần ≥2 lá Phe Quỷ để fail
           </p>
         )}
       </div>
@@ -1896,9 +1963,9 @@ function LadySection({
           <p className="text-[11px] uppercase font-black text-red-300 mb-1">
             🌊 {holder?.name} đang soi bạn
           </p>
-          <h3 className="text-base font-black text-white mb-1">Bạn là Phe Ác — chọn lá hiện ra</h3>
+          <h3 className="text-base font-black text-white mb-1">Bạn là Phe Quỷ — chọn lá hiện ra</h3>
           <p className="text-xs text-slate-300 mb-4">
-            Có thể nói xạo: hiện lá Phe Thiện để gạt người soi, hoặc hiện lá Phe Ác để nói thật.
+            Có thể nói xạo: hiện lá Phe Người để gạt người soi, hoặc hiện lá Phe Quỷ để nói thật.
             Sau khi chọn, kết quả sẽ tự gửi cho Lady — không cần đưa máy.
           </p>
           <div className="grid grid-cols-2 gap-3">
@@ -1929,9 +1996,9 @@ function LadySection({
           <p className="text-[11px] uppercase font-black text-blue-300 mb-1">
             🌊 {holder?.name} đang soi bạn
           </p>
-          <h3 className="text-base font-black text-white mb-1">Bạn là Phe Thiện</h3>
+          <h3 className="text-base font-black text-white mb-1">Bạn là Phe Người</h3>
           <p className="text-xs text-slate-300 mb-4">
-            Phe Thiện bắt buộc hiện thật. Bấm để gửi kết quả cho Lady.
+            Phe Người bắt buộc hiện thật. Bấm để gửi kết quả cho Lady.
           </p>
           <button
             onClick={() => onLadyShow('good')}
@@ -1997,7 +2064,7 @@ function LadySection({
               {isGoodCard ? 'PHE THIỆN' : 'PHE ÁC'}
             </p>
             <p className="mt-3 text-[11px] text-amber-400/80 italic">
-              ⚠️ Lưu ý: Phe Ác có thể nói xạo. Bạn cũng có thể chia sẻ thật/xạo với nhóm.
+              ⚠️ Lưu ý: Phe Quỷ có thể nói xạo. Bạn cũng có thể chia sẻ thật/xạo với nhóm.
             </p>
           </div>
           <button
@@ -2031,6 +2098,7 @@ function LadySection({
               showLadyTarget
               title="Tất cả người chơi (highlight = bị soi)"
               emphasis="lady"
+              viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
             />
           </div>
         </div>
@@ -2092,6 +2160,7 @@ function LadySection({
           showLadyTarget
           title="Tất cả người chơi (highlight = bị Lady soi)"
           emphasis="lady"
+          viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
         />
       </div>
     </div>
@@ -2127,10 +2196,10 @@ function AssassinSection({
   const evilRevealCard = (
     <div className="rounded-2xl border-2 border-red-500/50 bg-red-950/30 p-4">
       <p className="text-[11px] uppercase font-black text-red-300 mb-1 tracking-widest">
-        🗡️ Phe Ác lộ diện
+        🗡️ Phe Quỷ lộ diện
       </p>
       <p className="text-xs text-slate-300 mb-3">
-        Tất cả phe Ác hiện danh tính đầy đủ với phe Thiện.
+        Tất cả Phe Quỷ hiện danh tính đầy đủ với Phe Người.
       </p>
       <div className="space-y-2">
         {evilPlayers.map((p) => {
@@ -2162,14 +2231,14 @@ function AssassinSection({
   const headerCard = (
     <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 text-center">
       <p className="text-[11px] uppercase font-bold text-amber-300 mb-1 tracking-widest">
-        🎯 Phe Thiện đã thắng {successes} Quest
+        🎯 Phe Người đã thắng {successes} Quest
       </p>
       <p className="text-sm text-slate-300">
-        Phe Ác có cơ hội cuối: <span className="font-black text-red-300">tìm Merlin</span>.
-        Trúng → Phe Ác thắng ngược · Trật → Phe Thiện thắng.
+        Phe Quỷ có cơ hội cuối: <span className="font-black text-red-300">tìm Merlin</span>.
+        Trúng → Phe Quỷ thắng ngược · Trật → Phe Người thắng.
       </p>
       <p className="mt-2 text-[11px] text-slate-500">
-        Quest: {successes} Thiện · {failures} Ác
+        Quest: {successes} Người · {failures} Quỷ
       </p>
     </div>
   );
@@ -2182,10 +2251,10 @@ function AssassinSection({
         <div className="rounded-2xl border border-blue-500/40 bg-blue-500/10 p-5 text-center">
           <div className="text-5xl mb-2">🤫</div>
           <p className="text-sm font-black text-blue-200 mb-1">
-            Phe Thiện hãy giữ im lặng
+            Phe Người hãy giữ im lặng
           </p>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Phe Ác đang hội ý chọn Merlin. Đừng phản ứng để không tiết lộ Merlin là ai.
+            Phe Quỷ đang hội ý chọn Merlin. Đừng phản ứng để không tiết lộ Merlin là ai.
           </p>
         </div>
       </div>
@@ -2200,10 +2269,10 @@ function AssassinSection({
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 text-center">
           <div className="text-5xl mb-2">🤝</div>
           <p className="text-sm font-black text-red-200 mb-1">
-            Hội ý cùng phe Ác
+            Hội ý cùng Phe Quỷ
           </p>
           <p className="text-xs text-slate-300 leading-relaxed">
-            Thảo luận với đồng đội Ác để xác định ai là Merlin. Sát Thủ là người ra quyết định cuối cùng.
+            Thảo luận với đồng đội Quỷ để xác định ai là Merlin. Sát Thủ là người ra quyết định cuối cùng.
           </p>
         </div>
       </div>
@@ -2218,7 +2287,7 @@ function AssassinSection({
         <p className="text-[11px] uppercase font-black text-red-300 mb-1">🗡️ Bạn là Sát Thủ</p>
         <h3 className="text-base font-black text-white mb-1">Chọn ai là Merlin</h3>
         <p className="text-xs text-slate-300 mb-4">
-          Hội ý với đồng đội Ác trước. Khi đã chốt — bấm để xác nhận.
+          Hội ý với đồng đội Quỷ trước. Khi đã chốt — bấm để xác nhận.
         </p>
         <div className="grid grid-cols-2 gap-2">
           {goodPlayers.map((p) => (
@@ -2275,11 +2344,11 @@ function EndSection({
       >
         <div className="text-6xl mb-3">{isGood ? '🛡️' : '🗡️'}</div>
         <h2 className="text-3xl font-black text-white mb-1">
-          {isGood ? 'Phe Thiện thắng!' : 'Phe Ác thắng!'}
+          {isGood ? 'Phe Người thắng!' : 'Phe Quỷ thắng!'}
         </h2>
         <p className={`text-sm ${isGood ? 'text-blue-300' : 'text-red-300'}`}>
           {fiveRejections
-            ? '5 lần liên tiếp đội bị từ chối — phe Ác chiến thắng.'
+            ? '5 lần liên tiếp đội bị từ chối — Phe Quỷ chiến thắng.'
             : merlinTarget
               ? merlinTargetRole === AvalonRole.Merlin
                 ? `Sát Thủ đã đoán trúng Merlin (${merlinTarget.name}).`

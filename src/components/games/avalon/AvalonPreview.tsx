@@ -28,6 +28,9 @@ type PreviewPhase =
   | 'quest-play-not-on-team'
   | 'quest-result-success'
   | 'quest-result-fail'
+  | 'discussion-pending'
+  | 'discussion-mostly-ready'
+  | 'discussion-i-acked'
   | 'lady-holder'
   | 'lady-holder-waiting'
   | 'lady-holder-result-good'
@@ -49,10 +52,10 @@ type PreviewPhase =
 const PHASE_LABELS: Record<PreviewPhase, string> = {
   'lineup-preview': '🎭 Vai trong ván (preview)',
   'role-reveal': '🌙 Lộ vai (Merlin)',
-  'night-evils-as-evil': '🗡️ Đêm — Phe Ác (xem đồng đội)',
+  'night-evils-as-evil': '🗡️ Đêm — Phe Quỷ (xem đồng đội)',
   'night-evils-as-oberon': '🗡️ Đêm — Oberon đơn độc',
-  'night-evils-as-good': '🗡️ Đêm — Phe Thiện chờ',
-  'night-merlin-as-merlin': '🧙 Đêm — Merlin nhìn Phe Ác',
+  'night-evils-as-good': '🗡️ Đêm — Phe Người chờ',
+  'night-merlin-as-merlin': '🧙 Đêm — Merlin nhìn Phe Quỷ',
   'night-merlin-as-other': '🧙 Đêm — Người khác chờ',
   'night-percival-as-percival': '🛡️ Đêm — Percival nhìn Merlin/Morgana',
   'night-percival-as-other': '🛡️ Đêm — Người khác chờ',
@@ -64,25 +67,28 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
   'team-vote-result-rejected': '📊 KQ phiếu — Đội từ chối',
   'quest-play-on-team': '🎴 Chơi Quest (trong đội)',
   'quest-play-not-on-team': '🎴 Chơi Quest (ngoài đội)',
-  'quest-result-success': '📜 KQ Quest — Thiện thành công',
-  'quest-result-fail': '📜 KQ Quest — Ác phá hoại',
+  'quest-result-success': '📜 KQ Quest — Người thành công',
+  'quest-result-fail': '📜 KQ Quest — Quỷ phá hoại',
+  'discussion-pending': '💬 Thảo luận — bạn chưa sẵn sàng',
+  'discussion-mostly-ready': '💬 Thảo luận — đa số đã sẵn sàng',
+  'discussion-i-acked': '💬 Thảo luận — bạn đã sẵn sàng (chờ người khác)',
   'lady-holder': '🌊 Lady — bạn cầm token (chọn người)',
   'lady-holder-waiting': '🌊 Lady — chờ target chọn lá',
-  'lady-holder-result-good': '🌊 Lady — kết quả: target hiện Thiện',
-  'lady-holder-result-evil': '🌊 Lady — kết quả: target hiện Ác',
-  'lady-target-good': '🌊 Lady — bạn (Thiện) chuẩn bị gửi',
-  'lady-target-good-sent': '🌊 Lady — bạn (Thiện) đã gửi',
-  'lady-target-evil-choosing': '🌊 Lady — bạn (Ác) chọn lá hiện',
-  'lady-target-evil-shown-good': '🌊 Lady — bạn (Ác) đã hiện Thiện (xạo)',
+  'lady-holder-result-good': '🌊 Lady — kết quả: target hiện Người',
+  'lady-holder-result-evil': '🌊 Lady — kết quả: target hiện Quỷ',
+  'lady-target-good': '🌊 Lady — bạn (Người) chuẩn bị gửi',
+  'lady-target-good-sent': '🌊 Lady — bạn (Người) đã gửi',
+  'lady-target-evil-choosing': '🌊 Lady — bạn (Quỷ) chọn lá hiện',
+  'lady-target-evil-shown-good': '🌊 Lady — bạn (Quỷ) đã hiện Người (xạo)',
   'lady-bystander': '🌊 Lady — bạn ngoài cuộc',
   'assassinate-as-assassin': '🗡️ Ám sát (bạn là Sát Thủ)',
-  'assassinate-good-bystander': '🗡️ Ám sát (Thiện — im lặng)',
-  'assassinate-evil-bystander': '🗡️ Ám sát (Ác — hội ý)',
-  'end-good-quests': '🏁 Kết thúc — Thiện thắng (3 Quest)',
-  'end-good-missed-merlin': '🏁 Kết thúc — Thiện thắng (Sát Thủ trật)',
-  'end-evil-quests': '🏁 Kết thúc — Ác thắng (3 Quest fail)',
-  'end-evil-merlin': '🏁 Kết thúc — Ác thắng (đoán trúng Merlin)',
-  'end-evil-rejects': '🏁 Kết thúc — Ác thắng (5 lần từ chối)',
+  'assassinate-good-bystander': '🗡️ Ám sát (Người — im lặng)',
+  'assassinate-evil-bystander': '🗡️ Ám sát (Quỷ — hội ý)',
+  'end-good-quests': '🏁 Kết thúc — Người thắng (3 Quest)',
+  'end-good-missed-merlin': '🏁 Kết thúc — Người thắng (Sát Thủ trật)',
+  'end-evil-quests': '🏁 Kết thúc — Quỷ thắng (3 Quest fail)',
+  'end-evil-merlin': '🏁 Kết thúc — Quỷ thắng (đoán trúng Merlin)',
+  'end-evil-rejects': '🏁 Kết thúc — Quỷ thắng (5 lần từ chối)',
 };
 
 const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
@@ -105,6 +111,10 @@ const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
   { label: 'KQ phiếu đội', items: ['team-vote-result-approved', 'team-vote-result-rejected'] },
   { label: 'Chơi Quest', items: ['quest-play-on-team', 'quest-play-not-on-team'] },
   { label: 'KQ Quest', items: ['quest-result-success', 'quest-result-fail'] },
+  {
+    label: 'Thảo luận sau Quest',
+    items: ['discussion-pending', 'discussion-mostly-ready', 'discussion-i-acked'],
+  },
   {
     label: 'Lady of the Lake',
     items: [
@@ -561,6 +571,72 @@ function buildScene(phase: PreviewPhase): { players: Player[]; state: AvalonGame
           phase: 'quest-result',
           currentQuest: 2,
           quests,
+        },
+        viewerId: 'p3',
+      };
+    }
+
+    case 'discussion-pending': {
+      // After Q1 (no Lady) — fresh discussion, viewer hasn't acked yet.
+      const quests = emptyQuests();
+      quests[0] = { ...quests[0], result: 'success', failCount: 0, teamSize: 2, leaderId: 'p1', teamIds: ['p1', 'p3'] };
+      return {
+        players,
+        state: {
+          ...base,
+          phase: 'discussion',
+          currentQuest: 1,
+          quests,
+          roleAcks: { p2: true },
+          phaseStartedAt: Date.now() - 60_000,
+          proposedTeam: [],
+          teamVotes: {},
+          questPlayedBy: [],
+        },
+        viewerId: 'p3',
+      };
+    }
+
+    case 'discussion-mostly-ready': {
+      // After Q2 (Lady just finished, token transferred) — most players ready.
+      const quests = emptyQuests();
+      quests[0] = { ...quests[0], result: 'success', failCount: 0, teamSize: 2, leaderId: 'p1', teamIds: ['p1', 'p3'] };
+      quests[1] = { ...quests[1], result: 'fail', failCount: 1, teamSize: 3, leaderId: 'p2', teamIds: ['p2', 'p5', 'p7'] };
+      return {
+        players,
+        state: {
+          ...base,
+          phase: 'discussion',
+          currentQuest: 2,
+          quests,
+          roleAcks: { p1: true, p2: true, p4: true, p5: true, p6: true },
+          ladyHolderId: 'p7',
+          ladyHistory: ['p4'],
+          phaseStartedAt: Date.now() - 480_000,
+          proposedTeam: [],
+          teamVotes: {},
+          questPlayedBy: [],
+        },
+        viewerId: 'p3',
+      };
+    }
+
+    case 'discussion-i-acked': {
+      // Viewer already pressed "Sẵn sàng", waiting on others.
+      const quests = emptyQuests();
+      quests[0] = { ...quests[0], result: 'success', failCount: 0, teamSize: 2, leaderId: 'p1', teamIds: ['p1', 'p3'] };
+      return {
+        players,
+        state: {
+          ...base,
+          phase: 'discussion',
+          currentQuest: 1,
+          quests,
+          roleAcks: { p2: true, p3: true, p5: true },
+          phaseStartedAt: Date.now() - 200_000,
+          proposedTeam: [],
+          teamVotes: {},
+          questPlayedBy: [],
         },
         viewerId: 'p3',
       };

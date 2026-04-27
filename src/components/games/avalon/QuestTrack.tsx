@@ -54,7 +54,7 @@ export default function QuestTrack({ quests, currentQuest, playerCount, players,
               key={idx}
               title={
                 needsTwo && !isDone
-                  ? `Quest ${idx + 1} — Cần ≥2 lá Phe Ác để Quest fail (an toàn hơn cho phe Thiện)`
+                  ? `Quest ${idx + 1} — Cần ≥2 lá Phe Quỷ để Quest fail (an toàn hơn cho Phe Người)`
                   : `Quest ${idx + 1}`
               }
               className={`flex flex-1 flex-col items-center justify-center rounded-2xl border transition-all ${ringColor} ${
@@ -78,14 +78,14 @@ export default function QuestTrack({ quests, currentQuest, playerCount, players,
               )}
               {!isDone && needsTwo && (
                 <div className="mt-0.5 rounded-full bg-rose-500/25 border border-rose-400/40 px-1.5 py-px text-[8px] font-black text-rose-200">
-                  Cần ≥2 lá Ác
+                  Cần ≥2 lá Quỷ
                 </div>
               )}
               {isDone && (
                 <div className={`text-[9px] font-bold ${
                   success ? 'text-blue-400' : 'text-red-400'
                 }`}>
-                  {q.failCount > 0 ? `${q.failCount} lá Ác` : 'sạch'}
+                  {q.failCount > 0 ? `${q.failCount} lá Quỷ` : 'sạch'}
                 </div>
               )}
               {isDone && q.teamIds.length > 0 && (
