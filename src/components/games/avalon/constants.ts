@@ -35,26 +35,26 @@ export const ROLE_NAMES_VI: Record<AvalonRole, string> = {
 
 export const ROLE_DESC_VI: Record<AvalonRole, string> = {
   [AvalonRole.Merlin]:
-    'Bạn biết tất cả tay sai của phe Ác (trừ Mordred). Phải bí mật dẫn dắt phe Thiện thắng — nhưng nếu bị Sát Thủ đoán trúng cuối ván, phe Ác thắng!',
+    'Bạn biết tất cả tay sai của Phe Quỷ (trừ Mordred). Phải bí mật dẫn dắt Phe Người thắng — nhưng nếu bị Sát Thủ đoán trúng cuối ván, Phe Quỷ thắng!',
   [AvalonRole.Percival]:
     'Bạn nhìn thấy Merlin và Morgana, nhưng KHÔNG biết ai là ai. Hãy bảo vệ Merlin và đừng để Sát Thủ đoán trúng.',
   [AvalonRole.LoyalServant]:
-    'Bạn là kỵ sĩ trung thành của Arthur. Không có thông tin đặc biệt — phải dùng thảo luận và logic để vạch mặt phe Ác.',
+    'Bạn là kỵ sĩ trung thành của Arthur. Không có thông tin đặc biệt — phải dùng thảo luận và logic để vạch mặt Phe Quỷ.',
   [AvalonRole.Mordred]:
-    'Bạn là kẻ ác mạnh nhất — Merlin KHÔNG nhìn thấy bạn. Hãy lợi dụng điều đó để gây nhiễu và phá hoại Quest.',
+    'Bạn là Quỷ mạnh nhất — Merlin KHÔNG nhìn thấy bạn. Hãy lợi dụng điều đó để gây nhiễu và phá hoại Quest.',
   [AvalonRole.Morgana]:
     'Bạn xuất hiện như Merlin trong mắt Percival. Hãy đánh lừa Percival để hắn bảo vệ nhầm người.',
   [AvalonRole.Oberon]:
-    'Bạn là kẻ ác đơn độc — KHÔNG biết ai là đồng đội Ác và họ cũng KHÔNG biết bạn. Tuy nhiên Merlin vẫn nhìn thấy bạn.',
+    'Bạn là Quỷ đơn độc — KHÔNG biết ai là đồng đội Quỷ và họ cũng KHÔNG biết bạn. Tuy nhiên Merlin vẫn nhìn thấy bạn.',
   [AvalonRole.Assassin]:
-    'Khi phe Thiện hoàn thành 3 Quest, BẠN có cơ hội cuối cùng — chọn ai là Merlin. Đoán đúng → Phe Ác thắng ngược.',
+    'Khi Phe Người hoàn thành 3 Quest, BẠN có cơ hội cuối cùng — chọn ai là Merlin. Đoán đúng → Phe Quỷ thắng ngược.',
   [AvalonRole.Minion]:
-    'Tay sai trung thành của Mordred. Phá hoại Quest, gây nghi ngờ trong nội bộ phe Thiện.',
+    'Tay sai trung thành của Mordred. Phá hoại Quest, gây nghi ngờ trong nội bộ Phe Người.',
 };
 
 export const TEAM_NAME_VI: Record<AvalonTeam, string> = {
-  good: 'Phe Thiện',
-  evil: 'Phe Ác',
+  good: 'Phe Người',
+  evil: 'Phe Quỷ',
 };
 
 export const PLAYER_COUNTS = [5, 6, 7, 8, 9, 10] as const;

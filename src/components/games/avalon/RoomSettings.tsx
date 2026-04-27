@@ -104,11 +104,11 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
               </p>
               <div className="flex gap-3">
                 <div className="flex-1 rounded-xl bg-blue-500/10 border border-blue-500/30 px-3 py-2">
-                  <p className="text-[10px] uppercase text-blue-400 font-bold">Phe Thiện</p>
+                  <p className="text-[10px] uppercase text-blue-400 font-bold">Phe Người</p>
                   <p className="text-2xl font-black text-blue-200">{dist.good}</p>
                 </div>
                 <div className="flex-1 rounded-xl bg-red-500/10 border border-red-500/30 px-3 py-2">
-                  <p className="text-[10px] uppercase text-red-400 font-bold">Phe Ác</p>
+                  <p className="text-[10px] uppercase text-red-400 font-bold">Phe Quỷ</p>
                   <p className="text-2xl font-black text-red-200">{dist.evil}</p>
                 </div>
               </div>
@@ -141,7 +141,7 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                         className={`text-[10px] font-bold ${isGood ? 'text-blue-400' : 'text-red-400'
                           }`}
                       >
-                        {isGood ? 'Thiện' : 'Ác'} · luôn có
+                        {isGood ? 'Người' : 'Quỷ'} · luôn có
                       </p>
                     </div>
                     <span className="text-base shrink-0">🔒</span>
@@ -159,7 +159,7 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-black text-white truncate">{AvalonRole.Percival}</p>
                 <p className="text-[10px] font-bold text-blue-400">
-                  Thiện · {optionalRoles.includes(AvalonRole.Morgana)
+                  Người · {optionalRoles.includes(AvalonRole.Morgana)
                     ? 'tự động có khi bật Morgana'
                     : 'chỉ xuất hiện nếu Morgana được bật'}
                 </p>
@@ -178,7 +178,7 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
               Bật theo số người chơi. Bật vai sẽ thay 1 Trung Thần / Tay Sai mặc định.
             </p>
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5 mb-3">
-              <p className="text-[11px] font-bold text-amber-300 mb-1">💡 Ngưỡng mở vai phụ Ác</p>
+              <p className="text-[11px] font-bold text-amber-300 mb-1">💡 Ngưỡng mở vai phụ Quỷ</p>
               <ul className="text-[11px] text-slate-400 leading-relaxed space-y-0.5">
                 <li>• 5–6 người: chưa mở (đủ Mordred + Sát Thủ)</li>
                 <li>• 7–9 người: mở 1 vai (Morgana <em>hoặc</em> Oberon)</li>
@@ -213,7 +213,7 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                           className={`text-[9px] uppercase font-bold tracking-wider ${isGood ? 'text-blue-400' : 'text-red-400'
                             }`}
                         >
-                          {isGood ? 'Thiện' : 'Ác'}
+                          {isGood ? 'Người' : 'Quỷ'}
                         </span>
                         {atLimit && (
                           <span className="text-[9px] uppercase font-bold tracking-wider text-amber-400">
@@ -244,7 +244,7 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
             </div>
 
             <p className="mt-2 text-[11px] text-slate-500">
-              Phe Thiện: {goodOptional.length}/{goodOptionalLimit} vai phụ · Phe Ác:{' '}
+              Phe Người: {goodOptional.length}/{goodOptionalLimit} vai phụ · Phe Quỷ:{' '}
               {evilOptional.length}/{evilOptionalLimit} vai phụ
             </p>
             {evilOptionalLimit === 0 && goodOptionalLimit === 0 && (

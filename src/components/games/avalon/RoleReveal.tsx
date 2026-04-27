@@ -64,7 +64,7 @@ export default function RoleReveal({ myRole, onDone }: RoleRevealProps) {
         </p>
         <p className="mt-4 text-sm leading-relaxed text-slate-300">{ROLE_DESC_VI[myRole]}</p>
         <p className="mt-3 text-[11px] text-slate-500 italic">
-          Sau khi mọi người đọc xong, hệ thống sẽ lần lượt gọi: 🗡️ Phe Ác → 🧙 Merlin → 🛡️ Percival
+          Sau khi mọi người đọc xong, hệ thống sẽ lần lượt gọi: 🗡️ Phe Quỷ → 🧙 Merlin → 🛡️ Percival
         </p>
         <button
           onClick={onDone}

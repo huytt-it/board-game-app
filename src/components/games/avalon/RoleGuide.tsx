@@ -17,12 +17,12 @@ const ROLE_ORDER: AvalonRole[] = [
 const ROLE_HINT: Record<AvalonRole, string> = {
   [AvalonRole.Merlin]: 'Bắt buộc · luôn có',
   [AvalonRole.Percival]: 'Tự động khi bật Morgana',
-  [AvalonRole.LoyalServant]: 'Lấp chỗ trống Phe Thiện',
+  [AvalonRole.LoyalServant]: 'Lấp chỗ trống Phe Người',
   [AvalonRole.Mordred]: 'Bắt buộc · luôn có',
   [AvalonRole.Morgana]: 'Vai phụ — bật trong cài đặt',
   [AvalonRole.Assassin]: 'Bắt buộc · luôn có',
   [AvalonRole.Oberon]: 'Vai phụ — bật trong cài đặt',
-  [AvalonRole.Minion]: 'Lấp chỗ trống Phe Ác',
+  [AvalonRole.Minion]: 'Lấp chỗ trống Phe Quỷ',
 };
 
 export default function RoleGuide() {
@@ -52,7 +52,7 @@ function RoleSection({ team, roles }: { team: AvalonTeam; roles: AvalonRole[] })
           className={`text-[11px] uppercase tracking-widest font-black ${isGood ? 'text-blue-300' : 'text-red-300'
             }`}
         >
-          {isGood ? 'Phe Thiện' : 'Phe Ác'} ({roles.length})
+          {isGood ? 'Phe Người' : 'Phe Quỷ'} ({roles.length})
         </h4>
       </div>
       <div className="space-y-2">
