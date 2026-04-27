@@ -165,52 +165,18 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   // ─── Role info / handbook overlays (rendered on top of current view) ─
   // We render these as fragments that wrap the main content so they can
 
-  // ─── Seat bar — compact 3-col strip in the sticky header ─────────────
-  const seatBar = mySeat != null ? (
-    <div className="border-t border-white/8 bg-black/20 px-4 py-2">
-      {leftNeighbour && rightNeighbour ? (
-        <div className="flex items-center gap-2">
-          {/* Left neighbour */}
-          <div className="flex items-center gap-1.5 flex-1 min-w-0">
-            <span className={`h-2 w-2 rounded-full shrink-0 ${leftNeighbour.isAlive ? 'bg-green-500' : 'bg-red-500/60'}`} />
-            <div className="min-w-0">
-              <div className={`text-[11px] font-bold leading-tight truncate ${leftNeighbour.isAlive ? 'text-slate-200' : 'text-slate-600 line-through'}`}>
-                {leftNeighbour.name}
-              </div>
-              <div className="text-[9px] text-slate-600 leading-none">
-                #{leftNeighbour.gameData?.seatNumber as number} · ← Trái
-              </div>
-            </div>
-          </div>
-          {/* Self */}
-          <div className="shrink-0 flex flex-col items-center px-2.5 py-0.5 rounded-full border border-cyan-500/40 bg-cyan-900/30">
-            <span className="text-[11px] font-black text-cyan-300 leading-none">#{mySeat}</span>
-            <span className="text-[9px] text-cyan-500/70 font-bold leading-none">BẠN</span>
-          </div>
-          {/* Right neighbour */}
-          <div className="flex items-center gap-1.5 flex-1 min-w-0 justify-end">
-            <div className="min-w-0 text-right">
-              <div className={`text-[11px] font-bold leading-tight truncate ${rightNeighbour.isAlive ? 'text-slate-200' : 'text-slate-600 line-through'}`}>
-                {rightNeighbour.name}
-              </div>
-              <div className="text-[9px] text-slate-600 leading-none">
-                Phải → · #{rightNeighbour.gameData?.seatNumber as number}
-              </div>
-            </div>
-            <span className={`h-2 w-2 rounded-full shrink-0 ${rightNeighbour.isAlive ? 'bg-green-500' : 'bg-red-500/60'}`} />
-          </div>
-        </div>
-      ) : (
-        /* fallback: seat number only */
-        <div className="flex justify-center">
-          <span className="text-[11px] font-black text-cyan-400">#{mySeat} Ghế của bạn</span>
-        </div>
-      )}
-    </div>
-  ) : null;
-
-  // ─── Seating circle strip — horizontal scroll of all players in order ─
-  const seatingStrip = seatedPlayers.length > 1 ? (
+  // ─── Seating circle strip — horizontal scroll, current player centred ─
+  const seatingStrip = seatedPlayers.length > 1 ? (() => {
+    // Rotate so the current player sits in the middle slot
+    const n = seatedPlayers.length;
+    const shift = mySeatedIdx >= 0
+      ? ((mySeatedIdx - Math.floor(n / 2)) % n + n) % n
+      : 0;
+    const centeredPlayers = [
+      ...seatedPlayers.slice(shift),
+      ...seatedPlayers.slice(0, shift),
+    ];
+    return (
     <div className="px-4 pt-4">
       <div className="flex items-center justify-between mb-2">
         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-500">
@@ -220,7 +186,7 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
       </div>
       <div className="overflow-x-auto no-scrollbar">
         <div className="flex items-stretch min-w-max rounded-2xl border border-white/8 bg-white/[0.03] overflow-hidden">
-          {seatedPlayers.map((p) => {
+          {centeredPlayers.map((p) => {
             const isMe       = p.id === playerId;
             const isLeft     = p.id === leftNeighbour?.id;
             const isRight    = p.id === rightNeighbour?.id;
@@ -266,7 +232,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
         </div>
       </div>
     </div>
-  ) : null;
+    );
+  })() : null;
 
   // be dismissed without remounting the phase below.
   const overlays = (
@@ -575,7 +542,6 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
-            {seatBar}
           </div>
 
           {/* Night action fills remaining space */}
@@ -644,7 +610,6 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
-            {seatBar}
           </div>
 
           {/* VotingPanel owns flex-1, scroll + sticky vote buttons */}
@@ -723,7 +688,6 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
                 <span className="shrink-0 text-[10px] text-slate-600">ⓘ</span>
               </button>
             )}
-            {seatBar}
             {/* Nomination summary bar */}
             {nominatedPlayerName && (
               <div className="flex items-center gap-2 border-t border-amber-500/20 bg-amber-500/8 px-4 py-2">
