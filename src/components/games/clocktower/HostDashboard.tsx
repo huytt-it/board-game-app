@@ -50,7 +50,7 @@ export default function HostDashboard({
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
   const {
     nominations, votingTarget, votingTargetName,
-    votes, hasVoted, voteCount,
+    votes, voteTypes, hasVoted, voteCount,
     nominatePlayer, castVote, resolveVote, cancelVote,
   } = useVoting(roomId, hostId, gameState, alivePlayers);
 
@@ -590,6 +590,7 @@ export default function HostDashboard({
               players={players}
               playerId={hostId}
               votes={votes}
+              voteTypes={voteTypes}
               hasVoted={hasVoted}
               voteCount={voteCount}
               onVote={(v) => castVote(v)}

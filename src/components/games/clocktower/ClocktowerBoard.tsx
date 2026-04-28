@@ -91,8 +91,8 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
   const alivePlayers = players.filter((p) => !p.isHost && p.isAlive).length;
   const {
     nominations, votingTarget, votingTargetName,
-    votes, hasVoted, voteCount,
-    nominatePlayer, castNomination, castVote, resolveVote, cancelVote,
+    votes, voteTypes, hasVoted, voteCount,
+    nominatePlayer, castNomination, castVote, castGhostVote, resolveVote, cancelVote,
   } = useVoting(room.id, playerId, room.gameState, alivePlayers);
 
   // ─── Handbook / role info overlay ─────────────────────────────────
@@ -627,9 +627,12 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
               players={players}
               playerId={playerId}
               votes={votes}
+              voteTypes={voteTypes}
               hasVoted={hasVoted}
+              hasUsedGhostVote={currentPlayer?.gameData?.hasUsedGhostVote === true}
               voteCount={voteCount}
               onVote={castVote}
+              onGhostVote={castGhostVote}
               isHost={false}
               alivePlayers={alivePlayers}
             />
