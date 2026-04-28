@@ -44,7 +44,8 @@ export interface AvalonQuestRecord {
 export interface AvalonGameData extends BaseGameData {
   role: AvalonRole;
   team: AvalonTeam;
-  questCard?: QuestCard;
+  // null = đã reset / chưa chơi (giai đoạn quest-play). undefined = chưa từng có giá trị.
+  questCard?: QuestCard | null;
 }
 
 export interface AvalonGameState {

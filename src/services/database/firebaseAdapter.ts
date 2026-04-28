@@ -21,6 +21,26 @@ import type { Player, CreatePlayerPayload, BaseGameData } from '@/types/player';
 import type { GameAction, SubmitActionPayload, ActionResult } from '@/types/actions';
 import type { GameHistoryEvent, AddHistoryEventPayload } from '@/types/history';
 
+// ─── Helpers ──────────────────────────────────────────────────────────
+// Sắp xếp player ổn định theo thứ tự join — để các game có "vòng bàn" (Avalon
+// rotate Leader, Lady, etc.) hiển thị ghế nhất quán giữa các client và sau
+// reload, không phụ thuộc thứ tự document Firestore trả về.
+function comparePlayersByJoinedAt(a: Player, b: Player): number {
+  const ta = readMillis(a.joinedAt);
+  const tb = readMillis(b.joinedAt);
+  if (ta !== tb) return ta - tb;
+  return a.id.localeCompare(b.id);
+}
+
+function readMillis(v: Player['joinedAt']): number {
+  if (!v) return 0;
+  // Firestore Timestamp → toMillis(); fallback cho serverTimestamp pending.
+  const anyV = v as { toMillis?: () => number; seconds?: number };
+  if (typeof anyV.toMillis === 'function') return anyV.toMillis();
+  if (typeof anyV.seconds === 'number') return anyV.seconds * 1000;
+  return 0;
+}
+
 // ─── Room Code Generator ──────────────────────────────────────────────
 function generateRoomCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous chars
@@ -224,7 +244,9 @@ export class FirebaseAdapter implements IGameStorage {
 
   async getPlayers(roomId: string): Promise<Player[]> {
     const snap = await getDocs(collection(getDb(), 'rooms', roomId, 'players'));
-    return snap.docs.map((d) => ({ id: d.id, ...d.data() } as Player));
+    return snap.docs
+      .map((d) => ({ id: d.id, ...d.data() } as Player))
+      .sort(comparePlayersByJoinedAt);
   }
 
   async addPlayer(roomId: string, player: CreatePlayerPayload): Promise<void> {
@@ -264,6 +286,23 @@ export class FirebaseAdapter implements IGameStorage {
     await updateDoc(playerRef, updates);
   }
 
+  async updatePlayersGameDataBatch(
+    roomId: string,
+    updates: Array<{ playerId: string; data: Partial<BaseGameData> }>
+  ): Promise<void> {
+    if (updates.length === 0) return;
+    const batch = writeBatch(getDb());
+    for (const { playerId, data } of updates) {
+      const playerRef = doc(getDb(), 'rooms', roomId, 'players', playerId);
+      const flat: Record<string, unknown> = {};
+      for (const [key, value] of Object.entries(data)) {
+        flat[`gameData.${key}`] = value;
+      }
+      batch.update(playerRef, flat);
+    }
+    await batch.commit();
+  }
+
   async updatePlayerAlive(roomId: string, playerId: string, isAlive: boolean): Promise<void> {
     const playerRef = doc(getDb(), 'rooms', roomId, 'players', playerId);
     await updateDoc(playerRef, { isAlive });
@@ -272,10 +311,12 @@ export class FirebaseAdapter implements IGameStorage {
   subscribeToPlayers(roomId: string, callback: (players: Player[]) => void): Unsubscribe {
     const playersCol = collection(getDb(), 'rooms', roomId, 'players');
     return onSnapshot(playersCol, (snap) => {
-      const players = snap.docs.map((d) => ({
-        id: d.id,
-        ...d.data(),
-      })) as Player[];
+      const players = (
+        snap.docs.map((d) => ({
+          id: d.id,
+          ...d.data(),
+        })) as Player[]
+      ).sort(comparePlayersByJoinedAt);
       callback(players);
     });
   }

@@ -25,7 +25,7 @@ interface PlayerPanelProps {
   onLadyConfirm: () => void;
   onLadyShow: (card: 'good' | 'evil') => void;
   onLadyFinish: () => void;
-  onAssassinate: (targetId: string) => void;
+  onAssassinate: (targetId: string, callerId?: string) => void;
   onShowMyRole: () => void;
   onAckRole: () => void;
   onAckDiscussion: () => void;
@@ -2295,7 +2295,7 @@ function AssassinSection({
   myPlayer: Player;
   myRole: AvalonRole | undefined;
   gamePlayers: Player[];
-  onAssassinate: (id: string) => void;
+  onAssassinate: (id: string, callerId?: string) => void;
 }) {
   const isAssassin = myRole === AvalonRole.Assassin;
   const myTeam = (myPlayer.gameData as Partial<AvalonGameData>).team;
@@ -2435,7 +2435,7 @@ function AssassinSection({
               key={p.id}
               onClick={() => {
                 if (confirm(`Xác nhận: ${p.name} là Merlin?`)) {
-                  onAssassinate(p.id);
+                  onAssassinate(p.id, myPlayer.id);
                 }
               }}
               className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-left hover:bg-red-500/20 hover:border-red-500/50 active:scale-95"

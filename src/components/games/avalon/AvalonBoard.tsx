@@ -138,8 +138,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     return () => clearTimeout(t);
   }, [state, players, proceedToNightPercival, beginTeamBuild]);
 
+  // Toàn bộ auto-progression server-side CHỈ chạy ở client của Host. Mục đích:
+  // tránh race condition khi nhiều client cùng trigger timeout → double rotate
+  // leader, double increment voteRejectStreak, hoặc double advance phase.
+
   // Auto-progression: night-percival → team-build
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'night-percival') return;
     const percivalIds = players
       .filter((p) => (p.gameData as Partial<AvalonGameData> | undefined)?.role === AvalonRole.Percival)
@@ -155,12 +160,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => beginTeamBuild(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, players, beginTeamBuild]);
+  }, [isHost, state, players, beginTeamBuild]);
 
   // Auto-progression fallback: team-build → vote (auto-submit) hoặc rotate Leader
   // sau 60s nếu Leader idle. Chỉ submit khi proposedTeam đủ size, ngược lại
   // bỏ qua Leader này, xoay sang người kế tiếp clockwise.
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'team-build') return;
     const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
     const remaining = PHASE_TIMEOUTS_MS['team-build'] - elapsed;
@@ -170,10 +176,11 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => teamBuildTimeoutAdvance(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, teamBuildTimeoutAdvance]);
+  }, [isHost, state, teamBuildTimeoutAdvance]);
 
   // Auto-progression: team-vote → resolve (when everyone voted or timeout)
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'team-vote') return;
     const votedCount = Object.keys(state.teamVotes ?? {}).length;
     const allVoted = votedCount >= playerCount && playerCount > 0;
@@ -185,12 +192,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => resolveTeamVote(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, playerCount, resolveTeamVote]);
+  }, [isHost, state, playerCount, resolveTeamVote]);
 
   // Auto-progression: quest-play → resolve (when team played all or timeout)
   // Dùng allCardsSynced (đọc questCard per-player) làm nguồn chân lý — tránh
   // race condition trên array state.questPlayedBy khi nhiều player nộp đồng thời.
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'quest-play') return;
     const teamSize = state.proposedTeam.length;
     const allCardsSynced =
@@ -208,10 +216,11 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => resolveQuest(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, players, resolveQuest]);
+  }, [isHost, state, players, resolveQuest]);
 
   // Auto-progression: team-vote-result → next (after short review timeout)
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'team-vote-result') return;
     const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
     const remaining = PHASE_TIMEOUTS_MS['team-vote-result'] - elapsed;
@@ -221,10 +230,11 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => proceedAfterTeamVoteResult(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, proceedAfterTeamVoteResult]);
+  }, [isHost, state, proceedAfterTeamVoteResult]);
 
   // Auto-progression: quest-result → next (after short review timeout)
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'quest-result') return;
     const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
     const remaining = PHASE_TIMEOUTS_MS['quest-result'] - elapsed;
@@ -234,10 +244,11 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => proceedAfterQuestResult(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, proceedAfterQuestResult]);
+  }, [isHost, state, proceedAfterQuestResult]);
 
   // Auto-progression: discussion → team-build (all-ack or 10-min timeout)
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'discussion') return;
     const ackCount = Object.keys(state.roleAcks ?? {}).length;
     const allAcked = ackCount >= playerCount && playerCount > 0;
@@ -249,11 +260,12 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => proceedAfterDiscussion(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, playerCount, proceedAfterDiscussion]);
+  }, [isHost, state, playerCount, proceedAfterDiscussion]);
 
   // Auto-progression fallback: lady-of-lake → discussion (90s timeout)
   // Holder mất kết nối / không bấm Finish → tự chuyển token (nếu đã pick) hoặc skip.
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'lady-of-lake') return;
     const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
     const remaining = PHASE_TIMEOUTS_MS['lady-of-lake'] - elapsed;
@@ -263,10 +275,11 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => ladyTimeoutAdvance(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, ladyTimeoutAdvance]);
+  }, [isHost, state, ladyTimeoutAdvance]);
 
   // Auto-progression fallback: assassinate → end (Phe Người thắng nếu Sát Thủ idle 180s)
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'assassinate') return;
     const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
     const remaining = PHASE_TIMEOUTS_MS['assassinate'] - elapsed;
@@ -276,7 +289,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => assassinTimeoutAdvance(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, assassinTimeoutAdvance]);
+  }, [isHost, state, assassinTimeoutAdvance]);
 
   const handleLeave = useCallback(async () => {
     if (confirm('Rời phòng?')) {
