@@ -126,26 +126,6 @@ function emptyQuests(playerCount: SupportedPlayerCount): AvalonQuestRecord[] {
   }));
 }
 
-// House rule cho game từ 7 người trở lên: nếu Phe Người win 3 Quest LIÊN TIẾP
-// (chuỗi 3 success không bị fail xen giữa, ở bất kỳ vị trí nào trong 5 quest),
-// Phe Quỷ KHÔNG có cơ hội ám sát — Phe Người thắng outright.
-// Phe Quỷ chỉ được đâm khi đạt đủ 3-2 NHƯNG có ít nhất 1 fail xen giữa 3 success
-// (ví dụ S-F-S-S-F hoặc F-S-S-F-S, tức không có chuỗi 3 liên tiếp).
-function hasThreeConsecutiveSuccesses(quests: AvalonQuestRecord[]): boolean {
-  let streak = 0;
-  for (const q of quests) {
-    if (q.result === 'success') {
-      streak++;
-      if (streak >= 3) return true;
-    } else if (q.result === 'fail') {
-      streak = 0;
-    }
-    // result === null: chưa chơi quest này — giữ nguyên streak vì các quest sau
-    // cũng chưa chơi (quests xử lý tuần tự theo index).
-  }
-  return false;
-}
-
 export function useAvalon(roomId: string | undefined, room: Room | null, players: Player[]) {
   const config = useMemo(() => (room ? readConfig(room) : null), [room]);
   const state = useMemo(() => (room ? readState(room) : null), [room]);
@@ -454,16 +434,12 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
 
     const successes = state.quests.filter((q) => q.result === 'success').length;
     const failures = state.quests.filter((q) => q.result === 'fail').length;
-    const allQuestsDone = state.quests.every((q) => q.result !== null);
-    // Chỉ áp dụng cho game từ 7 người trở lên.
-    const goodHasStreak =
-      playerCount >= 7 && hasThreeConsecutiveSuccesses(state.quests);
 
     // Decisive end-conditions kích hoạt NGAY khi đạt, không cần đợi đủ 5 quest:
     //   - ≥ 3 fail → Phe Quỷ thắng outright
-    //   - ≥ 4 success → Phe Người thắng outright
-    //   - 7+ người, Người win 3 quest LIÊN TIẾP → Người thắng outright,
-    //     Sát Thủ KHÔNG có cơ hội đâm (kể cả khi tỉ số 3-2)
+    //   - ≥ 3 success → Sát Thủ LUÔN có cơ hội đâm Merlin (bất kể thứ tự
+    //     win/fail, bất kể tỉ số 3-0/3-1/3-2). Phe Người chỉ thắng nếu Sát
+    //     Thủ đoán sai hoặc hết giờ không chốt.
     if (failures >= QUESTS_TO_WIN) {
       await writeState({
         phase: 'end',
@@ -475,21 +451,7 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       await gameStorage.updateRoomStatus(roomId, 'end');
       return;
     }
-    if (successes >= 4 || goodHasStreak) {
-      await writeState({
-        phase: 'end',
-        winner: 'good',
-        proposedTeam: [],
-        teamVotes: {},
-        questPlayedBy: [],
-      });
-      await gameStorage.updateRoomStatus(roomId, 'end');
-      return;
-    }
-    // Sát Thủ chỉ được đâm khi đã chơi đủ 5 quest, tỉ số 3-2 và KHÔNG có
-    // chuỗi 3 success liên tiếp (vd S-F-S-S-F hoặc F-S-S-F-S).
-    // Với 5-6 người: rule streak không áp dụng → 3-2 luôn assassinate.
-    if (allQuestsDone && successes === 3) {
+    if (successes >= QUESTS_TO_WIN) {
       await writeState({
         phase: 'assassinate',
         proposedTeam: [],
