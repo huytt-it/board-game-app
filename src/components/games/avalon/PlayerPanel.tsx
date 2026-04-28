@@ -2310,6 +2310,20 @@ function AssassinSection({
   const successes = state.quests.filter((q) => q.result === 'success').length;
   const failures = state.quests.filter((q) => q.result === 'fail').length;
 
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const TIMEOUT_MS = PHASE_TIMEOUTS_MS['assassinate'];
+  const elapsed = now - (state.phaseStartedAt ?? now);
+  const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+  const remainingSec = Math.ceil(remaining / 1000);
+  const mm = Math.floor(remainingSec / 60);
+  const ss = remainingSec % 60;
+  const timeLabel = `${mm}:${ss.toString().padStart(2, '0')}`;
+  const lowTime = remaining <= 30_000;
+
   const evilRevealCard = (
     <div className="rounded-2xl border-2 border-red-500/50 bg-red-950/30 p-4">
       <p className="text-[11px] uppercase font-black text-red-300 mb-1 tracking-widest">
@@ -2352,8 +2366,17 @@ function AssassinSection({
       </p>
       <p className="text-sm text-slate-300">
         Phe Quỷ có cơ hội cuối: <span className="font-black text-red-300">tìm Merlin</span>.
-        Trúng → Phe Quỷ thắng ngược · Trật → Phe Người thắng.
+        Trúng → Phe Quỷ thắng ngược · Trật hoặc hết giờ → Phe Người thắng.
       </p>
+      <div
+        className={`mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 font-mono text-lg font-black tabular-nums ${
+          lowTime
+            ? 'border-red-500/60 bg-red-500/15 text-red-200 animate-pulse'
+            : 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+        }`}
+      >
+        ⏱️ {timeLabel}
+      </div>
       <p className="mt-2 text-[11px] text-slate-500">
         Quest: {successes} Người · {failures} Quỷ
       </p>
