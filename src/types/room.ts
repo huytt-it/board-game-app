@@ -31,6 +31,8 @@ export interface RoomGameState {
   votingTarget?: string | null;
   votingTargetName?: string | null;
   votes: Record<string, boolean>;
+  /** 'ghost' = cast by a dead player using their one-time ghost vote token */
+  voteTypes?: Record<string, 'normal' | 'ghost'>;
   rolesAssigned: boolean;
   winner?: 'good' | 'evil' | null;
   lastExecutedPlayerId?: string | null;  // Undertaker: who was executed last day
