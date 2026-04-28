@@ -10,8 +10,7 @@ import {
   TEAM_NAME_VI,
   questNeedsTwoFails,
 } from './constants';
-import QuestTrack from './QuestTrack';
-import VoteTrack from './VoteTrack';
+import RoundTable from './RoundTable';
 
 interface PlayerPanelProps {
   state: AvalonGameState;
@@ -29,6 +28,9 @@ interface PlayerPanelProps {
   onShowMyRole: () => void;
   onAckRole: () => void;
   onAckDiscussion: () => void;
+  onPlayAgain?: () => void;
+  onLeaveRoom?: () => void;
+  isHost?: boolean;
 }
 
 export default function PlayerPanel(props: PlayerPanelProps) {
@@ -50,6 +52,206 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   const teamSize = state.quests[state.currentQuest]?.teamSize ?? 0;
   const isGood = myTeam === 'good';
 
+  const showRoundTable = state.phase !== 'lineup-preview' && state.phase !== 'role-reveal';
+
+  // Slim top bar — phase + reject counter + my role chip — kept short so the
+  // round table fits in the viewport without scroll on lg+.
+  const topBar = (
+    <div className="bg-slate-950/95 backdrop-blur-md border-b border-white/10">
+      <div className="flex items-center gap-2 px-4 py-2">
+        <PhaseChip phase={state.phase} />
+        <span className="text-xs text-slate-500 hidden sm:inline">
+          Quest {state.currentQuest + 1}/5
+        </span>
+        {myRole && myTeam && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal' && (
+          <button
+            onClick={onShowMyRole}
+            className={`ml-auto flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-bold active:opacity-75 ${isGood
+              ? 'border-blue-500/30 bg-blue-950/40 text-blue-200'
+              : 'border-red-500/30 bg-red-950/40 text-red-200'
+              }`}
+          >
+            <span className="text-base">{ROLE_ICONS[myRole]}</span>
+            <span className="truncate max-w-[100px]">{ROLE_NAMES_VI[myRole]}</span>
+            <span className="text-[10px] opacity-70">ⓘ</span>
+          </button>
+        )}
+        <span
+          className={`rounded-full px-2 py-0.5 text-[10px] font-black ${!(myRole && myTeam) ? 'ml-auto' : ''
+            } ${state.voteRejectStreak >= 4
+              ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+              : state.voteRejectStreak >= 3
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+                : 'bg-white/5 text-slate-400 border border-white/10'
+            }`}
+          title="Số lần Leader bị từ chối liên tiếp"
+        >
+          👑 {state.voteRejectStreak}/{5}
+        </span>
+      </div>
+      {isLeader && state.phase !== 'role-reveal' && state.phase !== 'end' && (
+        <div className="bg-amber-500/10 border-t border-amber-500/30 px-4 py-1 text-center">
+          <span className="text-[11px] font-black text-amber-300">👑 Bạn là Leader</span>
+        </div>
+      )}
+    </div>
+  );
+
+  // The phase-specific section panel — same content as before, but rendered
+  // in a column instead of below the table.
+  const phaseSection = (
+    <div className="space-y-3">
+      {(state.phase === 'team-build' ||
+        state.phase === 'team-vote' ||
+        state.phase === 'quest-play') &&
+        questNeedsTwoFails(playerCount, state.currentQuest) && (
+          <div className="rounded-2xl border-2 border-rose-500/50 bg-rose-500/10 p-3 flex items-start gap-3">
+            <span className="text-2xl shrink-0 leading-none">⚠️</span>
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-black text-rose-200 uppercase tracking-wider">
+                Quest {state.currentQuest + 1} — Luật đặc biệt
+              </p>
+              <p className="mt-1 text-xs text-slate-200 leading-relaxed">
+                Cần <strong className="text-rose-300">≥ 2 lá Phe Quỷ</strong> để Quest này thất bại.
+                1 lá Phe Quỷ đơn lẻ vẫn coi như Phe Người thắng Quest.
+              </p>
+            </div>
+          </div>
+        )}
+
+      {state.phase === 'lineup-preview' && (
+        <LineupPreviewSection
+          state={state}
+          myPlayer={myPlayer}
+          gamePlayers={gamePlayers}
+          onAckRole={props.onAckRole}
+        />
+      )}
+
+      {state.phase === 'role-reveal' && (
+        <RoleRevealWaitingSection
+          state={state}
+          myPlayer={myPlayer}
+          gamePlayers={gamePlayers}
+          onShowMyRole={onShowMyRole}
+        />
+      )}
+
+      {state.phase === 'night-evils' && (
+        <NightEvilsSection
+          state={state}
+          myPlayer={myPlayer}
+          myRole={myRole}
+          myTeam={myTeam}
+          gamePlayers={gamePlayers}
+          onAckRole={props.onAckRole}
+        />
+      )}
+
+      {state.phase === 'night-merlin' && (
+        <NightMerlinSection
+          state={state}
+          myPlayer={myPlayer}
+          myRole={myRole}
+          gamePlayers={gamePlayers}
+          onAckRole={props.onAckRole}
+        />
+      )}
+
+      {state.phase === 'night-percival' && (
+        <NightPercivalSection
+          state={state}
+          myPlayer={myPlayer}
+          myRole={myRole}
+          gamePlayers={gamePlayers}
+          onAckRole={props.onAckRole}
+        />
+      )}
+
+      {state.phase === 'team-build' && (
+        <TeamBuildSection
+          isLeader={isLeader}
+          state={state}
+          gamePlayers={gamePlayers}
+          teamSize={teamSize}
+          myPlayerId={myPlayer.id}
+          onProposedTeamChange={props.onProposedTeamChange}
+          onSubmitTeam={props.onSubmitTeam}
+        />
+      )}
+
+      {state.phase === 'team-vote' && (
+        <TeamVoteSection
+          state={state}
+          myPlayer={myPlayer}
+          gamePlayers={gamePlayers}
+          onCastVote={props.onCastVote}
+        />
+      )}
+
+      {state.phase === 'team-vote-result' && (
+        <TeamVoteResultSection state={state} gamePlayers={gamePlayers} />
+      )}
+
+      {state.phase === 'quest-play' && (
+        <QuestPlaySection
+          state={state}
+          myPlayer={myPlayer}
+          myTeam={myTeam}
+          onTeam={onTeam}
+          gamePlayers={gamePlayers}
+          onPlayQuestCard={props.onPlayQuestCard}
+        />
+      )}
+
+      {state.phase === 'quest-result' && (
+        <QuestResultSection state={state} playerCount={playerCount} />
+      )}
+
+      {state.phase === 'discussion' && (
+        <DiscussionSection
+          state={state}
+          myPlayer={myPlayer}
+          gamePlayers={gamePlayers}
+          onAckDiscussion={props.onAckDiscussion}
+        />
+      )}
+
+      {state.phase === 'lady-of-lake' && (
+        <LadySection
+          state={state}
+          myPlayer={myPlayer}
+          myTeam={myTeam}
+          gamePlayers={gamePlayers}
+          onLadyInspect={props.onLadyInspect}
+          onLadyShow={props.onLadyShow}
+          onLadyFinish={props.onLadyFinish}
+        />
+      )}
+
+      {state.phase === 'assassinate' && (
+        <AssassinSection
+          state={state}
+          myPlayer={myPlayer}
+          myRole={myRole}
+          gamePlayers={gamePlayers}
+          onAssassinate={props.onAssassinate}
+        />
+      )}
+
+      {state.phase === 'end' && (
+        <EndSection
+          state={state}
+          myRole={myRole}
+          gamePlayers={gamePlayers}
+          onPlayAgain={props.onPlayAgain}
+          onLeaveRoom={props.onLeaveRoom}
+          isHost={props.isHost}
+        />
+      )}
+    </div>
+  );
+
   return (
     <div
       className={`min-h-dvh ${isGood
@@ -57,9 +259,11 @@ export default function PlayerPanel(props: PlayerPanelProps) {
         : 'bg-gradient-to-b from-red-950/40 via-slate-950 to-slate-950'
         }`}
     >
-      <div className="lg:grid lg:grid-cols-[280px_minmax(0,1fr)] xl:grid-cols-[320px_minmax(0,1fr)] lg:gap-4 lg:max-w-6xl lg:mx-auto lg:px-4">
+      <div className="sticky top-0 z-20">{topBar}</div>
 
-        <aside className="hidden lg:block sticky top-0 self-start max-h-dvh overflow-y-auto py-4">
+      {/* Desktop / tablet: 3-column fixed-viewport layout — left info, center table (no scroll), right action panel. */}
+      <div className="hidden lg:grid lg:grid-cols-[300px_minmax(0,1fr)_340px] xl:grid-cols-[340px_minmax(0,1fr)_380px] gap-4 px-4 max-w-[1500px] mx-auto h-[calc(100dvh-44px)]">
+        <aside className="overflow-y-auto py-4 pr-1">
           <PlayerRoster
             gamePlayers={gamePlayers}
             state={state}
@@ -71,200 +275,40 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           />
         </aside>
 
-        <div className="flex flex-col max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-none mx-auto w-full">
-          <div className="sticky top-0 z-10 bg-slate-950/95 backdrop-blur-md border-b border-white/10">
-            <div className="flex items-center gap-2 px-4 py-2.5">
-              <PhaseChip phase={state.phase} />
-              <span className="text-xs text-slate-500">Quest {state.currentQuest + 1}/5</span>
-              <div className="ml-auto">
-                <VoteTrack rejectStreak={state.voteRejectStreak} />
-              </div>
-            </div>
-
-            {myRole && myTeam && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal' && (
-              <button
-                onClick={onShowMyRole}
-                className={`w-full flex items-center gap-3 px-4 py-2.5 border-t active:opacity-75 ${isGood ? 'bg-blue-950/40 border-blue-500/20' : 'bg-red-950/40 border-red-500/20'
-                  }`}
-              >
-                <span className="text-2xl shrink-0">{ROLE_ICONS[myRole]}</span>
-                <div className="flex-1 min-w-0 text-left">
-                  <span className="block text-sm font-black text-white truncate">{myRole}</span>
-                  <span className="block text-[11px] text-slate-400 leading-none">{ROLE_NAMES_VI[myRole]}</span>
-                </div>
-                <span
-                  className={`shrink-0 rounded-full px-3 py-1 text-[11px] font-bold ${isGood ? 'bg-blue-500/20 text-blue-300' : 'bg-red-500/20 text-red-300'
-                    }`}
-                >
-                  {TEAM_NAME_VI[myTeam]}
-                </span>
-                <span className="text-[10px] text-slate-600">ⓘ</span>
-              </button>
-            )}
-
-            {isLeader && state.phase !== 'role-reveal' && state.phase !== 'end' && (
-              <div className="bg-amber-500/10 border-t border-amber-500/30 px-4 py-1.5 text-center">
-                <span className="text-xs font-black text-amber-300">👑 Bạn là Leader</span>
-              </div>
-            )}
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-4 py-4 pb-safe space-y-4">
-            {state.phase !== 'lineup-preview' && (
-              <QuestTrack
-                quests={state.quests}
-                currentQuest={state.currentQuest}
-                playerCount={playerCount}
+        <main className="flex items-start justify-center py-4 min-w-0 overflow-hidden">
+          {showRoundTable ? (
+            <div className="w-full flex items-start justify-center">
+              <RoundTable
                 players={gamePlayers}
-                compact
-              />
-            )}
-
-            {(state.phase === 'team-build' ||
-              state.phase === 'team-vote' ||
-              state.phase === 'quest-play') &&
-              questNeedsTwoFails(playerCount, state.currentQuest) && (
-                <div className="rounded-2xl border-2 border-rose-500/50 bg-rose-500/10 p-3 flex items-start gap-3">
-                  <span className="text-2xl shrink-0 leading-none">⚠️</span>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-xs font-black text-rose-200 uppercase tracking-wider">
-                      Quest {state.currentQuest + 1} — Luật đặc biệt
-                    </p>
-                    <p className="mt-1 text-xs text-slate-200 leading-relaxed">
-                      Cần <strong className="text-rose-300">≥ 2 lá Phe Quỷ</strong> để Quest này thất bại.
-                      1 lá Phe Quỷ đơn lẻ vẫn coi như Phe Người thắng Quest.
-                    </p>
-                  </div>
-                </div>
-              )}
-
-            {state.phase === 'lineup-preview' && (
-              <LineupPreviewSection
                 state={state}
-                myPlayer={myPlayer}
-                gamePlayers={gamePlayers}
-                onAckRole={props.onAckRole}
-              />
-            )}
-
-            {state.phase === 'role-reveal' && (
-              <RoleRevealWaitingSection
-                state={state}
-                myPlayer={myPlayer}
-                gamePlayers={gamePlayers}
-                onShowMyRole={onShowMyRole}
-              />
-            )}
-
-            {state.phase === 'night-evils' && (
-              <NightEvilsSection
-                state={state}
-                myPlayer={myPlayer}
-                myRole={myRole}
-                myTeam={myTeam}
-                gamePlayers={gamePlayers}
-                onAckRole={props.onAckRole}
-              />
-            )}
-
-            {state.phase === 'night-merlin' && (
-              <NightMerlinSection
-                state={state}
-                myPlayer={myPlayer}
-                myRole={myRole}
-                gamePlayers={gamePlayers}
-                onAckRole={props.onAckRole}
-              />
-            )}
-
-            {state.phase === 'night-percival' && (
-              <NightPercivalSection
-                state={state}
-                myPlayer={myPlayer}
-                myRole={myRole}
-                gamePlayers={gamePlayers}
-                onAckRole={props.onAckRole}
-              />
-            )}
-
-            {state.phase === 'team-build' && (
-              <TeamBuildSection
-                isLeader={isLeader}
-                state={state}
-                gamePlayers={gamePlayers}
-                teamSize={teamSize}
                 myPlayerId={myPlayer.id}
-                onProposedTeamChange={props.onProposedTeamChange}
-                onSubmitTeam={props.onSubmitTeam}
+                viewerRole={myRole}
+                playerCount={playerCount}
               />
-            )}
+            </div>
+          ) : (
+            <div className="w-full max-w-xl overflow-y-auto max-h-full">{phaseSection}</div>
+          )}
+        </main>
 
-            {state.phase === 'team-vote' && (
-              <TeamVoteSection
-                state={state}
-                myPlayer={myPlayer}
-                gamePlayers={gamePlayers}
-                onCastVote={props.onCastVote}
-              />
-            )}
+        <aside className="overflow-y-auto py-4 pl-1 space-y-3">
+          {showRoundTable && phaseSection}
+        </aside>
+      </div>
 
-            {state.phase === 'team-vote-result' && (
-              <TeamVoteResultSection
-                state={state}
-                gamePlayers={gamePlayers}
-              />
-            )}
-
-            {state.phase === 'quest-play' && (
-              <QuestPlaySection
-                state={state}
-                myPlayer={myPlayer}
-                myTeam={myTeam}
-                onTeam={onTeam}
-                gamePlayers={gamePlayers}
-                onPlayQuestCard={props.onPlayQuestCard}
-              />
-            )}
-
-            {state.phase === 'quest-result' && (
-              <QuestResultSection state={state} playerCount={playerCount} />
-            )}
-
-            {state.phase === 'discussion' && (
-              <DiscussionSection
-                state={state}
-                myPlayer={myPlayer}
-                gamePlayers={gamePlayers}
-                onAckDiscussion={props.onAckDiscussion}
-              />
-            )}
-
-            {state.phase === 'lady-of-lake' && (
-              <LadySection
-                state={state}
-                myPlayer={myPlayer}
-                myTeam={myTeam}
-                gamePlayers={gamePlayers}
-                onLadyInspect={props.onLadyInspect}
-                onLadyShow={props.onLadyShow}
-                onLadyFinish={props.onLadyFinish}
-              />
-            )}
-
-            {state.phase === 'assassinate' && (
-              <AssassinSection
-                state={state}
-                myPlayer={myPlayer}
-                myRole={myRole}
-                gamePlayers={gamePlayers}
-                onAssassinate={props.onAssassinate}
-              />
-            )}
-
-            {state.phase === 'end' && (
-              <EndSection state={state} myRole={myRole} gamePlayers={gamePlayers} />
-            )}
-          </div>
+      {/* Mobile / tablet: stacked — table on top, sections below. */}
+      <div className="lg:hidden flex flex-col max-w-lg sm:max-w-xl md:max-w-2xl mx-auto w-full">
+        <div className="px-4 py-4 pb-safe space-y-4">
+          {showRoundTable && (
+            <RoundTable
+              players={gamePlayers}
+              state={state}
+              myPlayerId={myPlayer.id}
+              viewerRole={myRole}
+              playerCount={playerCount}
+            />
+          )}
+          {phaseSection}
         </div>
       </div>
     </div>
@@ -1937,7 +1981,6 @@ function LadySection({
   myTeam,
   gamePlayers,
   onLadyInspect,
-  onLadyShow,
   onLadyFinish,
 }: {
   state: AvalonGameState;
@@ -1956,87 +1999,32 @@ function LadySection({
 
   if (isTarget) {
     const isEvil = myTeam === 'evil';
-
-    if (!shown && isEvil) {
-      return (
-        <div className="rounded-2xl border-2 border-red-500/60 bg-red-500/10 p-5">
-          <p className="text-[11px] uppercase font-black text-red-300 mb-1">
-            🌊 {holder?.name} đang soi bạn
-          </p>
-          <h3 className="text-base font-black text-white mb-1">Bạn là Phe Quỷ — chọn lá hiện ra</h3>
-          <p className="text-xs text-slate-300 mb-4">
-            Có thể nói xạo: hiện lá Phe Người để gạt người soi, hoặc hiện lá Phe Quỷ để nói thật.
-            Sau khi chọn, kết quả sẽ tự gửi cho Lady — không cần đưa máy.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <button
-              onClick={() => onLadyShow('good')}
-              className="rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-5 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30"
-            >
-              <div className="text-3xl mb-1">🛡️</div>
-              HIỆN PHE NGƯỜI
-              <div className="text-[10px] font-bold text-blue-100/80 mt-1">(Nói xạo)</div>
-            </button>
-            <button
-              onClick={() => onLadyShow('evil')}
-              className="rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 py-5 font-black text-white text-base hover:from-red-500 hover:to-rose-500 active:scale-95 shadow-lg shadow-red-500/30"
-            >
-              <div className="text-3xl mb-1">🗡️</div>
-              HIỆN PHE QUỶ
-              <div className="text-[10px] font-bold text-red-100/80 mt-1">(Nói thật)</div>
-            </button>
-          </div>
-        </div>
-      );
-    }
-
-    if (!shown && !isEvil) {
-      return (
-        <div className="rounded-2xl border-2 border-blue-500/60 bg-blue-500/10 p-5">
-          <p className="text-[11px] uppercase font-black text-blue-300 mb-1">
-            🌊 {holder?.name} đang soi bạn
-          </p>
-          <h3 className="text-base font-black text-white mb-1">Bạn là Phe Người</h3>
-          <p className="text-xs text-slate-300 mb-4">
-            Phe Người bắt buộc hiện thật. Bấm để gửi kết quả cho Lady.
-          </p>
-          <button
-            onClick={() => onLadyShow('good')}
-            className="w-full rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-5 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30"
-          >
-            <div className="text-4xl mb-1">🛡️</div>
-            GỬI LÁ PHE THIỆN
-          </button>
-        </div>
-      );
-    }
-
-    const cardSent: 'good' | 'evil' = shown ?? 'good';
-    const isGoodCard = cardSent === 'good';
     return (
       <div
-        className={`rounded-2xl border-2 p-6 text-center ${isGoodCard ? 'border-blue-500/40 bg-blue-500/10' : 'border-red-500/40 bg-red-500/10'
-          }`}
+        className={`rounded-2xl border-2 p-6 text-center ${
+          isEvil
+            ? 'border-red-500/60 bg-red-500/10'
+            : 'border-blue-500/60 bg-blue-500/10'
+        }`}
       >
-        <p className="text-[11px] uppercase font-bold text-slate-400 mb-2">
-          🌊 Đã gửi cho {holder?.name}
+        <p className="text-[11px] uppercase font-black text-slate-300 mb-2 tracking-widest">
+          🌊 {holder?.name} đang soi bạn
         </p>
-        <div className="text-6xl mb-2">{isGoodCard ? '🛡️' : '🗡️'}</div>
+        <div className="text-6xl mb-2">{isEvil ? '🗡️' : '🛡️'}</div>
         <p
-          className={`text-2xl font-black mb-1 ${isGoodCard ? 'text-blue-200' : 'text-red-200'
-            }`}
+          className={`text-2xl font-black mb-1 ${
+            isEvil ? 'text-red-200' : 'text-blue-200'
+          }`}
         >
-          {isGoodCard ? 'PHE THIỆN' : 'PHE ÁC'}
+          {isEvil ? 'PHE ÁC' : 'PHE THIỆN'}
         </p>
-        {isEvil && (
-          <p className="text-[11px] text-amber-400/80 italic mb-2">
-            {shown === 'good' ? '(Bạn đang nói xạo)' : '(Bạn đang nói thật)'}
-          </p>
-        )}
-        <p className="text-xs text-slate-400 mt-2">
-          Lady đã thấy kết quả. Chờ Lady bấm hoàn tất để chuyển token...
+        <p className="text-[11px] text-slate-400 mt-2">
+          Lady tự động thấy phe thật của bạn — không thể nói xạo.
         </p>
-        <div className="mt-3 text-2xl animate-pulse">⏳</div>
+        <p className="mt-3 text-xs text-slate-400">
+          Chờ {holder?.name} hoàn tất để chuyển token...
+        </p>
+        <div className="mt-2 text-2xl animate-pulse">⏳</div>
       </div>
     );
   }
@@ -2318,10 +2306,16 @@ function EndSection({
   state,
   myRole,
   gamePlayers,
+  onPlayAgain,
+  onLeaveRoom,
+  isHost,
 }: {
   state: AvalonGameState;
   myRole: AvalonRole | undefined;
   gamePlayers: Player[];
+  onPlayAgain?: () => void;
+  onLeaveRoom?: () => void;
+  isHost?: boolean;
 }) {
   const isGood = state.winner === 'good';
   const merlinTarget = state.merlinTargetId
@@ -2401,6 +2395,34 @@ function EndSection({
           })}
         </div>
       </div>
+
+      {(onPlayAgain || onLeaveRoom) && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {onPlayAgain && (
+            <button
+              onClick={onPlayAgain}
+              disabled={isHost === false}
+              className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3.5 text-sm font-black text-white hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] shadow-lg shadow-emerald-500/30 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none disabled:opacity-60 disabled:cursor-not-allowed"
+              title={isHost === false ? 'Chỉ chủ phòng mới có thể bắt đầu ván mới' : undefined}
+            >
+              🔄 Chơi tiếp ván mới
+              {isHost === false && (
+                <span className="block text-[10px] font-bold opacity-80 mt-0.5">
+                  (chờ chủ phòng)
+                </span>
+              )}
+            </button>
+          )}
+          {onLeaveRoom && (
+            <button
+              onClick={onLeaveRoom}
+              className="rounded-2xl border border-white/15 bg-white/5 py-3.5 text-sm font-black text-slate-200 hover:bg-white/10 active:scale-[0.98]"
+            >
+              🚪 Thoát phòng
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
