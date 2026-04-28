@@ -36,6 +36,11 @@ const AvalonBoard = dynamic(
   { ssr: false }
 );
 
+const SheriffBoard = dynamic(
+  () => import('@/components/games/sheriff/SheriffBoard'),
+  { ssr: false }
+);
+
 // ─── Game Registry ────────────────────────────────────────────────────
 export const GAME_REGISTRY: GameRegistryEntry[] = [
   {
@@ -67,6 +72,16 @@ export const GAME_REGISTRY: GameRegistryEntry[] = [
     minPlayers: 5,
     maxPlayers: 10,
     component: AvalonBoard,
+  },
+  {
+    key: 'sheriff',
+    label: 'Sheriff of Nottingham',
+    description: 'Buôn bán, nói dối, thương lượng và hối lộ. Ai giàu nhất sau nhiều vòng chợ sẽ thắng. 3-6 người.',
+    icon: '⚖️',
+    enabled: true,
+    minPlayers: 3,
+    maxPlayers: 6,
+    component: SheriffBoard,
   },
 ];
 
