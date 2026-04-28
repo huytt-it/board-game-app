@@ -629,7 +629,6 @@ export default function ClocktowerBoard({ room, players, playerId, isHost }: Gam
               votes={votes}
               voteTypes={voteTypes}
               hasVoted={hasVoted}
-              hasUsedGhostVote={currentPlayer?.gameData?.hasUsedGhostVote === true}
               voteCount={voteCount}
               onVote={castVote}
               onGhostVote={castGhostVote}
