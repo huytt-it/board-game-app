@@ -76,14 +76,14 @@ export const PHASE_TIMEOUTS_MS: Record<AvalonPhase, number> = {
   'night-evils': 45_000,
   'night-merlin': 45_000,
   'night-percival': 45_000,
-  'team-build': 0,
-  'team-vote': 120_000,
+  'team-build': 60_000,
+  'team-vote': 30_000,
   'team-vote-result': 8_000,
   'quest-play': 120_000,
   'quest-result': 8_000,
   'discussion': 600_000,
-  'lady-of-lake': 0,
-  'assassinate': 0,
+  'lady-of-lake': 60_000,
+  'assassinate': 180_000,
   'end': 0,
 };
 
