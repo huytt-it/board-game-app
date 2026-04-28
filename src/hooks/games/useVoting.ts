@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useCallback, useMemo } from 'react';
 import { gameStorage } from '@/services/database/firebaseAdapter';
 import type { RoomGameState } from '@/types/room';
 
@@ -9,18 +9,20 @@ interface UseVotingReturn {
   votingTarget: string | null;
   votingTargetName: string | null;
   votes: Record<string, boolean>;
+  voteTypes: Record<string, 'normal' | 'ghost'>;
   hasVoted: boolean;
   voteCount: { agree: number; disagree: number; total: number };
-  nominatePlayer: (targetId: string, targetName: string) => Promise<void>; // Host pushing to trial
-  castNomination: (targetId: string | null) => Promise<void>; // Player nominating someone
+  nominatePlayer: (targetId: string, targetName: string) => Promise<void>;
+  castNomination: (targetId: string | null) => Promise<void>;
   castVote: (vote: boolean) => Promise<void>;
+  castGhostVote: (vote: boolean) => Promise<void>;
   resolveVote: (executedRole?: string) => Promise<void>;
   cancelVote: () => Promise<void>;
 }
 
 /**
  * Hook for managing the voting/nomination system during the day phase.
- * Host nominates a player, all alive players vote, majority = execution.
+ * Supports normal votes (alive players) and ghost votes (dead players, once per game).
  */
 export function useVoting(
   roomId: string | undefined,
@@ -32,6 +34,7 @@ export function useVoting(
   const votingTarget = gameState?.votingTarget || null;
   const votingTargetName = gameState?.votingTargetName || null;
   const votes = gameState?.votes || {};
+  const voteTypes = (gameState?.voteTypes || {}) as Record<string, 'normal' | 'ghost'>;
 
   const hasVoted = !!(playerId && votes[playerId] !== undefined);
 
@@ -44,7 +47,7 @@ export function useVoting(
     };
   }, [votes]);
 
-  // ─── Host pushes a player to execution trial ─────────────────────────
+  // ─── Host pushes a player to execution trial ──────────────────────
   const nominatePlayer = useCallback(
     async (targetId: string, targetName: string) => {
       if (!roomId) return;
@@ -52,43 +55,52 @@ export function useVoting(
         votingTarget: targetId,
         votingTargetName: targetName,
         votes: {},
+        voteTypes: {},
       });
       await gameStorage.updateRoomStatus(roomId, 'voting');
     },
     [roomId]
   );
 
-  // ─── Player nominates someone during the day ──────────────────────
+  // ─── Player nominates someone during the day ───────────────────────
   const castNomination = useCallback(
     async (targetId: string | null) => {
       if (!roomId || !playerId) return;
-      
-      // Use Firebase dot notation to update only this player's nomination
-      // By using null, Firebase will store null or we can use deleteField() if we imported it.
-      // Since it's a simple voting app, setting to null is fine.
-      const payload = {
-        [`nominations.${playerId}`]: targetId
-      };
-      
+      const payload = { [`nominations.${playerId}`]: targetId };
       await gameStorage.updateRoomGameState(roomId, payload as any);
     },
     [roomId, playerId]
   );
 
-  // ─── Cast a vote ────────────────────────────────────────────────────
+  // ─── Cast a normal vote (alive players) ───────────────────────────
   const castVote = useCallback(
     async (vote: boolean) => {
       if (!roomId || !playerId) return;
-      // Use dot notation to avoid overwriting other people's votes in a race condition
       const payload = {
-        [`votes.${playerId}`]: vote
+        [`votes.${playerId}`]: vote,
+        [`voteTypes.${playerId}`]: 'normal',
       };
       await gameStorage.updateRoomGameState(roomId, payload as any);
     },
     [roomId, playerId]
   );
 
-  // ─── Resolve vote: if majority agree, execute the player ────────────
+  // ─── Cast a ghost vote (dead players, once per game) ──────────────
+  const castGhostVote = useCallback(
+    async (vote: boolean) => {
+      if (!roomId || !playerId) return;
+      const payload = {
+        [`votes.${playerId}`]: vote,
+        [`voteTypes.${playerId}`]: 'ghost',
+      };
+      await gameStorage.updateRoomGameState(roomId, payload as any);
+      // Mark ghost vote as permanently spent on this player's record
+      await gameStorage.updatePlayerGameData(roomId, playerId, { hasUsedGhostVote: true });
+    },
+    [roomId, playerId]
+  );
+
+  // ─── Resolve vote: if majority agree, execute the player ──────────
   const resolveVote = useCallback(
     async (executedRole?: string) => {
       if (!roomId || !votingTarget) return;
@@ -104,7 +116,7 @@ export function useVoting(
         votingTarget: null,
         votingTargetName: null,
         votes: {},
-        // Track for Undertaker: only update if actually executed
+        voteTypes: {},
         ...(executed && {
           lastExecutedPlayerId: votingTarget,
           lastExecutedRole: executedRole ?? null,
@@ -115,13 +127,14 @@ export function useVoting(
     [roomId, votingTarget, votes, alivePlayers]
   );
 
-  // ─── Cancel vote without execution ──────────────────────────────────
+  // ─── Cancel vote without execution ────────────────────────────────
   const cancelVote = useCallback(async () => {
     if (!roomId) return;
     await gameStorage.updateRoomGameState(roomId, {
       votingTarget: null,
       votingTargetName: null,
       votes: {},
+      voteTypes: {},
     } as any);
     await gameStorage.updateRoomStatus(roomId, 'day');
   }, [roomId]);
@@ -131,11 +144,13 @@ export function useVoting(
     votingTarget,
     votingTargetName,
     votes,
+    voteTypes,
     hasVoted,
     voteCount,
     nominatePlayer,
     castNomination,
     castVote,
+    castGhostVote,
     resolveVote,
     cancelVote,
   };
