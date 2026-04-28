@@ -58,7 +58,11 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
   };
 
   const setMax = (val: number) => {
-    const next = Math.min(10, Math.max(5, val));
+    // Không cho hạ maxPlayers xuống thấp hơn số player ĐANG ngồi trong phòng,
+    // tránh trường hợp UI hiển thị "8/6" và assignRoles vẫn chia theo playerCount
+    // thực tế (gây lệch với cấu hình). Cận trên/dưới của Avalon: 5-10.
+    const lowerBound = Math.max(5, playerCount);
+    const next = Math.min(10, Math.max(lowerBound, val));
     onUpdateConfig({ maxPlayers: next });
   };
 

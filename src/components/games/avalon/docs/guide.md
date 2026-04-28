@@ -196,4 +196,165 @@ Người cầm token **không thể tự soi mình**.
 
 ---
 
+## 🧪 ĐỀ XUẤT MỞ RỘNG — BIẾN THỂ 12 NGƯỜI CHƠI (HOUSE RULES)
+
+> **Trạng thái:** Đề xuất, CHƯA áp dụng vào code. Đọc kỹ và phản hồi để chốt phương án trước khi triển khai.
+>
+> **Triết lý cân bằng:** Avalon chuẩn dừng ở 10 người vì tỷ lệ phe vượt 10 sẽ vỡ. Mở rộng lên 12 người cần thêm role chức năng cho cả 2 phe để giữ cân bằng — Phe Người có thêm thông tin, Phe Quỷ có thêm công cụ phá thông tin.
+
+---
+
+### 1. PHÂN CHIA PHE — 12 NGƯỜI (7/5)
+
+Tỷ lệ **7 Good / 5 Evil** (Evil ~42%, gần chuẩn 10 người). Tỷ lệ chuẩn Avalon dao động 33–40% Evil.
+
+#### Phe Good (7 người)
+
+| Role | Vai trò |
+| --- | --- |
+| **Merlin** | Biết Evil (trừ Mordred) |
+| **Percival** | Thấy 3 ứng viên Merlin (Merlin/Morgana/Galahad) |
+| **Galahad** | Mồi giả bảo vệ Merlin — đâm trúng KHÔNG tính |
+| **Cleric** | Biết phe của Leader đầu tiên |
+| **Loyal Servant × 3** | Mù tịt thông tin |
+
+#### Phe Evil (5 người)
+
+| Role | Vai trò |
+| --- | --- |
+| **Mordred** | Merlin không thấy |
+| **Morgana** | Percival nhầm với Merlin |
+| **Assassin** | Đoán Merlin cuối ván |
+| **Oberon** | Đơn độc, không biết đồng đội |
+| **Accolon** | **Mới — Hiệp sĩ phản trắc, ngụy trang Good trước mọi kênh reveal** |
+
+> **Bộ token bắt buộc:** Excalibur + Lady of the Lake. Cả 2 đều cấp thông tin cho Good, riêng Excalibur cho phép lật thẻ Quest. Accolon là counter trực tiếp của 2 token này.
+
+---
+
+### 2. KÍCH THƯỚC ĐỘI QUEST — 12 NGƯỜI
+
+| Quest | Số người vào đội | Số fail cần để Quest thất bại |
+| --- | --- | --- |
+| 1 | 3 | 1 |
+| 2 | 4 | 1 |
+| 3 | 5 | **2** |
+| 4 | 6 | **2** |
+| 5 | 6 | **2** |
+
+> **Lý do 3 quest cuối cần 2 fail:** Với 5 Evil trên bàn 12 người, đội Quest gần như luôn có ít nhất 1 Evil. Nếu mọi quest chỉ cần 1 fail → Phe Người gần như không thể thắng quest nào. 2-fail cho Quest 3-4-5 buộc Phe Quỷ phải phối hợp (vì Mordred + Oberon không biết nhau, khó cùng đánh fail).
+
+---
+
+### 3. CÁC ROLE MỚI
+
+#### 🛡️ Galahad (Good) — *Mồi giả bảo vệ Merlin*
+
+- **Phe:** Good
+- **Biết gì:** Biết toàn bộ danh sách Phe Quỷ, **giống Merlin** (trừ Mordred)
+- **Trong mắt Percival:** Percival thấy 3 người (Merlin, Morgana, Galahad) — không biết ai là ai
+- **Quy tắc ám sát:** Nếu Assassin đâm Galahad → KHÔNG tính, Phe Người vẫn thắng
+- **Mô tả văn học:**
+
+  > *Galahad — kỵ sĩ thuần khiết nhất Bàn Tròn, người duy nhất xứng đáng tìm thấy Chén Thánh. Trong vũ điệu chính trị của Camelot, Galahad mang theo gánh nặng tương tự Merlin — biết kẻ thù là ai, nhưng không thể vạch mặt thẳng. Bóng dáng của ngài giống Merlin đến mức Percival không thể phân biệt; Phe Quỷ cũng vậy. Hãy lợi dụng điều đó: hút lửa ám sát về phía mình, để Merlin sống.*
+
+- **Tác dụng cân bằng:**
+  - Phe Người có 2 người biết Evil (Merlin + Galahad) thay vì 1 → tăng sức mạnh thông tin
+  - Cả 2 cùng vote khôn → Assassin nhìn hành vi sẽ thấy 2 ứng viên Merlin → khó đoán đúng
+  - Đâm Galahad không tính → Phe Người có 1 "lá chắn" cho Merlin
+
+#### 🔔 Cleric (Good) — *Tu sĩ biết Leader đầu*
+
+- **Phe:** Good
+- **Biết gì:** Sau khi random Leader đầu tiên (trước Quest 1), Cleric được hệ thống cho biết **phe của Leader đó** (Good/Evil) — KHÔNG biết role cụ thể
+- **Lưu ý đặc biệt:** Nếu Leader đầu là **Accolon** → Cleric thấy "Good" (sai)
+- **Mô tả văn học:**
+
+  > *Tu sĩ già, người chứng kiến nghi lễ phong tước cho mọi kỵ sĩ Bàn Tròn. Khi vị Leader đầu tiên được chọn, ngài đã đọc thấy linh hồn họ — sáng hay tối. Nhưng Accolon đã thề trước cả bàn thờ trong lúc giả vờ thuần khiết, nên ngay cả tu sĩ cũng có thể bị đánh lừa.*
+
+- **Tác dụng cân bằng:**
+  - Cấp 1 manh mối thông tin cho Phe Người (bù mù tịt với 12 người)
+  - Đặc biệt mạnh khi Leader đầu là Mordred (Merlin không thấy Mordred, Cleric thấy phe Leader)
+  - Cleric tiết lộ thông tin = bị Assassin nghi là Merlin → buộc khéo léo
+  - Bị Accolon counter → không phải lúc nào cũng đáng tin
+
+#### 🎭 Accolon (Evil) — *Hiệp Sĩ Phản Trắc — counter mọi kênh reveal*
+
+- **Phe:** Evil
+- **Biết gì:** Biết các đồng đội Evil (như Minion thường)
+- **Vẻ ngoài hiệp sĩ chính trực:** Trước mọi cơ chế "soi phe", Accolon hiển thị là Good (lừa)
+  - **Cleric** check Leader đầu = Accolon → thấy "Good" (sai)
+  - **Lady of the Lake** soi Accolon → thấy "Good" (sai)
+  - **Excalibur** holder peek thẻ Quest của Accolon → thấy "Success" dù thực tế là Fail
+- **Merlin vẫn thấy đúng:** Trong mắt Merlin, Accolon vẫn là Evil — Merlin không bị lừa
+- **Trong mắt Percival:** Không liên quan, Percival chỉ thấy Merlin/Morgana/Galahad
+- **Phase ám sát:** Accolon không phải Merlin, không là mục tiêu
+
+- **Mô tả văn học (cho RoleReveal):**
+
+  > **🎭 Accolon — Hiệp Sĩ Phản Trắc**
+  >
+  > *Trong bóng tối của lâu đài Camelot, ngươi quỳ trước Morgana — và thề trung thành với bà ta thay vì Arthur. Ngươi từng cầm Excalibur trong tay, từng cố đâm vào tim vị vua. Nhưng giờ đây, ngươi đeo lại chiếc áo choàng trắng của hiệp sĩ Bàn Tròn, mỉm cười với những kẻ ngu ngốc tin rằng ngươi là người tốt.*
+  >
+  > *Cleric không nhận ra ngươi. Lady của Hồ không soi thấu ngươi. Ngay cả Excalibur — thanh kiếm ngươi từng phản bội — cũng nhầm ngươi là chính nghĩa.*
+  >
+  > *Chỉ có Merlin biết sự thật. Hãy giết ông ta trước khi ông ta phơi bày ngươi.*
+
+- **Tác dụng cân bằng:**
+  - Phe Người được buff 3 kênh thông tin (Cleric + Lady + Excalibur) → Accolon vô hiệu hóa cả 3 nhưng chỉ với mỗi mình hắn
+  - Phe Quỷ có 1 "lá chắn" trong các quest then chốt — có thể đánh Fail mà không sợ bị Excalibur lật
+  - Phe Người buộc phải tin Merlin và logic, không thể chỉ dựa vào reveal
+  - Đối xứng đẹp với Galahad (Galahad bảo vệ Merlin / Accolon lừa các kênh reveal)
+
+---
+
+### 4. TOKEN BẮT BUỘC
+
+#### 🗡️ Excalibur — *Quyền lật thẻ Quest*
+
+- **Là token, KHÔNG phải role.**
+- **Cơ chế:** Sau khi đội Quest được approve, Leader phải trao Excalibur cho 1 thành viên khác trong đội (không tự giữ)
+- Sau khi mọi người trong đội nộp thẻ Quest, người cầm Excalibur được xem 1 lá BẤT KỲ và có quyền **lật ngược** lá đó (Success ↔ Fail). Hoặc bỏ qua không lật.
+- Mọi người biết Excalibur có được dùng (lật) hay không, nhưng không biết lật lá nào
+- **Lưu ý:** Nếu lật thẻ của Accolon → vẫn hiển thị "Success" trước khi lật (Accolon ngụy trang) → người cầm Excalibur có thể "lật nhầm"
+- **Tác dụng cân bằng:**
+  - Evil không dám đánh Fail bừa → có thể bị Good cầm Excalibur lật
+  - Good cũng có thể bị Evil cầm Excalibur lật Success → Fail
+  - Leader phải tính kỹ giao Excalibur cho ai (giao Merlin = Merlin lộ)
+
+#### 🌊 Lady of the Lake — *Bắt buộc bật*
+
+- Với 12 người, không có Lady → Phe Người gần như không có cách xác minh độc lập
+- Hoạt động chuẩn theo luật gốc (1 token, chuyển sau Quest 2/3/4)
+- **Lưu ý:** Soi Accolon → trả về "Good" (lừa)
+
+---
+
+### 5. LUẬT PHỤ TRỢ
+
+- **Vote Track giới hạn:** 5 → **6**. Bàn 12 người thảo luận lâu hơn, 5-reject-streak quá khắt khe.
+- **Thời gian Team Build:** 60s → **90s**. 12 người cần thời gian thảo luận dài hơn.
+- **Thời gian Discussion sau Quest:** 10 phút → **12 phút**. Tỷ lệ thuận với số người.
+- **Phase Ám Sát:** giữ **3 phút** (chuẩn). Quỷ lộ bài, đồng hồ hiển thị cho mọi người, đâm trúng Merlin = Quỷ thắng, đâm Galahad/người khác hoặc hết giờ = Người thắng.
+
+---
+
+### 6. CHECKLIST TRƯỚC KHI TRIỂN KHAI CODE
+
+- [x] Số phe: 7 Good / 5 Evil
+- [x] Role mới: Galahad (Good) · Cleric (Good) · Accolon (Evil)
+- [x] Token bắt buộc: Excalibur · Lady of the Lake
+- [x] Quest team sizes: 3-4-5-6-6 (Quest 3/4/5 cần 2 fail)
+- [x] Vote Track limit: 6
+- [x] Phase Ám Sát: 3 phút, hiển thị đồng hồ cho cả phòng
+
+Sau khi bạn confirm, tôi sẽ:
+1. Cập nhật `constants.ts` — thêm `12` vào `PLAYER_COUNTS`, `TEAM_DISTRIBUTION[12] = {good: 7, evil: 5}`, `QUEST_TEAM_SIZES[12] = [3,4,5,6,6]`, sửa `questNeedsTwoFails` cho Quest 3/4/5 khi playerCount=12
+2. Cập nhật `types.ts` — thêm `Galahad`, `Cleric`, `Accolon` vào `AvalonRole` enum
+3. Cập nhật `constants.ts` — thêm `ROLE_TEAM`, `ROLE_ICONS`, `ROLE_NAMES_VI`, `ROLE_DESC_VI` cho 3 role mới
+4. Cập nhật `useAvalon.ts` — logic Galahad ám sát (đâm trúng không tính), logic Cleric reveal Leader đầu, logic Accolon ngụy trang Lady/Excalibur
+5. Cập nhật UI — RoleCard, RoleReveal, RoleGuide, AssassinSection (kiểm tra Galahad), thêm phase Cleric reveal, thêm token Excalibur
+
+---
+
 *Chúc mừng bạn đã nắm được luật chơi Avalon! Hãy dùng suy luận, thảo luận và đôi khi... đừng tin ai cả!* ⚔️
