@@ -279,20 +279,9 @@ export function useSheriff(
         [`bagSizes.${playerId}`]: bag.length,
         [`bagConfirmed.${playerId}`]: true,
       } as Record<string, unknown>);
-
-      // Host auto-advances when all merchants have confirmed
-      if (isHost) {
-        const allDone = merchants.every(
-          (p) => p.id === playerId
-            ? true
-            : !!(room.gameState as unknown as SheriffGameState)?.bagConfirmed?.[p.id],
-        );
-        if (allDone) {
-          await gameStorage.updateRoomGameState(roomId, { phase: 'declare' } as Record<string, unknown>);
-        }
-      }
+      // Phase advance is handled reactively by host's advanceBagPhase useEffect
     },
-    [myData.hand, roomId, playerId, isHost, merchants, room],
+    [myData.hand, roomId, playerId],
   );
 
   // ─── Submit Declaration ───────────────────────────────────────────────────
@@ -303,24 +292,9 @@ export function useSheriff(
         [`declarations.${playerId}`]: { good, count: bagSize },
         [`declarationDone.${playerId}`]: true,
       } as Record<string, unknown>);
-
-      // Host auto-advances when all merchants declared
-      if (isHost) {
-        const state = gameState!;
-        const allDeclared = merchants.every(
-          (p) => p.id === playerId
-            ? true
-            : !!state.declarationDone?.[p.id],
-        );
-        if (allDeclared) {
-          await gameStorage.updateRoomGameState(roomId, {
-            phase: 'inspect',
-            currentInspectTarget: merchants[0]?.id ?? null,
-          } as Record<string, unknown>);
-        }
-      }
+      // Phase advance is handled reactively by host's advanceDeclarePhase useEffect
     },
-    [myData.bag.length, roomId, playerId, isHost, gameState, merchants],
+    [myData.bag.length, roomId, playerId],
   );
 
   // ─── Bribery ──────────────────────────────────────────────────────────────
@@ -419,7 +393,7 @@ export function useSheriff(
           wasHonest: checkHonesty(bagContents, declaration),
           wasInspected: false,
           goldChange: 0,
-          bribeGold: bribeOffer?.status === 'accepted' ? bribeOffer.gold : undefined,
+          ...(bribeOffer?.status === 'accepted' ? { bribeGold: bribeOffer.gold } : {}),
         };
       } else {
         // Inspect: check declaration
@@ -517,23 +491,26 @@ export function useSheriff(
       const queueIdx = inspectQueue.indexOf(currentInspectTarget);
       const nextTarget = inspectQueue[queueIdx + 1] ?? null;
 
+      // Strip undefined values from logEntry (Firestore rejects undefined fields)
+      const cleanLog = JSON.parse(JSON.stringify(logEntry)) as typeof logEntry;
+
       batch.update(roomRef, {
         [`gameState.inspectDecisions.${currentInspectTarget}`]: decision,
         [`gameState.bagRevealed.${currentInspectTarget}`]: true,
         [`gameState.bagContents.${currentInspectTarget}`]: bagContents,
         'gameState.currentInspectTarget': nextTarget,
         'gameState.bribeOffer': null,
-        'gameState.roundLog': [...(gameState.roundLog ?? []), logEntry],
+        'gameState.roundLog': [...(gameState.roundLog ?? []), cleanLog],
       });
 
       await batch.commit();
 
-      // If no more merchants, move to end_round (host)
-      if (!nextTarget && isHost) {
+      // Sheriff (not necessarily host) advances to end_round when all done
+      if (!nextTarget) {
         await gameStorage.updateRoomGameState(roomId, { phase: 'end_round' } as Record<string, unknown>);
       }
     },
-    [gameState, players, playerId, roomId, isHost],
+    [gameState, players, playerId, roomId],
   );
 
   // ─── End Round / Final Scoring ─────────────────────────────────────────────
@@ -590,6 +567,18 @@ export function useSheriff(
     }
   }, [gameState, isHost, merchants, roomId]);
 
+  // ─── Host: advance inspect when all merchants declared ───────────────────
+  const advanceDeclarePhase = useCallback(async () => {
+    if (!gameState || !isHost) return;
+    const allDeclared = merchants.every((p) => gameState.declarationDone?.[p.id]);
+    if (allDeclared && merchants.length > 0) {
+      await gameStorage.updateRoomGameState(roomId, {
+        phase: 'inspect',
+        currentInspectTarget: gameState.inspectQueue?.[0] ?? null,
+      } as Record<string, unknown>);
+    }
+  }, [gameState, isHost, merchants, roomId]);
+
   return {
     gameState,
     myData,
@@ -608,6 +597,7 @@ export function useSheriff(
     resetGame,
     advanceMarketPhase,
     advanceBagPhase,
+    advanceDeclarePhase,
   };
 }
 

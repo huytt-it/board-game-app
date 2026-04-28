@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import type { GameModuleProps } from '@/lib/gameRegistry';
+import QRCodeDisplay from '@/components/core/QRCodeDisplay';
 import { readPlayerData, CARD_DEFS, LEGAL_GOODS, PHASE_LABELS } from './constants';
 import { readGameState, useSheriff } from './useSheriff';
 import type { LegalCategory, SheriffGameState } from './types';
@@ -141,19 +142,21 @@ function MarketPhase({
   onConfirm: (indices: number[]) => Promise<void>;
   isReady: boolean;
 }) {
-  const [selected, setSelected] = useState<number[]>([]);
+  const [toDiscard, setToDiscard] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
 
   const toggle = (i: number) => {
-    setSelected((prev) =>
+    setToDiscard((prev) =>
       prev.includes(i) ? prev.filter((x) => x !== i) : prev.length < 5 ? [...prev, i] : prev,
     );
   };
 
   const handleConfirm = async () => {
     setLoading(true);
-    try { await onConfirm(selected); } finally { setLoading(false); }
+    try { await onConfirm(toDiscard); } finally { setLoading(false); }
   };
+
+  const keepIndices = hand.map((_, i) => i).filter((i) => !toDiscard.includes(i));
 
   if (isReady) {
     return (
@@ -166,34 +169,96 @@ function MarketPhase({
   }
 
   return (
-    <div className="space-y-4 animate-fade-in">
+    <div className="space-y-3 animate-fade-in">
+      {/* Instructions */}
+      <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-300">
+        Nhấn vào lá bài để đổi lấy bài mới từ chồng rút. Tối đa 5 lá.
+      </div>
+
+      {/* Full hand — click to mark as discard */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-        <h3 className="text-sm font-semibold text-slate-400 mb-3">🃏 Tay bài của bạn — chọn lá muốn đổi (tối đa 5)</h3>
-        <div className="flex flex-wrap gap-2">
-          {hand.map((cat, i) => (
-            <CardChip
-              key={i}
-              category={cat}
-              selected={selected.includes(i)}
-              onClick={() => toggle(i)}
-            />
-          ))}
-          {hand.length === 0 && (
-            <p className="text-slate-500 text-sm italic">Tay bài trống</p>
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="text-sm font-semibold text-slate-400">🃏 Tay bài của bạn ({hand.length} lá)</h3>
+          {toDiscard.length > 0 && (
+            <button onClick={() => setToDiscard([])} className="text-xs text-slate-500 hover:text-slate-300 underline">Bỏ chọn tất cả</button>
           )}
         </div>
-        {selected.length > 0 && (
-          <p className="mt-2 text-xs text-slate-400">
-            Sẽ đổi <span className="text-white font-semibold">{selected.length}</span> lá
-          </p>
-        )}
+        <div className="flex flex-wrap gap-2">
+          {hand.map((cat, i) => {
+            const isDiscarding = toDiscard.includes(i);
+            const def = CARD_DEFS[cat as keyof typeof CARD_DEFS];
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => toggle(i)}
+                className={[
+                  'relative flex flex-col items-center gap-0.5 rounded-xl border px-3 py-2 text-sm font-medium transition-all duration-150 select-none',
+                  isDiscarding
+                    ? 'border-rose-500/60 bg-rose-500/20 ring-2 ring-rose-400/50 opacity-60 scale-95'
+                    : `${def?.bgClass ?? ''} ${def?.borderClass ?? ''} hover:scale-105 active:scale-95`,
+                ].join(' ')}
+              >
+                <span className="text-2xl">{def?.icon}</span>
+                <span className={`text-[10px] leading-none ${isDiscarding ? 'text-rose-300' : (def?.textClass ?? '')}`}>
+                  {def?.nameVI}
+                </span>
+                {isDiscarding && (
+                  <span className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-rose-500 text-white text-[10px] flex items-center justify-center font-bold">✕</span>
+                )}
+              </button>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Keep / Discard preview */}
+      <div className="grid grid-cols-2 gap-3">
+        {/* Keep */}
+        <div className="rounded-xl border border-green-500/20 bg-green-500/5 p-3">
+          <p className="text-xs font-semibold text-green-400 mb-2">✅ Giữ lại ({keepIndices.length})</p>
+          <div className="flex flex-wrap gap-1.5 min-h-[32px]">
+            {keepIndices.map((i) => (
+              <span key={i} className="text-xl" title={CARD_DEFS[hand[i] as keyof typeof CARD_DEFS]?.nameVI}>
+                {CARD_DEFS[hand[i] as keyof typeof CARD_DEFS]?.icon}
+              </span>
+            ))}
+            {keepIndices.length === 0 && <span className="text-slate-600 text-xs italic">Không giữ lá nào</span>}
+          </div>
+        </div>
+
+        {/* Discard → Draw */}
+        <div className="rounded-xl border border-rose-500/20 bg-rose-500/5 p-3">
+          <p className="text-xs font-semibold text-rose-400 mb-2">🔄 Đổi lấy mới ({toDiscard.length})</p>
+          <div className="flex flex-wrap gap-1.5 min-h-[32px] items-center">
+            {toDiscard.map((i) => (
+              <span key={i} className="text-xl opacity-50 line-through" title={CARD_DEFS[hand[i] as keyof typeof CARD_DEFS]?.nameVI}>
+                {CARD_DEFS[hand[i] as keyof typeof CARD_DEFS]?.icon}
+              </span>
+            ))}
+            {toDiscard.length > 0 && (
+              <>
+                <span className="text-slate-500 text-sm">→</span>
+                {Array.from({ length: toDiscard.length }).map((_, k) => (
+                  <span key={k} className="text-xl animate-pulse">❓</span>
+                ))}
+              </>
+            )}
+            {toDiscard.length === 0 && <span className="text-slate-600 text-xs italic">Chưa chọn</span>}
+          </div>
+        </div>
+      </div>
+
       <button
         onClick={handleConfirm}
         disabled={loading}
         className="w-full rounded-xl bg-gradient-to-r from-cyan-600 to-cyan-700 py-3 font-semibold text-white transition-all hover:from-cyan-500 hover:to-cyan-600 disabled:opacity-40 shadow-lg shadow-cyan-500/20"
       >
-        {loading ? 'Đang xử lý...' : selected.length > 0 ? `Đổi ${selected.length} lá ✓` : 'Giữ nguyên tay bài ✓'}
+        {loading
+          ? 'Đang xử lý...'
+          : toDiscard.length > 0
+            ? `🔄 Đổi ${toDiscard.length} lá → Rút ${toDiscard.length} lá mới`
+            : '✅ Giữ nguyên tay bài'}
       </button>
     </div>
   );
@@ -693,59 +758,130 @@ function MarketDisplay({ players, myId }: { players: import('@/types/player').Pl
 function EndRoundPanel({
   gameState,
   players,
+  myId,
   isHost,
   onProceed,
 }: {
   gameState: SheriffGameState;
-  players: { id: string; name: string }[];
+  players: import('@/types/player').Player[];
+  myId: string;
   isHost: boolean;
   onProceed: () => Promise<void>;
 }) {
   const [loading, setLoading] = useState(false);
   const isLastRound = gameState.round >= gameState.totalRounds;
-
   const roundEntries = (gameState.roundLog ?? []).filter((e) => e.round === gameState.round);
+
+  // Compute current standings from live player data
+  const standings = players
+    .map((p) => {
+      const data = readPlayerData(p);
+      const allCards = [...data.marketLegal, ...data.marketContraband];
+      let marketValue = 0;
+      for (const cat of allCards) {
+        const def = CARD_DEFS[cat as keyof typeof CARD_DEFS];
+        if (def) marketValue += def.value;
+      }
+      return {
+        id: p.id,
+        name: p.name,
+        gold: data.gold,
+        marketValue,
+        marketCards: allCards.length,
+        total: data.gold + marketValue,
+        isSheriff: p.id === gameState.sheriffPlayerId,
+      };
+    })
+    .sort((a, b) => b.total - a.total);
 
   return (
     <div className="space-y-4 animate-fade-in">
+      {/* Round summary */}
       <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
         <h3 className="font-bold text-white mb-3">📜 Tóm tắt vòng {gameState.round}</h3>
+        {roundEntries.length === 0 ? (
+          <p className="text-slate-500 text-sm italic">Không có dữ liệu vòng này.</p>
+        ) : (
+          <div className="space-y-2">
+            {roundEntries.map((entry, i) => (
+              <div key={i} className={`rounded-xl border p-3 ${entry.wasHonest ? 'border-green-500/20 bg-green-500/5' : 'border-rose-500/20 bg-rose-500/5'}`}>
+                <div className="flex items-center justify-between mb-1">
+                  <span className="font-semibold text-sm text-white">{entry.merchantName}</span>
+                  <span className={`text-xs font-medium ${!entry.wasInspected ? 'text-slate-400' : entry.wasHonest ? 'text-green-400' : 'text-rose-400'}`}>
+                    {entry.wasInspected
+                      ? (entry.wasHonest ? '✅ Nói thật (bị kiểm)' : '❌ Nói dối (bị bắt)')
+                      : '✓ Được cho qua'}
+                  </span>
+                </div>
+                <p className="text-xs text-slate-500 mb-1">Khai: <span className="text-slate-300">{entry.declared}</span></p>
+                <div className="flex flex-wrap gap-1">
+                  {entry.bagContents.map((cat, j) => <CardChip key={j} category={cat} size="sm" />)}
+                </div>
+                {entry.goldChange !== 0 && (
+                  <p className={`text-xs mt-1.5 font-semibold ${entry.goldChange > 0 ? 'text-green-400' : 'text-rose-400'}`}>
+                    {entry.goldChange > 0 ? `+${entry.goldChange}` : entry.goldChange} 🪙
+                    {entry.bribeGold ? ` (hối lộ: ${entry.bribeGold} 🪙)` : ''}
+                  </p>
+                )}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Current standings */}
+      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+        <h3 className="font-bold text-amber-300 mb-3">📊 Bảng điểm hiện tại</h3>
         <div className="space-y-2">
-          {roundEntries.map((entry, i) => (
-            <div key={i} className={`rounded-xl border p-3 ${entry.wasHonest ? 'border-green-500/20 bg-green-500/5' : 'border-rose-500/20 bg-rose-500/5'}`}>
-              <div className="flex items-center justify-between mb-1">
-                <span className="font-semibold text-sm text-white">{entry.merchantName}</span>
-                <span className={`text-xs font-medium ${entry.wasHonest ? 'text-green-400' : 'text-rose-400'}`}>
-                  {entry.wasInspected
-                    ? (entry.wasHonest ? '✅ Nói thật (bị kiểm)' : '❌ Nói dối (bị bắt)')
-                    : '✓ Được cho qua'}
-                </span>
+          {standings.map((s, rank) => (
+            <div
+              key={s.id}
+              className={`flex items-center gap-3 rounded-xl px-3 py-2.5 border transition-all ${
+                s.id === myId
+                  ? 'border-cyan-500/30 bg-cyan-500/5'
+                  : 'border-white/5 bg-white/5'
+              }`}
+            >
+              {/* Rank */}
+              <span className={`text-base font-black w-5 text-center ${rank === 0 ? 'text-amber-400' : rank === 1 ? 'text-slate-300' : rank === 2 ? 'text-amber-700' : 'text-slate-600'}`}>
+                {rank === 0 ? '🥇' : rank === 1 ? '🥈' : rank === 2 ? '🥉' : `#${rank + 1}`}
+              </span>
+
+              {/* Name */}
+              <span className={`flex-1 font-semibold text-sm ${s.id === myId ? 'text-cyan-300' : 'text-white'}`}>
+                {s.name}
+                {s.id === myId && <span className="text-cyan-500 text-xs ml-1">(bạn)</span>}
+                {s.isSheriff && <span className="text-amber-400 text-xs ml-1">⚖️</span>}
+              </span>
+
+              {/* Score breakdown */}
+              <div className="flex items-center gap-2 text-xs text-slate-400">
+                <span title="Vàng">🪙 {s.gold}</span>
+                <span className="text-white/10">|</span>
+                <span title="Giá trị hàng hóa">📦 {s.marketValue}</span>
               </div>
-              <p className="text-xs text-slate-500">Khai: {entry.declared}</p>
-              <div className="flex flex-wrap gap-1 mt-1">
-                {entry.bagContents.map((cat, j) => <CardChip key={j} category={cat} size="sm" />)}
-              </div>
-              {entry.goldChange !== 0 && (
-                <p className={`text-xs mt-1 font-medium ${entry.goldChange > 0 ? 'text-green-400' : 'text-rose-400'}`}>
-                  {entry.goldChange > 0 ? `+${entry.goldChange}` : entry.goldChange} 🪙
-                </p>
-              )}
+
+              {/* Total */}
+              <span className={`font-black text-base ml-1 ${rank === 0 ? 'text-amber-300' : 'text-white'}`}>
+                {s.total}
+              </span>
             </div>
           ))}
         </div>
+        <p className="text-[10px] text-slate-600 mt-2">* Chưa tính thưởng King/Queen — sẽ tính ở vòng cuối</p>
       </div>
 
-      {isHost && (
+      {/* Proceed button */}
+      {isHost ? (
         <button
           onClick={async () => { setLoading(true); try { await onProceed(); } finally { setLoading(false); } }}
           disabled={loading}
           className="w-full rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 py-3 font-semibold text-white transition-all hover:from-purple-500 hover:to-indigo-500 disabled:opacity-40 shadow-lg"
         >
-          {loading ? 'Đang xử lý...' : isLastRound ? '🏆 Tính điểm cuối game' : `▶ Vòng ${gameState.round + 1}`}
+          {loading ? 'Đang xử lý...' : isLastRound ? '🏆 Tính điểm cuối game' : `▶ Bắt đầu vòng ${gameState.round + 1}`}
         </button>
-      )}
-      {!isHost && (
-        <p className="text-center text-slate-500 text-sm">⏳ Chờ host chuyển vòng...</p>
+      ) : (
+        <p className="text-center text-slate-500 text-sm py-2">⏳ Chờ host chuyển vòng...</p>
       )}
     </div>
   );
@@ -1010,12 +1146,14 @@ function InfoBlock({ title, color, children }: { title: string; color: string; c
 // Sub-component: Lobby
 // ─────────────────────────────────────────────────────────────────────────────
 function SheriffLobby({
+  room,
   players,
   playerId,
   isHost,
   onStart,
   onShowGuide,
 }: {
+  room: import('@/types/room').Room | null;
   players: import('@/types/player').Player[];
   playerId: string;
   isHost: boolean;
@@ -1024,11 +1162,22 @@ function SheriffLobby({
 }) {
   const [rounds, setRounds] = useState(2);
   const [loading, setLoading] = useState(false);
+  const [showQR, setShowQR] = useState(false);
+  const [copied, setCopied] = useState(false);
   const canStart = players.length >= 3 && isHost;
 
   const handleStart = async () => {
     setLoading(true);
     try { await onStart(rounds); } finally { setLoading(false); }
+  };
+
+  const handleCopyLink = () => {
+    if (!room) return;
+    const url = `${window.location.origin}/room/sheriff/${room.id}`;
+    navigator.clipboard.writeText(url).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
   };
 
   return (
@@ -1038,6 +1187,59 @@ function SheriffLobby({
         <div className="text-6xl mb-3 animate-float">⚖️</div>
         <h1 className="text-3xl font-black text-white mb-1">Sheriff of Nottingham</h1>
         <p className="text-slate-400 text-sm">Buôn bán, nói dối, thương lượng &amp; hối lộ</p>
+      </div>
+
+      {/* Invite section */}
+      <div className="rounded-2xl border border-amber-500/20 bg-amber-500/5 p-4">
+        <p className="text-xs font-semibold text-amber-400/70 uppercase tracking-wider mb-3">
+          📨 Mời bạn bè tham gia
+        </p>
+
+        {/* Room code */}
+        <div className="flex items-center gap-3 mb-3">
+          <div className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 flex items-center justify-between">
+            <div>
+              <p className="text-[10px] text-slate-500 uppercase tracking-widest mb-0.5">Mã phòng</p>
+              <p className="font-mono text-2xl font-black tracking-[0.25em] text-white">{room?.roomCode ?? '...'}</p>
+            </div>
+            <button
+              onClick={() => room?.roomCode && navigator.clipboard.writeText(room.roomCode)}
+              className="rounded-lg p-2 text-slate-400 hover:text-white hover:bg-white/10 transition-all"
+              title="Copy mã phòng"
+            >
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Action buttons */}
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={handleCopyLink}
+            className="flex items-center justify-center gap-2 rounded-xl bg-white/5 border border-white/10 py-2.5 text-sm font-medium text-slate-300 hover:bg-white/10 hover:text-white transition-all"
+          >
+            {copied ? (
+              <><span className="text-green-400">✓</span> Đã copy!</>
+            ) : (
+              <><span>🔗</span> Copy link</>
+            )}
+          </button>
+          <button
+            onClick={() => setShowQR((v) => !v)}
+            className={`flex items-center justify-center gap-2 rounded-xl border py-2.5 text-sm font-medium transition-all ${showQR ? 'border-amber-500/40 bg-amber-500/10 text-amber-300' : 'border-white/10 bg-white/5 text-slate-300 hover:bg-white/10 hover:text-white'}`}
+          >
+            <span>📱</span> QR Code
+          </button>
+        </div>
+
+        {/* QR Code panel */}
+        {showQR && (
+          <div className="mt-3 flex justify-center animate-scale-in">
+            {room && <QRCodeDisplay roomId={room.id} roomCode={room.roomCode} gameType="sheriff" />}
+          </div>
+        )}
       </div>
 
       {/* Player list */}
@@ -1131,6 +1333,7 @@ export default function SheriffBoard({ room, players, playerId, isHost }: GameMo
     resetGame,
     advanceMarketPhase,
     advanceBagPhase,
+    advanceDeclarePhase,
   } = useSheriff(room, players, playerId, isHost);
 
   // Host auto-advance: market → load_bag
@@ -1151,6 +1354,15 @@ export default function SheriffBoard({ room, players, playerId, isHost }: GameMo
     }
   }, [isHost, gameState, merchants, advanceBagPhase]);
 
+  // Host auto-advance: declare → inspect
+  useEffect(() => {
+    if (!isHost || !gameState || gameState.phase !== 'declare') return;
+    const allDeclared = merchants.every((p) => gameState.declarationDone?.[p.id]);
+    if (allDeclared && merchants.length > 0) {
+      advanceDeclarePhase();
+    }
+  }, [isHost, gameState, merchants, advanceDeclarePhase]);
+
   const sheriffPlayer = players.find((p) => p.id === gameState?.sheriffPlayerId);
 
   // ── Lobby ──
@@ -1159,6 +1371,7 @@ export default function SheriffBoard({ room, players, playerId, isHost }: GameMo
       <div className="min-h-screen px-4 py-6">
         {showGuide && <SheriffGuide onClose={() => setShowGuide(false)} />}
         <SheriffLobby
+          room={room}
           players={players}
           playerId={playerId}
           isHost={isHost}
@@ -1329,6 +1542,7 @@ export default function SheriffBoard({ room, players, playerId, isHost }: GameMo
           <EndRoundPanel
             gameState={gameState}
             players={players}
+            myId={playerId}
             isHost={isHost}
             onProceed={proceedAfterRound}
           />
