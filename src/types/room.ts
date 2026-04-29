@@ -1,7 +1,7 @@
 import type { Timestamp } from 'firebase/firestore';
 
 // ─── Game Type Registry ───────────────────────────────────────────────
-export type GameType = 'clock-tower' | 'werewolf' | 'avalon' | 'sheriff';
+export type GameType = 'clock-tower' | 'werewolf' | 'avalon' | 'sheriff' | 'shadowhunter';
 
 // ─── Room Status ──────────────────────────────────────────────────────
 export type RoomStatus = 'lobby' | 'day' | 'night' | 'voting' | 'end';
