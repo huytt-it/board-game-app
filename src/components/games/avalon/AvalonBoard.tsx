@@ -8,6 +8,7 @@ import QRCodeDisplay from '@/components/core/QRCodeDisplay';
 import type { GameModuleProps } from '@/lib/gameRegistry';
 import RoleReveal from './RoleReveal';
 import RoleCard from './RoleCard';
+import RolePreviewPopup from './RolePreviewPopup';
 import RoomSettings from './RoomSettings';
 import RoleGuide from './RoleGuide';
 import PlayerPanel from './PlayerPanel';
@@ -48,12 +49,14 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     ladyShow,
     ladyFinish,
     ladyTimeoutAdvance,
+    setAssassinChoice,
     assassinate,
     assassinTimeoutAdvance,
   } = useAvalon(room.id, room, players);
 
   const [localRoleSeen, setLocalRoleSeen] = useState(false);
   const [showMyRoleCard, setShowMyRoleCard] = useState(false);
+  const [showRolePreview, setShowRolePreview] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showRoleGuide, setShowRoleGuide] = useState(false);
@@ -509,7 +512,9 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         onLadyShow={ladyShow}
         onLadyFinish={ladyFinish}
         onAssassinate={assassinate}
+        onSetAssassinChoice={setAssassinChoice}
         onShowMyRole={() => setShowMyRoleCard(true)}
+        onShowRolePreview={() => setShowRolePreview(true)}
         onAckRole={() => ackRole(playerId)}
         onAckDiscussion={() => ackDiscussion(playerId)}
         onPlayAgain={handleNewGame}
@@ -518,6 +523,14 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       />
       {showMyRoleCard && (
         <RoleCard role={myRole} onClose={() => setShowMyRoleCard(false)} />
+      )}
+      {showRolePreview && state && myPlayer && (
+        <RolePreviewPopup
+          state={state}
+          myPlayer={myPlayer}
+          players={players}
+          onClose={() => setShowRolePreview(false)}
+        />
       )}
     </>
   );

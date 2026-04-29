@@ -138,7 +138,21 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
   const config = useMemo(() => (room ? readConfig(room) : null), [room]);
   const state = useMemo(() => (room ? readState(room) : null), [room]);
 
-  const gamePlayers = useMemo(() => players, [players]);
+  const gamePlayers = useMemo(() => {
+    const seatOrder = state?.seatOrder;
+    if (!seatOrder || seatOrder.length === 0) return players;
+    const byId = new Map(players.map((p) => [p.id, p]));
+    const seated: Player[] = [];
+    for (const id of seatOrder) {
+      const p = byId.get(id);
+      if (p) seated.push(p);
+    }
+    const seenIds = new Set(seatOrder);
+    for (const p of players) {
+      if (!seenIds.has(p.id)) seated.push(p);
+    }
+    return seated;
+  }, [players, state]);
   const playerCount = gamePlayers.length;
   const isSupportedCount = (PLAYER_COUNTS as readonly number[]).includes(playerCount);
 
@@ -167,9 +181,16 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     const cfg = readConfig(room);
     const pool = buildRolePool(playerCount as SupportedPlayerCount, cfg.optionalRoles);
 
+    // Random hoá vị trí ngồi mỗi ván — lấy từ raw `players` để không bị ảnh
+    // hưởng bởi seatOrder cũ (nếu có) còn sót lại trong state.
+    const seatOrder = shuffle(players.map((p) => p.id));
+    const seatedPlayers = seatOrder
+      .map((id) => players.find((p) => p.id === id))
+      .filter((p): p is Player => Boolean(p));
+
     // Atomic: dùng batch để tránh trường hợp mất mạng giữa chừng khiến chỉ
     // một phần player có role, phần còn lại không → game stuck "Đang chia bài".
-    const roleUpdates = gamePlayers.map((p, i) => ({
+    const roleUpdates = seatedPlayers.map((p, i) => ({
       playerId: p.id,
       data: {
         role: pool[i],
@@ -181,10 +202,10 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
 
     // Leader đầu: random. Lady đầu: người ngồi BÊN TRÁI Leader đầu — vòng quanh
     // bàn xếp clockwise theo index 0..n-1, nên "bên trái" của index i = (i-1+n)%n.
-    const firstLeaderIdx = Math.floor(Math.random() * gamePlayers.length);
-    const firstLeader = gamePlayers[firstLeaderIdx];
-    const ladyIdx = (firstLeaderIdx - 1 + gamePlayers.length) % gamePlayers.length;
-    const initialLady = playerCount >= 7 ? gamePlayers[ladyIdx] : null;
+    const firstLeaderIdx = Math.floor(Math.random() * seatedPlayers.length);
+    const firstLeader = seatedPlayers[firstLeaderIdx];
+    const ladyIdx = (firstLeaderIdx - 1 + seatedPlayers.length) % seatedPlayers.length;
+    const initialLady = playerCount >= 7 ? seatedPlayers[ladyIdx] : null;
 
     const fresh: AvalonGameState = {
       rolesAssigned: true,
@@ -207,10 +228,12 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       leadersUsed: [firstLeader.id],
       lastTeamVoteResult: null,
       ladyShownCard: null,
+      seatOrder,
+      assassinChoiceId: null,
     };
     await writeState(fresh);
     await gameStorage.updateRoomStatus(roomId, 'night');
-  }, [roomId, room, gamePlayers, playerCount, isSupportedCount, writeState]);
+  }, [roomId, room, players, playerCount, isSupportedCount, writeState]);
 
   const proceedToRoleReveal = useCallback(async () => {
     if (!roomId) return;
@@ -337,6 +360,8 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       const quest = { ...state.quests[state.currentQuest] };
       quest.leaderId = state.currentLeaderId;
       quest.teamIds = state.proposedTeam;
+      quest.approveCount = approves;
+      quest.rejectCount = rejects;
       const newQuests = [...state.quests];
       newQuests[state.currentQuest] = quest;
       await writeState({
@@ -373,14 +398,13 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     if (state.phase !== 'team-vote-result') return;
 
     if (state.lastTeamVoteResult === 'approved') {
-      await writeState({
-        phase: 'quest-play',
-        voteRejectStreak: 0,
-        questPlayedBy: [],
-        phaseStartedAt: Date.now(),
-      });
-      // Reset questCard cho tất cả player atomically — tránh trường hợp giữa
-      // chừng có người vẫn còn 'fail' / 'success' từ quest trước.
+      // Reset questCard TRƯỚC khi đổi phase sang 'quest-play'. Nếu đổi phase
+      // trước, có khoảng race ~100-300ms mà client thấy phase='quest-play'
+      // nhưng questCard vẫn còn 'success'/'fail' từ quest trước → vừa khoá
+      // UI chọn lá của thành viên team mới (PlayerPanel coi như đã đánh),
+      // vừa khiến host's auto-resolve effect (allCardsSynced) chốt quest
+      // ngay lập tức bằng các lá cũ. Điển hình: 6 người, Quest 4 với team là
+      // subset của Quest 3 → Mordred không kịp đặt lá Phe Quỷ.
       await gameStorage.updatePlayersGameDataBatch(
         roomId,
         gamePlayers.map((p) => ({
@@ -388,6 +412,12 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
           data: { questCard: null },
         }))
       );
+      await writeState({
+        phase: 'quest-play',
+        voteRejectStreak: 0,
+        questPlayedBy: [],
+        phaseStartedAt: Date.now(),
+      });
       await gameStorage.updateRoomStatus(roomId, 'day');
     } else {
       const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
@@ -641,6 +671,25 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     }
   }, [roomId, state, gamePlayers, writeState]);
 
+  const setAssassinChoice = useCallback(
+    async (targetId: string | null, callerId?: string) => {
+      if (!roomId || !state) return;
+      if (state.phase !== 'assassinate') return;
+      if (callerId) {
+        const caller = players.find((p) => p.id === callerId);
+        const callerRole = (caller?.gameData as Partial<AvalonGameData> | undefined)?.role;
+        if (callerRole !== AvalonRole.Assassin) return;
+      }
+      if (targetId) {
+        const target = players.find((p) => p.id === targetId);
+        const targetData = target?.gameData as Partial<AvalonGameData> | undefined;
+        if (!target || targetData?.team !== 'good') return;
+      }
+      await writeState({ assassinChoiceId: targetId });
+    },
+    [roomId, state, players, writeState]
+  );
+
   const assassinate = useCallback(
     async (targetId: string, callerId?: string) => {
       if (!roomId || !state) return;
@@ -719,6 +768,7 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     ladyShow,
     ladyFinish,
     ladyTimeoutAdvance,
+    setAssassinChoice,
     assassinate,
     assassinTimeoutAdvance,
   };

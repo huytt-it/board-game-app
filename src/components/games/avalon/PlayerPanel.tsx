@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Player } from '@/types/player';
 import { AvalonRole, PHASE_TIMEOUTS_MS, type AvalonGameData, type AvalonGameState, type QuestCard, type TeamVote } from './types';
 import {
+  ROLE_DESC_VI,
   ROLE_ICONS,
   ROLE_NAMES_VI,
   ROLE_TEAM,
@@ -26,7 +27,9 @@ interface PlayerPanelProps {
   onLadyShow: (card: 'good' | 'evil') => void;
   onLadyFinish: () => void;
   onAssassinate: (targetId: string, callerId?: string) => void;
+  onSetAssassinChoice?: (targetId: string | null, callerId?: string) => void;
   onShowMyRole: () => void;
+  onShowRolePreview?: () => void;
   onAckRole: () => void;
   onAckDiscussion: () => void;
   onPlayAgain?: () => void;
@@ -54,6 +57,28 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   const isGood = myTeam === 'good';
 
   const showRoundTable = state.phase !== 'lineup-preview' && state.phase !== 'role-reveal';
+  const isAssassin = myRole === AvalonRole.Assassin;
+
+  // Toggle pick handler: cùng logic với grid trong TeamBuildSection — Leader bấm
+  // avatar trên bàn để add/remove. Khi đã đầy size, chọn thêm sẽ thay người đầu.
+  const handleTablePick = (id: string) => {
+    if (!isLeader || state.phase !== 'team-build') return;
+    const team = state.proposedTeam;
+    if (team.includes(id)) {
+      props.onProposedTeamChange(team.filter((x) => x !== id));
+    } else if (team.length < teamSize) {
+      props.onProposedTeamChange([...team, id]);
+    } else {
+      props.onProposedTeamChange([...team.slice(1), id]);
+    }
+  };
+
+  const handleAssassinTablePick = (id: string) => {
+    if (!isAssassin || state.phase !== 'assassinate') return;
+    if (props.onSetAssassinChoice) {
+      props.onSetAssassinChoice(id, myPlayer.id);
+    }
+  };
 
   // Slim top bar — phase + reject counter + my role chip — kept short so the
   // round table fits in the viewport without scroll on lg+.
@@ -65,17 +90,28 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           Quest {state.currentQuest + 1}/5
         </span>
         {myRole && myTeam && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal' && (
-          <button
-            onClick={onShowMyRole}
-            className={`ml-auto flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-bold active:opacity-75 ${isGood
-              ? 'border-blue-500/30 bg-blue-950/40 text-blue-200'
-              : 'border-red-500/30 bg-red-950/40 text-red-200'
-              }`}
-          >
-            <span className="text-base">{ROLE_ICONS[myRole]}</span>
-            <span className="truncate max-w-[100px]">{ROLE_NAMES_VI[myRole]}</span>
-            <span className="text-[10px] opacity-70">ⓘ</span>
-          </button>
+          <div className="ml-auto flex items-center gap-1.5">
+            {props.onShowRolePreview && (
+              <button
+                onClick={props.onShowRolePreview}
+                className="rounded-full border border-fuchsia-500/30 bg-fuchsia-950/40 text-fuchsia-200 px-2.5 py-1 text-[11px] font-bold active:opacity-75 hover:bg-fuchsia-900/40"
+                title="Xem lại preview vai trong ván"
+              >
+                🎭 Preview
+              </button>
+            )}
+            <button
+              onClick={onShowMyRole}
+              className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-bold active:opacity-75 ${isGood
+                ? 'border-blue-500/30 bg-blue-950/40 text-blue-200'
+                : 'border-red-500/30 bg-red-950/40 text-red-200'
+                }`}
+            >
+              <span className="text-base">{ROLE_ICONS[myRole]}</span>
+              <span className="truncate max-w-[100px]">{ROLE_NAMES_VI[myRole]}</span>
+              <span className="text-[10px] opacity-70">ⓘ</span>
+            </button>
+          </div>
         )}
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-black ${!(myRole && myTeam) ? 'ml-auto' : ''
@@ -238,6 +274,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           myRole={myRole}
           gamePlayers={gamePlayers}
           onAssassinate={props.onAssassinate}
+          onSetAssassinChoice={props.onSetAssassinChoice}
         />
       )}
 
@@ -286,6 +323,12 @@ export default function PlayerPanel(props: PlayerPanelProps) {
                 myPlayerId={myPlayer.id}
                 viewerRole={myRole}
                 playerCount={playerCount}
+                onTogglePick={handleTablePick}
+                canPick={isLeader && state.phase === 'team-build'}
+                pickedTeamSize={state.proposedTeam.length}
+                pickedTeamLimit={teamSize}
+                onAssassinPick={handleAssassinTablePick}
+                canAssassinPick={isAssassin && state.phase === 'assassinate'}
               />
             </div>
           ) : (
@@ -690,7 +733,7 @@ function PlayerRoster({
                 type: 'evil-ally',
                 className:
                   'bg-red-500/30 border border-red-400/50 text-red-100',
-                label: '🗡️ Đồng đội Quỷ',
+                label: '👹 Đồng đội Quỷ',
               });
             }
           }
@@ -703,7 +746,7 @@ function PlayerRoster({
                 type: 'merlin-sees',
                 className:
                   'bg-red-500/25 border border-red-400/40 text-red-100',
-                label: '🗡️ Quỷ (bạn thấy)',
+                label: '👹 Quỷ (bạn thấy)',
               });
             }
           }
@@ -736,6 +779,7 @@ function PlayerRoster({
                   : hasPercivalClueMark
                     ? 'border-indigo-500/40 bg-indigo-500/10'
                     : 'border-white/10 bg-white/5';
+          const allMarks = [...liveMarks, ...historyMarks];
           return (
             <div
               key={p.id}
@@ -743,7 +787,7 @@ function PlayerRoster({
             >
               <div className="flex items-center gap-2 min-w-0">
                 <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white ${isHighlighted && finalEmphasis === 'team'
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black text-white ${isHighlighted && finalEmphasis === 'team'
                     ? 'bg-gradient-to-br from-orange-500 to-amber-500'
                     : isHighlighted && finalEmphasis === 'lady'
                       ? 'bg-gradient-to-br from-fuchsia-500 to-purple-500'
@@ -752,34 +796,30 @@ function PlayerRoster({
                 >
                   {p.name.charAt(0).toUpperCase()}
                 </div>
-                <span className="text-xs font-bold text-white truncate flex-1 min-w-0">
-                  {p.name}
-                </span>
+                <div className="min-w-0 flex-1 flex flex-col gap-0.5">
+                  <span className="text-xs font-bold text-white truncate">{p.name}</span>
+                  {allMarks.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {liveMarks.map((m) => (
+                        <span
+                          key={m.key ?? m.type}
+                          className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
+                        >
+                          {m.label}
+                        </span>
+                      ))}
+                      {historyMarks.map((m) => (
+                        <span
+                          key={m.key ?? m.type}
+                          className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${m.className}`}
+                        >
+                          {m.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              {liveMarks.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {liveMarks.map((m) => (
-                    <span
-                      key={m.key ?? m.type}
-                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
-                    >
-                      {m.label}
-                    </span>
-                  ))}
-                </div>
-              )}
-              {historyMarks.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1 opacity-90">
-                  {historyMarks.map((m) => (
-                    <span
-                      key={m.key ?? m.type}
-                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${m.className}`}
-                    >
-                      {m.label}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           );
         })}
@@ -1138,6 +1178,57 @@ function RoleRevealWaitingSection({
   );
 }
 
+// Card "Bạn là <Role>" + mô tả ngắn — hiển thị đầu mỗi night phase để
+// người chơi không phải mở RoleCard. variant="self" cho người đang lộ vai,
+// variant="other" để giải thích role nào đang lộ diện cho người chờ.
+function RoleIntroCard({
+  role,
+  variant,
+  compact,
+}: {
+  role: AvalonRole;
+  variant: 'self' | 'other';
+  compact?: boolean;
+}) {
+  const team = ROLE_TEAM[role];
+  const isGood = team === 'good';
+  const heading =
+    variant === 'self'
+      ? 'Bạn là'
+      : `Vai đang lộ diện: ${ROLE_NAMES_VI[role]}`;
+  return (
+    <div
+      className={`rounded-2xl border-2 p-3 ${compact ? '' : 'sm:p-4'} ${
+        isGood
+          ? 'border-blue-500/50 bg-blue-500/10'
+          : 'border-red-500/50 bg-red-500/10'
+      }`}
+    >
+      <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">
+        {heading}
+      </p>
+      <div className="mt-1 flex items-center gap-3">
+        <div className="text-3xl shrink-0">{ROLE_ICONS[role]}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-black text-white truncate">{role}</p>
+          <p
+            className={`text-[11px] font-semibold ${
+              isGood ? 'text-blue-300' : 'text-red-300'
+            }`}
+          >
+            {ROLE_NAMES_VI[role]}
+          </p>
+        </div>
+      </div>
+      {!compact && (
+        <p className="mt-2 text-xs leading-relaxed text-slate-200/90">
+          {ROLE_DESC_VI[role]}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function getActiveNightPlayerIds(
   phase: AvalonGameState['phase'],
   players: Player[]
@@ -1241,13 +1332,16 @@ function NightEvilsSection({
       <div className="space-y-3">
         <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 text-center">
           <p className="text-[11px] uppercase font-black text-red-300 mb-2">
-            🗡️ Đêm — Phe Quỷ đang nhận biết nhau
+            👹 Đêm — Phe Quỷ đang nhận biết nhau
           </p>
           <div className="text-5xl mb-2 animate-pulse">😴</div>
           <p className="text-sm text-slate-300">
-            Hãy nhắm mắt. Phe Quỷ đang lộ diện với nhau.
+            Hãy nhắm mắt. Các tay sai của Mordred đang lộ diện với nhau (Oberon thì đơn độc).
           </p>
         </div>
+        {myRole && (
+          <RoleIntroCard role={myRole} variant="self" />
+        )}
         <NightCountdown state={state} phase="night-evils" allActiveAcked={allActiveAcked} />
       </div>
     );
@@ -1257,9 +1351,10 @@ function NightEvilsSection({
 
   return (
     <div className="space-y-3">
+      {myRole && <RoleIntroCard role={myRole} variant="self" />}
       <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-red-300 mb-1">
-          🗡️ Đêm — Phe Quỷ lộ diện
+          👹 Đêm — Phe Quỷ lộ diện
         </p>
         {isOberon ? (
           <>
@@ -1352,9 +1447,11 @@ function NightMerlinSection({
           </p>
           <div className="text-5xl mb-2 animate-pulse">🌙</div>
           <p className="text-sm text-slate-300">
-            Hãy nhắm mắt. Merlin đang nhìn ra Phe Quỷ.
+            Hãy nhắm mắt. Merlin đang nhìn ra Phe Quỷ (Mordred ẩn).
           </p>
         </div>
+        <RoleIntroCard role={AvalonRole.Merlin} variant="other" />
+        {myRole && <RoleIntroCard role={myRole} variant="self" compact />}
         <NightCountdown state={state} phase="night-merlin" allActiveAcked={allActiveAcked} />
       </div>
     );
@@ -1362,11 +1459,11 @@ function NightMerlinSection({
 
   return (
     <div className="space-y-3">
+      <RoleIntroCard role={AvalonRole.Merlin} variant="self" />
       <div className="rounded-2xl border border-blue-500/40 bg-blue-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-blue-300 mb-1">
-          🧙 Bạn là Merlin
+          🧙 Phe Quỷ lộ diện trước bạn
         </p>
-        <h3 className="text-base font-black text-white mb-1">Phe Quỷ lộ diện trước bạn</h3>
         <p className="text-xs text-slate-300 mb-3">
           Bạn nhìn thấy {visibleEvils.length} quỷ. <strong>Mordred</strong> ẩn — không hiện ở đây.
           Hãy bí mật dẫn dắt Phe Người, đừng để Sát Thủ tìm ra bạn.
@@ -1443,6 +1540,8 @@ function NightPercivalSection({
             Hãy nhắm mắt. Percival đang nhìn ra Merlin & Morgana.
           </p>
         </div>
+        <RoleIntroCard role={AvalonRole.Percival} variant="other" />
+        {myRole && <RoleIntroCard role={myRole} variant="self" compact />}
         <NightCountdown state={state} phase="night-percival" allActiveAcked={allActiveAcked} />
       </div>
     );
@@ -1450,11 +1549,11 @@ function NightPercivalSection({
 
   return (
     <div className="space-y-3">
+      <RoleIntroCard role={AvalonRole.Percival} variant="self" />
       <div className="rounded-2xl border border-indigo-500/40 bg-indigo-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-indigo-300 mb-1">
-          🛡️ Bạn là Percival
+          🛡️ Merlin & Morgana hiện ra trước bạn
         </p>
-        <h3 className="text-base font-black text-white mb-1">Merlin & Morgana hiện ra</h3>
         <p className="text-xs text-slate-300 mb-3">
           1 trong 2 người dưới đây là <strong>Merlin</strong>, người còn lại là{' '}
           <strong>Morgana</strong>. Bạn KHÔNG biết ai là ai — hãy bảo vệ Merlin
@@ -1814,6 +1913,11 @@ function QuestPlaySection({
 }) {
   const myCard = (myPlayer.gameData as Partial<AvalonGameData>).questCard;
   const team = state.proposedTeam.map((id) => gamePlayers.find((p) => p.id === id)).filter(Boolean) as Player[];
+  const [pendingCard, setPendingCard] = useState<QuestCard | null>(null);
+
+  useEffect(() => {
+    if (myCard) setPendingCard(null);
+  }, [myCard]);
 
   if (!onTeam) {
     return (
@@ -1893,8 +1997,10 @@ function QuestPlaySection({
 
       <div className="grid grid-cols-2 gap-3">
         <button
-          onClick={() => onPlayQuestCard('success')}
-          className="rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-6 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30"
+          onClick={() => setPendingCard('success')}
+          className={`rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-6 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30 ${
+            pendingCard === 'success' ? 'ring-4 ring-blue-300' : ''
+          }`}
         >
           <div className="text-4xl mb-1">🛡️</div>
           PHE NGƯỜI
@@ -1905,15 +2011,34 @@ function QuestPlaySection({
               alert('Phe Người không được đặt lá Phe Quỷ — bắt buộc phải đặt lá Phe Người.');
               return;
             }
-            onPlayQuestCard('fail');
+            setPendingCard('fail');
           }}
           disabled={myTeam === 'good'}
-          className="rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 py-6 font-black text-white text-base hover:from-red-500 hover:to-rose-500 active:scale-95 shadow-lg shadow-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
+          className={`rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 py-6 font-black text-white text-base hover:from-red-500 hover:to-rose-500 active:scale-95 shadow-lg shadow-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed ${
+            pendingCard === 'fail' ? 'ring-4 ring-red-300' : ''
+          }`}
         >
           <div className="text-4xl mb-1">🗡️</div>
           PHE QUỶ
         </button>
       </div>
+
+      <button
+        onClick={() => {
+          if (!pendingCard) return;
+          onPlayQuestCard(pendingCard);
+        }}
+        disabled={!pendingCard}
+        className={`w-full rounded-2xl py-4 font-black text-white text-base active:scale-95 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed ${
+          pendingCard === 'fail'
+            ? 'bg-gradient-to-br from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 shadow-red-500/30'
+            : 'bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 shadow-blue-500/30'
+        }`}
+      >
+        {pendingCard
+          ? `✅ Xác nhận đặt ${pendingCard === 'success' ? '🛡️ PHE NGƯỜI' : '🗡️ PHE QUỶ'}`
+          : 'Chọn 1 lá bài ở trên'}
+      </button>
     </div>
   );
 }
@@ -2290,12 +2415,14 @@ function AssassinSection({
   myRole,
   gamePlayers,
   onAssassinate,
+  onSetAssassinChoice,
 }: {
   state: AvalonGameState;
   myPlayer: Player;
   myRole: AvalonRole | undefined;
   gamePlayers: Player[];
   onAssassinate: (id: string, callerId?: string) => void;
+  onSetAssassinChoice?: (id: string | null, callerId?: string) => void;
 }) {
   const isAssassin = myRole === AvalonRole.Assassin;
   const myTeam = (myPlayer.gameData as Partial<AvalonGameData>).team;
@@ -2309,6 +2436,8 @@ function AssassinSection({
   });
   const successes = state.quests.filter((q) => q.result === 'success').length;
   const failures = state.quests.filter((q) => q.result === 'fail').length;
+  const pickedId = state.assassinChoiceId ?? null;
+  const picked = pickedId ? gamePlayers.find((p) => p.id === pickedId) : null;
 
   const [now, setNow] = useState(Date.now());
   useEffect(() => {
@@ -2324,10 +2453,38 @@ function AssassinSection({
   const timeLabel = `${mm}:${ss.toString().padStart(2, '0')}`;
   const lowTime = remaining <= 30_000;
 
+  // Card "Sát Thủ đang ngắm <X>" — luôn hiển thị TRÊN khối Phe Quỷ lộ diện khi
+  // Sát Thủ đã pick (broadcast qua state.assassinChoiceId). Khi chưa pick thì
+  // ẩn để khối Phe Quỷ lên trên.
+  const pickedCard = picked && (
+    <div
+      key={picked.id}
+      className="rounded-2xl border-2 border-red-500/70 bg-gradient-to-br from-red-950/60 to-rose-950/60 p-4 shadow-lg shadow-red-500/30 animate-scale-in"
+    >
+      <p className="text-[11px] uppercase font-black text-red-200 mb-1 tracking-widest">
+        🎯 Sát Thủ đang ngắm
+      </p>
+      <div className="flex items-center gap-3">
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-red-400 bg-red-500/30 text-lg font-black text-white animate-stab">
+          {picked.name.charAt(0).toUpperCase()}
+          <span className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 text-2xl drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)] animate-bounce">
+            🗡️
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-black text-white truncate">{picked.name}</p>
+          <p className="text-[11px] font-bold text-red-300">
+            Đang bị Sát Thủ nghi là Merlin
+          </p>
+        </div>
+      </div>
+    </div>
+  );
+
   const evilRevealCard = (
     <div className="rounded-2xl border-2 border-red-500/50 bg-red-950/30 p-4">
       <p className="text-[11px] uppercase font-black text-red-300 mb-1 tracking-widest">
-        🗡️ Phe Quỷ lộ diện
+        👹 Phe Quỷ lộ diện
       </p>
       <p className="text-xs text-slate-300 mb-3">
         Tất cả Phe Quỷ hiện danh tính đầy đủ với Phe Người.
@@ -2387,6 +2544,7 @@ function AssassinSection({
     return (
       <div className="space-y-3">
         {headerCard}
+        {pickedCard}
         {evilRevealCard}
         <div className="rounded-2xl border border-blue-500/40 bg-blue-500/10 p-5 text-center">
           <div className="text-5xl mb-2">🤫</div>
@@ -2405,6 +2563,7 @@ function AssassinSection({
     return (
       <div className="space-y-3">
         {headerCard}
+        {pickedCard}
         {evilRevealCard}
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 text-center">
           <div className="text-5xl mb-2">🤝</div>
@@ -2422,33 +2581,185 @@ function AssassinSection({
   return (
     <div className="space-y-3">
       {headerCard}
+      {pickedCard}
       {evilRevealCard}
       <div className="rounded-2xl border-2 border-red-500/60 bg-red-500/15 p-4">
         <p className="text-[11px] uppercase font-black text-red-300 mb-1">🗡️ Bạn là Sát Thủ</p>
         <h3 className="text-base font-black text-white mb-1">Chọn ai là Merlin</h3>
         <p className="text-xs text-slate-300 mb-4">
-          Hội ý với đồng đội Quỷ trước. Khi đã chốt — bấm để xác nhận.
+          Hội ý với đồng đội Quỷ trước. Bấm vào người trong danh sách (hoặc bấm avatar trên bàn) để chọn — mọi người đều thấy bạn đang ngắm ai. Khi đã chốt thật, bấm <strong className="text-red-200">Xác nhận đâm</strong>.
         </p>
         <div className="grid grid-cols-2 gap-2">
-          {goodPlayers.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                if (confirm(`Xác nhận: ${p.name} là Merlin?`)) {
-                  onAssassinate(p.id, myPlayer.id);
-                }
-              }}
-              className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-left hover:bg-red-500/20 hover:border-red-500/50 active:scale-95"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-rose-500 text-sm font-black text-white">
-                  {p.name.charAt(0).toUpperCase()}
+          {goodPlayers.map((p) => {
+            const isPicked = pickedId === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => onSetAssassinChoice?.(p.id, myPlayer.id)}
+                className={`rounded-xl border p-3 text-left transition-all active:scale-95 ${
+                  isPicked
+                    ? 'border-red-400 bg-red-500/30 ring-2 ring-red-400/70 shadow-lg shadow-red-500/40'
+                    : 'border-red-500/30 bg-red-500/10 hover:bg-red-500/20 hover:border-red-500/50'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black text-white ${
+                      isPicked
+                        ? 'bg-gradient-to-br from-red-400 to-rose-500 animate-stab'
+                        : 'bg-gradient-to-br from-red-500 to-rose-500'
+                    }`}
+                  >
+                    {p.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-bold text-white truncate flex-1">{p.name}</span>
+                  {isPicked && <span className="text-base">🗡️</span>}
                 </div>
-                <span className="text-sm font-bold text-white truncate">{p.name}</span>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
+        <button
+          onClick={() => {
+            if (!pickedId) return;
+            const p = gamePlayers.find((pp) => pp.id === pickedId);
+            if (!p) return;
+            if (confirm(`Đâm ${p.name} làm Merlin? Không thể đổi sau khi xác nhận.`)) {
+              onAssassinate(pickedId, myPlayer.id);
+            }
+          }}
+          disabled={!pickedId}
+          className="mt-4 w-full rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 py-3.5 text-base font-black text-white hover:from-red-500 hover:to-rose-500 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-red-500/30"
+        >
+          {pickedId ? `🗡️ Xác nhận đâm ${picked?.name ?? ''}` : 'Chọn 1 người trước'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Overlay full-screen 3 giai đoạn: card bay vào giữa → kiếm chém → card tách
+// đôi và lộ role thật. Tự ẩn sau ~3.2s. Mọi người đều thấy được vì target được
+// đọc từ state.merlinTargetId — broadcast qua DB.
+function AssassinRevealOverlay({
+  target,
+  targetRole,
+}: {
+  target: Player;
+  targetRole: AvalonRole | null;
+}) {
+  const [stage, setStage] = useState<'fly-in' | 'slash' | 'reveal' | 'done'>('fly-in');
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setStage('slash'), 700);
+    const t2 = setTimeout(() => setStage('reveal'), 1300);
+    const t3 = setTimeout(() => setStage('done'), 3400);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+    };
+  }, []);
+
+  if (stage === 'done') return null;
+
+  const role = targetRole;
+  const isMerlin = role === AvalonRole.Merlin;
+  const team = role ? ROLE_TEAM[role] : null;
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-[280px] h-[380px] sm:w-[320px] sm:h-[440px]">
+        {stage === 'fly-in' && (
+          <div className="absolute inset-0 flex items-center justify-center animate-assassin-fly-in">
+            <div className="flex h-full w-full flex-col items-center justify-center rounded-3xl border-4 border-amber-400/70 bg-gradient-to-br from-slate-900 to-slate-950 shadow-2xl shadow-amber-500/40">
+              <p className="text-[11px] uppercase font-bold tracking-widest text-amber-300">
+                Sát Thủ chọn
+              </p>
+              <div className="mt-4 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-4xl font-black text-white border-4 border-amber-200 shadow-lg shadow-amber-500/40">
+                {target.name.charAt(0).toUpperCase()}
+              </div>
+              <p className="mt-4 text-2xl font-black text-white">{target.name}</p>
+              <p className="mt-2 text-xs text-slate-400">là Merlin?</p>
+            </div>
+          </div>
+        )}
+
+        {stage === 'slash' && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div className="absolute inset-0 flex h-full w-full flex-col items-center justify-center rounded-3xl border-4 border-red-500/80 bg-gradient-to-br from-slate-900 to-slate-950 shadow-2xl shadow-red-500/50 animate-shake">
+              <div className="mt-4 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-4xl font-black text-white border-4 border-amber-200">
+                {target.name.charAt(0).toUpperCase()}
+              </div>
+              <p className="mt-4 text-2xl font-black text-white">{target.name}</p>
+            </div>
+            <span className="pointer-events-none absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-[120px] sm:text-[160px] drop-shadow-[0_4px_8px_rgba(0,0,0,0.6)] animate-assassin-slash">
+              🗡️
+            </span>
+          </div>
+        )}
+
+        {stage === 'reveal' && (
+          <div className="absolute inset-0 overflow-visible">
+            {/* card splits */}
+            <div className="absolute left-1/2 top-1/2 h-full w-1/2 -translate-x-full -translate-y-1/2 origin-right overflow-hidden rounded-l-3xl border-y-4 border-l-4 border-amber-400/70 bg-gradient-to-br from-slate-900 to-slate-950 shadow-2xl animate-split-left">
+              <div className="absolute inset-0 flex flex-col items-center justify-center pl-6 pointer-events-none">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-4xl font-black text-white border-4 border-amber-200 -mr-6">
+                  {target.name.charAt(0).toUpperCase()}
+                </div>
+                <p className="mt-4 text-2xl font-black text-white -mr-6">{target.name}</p>
+              </div>
+            </div>
+            <div className="absolute left-1/2 top-1/2 h-full w-1/2 -translate-y-1/2 origin-left overflow-hidden rounded-r-3xl border-y-4 border-r-4 border-amber-400/70 bg-gradient-to-br from-slate-900 to-slate-950 shadow-2xl animate-split-right">
+              <div className="absolute inset-0 flex flex-col items-center justify-center pr-6 pointer-events-none">
+                <div className="flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-4xl font-black text-white border-4 border-amber-200 -ml-6">
+                  {target.name.charAt(0).toUpperCase()}
+                </div>
+                <p className="mt-4 text-2xl font-black text-white -ml-6">{target.name}</p>
+              </div>
+            </div>
+            {/* role reveal in middle */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center animate-scale-in">
+              <div
+                className={`rounded-3xl border-4 px-6 py-5 text-center shadow-2xl ${
+                  isMerlin
+                    ? 'border-red-500/80 bg-gradient-to-br from-red-950/95 to-rose-950/95 shadow-red-500/50'
+                    : team === 'good'
+                      ? 'border-blue-500/80 bg-gradient-to-br from-blue-950/95 to-cyan-950/95 shadow-blue-500/50'
+                      : 'border-slate-500/80 bg-gradient-to-br from-slate-900/95 to-slate-950/95'
+                }`}
+              >
+                <p className="text-[10px] uppercase font-black tracking-widest text-slate-300">
+                  Vai trò thật của
+                </p>
+                <p className="mt-1 text-base font-black text-white">{target.name}</p>
+                {role && (
+                  <>
+                    <div className="my-2 text-5xl">{ROLE_ICONS[role]}</div>
+                    <p
+                      className={`text-xl font-black ${
+                        isMerlin
+                          ? 'text-red-200'
+                          : team === 'good'
+                            ? 'text-blue-200'
+                            : 'text-slate-200'
+                      }`}
+                    >
+                      {role}
+                    </p>
+                  </>
+                )}
+                <p
+                  className={`mt-2 text-[11px] font-black uppercase tracking-widest ${
+                    isMerlin ? 'text-red-300' : 'text-emerald-300'
+                  }`}
+                >
+                  {isMerlin ? '💀 Đoán đúng — Phe Quỷ thắng' : '🛡️ Đoán sai — Phe Người thắng'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2482,6 +2793,12 @@ function EndSection({
 
   return (
     <div className="space-y-4">
+      {merlinTarget && (
+        <AssassinRevealOverlay
+          target={merlinTarget}
+          targetRole={merlinTargetRole ?? null}
+        />
+      )}
       <div
         className={`rounded-2xl border p-6 text-center relative overflow-hidden ${isGood
           ? 'border-blue-500/40 bg-blue-500/10'

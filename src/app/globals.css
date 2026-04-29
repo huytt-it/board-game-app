@@ -183,6 +183,52 @@
   animation: sparkle 1.5s ease-in-out infinite;
 }
 
+/* ─── Sword stab (used when Assassin clicks a target) ───────────── */
+@keyframes stab {
+  0%   { transform: translateX(0) translateY(0) rotate(0deg); }
+  25%  { transform: translateX(-3px) translateY(2px) rotate(-3deg); }
+  60%  { transform: translateX(2px) translateY(-1px) rotate(2deg); }
+  100% { transform: translateX(0) translateY(0) rotate(0deg); }
+}
+.animate-stab {
+  animation: stab 0.45s ease-out;
+}
+
+/* ─── Assassinate card sequence (fly-to-center → slash → reveal) ── */
+@keyframes assassin-fly-in {
+  0%   { transform: scale(0.6) translateY(40px); opacity: 0; }
+  60%  { transform: scale(1.06) translateY(-4px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+.animate-assassin-fly-in {
+  animation: assassin-fly-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes assassin-slash {
+  0%   { transform: translateX(-160%) translateY(-160%) rotate(-30deg); opacity: 0; }
+  35%  { transform: translateX(-30%)  translateY(-30%)  rotate(-30deg); opacity: 1; }
+  70%  { transform: translateX(60%)   translateY(60%)   rotate(-30deg); opacity: 1; }
+  100% { transform: translateX(160%)  translateY(160%)  rotate(-30deg); opacity: 0; }
+}
+.animate-assassin-slash {
+  animation: assassin-slash 0.7s ease-out forwards;
+}
+
+@keyframes split-left {
+  0%   { transform: translateX(0) rotate(0deg); }
+  100% { transform: translateX(-90%) rotate(-12deg); }
+}
+.animate-split-left {
+  animation: split-left 0.7s ease-in forwards;
+}
+@keyframes split-right {
+  0%   { transform: translateX(0) rotate(0deg); }
+  100% { transform: translateX(90%) rotate(12deg); }
+}
+.animate-split-right {
+  animation: split-right 0.7s ease-in forwards;
+}
+
 /* ─── Card deal (fly-in from above) ──────────────────────────────── */
 @keyframes card-deal {
   0%   { transform: translateY(-260px) scale(0.55); opacity: 0; }
