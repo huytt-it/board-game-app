@@ -41,6 +41,11 @@ const SheriffBoard = dynamic(
   { ssr: false }
 );
 
+const ShadowHunterBoard = dynamic(
+  () => import('@/components/games/shadowhunter/ShadowHunterBoard'),
+  { ssr: false }
+);
+
 // ─── Game Registry ────────────────────────────────────────────────────
 export const GAME_REGISTRY: GameRegistryEntry[] = [
   {
@@ -82,6 +87,16 @@ export const GAME_REGISTRY: GameRegistryEntry[] = [
     minPlayers: 3,
     maxPlayers: 6,
     component: SheriffBoard,
+  },
+  {
+    key: 'shadowhunter',
+    label: 'Shadow Hunters',
+    description: 'Game ẩn vai 3 phe: Hunter, Shadow, Neutral. Di chuyển, dùng bài, tấn công và tiết lộ danh tính để giành chiến thắng. 4-8 người.',
+    icon: '🌑',
+    enabled: true,
+    minPlayers: 4,
+    maxPlayers: 8,
+    component: ShadowHunterBoard,
   },
 ];
 

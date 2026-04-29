@@ -7,6 +7,7 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   onSnapshot,
@@ -259,7 +260,7 @@ export class FirebaseAdapter implements IGameStorage {
     const playerRef = doc(getDb(), 'rooms', roomId, 'players', playerId);
     const updates: Record<string, unknown> = {};
     for (const [key, value] of Object.entries(data)) {
-      updates[`gameData.${key}`] = value;
+      updates[`gameData.${key}`] = value === undefined ? deleteField() : value;
     }
     await updateDoc(playerRef, updates);
   }
