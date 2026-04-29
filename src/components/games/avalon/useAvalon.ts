@@ -37,24 +37,46 @@ function shuffle<T>(arr: T[]): T[] {
 
 // Leader đầu game được random, từ Q2 trở đi xoay theo CHIỀU KIM ĐỒNG HỒ
 // (index tăng dần quanh bàn). Người ngồi cạnh phải Leader hiện tại làm Leader kế.
+//
+// Quan trọng: rotation BẮT BUỘC dựa trên seatOrder (thứ tự ghế trên bàn) —
+// KHÔNG dựa trên array Player[] runtime, vì runtime array có thể bị thay đổi
+// thứ tự (ví dụ player rejoin được append cuối) khiến "+1 index" nhảy lung
+// tung không đúng kế bên trên bàn. Skip ghế của player đã rời phòng.
 function pickNextLeader(
-  allPlayers: Player[],
+  seatOrder: string[],
+  presentIds: string[],
   currentLeaderId: string | null,
   used: string[]
 ): { leaderId: string; nextUsed: string[] } {
-  const n = allPlayers.length;
+  const seatIds = seatOrder.length > 0 ? seatOrder : presentIds;
+  const n = seatIds.length;
   if (n === 0) {
-    return { leaderId: '', nextUsed: used };
+    return { leaderId: currentLeaderId ?? '', nextUsed: used };
   }
-  const currentIdx = currentLeaderId
-    ? allPlayers.findIndex((p) => p.id === currentLeaderId)
-    : -1;
-  const nextIdx = currentIdx >= 0 ? (currentIdx + 1) % n : Math.floor(Math.random() * n);
-  const pick = allPlayers[nextIdx];
-  return {
-    leaderId: pick.id,
-    nextUsed: used.includes(pick.id) ? used : [...used, pick.id],
-  };
+  const present = new Set(presentIds);
+  const startIdx = currentLeaderId ? seatIds.findIndex((id) => id === currentLeaderId) : -1;
+  // Khi chưa có currentLeader → random một ghế trong số ghế còn người.
+  if (startIdx < 0) {
+    const candidates = seatIds.filter((id) => present.has(id));
+    if (candidates.length === 0) return { leaderId: '', nextUsed: used };
+    const id = candidates[Math.floor(Math.random() * candidates.length)];
+    return {
+      leaderId: id,
+      nextUsed: used.includes(id) ? used : [...used, id],
+    };
+  }
+  // Quay clockwise từ ghế hiện tại, trả về player đầu tiên còn trong phòng.
+  for (let step = 1; step <= n; step++) {
+    const idx = (startIdx + step) % n;
+    const id = seatIds[idx];
+    if (present.has(id)) {
+      return {
+        leaderId: id,
+        nextUsed: used.includes(id) ? used : [...used, id],
+      };
+    }
+  }
+  return { leaderId: currentLeaderId ?? '', nextUsed: used };
 }
 
 export function readState(room: Room): AvalonGameState | null {
@@ -317,7 +339,8 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       await gameStorage.updateRoomStatus(roomId, 'voting');
     } else {
       const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
-        gamePlayers,
+        state.seatOrder ?? gamePlayers.map((p) => p.id),
+        gamePlayers.map((p) => p.id),
         state.currentLeaderId,
         state.leadersUsed ?? []
       );
@@ -421,7 +444,8 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       await gameStorage.updateRoomStatus(roomId, 'day');
     } else {
       const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
-        gamePlayers,
+        state.seatOrder ?? gamePlayers.map((p) => p.id),
+        gamePlayers.map((p) => p.id),
         state.currentLeaderId,
         state.leadersUsed ?? []
       );
@@ -530,7 +554,8 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
 
     const nextQuest = state.currentQuest + 1;
     const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
-      gamePlayers,
+      state.seatOrder ?? gamePlayers.map((p) => p.id),
+      gamePlayers.map((p) => p.id),
       state.currentLeaderId,
       state.leadersUsed ?? []
     );

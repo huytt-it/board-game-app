@@ -204,29 +204,41 @@
   animation: assassin-fly-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-@keyframes assassin-slash {
-  0%   { transform: translateX(-160%) translateY(-160%) rotate(-30deg); opacity: 0; }
-  35%  { transform: translateX(-30%)  translateY(-30%)  rotate(-30deg); opacity: 1; }
-  70%  { transform: translateX(60%)   translateY(60%)   rotate(-30deg); opacity: 1; }
-  100% { transform: translateX(160%)  translateY(160%)  rotate(-30deg); opacity: 0; }
+@keyframes assassin-blackout {
+  /* Tắt đèn → đen kịt → mở lại. 100% opaque black ở giữa pha để chắc chắn
+     che hết card + bg overlay (đè lên bg-black/85 cũng vẫn rõ vì alpha=1). */
+  0%   { background-color: rgba(0,0,0,0); }
+  18%  { background-color: rgba(0,0,0,1); }
+  82%  { background-color: rgba(0,0,0,1); }
+  100% { background-color: rgba(0,0,0,0); }
 }
-.animate-assassin-slash {
-  animation: assassin-slash 0.7s ease-out forwards;
+.animate-assassin-blackout {
+  animation: assassin-blackout 0.8s ease-in-out forwards;
 }
 
-@keyframes split-left {
-  0%   { transform: translateX(0) rotate(0deg); }
-  100% { transform: translateX(-90%) rotate(-12deg); }
+@keyframes assassin-whiteout {
+  0%   { background: rgba(255,255,255,0); }
+  35%  { background: rgba(255,255,255,0.85); }
+  70%  { background: rgba(255,255,255,1); }
+  100% { background: rgba(255,255,255,0.92); }
 }
-.animate-split-left {
-  animation: split-left 0.7s ease-in forwards;
+.animate-assassin-whiteout {
+  animation: assassin-whiteout 0.8s ease-out forwards;
 }
-@keyframes split-right {
-  0%   { transform: translateX(0) rotate(0deg); }
-  100% { transform: translateX(90%) rotate(12deg); }
+
+@keyframes split-upper {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(45%, -38%) rotate(18deg); }
 }
-.animate-split-right {
-  animation: split-right 0.7s ease-in forwards;
+.animate-split-upper {
+  animation: split-upper 1.25s cubic-bezier(0.22, 0.5, 0.36, 1) forwards;
+}
+@keyframes split-lower {
+  0%   { transform: translate(0, 0) rotate(0deg); }
+  100% { transform: translate(-45%, 38%) rotate(-18deg); }
+}
+.animate-split-lower {
+  animation: split-lower 1.25s cubic-bezier(0.22, 0.5, 0.36, 1) forwards;
 }
 
 /* ─── Card deal (fly-in from above) ──────────────────────────────── */
