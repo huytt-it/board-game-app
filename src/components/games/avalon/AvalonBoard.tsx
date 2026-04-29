@@ -17,6 +17,7 @@ import LobbyRoundTable from './LobbyRoundTable';
 import { useAvalon, defaultAvalonConfig } from './useAvalon';
 import { AvalonRole, type AvalonGameData, PHASE_TIMEOUTS_MS } from './types';
 import { PLAYER_COUNTS } from './constants';
+import './avalon.css';
 
 export default function AvalonBoard({ room, players, playerId, isHost }: GameModuleProps) {
   const router = useRouter();
