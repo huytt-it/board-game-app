@@ -39,6 +39,8 @@ export interface AvalonQuestRecord {
   teamSize: number;
   leaderId: string | null;
   teamIds: string[];
+  approveCount?: number;
+  rejectCount?: number;
 }
 
 export interface AvalonGameData extends BaseGameData {
@@ -69,6 +71,8 @@ export interface AvalonGameState {
   leadersUsed: string[];
   lastTeamVoteResult: 'approved' | 'rejected' | null;
   ladyShownCard: 'good' | 'evil' | null;
+  seatOrder: string[];
+  assassinChoiceId: string | null;
 }
 
 export const PHASE_TIMEOUTS_MS: Record<AvalonPhase, number> = {

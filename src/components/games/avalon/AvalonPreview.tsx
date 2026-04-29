@@ -224,6 +224,8 @@ function buildScene(phase: PreviewPhase): { players: Player[]; state: AvalonGame
     leadersUsed: ['p1'],
     lastTeamVoteResult: null,
     ladyShownCard: null,
+    seatOrder: players.map((p) => p.id),
+    assassinChoiceId: null,
   };
 
   switch (phase) {
