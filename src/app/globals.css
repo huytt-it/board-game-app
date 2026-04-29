@@ -2,113 +2,265 @@
 
 /* ─── Custom Animations ───────────────────────────────────────────── */
 @keyframes fade-in {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes scale-in {
-  from { opacity: 0; transform: scale(0.95) translateY(8px); }
-  to { opacity: 1; transform: scale(1) translateY(0); }
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(8px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
 }
 
 @keyframes spin-reverse {
-  from { transform: rotate(360deg); }
-  to { transform: rotate(0deg); }
+  from {
+    transform: rotate(360deg);
+  }
+
+  to {
+    transform: rotate(0deg);
+  }
 }
 
 @keyframes float {
-  0%, 100% { transform: translateY(0px); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 @keyframes shimmer {
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
 }
 
 @keyframes glow-pulse {
-  0%, 100% { box-shadow: 0 0 20px rgba(168, 85, 247, 0.1); }
-  50% { box-shadow: 0 0 40px rgba(168, 85, 247, 0.3); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(168, 85, 247, 0.1);
+  }
+
+  50% {
+    box-shadow: 0 0 40px rgba(168, 85, 247, 0.3);
+  }
 }
 
 /* ─── Card Flip Animation ─────────────────────────────────────────── */
 @keyframes card-flip {
-  0% { transform: perspective(800px) rotateY(180deg) scale(0.8); opacity: 0; }
-  40% { transform: perspective(800px) rotateY(90deg) scale(0.9); opacity: 0.5; }
-  70% { transform: perspective(800px) rotateY(20deg) scale(1.02); opacity: 1; }
-  100% { transform: perspective(800px) rotateY(0deg) scale(1); opacity: 1; }
+  0% {
+    transform: perspective(800px) rotateY(180deg) scale(0.8);
+    opacity: 0;
+  }
+
+  40% {
+    transform: perspective(800px) rotateY(90deg) scale(0.9);
+    opacity: 0.5;
+  }
+
+  70% {
+    transform: perspective(800px) rotateY(20deg) scale(1.02);
+    opacity: 1;
+  }
+
+  100% {
+    transform: perspective(800px) rotateY(0deg) scale(1);
+    opacity: 1;
+  }
 }
 
 @keyframes card-flip-back {
-  0% { transform: perspective(800px) rotateY(0deg); }
-  100% { transform: perspective(800px) rotateY(180deg); opacity: 0; }
+  0% {
+    transform: perspective(800px) rotateY(0deg);
+  }
+
+  100% {
+    transform: perspective(800px) rotateY(180deg);
+    opacity: 0;
+  }
 }
 
 /* ─── Countdown Animation ─────────────────────────────────────────── */
 @keyframes countdown-pulse {
-  0% { transform: scale(0.3); opacity: 0; }
-  30% { transform: scale(1.3); opacity: 1; }
-  60% { transform: scale(1); opacity: 1; }
-  100% { transform: scale(0.8); opacity: 0; }
+  0% {
+    transform: scale(0.3);
+    opacity: 0;
+  }
+
+  30% {
+    transform: scale(1.3);
+    opacity: 1;
+  }
+
+  60% {
+    transform: scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
 }
 
 @keyframes countdown-bg-pulse {
-  0%, 100% { background: radial-gradient(circle, rgba(168,85,247,0.15) 0%, transparent 70%); }
-  50% { background: radial-gradient(circle, rgba(168,85,247,0.35) 0%, transparent 70%); }
+
+  0%,
+  100% {
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.15) 0%, transparent 70%);
+  }
+
+  50% {
+    background: radial-gradient(circle, rgba(168, 85, 247, 0.35) 0%, transparent 70%);
+  }
 }
 
 /* ─── Sparkle / Particles ─────────────────────────────────────────── */
 @keyframes sparkle {
-  0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
-  50% { opacity: 1; transform: scale(1) rotate(180deg); }
+
+  0%,
+  100% {
+    opacity: 0;
+    transform: scale(0) rotate(0deg);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scale(1) rotate(180deg);
+  }
 }
 
 @keyframes sparkle-float {
-  0% { transform: translateY(0) scale(1); opacity: 1; }
-  100% { transform: translateY(-60px) scale(0); opacity: 0; }
+  0% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(-60px) scale(0);
+    opacity: 0;
+  }
 }
 
 /* ─── Slide Up ────────────────────────────────────────────────────── */
 @keyframes slide-up {
-  from { transform: translateY(40px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(40px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @keyframes slide-down {
-  from { transform: translateY(-20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 /* ─── Vote Progress Bar ──────────────────────────────────────────── */
 @keyframes vote-fill {
-  from { width: 0%; }
-  to { width: var(--vote-width, 0%); }
+  from {
+    width: 0%;
+  }
+
+  to {
+    width: var(--vote-width, 0%);
+  }
 }
 
 /* ─── Shake ───────────────────────────────────────────────────────── */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 50%, 90% { transform: translateX(-4px); }
-  30%, 70% { transform: translateX(4px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  50%,
+  90% {
+    transform: translateX(-4px);
+  }
+
+  30%,
+  70% {
+    transform: translateX(4px);
+  }
 }
 
 /* ─── Role Glow ───────────────────────────────────────────────────── */
 @keyframes role-glow {
-  0%, 100% { box-shadow: 0 0 15px var(--glow-color, rgba(168,85,247,0.2)); }
-  50% { box-shadow: 0 0 35px var(--glow-color, rgba(168,85,247,0.5)); }
+
+  0%,
+  100% {
+    box-shadow: 0 0 15px var(--glow-color, rgba(168, 85, 247, 0.2));
+  }
+
+  50% {
+    box-shadow: 0 0 35px var(--glow-color, rgba(168, 85, 247, 0.5));
+  }
 }
 
 /* ─── Death Fade ──────────────────────────────────────────────────── */
 @keyframes death-fade {
-  0% { filter: brightness(1) saturate(1); transform: scale(1); }
-  50% { filter: brightness(1.5) saturate(0.5); transform: scale(1.05); }
-  100% { filter: brightness(0.5) saturate(0.3); transform: scale(0.95); }
+  0% {
+    filter: brightness(1) saturate(1);
+    transform: scale(1);
+  }
+
+  50% {
+    filter: brightness(1.5) saturate(0.5);
+    transform: scale(1.05);
+  }
+
+  100% {
+    filter: brightness(0.5) saturate(0.3);
+    transform: scale(0.95);
+  }
 }
 
 /* ─── Overlay Fade ────────────────────────────────────────────────── */
 @keyframes overlay-in {
-  from { opacity: 0; backdrop-filter: blur(0px); }
-  to { opacity: 1; backdrop-filter: blur(8px); }
+  from {
+    opacity: 0;
+    backdrop-filter: blur(0px);
+  }
+
+  to {
+    opacity: 1;
+    backdrop-filter: blur(8px);
+  }
 }
 
 /* ─── Utility Classes ─────────────────────────────────────────────── */
@@ -129,12 +281,10 @@
 }
 
 .animate-shimmer {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.05) 50%,
-    transparent 100%
-  );
+  background: linear-gradient(90deg,
+      transparent 0%,
+      rgba(255, 255, 255, 0.05) 50%,
+      transparent 100%);
   background-size: 200% 100%;
   animation: shimmer 2s infinite;
 }
@@ -185,61 +335,134 @@
 
 /* ─── Sword stab (used when Assassin clicks a target) ───────────── */
 @keyframes stab {
-  0%   { transform: translateX(0) translateY(0) rotate(0deg); }
-  25%  { transform: translateX(-3px) translateY(2px) rotate(-3deg); }
-  60%  { transform: translateX(2px) translateY(-1px) rotate(2deg); }
-  100% { transform: translateX(0) translateY(0) rotate(0deg); }
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+
+  25% {
+    transform: translateX(-3px) translateY(2px) rotate(-3deg);
+  }
+
+  60% {
+    transform: translateX(2px) translateY(-1px) rotate(2deg);
+  }
+
+  100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
 }
+
 .animate-stab {
   animation: stab 0.45s ease-out;
 }
 
 /* ─── Assassinate card sequence (fly-to-center → slash → reveal) ── */
 @keyframes assassin-fly-in {
-  0%   { transform: scale(0.6) translateY(40px); opacity: 0; }
-  60%  { transform: scale(1.06) translateY(-4px); opacity: 1; }
-  100% { transform: scale(1) translateY(0); opacity: 1; }
+  0% {
+    transform: scale(0.6) translateY(40px);
+    opacity: 0;
+  }
+
+  60% {
+    transform: scale(1.06) translateY(-4px);
+    opacity: 1;
+  }
+
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
 }
+
 .animate-assassin-fly-in {
   animation: assassin-fly-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
 @keyframes assassin-slash {
-  0%   { transform: translateX(-160%) translateY(-160%) rotate(-30deg); opacity: 0; }
-  35%  { transform: translateX(-30%)  translateY(-30%)  rotate(-30deg); opacity: 1; }
-  70%  { transform: translateX(60%)   translateY(60%)   rotate(-30deg); opacity: 1; }
-  100% { transform: translateX(160%)  translateY(160%)  rotate(-30deg); opacity: 0; }
+  0% {
+    transform: translateX(-160%) translateY(-160%) rotate(-30deg);
+    opacity: 0;
+  }
+
+  35% {
+    transform: translateX(-30%) translateY(-30%) rotate(-30deg);
+    opacity: 1;
+  }
+
+  70% {
+    transform: translateX(60%) translateY(60%) rotate(-30deg);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateX(160%) translateY(160%) rotate(-30deg);
+    opacity: 0;
+  }
 }
+
 .animate-assassin-slash {
   animation: assassin-slash 0.7s ease-out forwards;
 }
 
 @keyframes split-left {
-  0%   { transform: translateX(0) rotate(0deg); }
-  100% { transform: translateX(-90%) rotate(-12deg); }
+  0% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  100% {
+    transform: translateX(-90%) rotate(-12deg);
+  }
 }
+
 .animate-split-left {
   animation: split-left 0.7s ease-in forwards;
 }
+
 @keyframes split-right {
-  0%   { transform: translateX(0) rotate(0deg); }
-  100% { transform: translateX(90%) rotate(12deg); }
+  0% {
+    transform: translateX(0) rotate(0deg);
+  }
+
+  100% {
+    transform: translateX(90%) rotate(12deg);
+  }
 }
+
 .animate-split-right {
   animation: split-right 0.7s ease-in forwards;
 }
 
 /* ─── Card deal (fly-in from above) ──────────────────────────────── */
 @keyframes card-deal {
-  0%   { transform: translateY(-260px) scale(0.55); opacity: 0; }
-  65%  { transform: translateY(10px)   scale(1.04); opacity: 1; }
-  100% { transform: translateY(0)      scale(1);    opacity: 1; }
+  0% {
+    transform: translateY(-260px) scale(0.55);
+    opacity: 0;
+  }
+
+  65% {
+    transform: translateY(10px) scale(1.04);
+    opacity: 1;
+  }
+
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
 }
 
 /* ─── Stage reveal (blur + scale in) ─────────────────────────────── */
 @keyframes reveal-stage {
-  0%   { opacity: 0; transform: scale(0.88) translateY(18px); filter: blur(8px); }
-  100% { opacity: 1; transform: scale(1)    translateY(0);    filter: blur(0); }
+  0% {
+    opacity: 0;
+    transform: scale(0.88) translateY(18px);
+    filter: blur(8px);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+    filter: blur(0);
+  }
 }
 
 .animate-reveal-stage {
@@ -263,19 +486,27 @@ body {
 /* ─── Mobile / Touch ──────────────────────────────────────────────── */
 
 /* Remove blue tap highlight on iOS/Android */
-button, a, [role="button"] {
+button,
+a,
+[role="button"] {
   -webkit-tap-highlight-color: transparent;
   touch-action: manipulation;
 }
 
 /* Dynamic viewport height — accounts for mobile browser chrome hiding/showing */
-.h-dvh  { height:  100dvh; }
-.min-h-dvh { min-height: 100dvh; }
+.h-dvh {
+  height: 100dvh;
+}
+
+.min-h-dvh {
+  min-height: 100dvh;
+}
 
 /* Safe area insets for notched phones (iOS, Android) */
 .pb-safe {
   padding-bottom: max(1rem, env(safe-area-inset-bottom));
 }
+
 .pt-safe {
   padding-top: max(0.5rem, env(safe-area-inset-top));
 }
@@ -283,14 +514,22 @@ button, a, [role="button"] {
 /* Minimum 48 × 48 px touch target per WCAG / Apple HIG */
 .min-touch {
   min-height: 48px;
-  min-width:  48px;
+  min-width: 48px;
 }
 
 /* Gentle breathing pulse for "alive" indicators */
 @keyframes breathe {
-  0%, 100% { opacity: 1; }
-  50%       { opacity: 0.45; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.45;
+  }
 }
+
 .animate-breathe {
   animation: breathe 2.4s ease-in-out infinite;
 }
