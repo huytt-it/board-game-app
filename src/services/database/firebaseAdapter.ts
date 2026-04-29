@@ -7,6 +7,7 @@ import {
   getDocs,
   updateDoc,
   deleteDoc,
+  deleteField,
   query,
   where,
   onSnapshot,
@@ -130,15 +131,15 @@ export class FirebaseAdapter implements IGameStorage {
 
   async deleteRoom(roomId: string): Promise<void> {
     const batch = writeBatch(getDb());
-    
+
     // Delete all players
     const playersSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'players'));
     playersSnap.docs.forEach((d) => batch.delete(d.ref));
-    
+
     // Delete all actions
     const actionsSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'actions'));
     actionsSnap.docs.forEach((d) => batch.delete(d.ref));
-    
+
     // Delete room
     batch.delete(doc(getDb(), 'rooms', roomId));
     await batch.commit();
@@ -146,7 +147,7 @@ export class FirebaseAdapter implements IGameStorage {
 
   async resetRoom(roomId: string): Promise<void> {
     const batch = writeBatch(getDb());
-    
+
     // Reset room — clear entire gameState so stale fields (winner, pendingStarpass, etc.) don't linger
     const roomRef = doc(getDb(), 'rooms', roomId);
     batch.update(roomRef, {
@@ -251,7 +252,7 @@ export class FirebaseAdapter implements IGameStorage {
 
   async addPlayer(roomId: string, player: CreatePlayerPayload): Promise<void> {
     const playerDoc = doc(getDb(), 'rooms', roomId, 'players', player.id);
-    
+
     // Check if player already exists to avoid overwriting properties like isHost
     const snap = await getDoc(playerDoc);
     if (snap.exists()) {
