@@ -1,0 +1,104 @@
+/* Animations dành riêng cho game Avalon. Import từ AvalonBoard.tsx để các
+   class .animate-* dưới đây có hiệu lực global trong scope ván Avalon mà
+   KHÔNG đụng tới globals.css của app. */
+
+/* ─── Sword stab (Assassin click target) ─────────────────────────── */
+@keyframes avalon-stab {
+  0% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+  25% {
+    transform: translateX(-3px) translateY(2px) rotate(-3deg);
+  }
+  60% {
+    transform: translateX(2px) translateY(-1px) rotate(2deg);
+  }
+  100% {
+    transform: translateX(0) translateY(0) rotate(0deg);
+  }
+}
+.animate-stab {
+  animation: avalon-stab 0.45s ease-out;
+}
+
+/* ─── Assassinate card fly-in ────────────────────────────────────── */
+@keyframes avalon-assassin-fly-in {
+  0% {
+    transform: scale(0.6) translateY(40px);
+    opacity: 0;
+  }
+  60% {
+    transform: scale(1.06) translateY(-4px);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+.animate-assassin-fly-in {
+  animation: avalon-assassin-fly-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+/* ─── Tắt đèn → đen kịt → mở lại ─────────────────────────────────── */
+@keyframes avalon-assassin-blackout {
+  0% {
+    background-color: rgba(0, 0, 0, 0);
+  }
+  18% {
+    background-color: rgba(0, 0, 0, 1);
+  }
+  82% {
+    background-color: rgba(0, 0, 0, 1);
+  }
+  100% {
+    background-color: rgba(0, 0, 0, 0);
+  }
+}
+.animate-assassin-blackout {
+  animation: avalon-assassin-blackout 0.8s ease-in-out forwards;
+}
+
+/* ─── Flash trắng xoá ────────────────────────────────────────────── */
+@keyframes avalon-assassin-whiteout {
+  0% {
+    background: rgba(255, 255, 255, 0);
+  }
+  35% {
+    background: rgba(255, 255, 255, 0.85);
+  }
+  70% {
+    background: rgba(255, 255, 255, 1);
+  }
+  100% {
+    background: rgba(255, 255, 255, 0.92);
+  }
+}
+.animate-assassin-whiteout {
+  animation: avalon-assassin-whiteout 0.8s ease-out forwards;
+}
+
+/* ─── Card tách đôi theo đường chéo TL→BR ────────────────────────── */
+@keyframes avalon-split-upper {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(45%, -38%) rotate(18deg);
+  }
+}
+.animate-split-upper {
+  animation: avalon-split-upper 1.25s cubic-bezier(0.22, 0.5, 0.36, 1) forwards;
+}
+
+@keyframes avalon-split-lower {
+  0% {
+    transform: translate(0, 0) rotate(0deg);
+  }
+  100% {
+    transform: translate(-45%, 38%) rotate(-18deg);
+  }
+}
+.animate-split-lower {
+  animation: avalon-split-lower 1.25s cubic-bezier(0.22, 0.5, 0.36, 1) forwards;
+}

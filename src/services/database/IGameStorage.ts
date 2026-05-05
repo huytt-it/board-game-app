@@ -24,6 +24,14 @@ export interface IGameStorage {
   addPlayer(roomId: string, player: CreatePlayerPayload): Promise<void>;
   removePlayer(roomId: string, playerId: string): Promise<void>;
   updatePlayerGameData(roomId: string, playerId: string, data: Partial<BaseGameData>): Promise<void>;
+  /**
+   * Batch update gameData cho nhiều player atomically (Firestore batch / equivalent).
+   * Dùng khi cần đảm bảo "all-or-nothing", ví dụ chia bài role lúc bắt đầu game.
+   */
+  updatePlayersGameDataBatch(
+    roomId: string,
+    updates: Array<{ playerId: string; data: Partial<BaseGameData> }>
+  ): Promise<void>;
   updatePlayerAlive(roomId: string, playerId: string, isAlive: boolean): Promise<void>;
   getPlayer(roomId: string, playerId: string): Promise<Player | null>;
   getPlayers(roomId: string): Promise<Player[]>;

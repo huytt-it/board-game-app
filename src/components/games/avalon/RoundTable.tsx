@@ -1,7 +1,8 @@
 'use client';
 
+import { useState } from 'react';
 import type { Player } from '@/types/player';
-import { AvalonRole, type AvalonGameData, type AvalonGameState } from './types';
+import { AvalonRole, type AvalonGameData, type AvalonGameState, type AvalonQuestRecord } from './types';
 import { ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
 
 interface RoundTableProps {
@@ -10,10 +11,15 @@ interface RoundTableProps {
   myPlayerId: string;
   viewerRole?: AvalonRole;
   playerCount: number;
+  // Leader đang ở team-build có thể bấm avatar trên bàn để toggle pick.
+  onTogglePick?: (id: string) => void;
+  canPick?: boolean;
+  pickedTeamSize?: number;
+  pickedTeamLimit?: number;
+  // Sát Thủ đang chọn Merlin → bấm avatar Phe Người để chọn.
+  onAssassinPick?: (id: string) => void;
+  canAssassinPick?: boolean;
 }
-
-const NAME_BY_ID_FALLBACK = (id: string, players: Player[]) =>
-  players.find((p) => p.id === id)?.name ?? '?';
 
 type VisibleTag =
   | { kind: 'evil-ally'; label: string }
@@ -32,12 +38,12 @@ function getViewerHint(
     ROLE_TEAM[viewerRole] === 'evil' && viewerRole !== AvalonRole.Oberon;
   if (viewerIsVisibleEvil) {
     if (data.team === 'evil' && data.role !== AvalonRole.Oberon) {
-      return { kind: 'evil-ally', label: '🗡️' };
+      return { kind: 'evil-ally', label: '👹' };
     }
   }
   if (viewerRole === AvalonRole.Merlin) {
     if (data.team === 'evil' && data.role !== AvalonRole.Mordred) {
-      return { kind: 'merlin-sees', label: '🗡️' };
+      return { kind: 'merlin-sees', label: '👹' };
     }
   }
   if (viewerRole === AvalonRole.Percival) {
@@ -54,8 +60,15 @@ export default function RoundTable({
   myPlayerId,
   viewerRole,
   playerCount,
+  onTogglePick,
+  canPick,
+  pickedTeamSize,
+  pickedTeamLimit,
+  onAssassinPick,
+  canAssassinPick,
 }: RoundTableProps) {
   const n = players.length;
+  const [openQuestIdx, setOpenQuestIdx] = useState<number | null>(null);
 
   return (
     <div className="relative mx-auto w-full max-w-[640px] sm:max-w-[680px] lg:max-w-[760px] aspect-square select-none">
@@ -66,8 +79,8 @@ export default function RoundTable({
 
         {/* Center: quest row + vote-track stacked vertically */}
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 sm:px-6">
-          {/* Quest badges (M1..M5) — full info like the old QuestTrack */}
-          <div className="flex items-stretch justify-center gap-1.5 sm:gap-2 w-full max-w-[88%]">
+          {/* Quest badges (M1..M5) — bigger, simpler when done. Click for popup. */}
+          <div className="flex items-stretch justify-center gap-2 sm:gap-3 w-full max-w-[94%]">
             {state.quests.map((q, idx) => {
               const isCurrent = idx === state.currentQuest;
               const isDone = q.result !== null;
@@ -76,9 +89,9 @@ export default function RoundTable({
               const needsTwo = questNeedsTwoFails(playerCount, idx);
 
               const ringColor = success
-                ? 'border-blue-400/80 bg-blue-500/20 shadow-blue-500/40'
+                ? 'border-blue-400/80 bg-blue-500/25 shadow-blue-500/40'
                 : fail
-                  ? 'border-red-400/80 bg-red-500/20 shadow-red-500/40'
+                  ? 'border-red-400/80 bg-red-500/25 shadow-red-500/40'
                   : isCurrent
                     ? 'border-amber-300/90 bg-amber-500/15 shadow-amber-400/40 ring-2 ring-amber-300/60 animate-pulse'
                     : 'border-stone-600/70 bg-stone-900/60';
@@ -90,75 +103,69 @@ export default function RoundTable({
                     ? 'text-amber-200'
                     : 'text-stone-400';
 
-              return (
-                <div
-                  key={idx}
-                  title={
-                    needsTwo && !isDone
-                      ? `Quest ${idx + 1} — Cần ≥ 2 lá Phe Quỷ để Quest fail`
-                      : `Quest ${idx + 1}`
-                  }
-                  className={`flex flex-1 min-w-0 flex-col items-center justify-center rounded-2xl border-2 px-1 py-1.5 text-center shadow ${ringColor}`}
-                >
-                  <div className={`text-[8px] sm:text-[9px] font-black uppercase tracking-widest ${numberColor}`}>
+              const baseCls = `flex flex-1 min-w-0 flex-col items-center justify-center rounded-2xl border-2 px-1.5 py-2.5 sm:py-3 text-center shadow ${ringColor}`;
+
+              const badgeBody = (
+                <>
+                  <div className={`text-[10px] sm:text-xs font-black uppercase tracking-widest ${numberColor}`}>
                     Quest {idx + 1}
                   </div>
-                  {isDone && (
-                    <div className="font-black text-white text-lg sm:text-xl">
-                      {success ? '✓' : '✕'}
-                    </div>
-                  )}
-                  {!isDone && (
-                    <div
-                      className={`text-[8px] sm:text-[9px] font-bold uppercase tracking-wider ${isCurrent ? 'text-amber-300/90' : 'text-stone-500'
-                        }`}
-                    >
-                      {q.teamSize} người
-                    </div>
-                  )}
-                  {!isDone && needsTwo && (
-                    <div className="mt-0.5 rounded-full bg-rose-500/30 border border-rose-400/50 px-1.5 py-px text-[8px] font-black text-rose-200">
-                      ≥ 2 lá Quỷ
-                    </div>
-                  )}
-                  {isDone && (
+                  {isDone ? (
                     <>
+                      <div className="font-black text-white text-2xl sm:text-3xl leading-none mt-0.5">
+                        {success ? '✓' : '✕'}
+                      </div>
                       <div
-                        className={`text-[9px] font-bold ${success ? 'text-blue-300' : 'text-red-300'
+                        className={`mt-0.5 text-[10px] sm:text-xs font-black ${success ? 'text-blue-300' : 'text-red-300'
                           }`}
                       >
                         {success ? 'Thành công' : 'Thất bại'}
                       </div>
-                      <div
-                        className="mt-0.5 text-[10px] font-black tabular-nums"
-                        title={`${q.teamSize - q.failCount} lá Người · ${q.failCount} lá Quỷ`}
-                      >
-                        <span className="text-blue-300">{q.teamSize - q.failCount}</span>
-                        <span className="text-stone-500"> / </span>
-                        <span className="text-red-300">{q.failCount}</span>
+                      <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/15 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-slate-200">
+                        🔍 Chi tiết
                       </div>
                     </>
+                  ) : (
+                    <>
+                      <div
+                        className={`mt-0.5 text-[9px] sm:text-[11px] font-bold uppercase tracking-wider ${isCurrent ? 'text-amber-300/90' : 'text-stone-500'
+                          }`}
+                      >
+                        {q.teamSize} người
+                      </div>
+                      {needsTwo && (
+                        <div className="mt-1 rounded-full bg-rose-500/30 border border-rose-400/50 px-1.5 py-px text-[9px] font-black text-rose-200">
+                          ≥ 2 lá Quỷ
+                        </div>
+                      )}
+                    </>
                   )}
-                  {isDone && q.teamIds.length > 0 && (
-                    <div className="mt-1 flex flex-wrap justify-center gap-0.5 max-w-full">
-                      {q.teamIds.map((id) => {
-                        const name = NAME_BY_ID_FALLBACK(id, players);
-                        const initial = name.charAt(0).toUpperCase();
-                        return (
-                          <span
-                            key={id}
-                            title={name}
-                            className={`inline-flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[8px] font-black border ${success
-                              ? 'bg-blue-500/25 border-blue-400/50 text-blue-100'
-                              : 'bg-red-500/25 border-red-400/50 text-red-100'
-                              }`}
-                          >
-                            {initial}
-                          </span>
-                        );
-                      })}
-                    </div>
-                  )}
+                </>
+              );
+
+              if (isDone) {
+                return (
+                  <button
+                    key={idx}
+                    onClick={() => setOpenQuestIdx(idx)}
+                    className={`${baseCls} hover:brightness-110 active:scale-95 transition`}
+                    title={`Xem chi tiết Quest ${idx + 1}`}
+                  >
+                    {badgeBody}
+                  </button>
+                );
+              }
+              return (
+                <div
+                  key={idx}
+                  title={
+                    needsTwo
+                      ? `Quest ${idx + 1} — Cần ≥ 2 lá Phe Quỷ để Quest fail`
+                      : `Quest ${idx + 1}`
+                  }
+                  className={baseCls}
+                >
+                  {badgeBody}
                 </div>
               );
             })}
@@ -215,12 +222,11 @@ export default function RoundTable({
         const isLady = state.ladyHolderId === p.id;
         const isLadyTarget = state.ladyTargetId === p.id;
         const isMe = p.id === myPlayerId;
+        const isAssassinTarget = state.assassinChoiceId === p.id;
         const data = p.gameData as Partial<AvalonGameData>;
         const hint = getViewerHint(p, myPlayerId, viewerRole);
 
         // Border / glow:
-        //   - viewer's own circle: tint by viewer's true team
-        //   - others: red (visible evil), indigo (Percival's Merlin/Morgana), default neutral
         let borderCls = 'border-white/30 bg-white/10';
         let glow = '';
         if (isMe) {
@@ -238,9 +244,34 @@ export default function RoundTable({
         } else if (isLadyTarget) {
           glow = 'ring-4 ring-fuchsia-400/70 shadow-lg shadow-fuchsia-500/50';
         }
+        if (isAssassinTarget) {
+          glow = 'ring-4 ring-red-500/80 shadow-lg shadow-red-500/70';
+        }
 
         const voted = state.teamVotes && state.teamVotes[p.id];
         const showVoteDot = state.phase === 'team-vote';
+
+        const isPickable = canPick && state.phase === 'team-build' && onTogglePick;
+        const isAssassinPickable =
+          canAssassinPick &&
+          state.phase === 'assassinate' &&
+          onAssassinPick &&
+          data.team === 'good';
+
+        const handleClick = () => {
+          if (isAssassinPickable) {
+            onAssassinPick!(p.id);
+            return;
+          }
+          if (isPickable) onTogglePick!(p.id);
+        };
+
+        const Wrapper: 'button' | 'div' = isPickable || isAssassinPickable ? 'button' : 'div';
+        const wrapperExtra = isPickable
+          ? `cursor-pointer active:scale-95 ${isOnTeam ? '' : 'hover:ring-2 hover:ring-amber-300/60'}`
+          : isAssassinPickable
+            ? `cursor-pointer active:scale-95 hover:ring-2 hover:ring-red-400/70 ${isAssassinTarget ? 'animate-stab' : ''}`
+            : '';
 
         return (
           <div
@@ -252,12 +283,40 @@ export default function RoundTable({
               transform: 'translate(-50%, -50%)',
             }}
           >
-            <div className="flex flex-col items-center gap-1">
+            <Wrapper
+              type={Wrapper === 'button' ? 'button' : undefined}
+              onClick={Wrapper === 'button' ? handleClick : undefined}
+              className={`flex flex-col items-center gap-1 ${wrapperExtra} ${
+                Wrapper === 'button' ? 'bg-transparent border-0 p-0' : ''
+              }`}
+              title={
+                isPickable
+                  ? isOnTeam
+                    ? `Bỏ ${p.name} khỏi đội`
+                    : `Thêm ${p.name} vào đội${
+                        pickedTeamLimit !== undefined && pickedTeamSize !== undefined && pickedTeamSize >= pickedTeamLimit
+                          ? ' (sẽ đổi chỗ người đầu danh sách)'
+                          : ''
+                      }`
+                  : isAssassinPickable
+                    ? `Chọn ${p.name} là Merlin`
+                    : p.name
+              }
+            >
               <div
-                className={`relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border-[3px] text-sm font-black text-white transition-all ${borderCls} ${glow} ${isOnTeam ? 'animate-pulse' : ''
+                className={`relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border-[3px] text-sm font-black text-white transition-all ${borderCls} ${glow} ${isOnTeam || isAssassinTarget ? 'animate-pulse' : ''
                   }`}
               >
                 <span className="text-base">{p.name.charAt(0).toUpperCase()}</span>
+
+                {isAssassinTarget && (
+                  <span
+                    className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 text-2xl drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)] animate-bounce"
+                    title="Sát Thủ đang ngắm"
+                  >
+                    🗡️
+                  </span>
+                )}
 
                 {/* Leader crown badge */}
                 {isLeader && (
@@ -311,10 +370,150 @@ export default function RoundTable({
                 {p.name}
                 {isMe && <span className="ml-0.5 text-blue-200">•</span>}
               </div>
-            </div>
+            </Wrapper>
           </div>
         );
       })}
+
+      {openQuestIdx !== null && state.quests[openQuestIdx] && (
+        <QuestDetailPopup
+          questIndex={openQuestIdx}
+          quest={state.quests[openQuestIdx]}
+          players={players}
+          playerCount={playerCount}
+          onClose={() => setOpenQuestIdx(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+function QuestDetailPopup({
+  questIndex,
+  quest,
+  players,
+  playerCount,
+  onClose,
+}: {
+  questIndex: number;
+  quest: AvalonQuestRecord;
+  players: Player[];
+  playerCount: number;
+  onClose: () => void;
+}) {
+  const success = quest.result === 'success';
+  const evilCount = quest.failCount;
+  const goodCount = Math.max(0, quest.teamSize - evilCount);
+  const team = quest.teamIds
+    .map((id) => players.find((p) => p.id === id))
+    .filter(Boolean) as Player[];
+  const leader = quest.leaderId ? players.find((p) => p.id === quest.leaderId) : null;
+  const approve = quest.approveCount;
+  const reject = quest.rejectCount;
+  const needsTwo = questNeedsTwoFails(playerCount, questIndex);
+
+  return (
+    <div
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in"
+      onClick={onClose}
+    >
+      <div
+        className={`relative w-full sm:max-w-md overflow-hidden rounded-3xl border-2 p-5 shadow-2xl ${
+          success
+            ? 'border-blue-500/50 bg-gradient-to-br from-blue-950/95 to-slate-950/95'
+            : 'border-red-500/50 bg-gradient-to-br from-red-950/95 to-slate-950/95'
+        }`}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <button
+          onClick={onClose}
+          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          aria-label="Đóng"
+        >
+          ✕
+        </button>
+
+        <div className="text-center">
+          <p className="text-[11px] uppercase font-bold text-slate-300 tracking-widest">
+            Quest {questIndex + 1}
+          </p>
+          <div className="text-5xl my-2">{success ? '🛡️' : '🗡️'}</div>
+          <p
+            className={`text-2xl font-black ${success ? 'text-blue-200' : 'text-red-200'}`}
+          >
+            {success ? 'THÀNH CÔNG' : 'THẤT BẠI'}
+          </p>
+          {needsTwo && (
+            <p className="mt-1 text-[10px] font-bold text-rose-300">
+              ⚠ Quest này cần ≥ 2 lá Phe Quỷ để fail
+            </p>
+          )}
+        </div>
+
+        <div className="mt-4 grid grid-cols-2 gap-2">
+          <div className="rounded-xl border-2 border-blue-500/30 bg-blue-500/10 p-3 text-center">
+            <div className="text-2xl mb-0.5">🛡️</div>
+            <p className="text-[10px] uppercase font-bold text-blue-300">Phe Người</p>
+            <p className="text-2xl font-black text-blue-200 leading-tight">{goodCount}</p>
+          </div>
+          <div className="rounded-xl border-2 border-red-500/30 bg-red-500/10 p-3 text-center">
+            <div className="text-2xl mb-0.5">👹</div>
+            <p className="text-[10px] uppercase font-bold text-red-300">Phe Quỷ</p>
+            <p className="text-2xl font-black text-red-200 leading-tight">{evilCount}</p>
+          </div>
+        </div>
+
+        {(approve !== undefined || reject !== undefined) && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-center">
+              <p className="text-[10px] uppercase font-bold text-emerald-300">Đồng ý</p>
+              <p className="text-lg font-black text-emerald-200 leading-tight">
+                {approve ?? '—'}
+              </p>
+            </div>
+            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-center">
+              <p className="text-[10px] uppercase font-bold text-rose-300">Từ chối</p>
+              <p className="text-lg font-black text-rose-200 leading-tight">
+                {reject ?? '—'}
+              </p>
+            </div>
+          </div>
+        )}
+
+        <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3">
+          <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">
+            👥 Đội đi Quest{leader ? ` · 👑 ${leader.name}` : ''}
+          </p>
+          {team.length === 0 ? (
+            <p className="text-xs text-slate-500 italic">(không rõ)</p>
+          ) : (
+            <div className="flex flex-wrap gap-1.5">
+              {team.map((p) => (
+                <span
+                  key={p.id}
+                  className="inline-flex items-center gap-1.5 rounded-full bg-white/8 border border-white/15 px-2.5 py-1 text-xs font-bold text-white"
+                >
+                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 text-[10px] font-black">
+                    {p.name.charAt(0).toUpperCase()}
+                  </span>
+                  {p.name}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <button
+          onClick={onClose}
+          className={`mt-4 w-full rounded-xl py-2.5 text-sm font-black text-white ${
+            success
+              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500'
+              : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500'
+          }`}
+        >
+          ✓ Đóng
+        </button>
+      </div>
     </div>
   );
 }

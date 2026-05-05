@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import type { Player } from '@/types/player';
 import { AvalonRole, PHASE_TIMEOUTS_MS, type AvalonGameData, type AvalonGameState, type QuestCard, type TeamVote } from './types';
 import {
+  ROLE_DESC_VI,
   ROLE_ICONS,
   ROLE_NAMES_VI,
   ROLE_TEAM,
@@ -22,10 +23,13 @@ interface PlayerPanelProps {
   onCastVote: (vote: TeamVote) => void;
   onPlayQuestCard: (card: QuestCard) => void;
   onLadyInspect: (targetId: string) => void;
+  onLadyConfirm: () => void;
   onLadyShow: (card: 'good' | 'evil') => void;
   onLadyFinish: () => void;
-  onAssassinate: (targetId: string) => void;
+  onAssassinate: (targetId: string, callerId?: string) => void;
+  onSetAssassinChoice?: (targetId: string | null, callerId?: string) => void;
   onShowMyRole: () => void;
+  onShowRolePreview?: () => void;
   onAckRole: () => void;
   onAckDiscussion: () => void;
   onPlayAgain?: () => void;
@@ -53,6 +57,39 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   const isGood = myTeam === 'good';
 
   const showRoundTable = state.phase !== 'lineup-preview' && state.phase !== 'role-reveal';
+  const isAssassin = myRole === AvalonRole.Assassin;
+
+  // Hint trong PlayerRoster / RoundTable (Đồng đội Quỷ, Quỷ bạn thấy, Merlin/
+  // Morgana...) chỉ được hiện diện sau khi xong tất cả night-reveals — tức là
+  // từ 'team-build' trở đi. Trong lineup-preview / role-reveal / night-* mỗi
+  // người vẫn được phân vai trong gameData nên nếu không gate, sidebar sẽ lộ
+  // luôn ai đồng đội mình trước cả khi vào đêm.
+  const hintsVisible =
+    state.phase !== 'lineup-preview' &&
+    state.phase !== 'role-reveal' &&
+    !state.phase.startsWith('night-');
+  const safeViewerRole = hintsVisible ? myRole : undefined;
+
+  // Toggle pick handler: cùng logic với grid trong TeamBuildSection — Leader bấm
+  // avatar trên bàn để add/remove. Khi đã đầy size, chọn thêm sẽ thay người đầu.
+  const handleTablePick = (id: string) => {
+    if (!isLeader || state.phase !== 'team-build') return;
+    const team = state.proposedTeam;
+    if (team.includes(id)) {
+      props.onProposedTeamChange(team.filter((x) => x !== id));
+    } else if (team.length < teamSize) {
+      props.onProposedTeamChange([...team, id]);
+    } else {
+      props.onProposedTeamChange([...team.slice(1), id]);
+    }
+  };
+
+  const handleAssassinTablePick = (id: string) => {
+    if (!isAssassin || state.phase !== 'assassinate') return;
+    if (props.onSetAssassinChoice) {
+      props.onSetAssassinChoice(id, myPlayer.id);
+    }
+  };
 
   // Slim top bar — phase + reject counter + my role chip — kept short so the
   // round table fits in the viewport without scroll on lg+.
@@ -64,17 +101,28 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           Quest {state.currentQuest + 1}/5
         </span>
         {myRole && myTeam && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal' && (
-          <button
-            onClick={onShowMyRole}
-            className={`ml-auto flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-bold active:opacity-75 ${isGood
-              ? 'border-blue-500/30 bg-blue-950/40 text-blue-200'
-              : 'border-red-500/30 bg-red-950/40 text-red-200'
-              }`}
-          >
-            <span className="text-base">{ROLE_ICONS[myRole]}</span>
-            <span className="truncate max-w-[100px]">{ROLE_NAMES_VI[myRole]}</span>
-            <span className="text-[10px] opacity-70">ⓘ</span>
-          </button>
+          <div className="ml-auto flex items-center gap-1.5">
+            {props.onShowRolePreview && (
+              <button
+                onClick={props.onShowRolePreview}
+                className="rounded-full border border-fuchsia-500/30 bg-fuchsia-950/40 text-fuchsia-200 px-2.5 py-1 text-[11px] font-bold active:opacity-75 hover:bg-fuchsia-900/40"
+                title="Xem lại preview vai trong ván"
+              >
+                🎭 Preview
+              </button>
+            )}
+            <button
+              onClick={onShowMyRole}
+              className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-bold active:opacity-75 ${isGood
+                ? 'border-blue-500/30 bg-blue-950/40 text-blue-200'
+                : 'border-red-500/30 bg-red-950/40 text-red-200'
+                }`}
+            >
+              <span className="text-base">{ROLE_ICONS[myRole]}</span>
+              <span className="truncate max-w-[100px]">{ROLE_NAMES_VI[myRole]}</span>
+              <span className="text-[10px] opacity-70">ⓘ</span>
+            </button>
+          </div>
         )}
         <span
           className={`rounded-full px-2 py-0.5 text-[10px] font-black ${!(myRole && myTeam) ? 'ml-auto' : ''
@@ -224,6 +272,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           myTeam={myTeam}
           gamePlayers={gamePlayers}
           onLadyInspect={props.onLadyInspect}
+          onLadyConfirm={props.onLadyConfirm}
           onLadyShow={props.onLadyShow}
           onLadyFinish={props.onLadyFinish}
         />
@@ -236,6 +285,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           myRole={myRole}
           gamePlayers={gamePlayers}
           onAssassinate={props.onAssassinate}
+          onSetAssassinChoice={props.onSetAssassinChoice}
         />
       )}
 
@@ -271,7 +321,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
             showVoteStatus={state.phase === 'team-vote'}
             title="Danh sách người chơi"
             compact
-            viewerRole={myRole}
+            viewerRole={safeViewerRole}
           />
         </aside>
 
@@ -282,8 +332,14 @@ export default function PlayerPanel(props: PlayerPanelProps) {
                 players={gamePlayers}
                 state={state}
                 myPlayerId={myPlayer.id}
-                viewerRole={myRole}
+                viewerRole={safeViewerRole}
                 playerCount={playerCount}
+                onTogglePick={handleTablePick}
+                canPick={isLeader && state.phase === 'team-build'}
+                pickedTeamSize={state.proposedTeam.length}
+                pickedTeamLimit={teamSize}
+                onAssassinPick={handleAssassinTablePick}
+                canAssassinPick={isAssassin && state.phase === 'assassinate'}
               />
             </div>
           ) : (
@@ -304,7 +360,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
               players={gamePlayers}
               state={state}
               myPlayerId={myPlayer.id}
-              viewerRole={myRole}
+              viewerRole={safeViewerRole}
               playerCount={playerCount}
             />
           )}
@@ -586,7 +642,8 @@ function buildRosterMarks(
 function buildHistoryMarks(playerId: string, state: AvalonGameState): RosterMark[] {
   const marks: RosterMark[] = [];
 
-  // Quest participation history with outcome
+  // Quest participation history with outcome — chỉ hiển thị "Quest N" + màu
+  // (xanh = success, đỏ = fail). Bỏ ✓/✕ vì màu đã đủ ngữ nghĩa.
   state.quests.forEach((q, idx) => {
     if (q.result !== null && q.teamIds.includes(playerId)) {
       const success = q.result === 'success';
@@ -594,9 +651,9 @@ function buildHistoryMarks(playerId: string, state: AvalonGameState): RosterMark
         type: 'quest-history',
         key: `quest-${idx}`,
         className: success
-          ? 'bg-blue-500/15 border border-blue-400/30 text-blue-200'
-          : 'bg-red-500/15 border border-red-400/30 text-red-200',
-        label: `Q${idx + 1}${success ? '✓' : '✕'}`,
+          ? 'bg-blue-500/30 border border-blue-400/50 text-blue-100'
+          : 'bg-red-500/30 border border-red-400/50 text-red-100',
+        label: `Quest ${idx + 1}`,
       });
     }
   });
@@ -688,7 +745,7 @@ function PlayerRoster({
                 type: 'evil-ally',
                 className:
                   'bg-red-500/30 border border-red-400/50 text-red-100',
-                label: '🗡️ Đồng đội Quỷ',
+                label: '👹 Đồng đội Quỷ',
               });
             }
           }
@@ -701,7 +758,7 @@ function PlayerRoster({
                 type: 'merlin-sees',
                 className:
                   'bg-red-500/25 border border-red-400/40 text-red-100',
-                label: '🗡️ Quỷ (bạn thấy)',
+                label: '👹 Quỷ (bạn thấy)',
               });
             }
           }
@@ -734,29 +791,30 @@ function PlayerRoster({
                   : hasPercivalClueMark
                     ? 'border-indigo-500/40 bg-indigo-500/10'
                     : 'border-white/10 bg-white/5';
+          // Phân nhóm tag theo vị trí trên card:
+          //   aboveTags = leader/lady → trên avatar
+          //   belowTags = quest-history → dưới avatar (chỉ "Quest N" + màu)
+          //   rightTags = mọi tag còn lại → cột phải cạnh tên
+          const aboveTags = liveMarks.filter(
+            (m) => m.type === 'leader' || m.type === 'lady-holder'
+          );
+          const rightLiveTags = liveMarks.filter(
+            (m) => m.type !== 'leader' && m.type !== 'lady-holder'
+          );
+          const belowTags = historyMarks.filter((m) => m.type === 'quest-history');
+          const rightHistoryTags = historyMarks.filter((m) => m.type !== 'quest-history');
+          const rightTags = [...rightLiveTags, ...rightHistoryTags];
           return (
             <div
               key={p.id}
               className={`rounded-xl border p-2 transition-all ${highlightCls}`}
             >
-              <div className="flex items-center gap-2 min-w-0">
-                <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-black text-white ${isHighlighted && finalEmphasis === 'team'
-                    ? 'bg-gradient-to-br from-orange-500 to-amber-500'
-                    : isHighlighted && finalEmphasis === 'lady'
-                      ? 'bg-gradient-to-br from-fuchsia-500 to-purple-500'
-                      : 'bg-gradient-to-br from-purple-500 to-cyan-500'
-                    }`}
-                >
-                  {p.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-xs font-bold text-white truncate flex-1 min-w-0">
-                  {p.name}
-                </span>
-              </div>
-              {liveMarks.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1">
-                  {liveMarks.map((m) => (
+              {/* Row 1 (chỉ render khi có Leader/Lady): tag in flow phía trên
+                  avatar+name. Không dùng absolute (tránh bị icon đè / tràn ra
+                  ngoài card). */}
+              {aboveTags.length > 0 && (
+                <div className="mb-1.5 flex flex-wrap gap-1">
+                  {aboveTags.map((m) => (
                     <span
                       key={m.key ?? m.type}
                       className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
@@ -766,12 +824,46 @@ function PlayerRoster({
                   ))}
                 </div>
               )}
-              {historyMarks.length > 0 && (
-                <div className="mt-1 flex flex-wrap gap-1 opacity-90">
-                  {historyMarks.map((m) => (
+
+              {/* Row 2: avatar (sát mép trái) + tên (vertical-center với avatar
+                  qua items-center) + right tags ngay dưới tên — không tách rời
+                  khỏi avatar nên tag "Bạn" / "Đồng đội Quỷ"... nằm cạnh tên. */}
+              <div className="flex items-center gap-2.5 min-w-0">
+                <div
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black text-white ${isHighlighted && finalEmphasis === 'team'
+                    ? 'bg-gradient-to-br from-orange-500 to-amber-500'
+                    : isHighlighted && finalEmphasis === 'lady'
+                      ? 'bg-gradient-to-br from-fuchsia-500 to-purple-500'
+                      : 'bg-gradient-to-br from-purple-500 to-cyan-500'
+                    }`}
+                >
+                  {p.name.charAt(0).toUpperCase()}
+                </div>
+                <div className="min-w-0 flex-1 flex flex-col gap-1">
+                  <span className="text-xs font-bold text-white truncate">{p.name}</span>
+                  {rightTags.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {rightTags.map((m) => (
+                        <span
+                          key={m.key ?? m.type}
+                          className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
+                        >
+                          {m.label}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Row 3 (chỉ khi có quest history): chip "Quest 1"/"Quest 2"...
+                  ở cuối card, dưới hàng avatar+name. */}
+              {belowTags.length > 0 && (
+                <div className="mt-1.5 flex flex-wrap gap-0.5">
+                  {belowTags.map((m) => (
                     <span
                       key={m.key ?? m.type}
-                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-bold ${m.className}`}
+                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
                     >
                       {m.label}
                     </span>
@@ -828,128 +920,153 @@ function LineupPreviewSection({
   const lineup = state.roleLineup ?? [];
   const goodRoles = lineup.filter((r) => ROLE_TEAM[r] === 'good');
   const evilRoles = lineup.filter((r) => ROLE_TEAM[r] === 'evil');
+  const leader = gamePlayers.find((p) => p.id === state.currentLeaderId);
+  const lady = gamePlayers.find((p) => p.id === state.ladyHolderId);
 
+  // Đếm số lượng từng role để hiện tổng quan (vd "LoyalServant ×2") —
+  // KHÔNG gắn với player nào, chỉ cho biết ván có những role gì.
   const goodCounts: Record<string, number> = {};
   for (const r of goodRoles) goodCounts[r] = (goodCounts[r] ?? 0) + 1;
   const evilCounts: Record<string, number> = {};
   for (const r of evilRoles) evilCounts[r] = (evilCounts[r] ?? 0) + 1;
 
   return (
-    <div className="space-y-4">
-      <div className="rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-5 text-center">
-        <p className="text-[11px] uppercase font-black text-fuchsia-300 mb-1 tracking-widest">
-          🎭 Vai trò trong ván này
-        </p>
-        <p className="text-sm text-slate-300">
-          {goodRoles.length} Phe Người · {evilRoles.length} Phe Quỷ
-        </p>
-        <p className="mt-1 text-[11px] text-slate-500">
-          (Vai trò của bạn sẽ được hiện ở bước sau)
-        </p>
-      </div>
-
-      <div className="rounded-2xl border border-blue-500/30 bg-blue-900/15 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-base">🛡️</span>
-          <h3 className="text-sm font-black text-blue-200">Phe Người ({goodRoles.length})</h3>
+    <div className="space-y-2.5">
+      {/* Header gọn: tổng quan + đếm ngược inline */}
+      <div className="rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-3 flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase font-black text-fuchsia-300 tracking-widest">
+            🎭 Các vai trò trong ván
+          </p>
+          <p className="text-xs text-slate-300 mt-0.5">
+            {goodRoles.length} Phe Người · {evilRoles.length} Phe Quỷ
+          </p>
         </div>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(goodCounts).map(([role, count]) => (
-            <RoleLineChip
-              key={role}
-              role={role as AvalonRole}
-              count={count}
-              tone="good"
-            />
-          ))}
-        </div>
-      </div>
-
-      <div className="rounded-2xl border border-red-500/30 bg-red-900/15 p-4">
-        <div className="flex items-center gap-2 mb-3">
-          <span className="text-base">🗡️</span>
-          <h3 className="text-sm font-black text-red-200">Phe Quỷ ({evilRoles.length})</h3>
-        </div>
-        <div className="grid grid-cols-2 gap-2">
-          {Object.entries(evilCounts).map(([role, count]) => (
-            <RoleLineChip
-              key={role}
-              role={role as AvalonRole}
-              count={count}
-              tone="evil"
-            />
-          ))}
-        </div>
-      </div>
-
-      {!myAcked && (
-        <button
-          onClick={onAckRole}
-          className="w-full rounded-2xl bg-gradient-to-r from-fuchsia-600 to-purple-600 py-4 text-base font-black text-white hover:from-fuchsia-500 hover:to-purple-500 active:scale-[0.98] shadow-lg shadow-fuchsia-500/30"
-        >
-          ✓ Đã xem — Sẵn sàng nhận vai
-        </button>
-      )}
-
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-[11px] uppercase font-bold text-slate-400">
-            Tiến độ
-          </span>
-          <span className="text-sm font-black text-white">
-            {ackCount} / {total}
-          </span>
-        </div>
-        <div className="h-2 rounded-full bg-white/5 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-purple-500 transition-all duration-500"
-            style={{ width: `${total > 0 ? (ackCount / total) * 100 : 0}%` }}
-          />
-        </div>
-        <div className="mt-3 space-y-1.5">
-          {gamePlayers.map((p) => {
-            const acked = ackedIds.includes(p.id);
-            return (
-              <div
-                key={p.id}
-                className="flex items-center justify-between text-xs"
-              >
-                <span className={acked ? 'text-white font-bold' : 'text-slate-500'}>
-                  {p.name}
-                  {p.id === myPlayer.id && (
-                    <span className="text-cyan-400 ml-1">(bạn)</span>
-                  )}
-                </span>
-                <span className={acked ? 'text-emerald-400 font-black' : 'text-slate-600'}>
-                  {acked ? '✓ Sẵn sàng' : '⏳ Đang xem'}
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      <div
-        className={`rounded-2xl border p-4 text-center ${allAcked
-          ? 'border-emerald-500/40 bg-emerald-500/10'
-          : remaining < 15000
-            ? 'border-amber-500/40 bg-amber-500/10'
-            : 'border-white/10 bg-white/5'
-          }`}
-      >
-        <p className="text-[11px] uppercase font-bold text-slate-400 mb-1">
-          {allAcked ? 'Đang chia vai...' : 'Tự động chia vai sau'}
-        </p>
-        <p
-          className={`text-2xl font-black ${allAcked
-            ? 'text-emerald-300'
+        <div
+          className={`shrink-0 text-center rounded-xl border px-3 py-1.5 ${allAcked
+            ? 'border-emerald-500/40 bg-emerald-500/10'
             : remaining < 15000
-              ? 'text-amber-300'
-              : 'text-white'
+              ? 'border-amber-500/40 bg-amber-500/10'
+              : 'border-white/10 bg-white/5'
             }`}
         >
-          {allAcked ? '✓' : timeStr}
-        </p>
+          <p className="text-[9px] uppercase font-bold text-slate-400">
+            {allAcked ? 'Chia vai' : 'Tự chia sau'}
+          </p>
+          <p
+            className={`text-lg font-black tabular-nums leading-tight ${allAcked
+              ? 'text-emerald-300'
+              : remaining < 15000
+                ? 'text-amber-300'
+                : 'text-white'
+              }`}
+          >
+            {allAcked ? '✓' : timeStr}
+          </p>
+        </div>
+      </div>
+
+      {/* 2-cột: Phe Người | Phe Quỷ — ô role chip nhỏ gọn */}
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-2xl border border-blue-500/30 bg-blue-900/15 p-2.5">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-sm">🛡️</span>
+            <h3 className="text-xs font-black text-blue-200">Phe Người ({goodRoles.length})</h3>
+          </div>
+          <div className="grid grid-cols-1 gap-1.5">
+            {Object.entries(goodCounts).map(([role, count]) => (
+              <RoleLineChip
+                key={role}
+                role={role as AvalonRole}
+                count={count}
+                tone="good"
+              />
+            ))}
+          </div>
+        </div>
+        <div className="rounded-2xl border border-red-500/30 bg-red-900/15 p-2.5">
+          <div className="flex items-center gap-1.5 mb-2">
+            <span className="text-sm">🗡️</span>
+            <h3 className="text-xs font-black text-red-200">Phe Quỷ ({evilRoles.length})</h3>
+          </div>
+          <div className="grid grid-cols-1 gap-1.5">
+            {Object.entries(evilCounts).map(([role, count]) => (
+              <RoleLineChip
+                key={role}
+                role={role as AvalonRole}
+                count={count}
+                tone="evil"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* 2-cột: Leader | Lady (Lady chỉ hiện khi ≥7) — gọn 1 hàng */}
+      <div className={`grid gap-2 ${lady ? 'grid-cols-2' : 'grid-cols-1'}`}>
+        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-2.5 flex items-center gap-2">
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-sm border-2 border-amber-300 shadow shadow-amber-500/40">
+            👑
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[9px] uppercase font-black tracking-widest text-amber-300">
+              Leader đầu
+            </p>
+            <p className="text-sm font-black text-white truncate">
+              {leader?.name ?? '?'}
+              {leader?.id === myPlayer.id && (
+                <span className="ml-1 text-[10px] text-amber-200">(bạn)</span>
+              )}
+            </p>
+          </div>
+        </div>
+        {lady && (
+          <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-2.5 flex items-center gap-2">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 text-sm border-2 border-cyan-300 shadow shadow-cyan-500/40">
+              🌊
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[9px] uppercase font-black tracking-widest text-cyan-300">
+                Lady đầu
+              </p>
+              <p className="text-sm font-black text-white truncate">
+                {lady.name}
+                {lady.id === myPlayer.id && (
+                  <span className="ml-1 text-[10px] text-cyan-200">(bạn)</span>
+                )}
+              </p>
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Ack button + progress bar gộp 1 card */}
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-3 space-y-2">
+        {!myAcked ? (
+          <button
+            onClick={onAckRole}
+            className="w-full rounded-xl bg-gradient-to-r from-fuchsia-600 to-purple-600 py-3 text-sm font-black text-white hover:from-fuchsia-500 hover:to-purple-500 active:scale-[0.98] shadow shadow-fuchsia-500/30"
+          >
+            ✓ Đã xem — Sẵn sàng nhận vai
+          </button>
+        ) : (
+          <button
+            disabled
+            className="w-full rounded-xl border border-emerald-400/40 bg-emerald-500/10 py-3 text-sm font-black text-emerald-200"
+          >
+            ✓ Bạn sẵn sàng — Chờ những người khác
+          </button>
+        )}
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase font-bold text-slate-400">Tiến độ</span>
+          <div className="flex-1 h-1.5 rounded-full bg-white/5 overflow-hidden">
+            <div
+              className="h-full rounded-full bg-gradient-to-r from-fuchsia-500 to-purple-500 transition-all duration-500"
+              style={{ width: `${total > 0 ? (ackCount / total) * 100 : 0}%` }}
+            />
+          </div>
+          <span className="text-xs font-black text-white tabular-nums">{ackCount}/{total}</span>
+        </div>
       </div>
     </div>
   );
@@ -966,24 +1083,19 @@ function RoleLineChip({
 }) {
   return (
     <div
-      className={`flex items-center gap-2 rounded-xl border px-2.5 py-2 ${tone === 'good'
+      className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 ${tone === 'good'
         ? 'border-blue-500/30 bg-blue-500/10'
         : 'border-red-500/30 bg-red-500/10'
         }`}
+      title={ROLE_NAMES_VI[role]}
     >
-      <span className="text-xl shrink-0">{ROLE_ICONS[role]}</span>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs font-black text-white truncate">{role}</p>
-        <p
-          className={`text-[10px] font-bold ${tone === 'good' ? 'text-blue-300' : 'text-red-300'
-            }`}
-        >
-          {ROLE_NAMES_VI[role]}
-        </p>
-      </div>
+      <span className="text-base shrink-0 leading-none">{ROLE_ICONS[role]}</span>
+      <span className="flex-1 min-w-0 text-[11px] font-black text-white truncate">
+        {role}
+      </span>
       {count > 1 && (
         <span
-          className={`shrink-0 rounded-full px-1.5 py-0.5 text-[10px] font-black ${tone === 'good'
+          className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-black ${tone === 'good'
             ? 'bg-blue-500/30 text-blue-200'
             : 'bg-red-500/30 text-red-200'
             }`}
@@ -1116,6 +1228,55 @@ function RoleRevealWaitingSection({
   );
 }
 
+// Card "Bạn là <Role>" + mô tả ngắn — hiển thị đầu mỗi night phase để
+// người chơi không phải mở RoleCard. variant="self" cho người đang lộ vai,
+// variant="other" để giải thích role nào đang lộ diện cho người chờ.
+function RoleIntroCard({
+  role,
+  variant,
+  compact,
+}: {
+  role: AvalonRole;
+  variant: 'self' | 'other';
+  compact?: boolean;
+}) {
+  const team = ROLE_TEAM[role];
+  const isGood = team === 'good';
+  const heading =
+    variant === 'self'
+      ? 'Bạn là'
+      : `Vai đang lộ diện: ${ROLE_NAMES_VI[role]}`;
+  return (
+    <div
+      className={`rounded-2xl border-2 p-3 ${compact ? '' : 'sm:p-4'} ${isGood
+        ? 'border-blue-500/50 bg-blue-500/10'
+        : 'border-red-500/50 bg-red-500/10'
+        }`}
+    >
+      <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">
+        {heading}
+      </p>
+      <div className="mt-1 flex items-center gap-3">
+        <div className="text-3xl shrink-0">{ROLE_ICONS[role]}</div>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-black text-white truncate">{role}</p>
+          <p
+            className={`text-[11px] font-semibold ${isGood ? 'text-blue-300' : 'text-red-300'
+              }`}
+          >
+            {ROLE_NAMES_VI[role]}
+          </p>
+        </div>
+      </div>
+      {!compact && (
+        <p className="mt-2 text-xs leading-relaxed text-slate-200/90">
+          {ROLE_DESC_VI[role]}
+        </p>
+      )}
+    </div>
+  );
+}
+
 function getActiveNightPlayerIds(
   phase: AvalonGameState['phase'],
   players: Player[]
@@ -1219,13 +1380,16 @@ function NightEvilsSection({
       <div className="space-y-3">
         <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 text-center">
           <p className="text-[11px] uppercase font-black text-red-300 mb-2">
-            🗡️ Đêm — Phe Quỷ đang nhận biết nhau
+            👹 Đêm — Phe Quỷ đang nhận biết nhau
           </p>
           <div className="text-5xl mb-2 animate-pulse">😴</div>
           <p className="text-sm text-slate-300">
-            Hãy nhắm mắt. Phe Quỷ đang lộ diện với nhau.
+            Hãy nhắm mắt. Các tay sai của Mordred đang lộ diện với nhau (Oberon thì đơn độc).
           </p>
         </div>
+        {myRole && (
+          <RoleIntroCard role={myRole} variant="self" />
+        )}
         <NightCountdown state={state} phase="night-evils" allActiveAcked={allActiveAcked} />
       </div>
     );
@@ -1235,9 +1399,10 @@ function NightEvilsSection({
 
   return (
     <div className="space-y-3">
+      {myRole && <RoleIntroCard role={myRole} variant="self" />}
       <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-red-300 mb-1">
-          🗡️ Đêm — Phe Quỷ lộ diện
+          👹 Đêm — Phe Quỷ lộ diện
         </p>
         {isOberon ? (
           <>
@@ -1330,9 +1495,11 @@ function NightMerlinSection({
           </p>
           <div className="text-5xl mb-2 animate-pulse">🌙</div>
           <p className="text-sm text-slate-300">
-            Hãy nhắm mắt. Merlin đang nhìn ra Phe Quỷ.
+            Hãy nhắm mắt. Merlin đang nhìn ra Phe Quỷ (Mordred ẩn).
           </p>
         </div>
+        <RoleIntroCard role={AvalonRole.Merlin} variant="other" />
+        {myRole && <RoleIntroCard role={myRole} variant="self" compact />}
         <NightCountdown state={state} phase="night-merlin" allActiveAcked={allActiveAcked} />
       </div>
     );
@@ -1340,13 +1507,13 @@ function NightMerlinSection({
 
   return (
     <div className="space-y-3">
+      <RoleIntroCard role={AvalonRole.Merlin} variant="self" />
       <div className="rounded-2xl border border-blue-500/40 bg-blue-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-blue-300 mb-1">
-          🧙 Bạn là Merlin
+          🧙 Phe Quỷ lộ diện trước bạn
         </p>
-        <h3 className="text-base font-black text-white mb-1">Phe Quỷ lộ diện trước bạn</h3>
         <p className="text-xs text-slate-300 mb-3">
-          Bạn nhìn thấy {visibleEvils.length} kẻ ác. <strong>Mordred</strong> ẩn — không hiện ở đây.
+          Bạn nhìn thấy {visibleEvils.length} quỷ. <strong>Mordred</strong> ẩn — không hiện ở đây.
           Hãy bí mật dẫn dắt Phe Người, đừng để Sát Thủ tìm ra bạn.
         </p>
         <div className="space-y-2">
@@ -1421,6 +1588,8 @@ function NightPercivalSection({
             Hãy nhắm mắt. Percival đang nhìn ra Merlin & Morgana.
           </p>
         </div>
+        <RoleIntroCard role={AvalonRole.Percival} variant="other" />
+        {myRole && <RoleIntroCard role={myRole} variant="self" compact />}
         <NightCountdown state={state} phase="night-percival" allActiveAcked={allActiveAcked} />
       </div>
     );
@@ -1428,11 +1597,11 @@ function NightPercivalSection({
 
   return (
     <div className="space-y-3">
+      <RoleIntroCard role={AvalonRole.Percival} variant="self" />
       <div className="rounded-2xl border border-indigo-500/40 bg-indigo-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-indigo-300 mb-1">
-          🛡️ Bạn là Percival
+          🛡️ Merlin & Morgana hiện ra trước bạn
         </p>
-        <h3 className="text-base font-black text-white mb-1">Merlin & Morgana hiện ra</h3>
         <p className="text-xs text-slate-300 mb-3">
           1 trong 2 người dưới đây là <strong>Merlin</strong>, người còn lại là{' '}
           <strong>Morgana</strong>. Bạn KHÔNG biết ai là ai — hãy bảo vệ Merlin
@@ -1496,12 +1665,31 @@ function TeamBuildSection({
   const leader = gamePlayers.find((p) => p.id === state.currentLeaderId);
   const team = state.proposedTeam;
 
+  // Countdown 60s cho Leader chọn đội. Hết giờ: auto-submit nếu đủ size,
+  // ngược lại xoay sang Leader kế tiếp (xử lý trong useAvalon).
+  const TIMEOUT_MS = PHASE_TIMEOUTS_MS['team-build'];
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const elapsed = now - (state.phaseStartedAt ?? now);
+  const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+  const secs = Math.ceil(remaining / 1000);
+  const timeStr = `${secs}s`;
+  const lowTime = remaining < 15_000;
+
   if (!isLeader) {
     const emptySlots = Math.max(0, teamSize - team.length);
     return (
       <div className="space-y-3">
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 sm:p-5">
-          <p className="text-xs font-bold text-amber-300 mb-2">⚔️ ĐANG CHỌN ĐỘI — QUEST {state.currentQuest + 1}</p>
+          <div className="flex items-center justify-between mb-2">
+            <p className="text-xs font-bold text-amber-300">⚔️ ĐANG CHỌN ĐỘI — QUEST {state.currentQuest + 1}</p>
+            <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-red-300 animate-pulse' : 'text-amber-200'}`}>
+              ⏱ {timeStr}
+            </span>
+          </div>
           <p className="text-sm text-slate-300 mb-3">
             Leader <span className="font-black text-white">{leader?.name ?? '?'}</span> đang chọn{' '}
             <span className="font-black text-amber-300">{teamSize} người tham gia</span>.
@@ -1559,12 +1747,20 @@ function TeamBuildSection({
 
   return (
     <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
-      <p className="text-[11px] uppercase font-black text-amber-300 mb-1">⚔️ Bạn là Leader</p>
+      <div className="flex items-center justify-between mb-1">
+        <p className="text-[11px] uppercase font-black text-amber-300">⚔️ Bạn là Leader</p>
+        <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-red-300 animate-pulse' : 'text-amber-200'}`}>
+          ⏱ {timeStr}
+        </span>
+      </div>
       <h3 className="text-base font-black text-white mb-1">
         Chọn {teamSize} người cho Quest {state.currentQuest + 1}
       </h3>
-      <p className="text-xs text-slate-400 mb-4">
+      <p className="text-xs text-slate-400 mb-1">
         Bạn có thể tự chọn mình. Nhấn lại để bỏ chọn.
+      </p>
+      <p className="text-[10px] text-amber-300/80 mb-4">
+        ⚠ Còn {timeStr} — hết giờ sẽ tự trình đội (nếu đủ) hoặc chuyển Leader.
       </p>
 
       <div className="grid grid-cols-2 gap-2 mb-4">
@@ -1628,10 +1824,27 @@ function TeamVoteSection({
   const leader = gamePlayers.find((p) => p.id === state.currentLeaderId);
   const votedCount = Object.keys(state.teamVotes).length;
 
+  // Đếm ngược 30s — hết giờ player chưa bầu = REJECT mặc định.
+  const TIMEOUT_MS = PHASE_TIMEOUTS_MS['team-vote'];
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const elapsed = now - (state.phaseStartedAt ?? now);
+  const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+  const secs = Math.ceil(remaining / 1000);
+  const lowTime = remaining < 10_000;
+
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4">
-        <p className="text-[11px] uppercase font-black text-cyan-300 mb-1">🗳️ Bỏ phiếu đội</p>
+        <div className="flex items-center justify-between mb-1">
+          <p className="text-[11px] uppercase font-black text-cyan-300">🗳️ Bỏ phiếu đội</p>
+          <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-red-300 animate-pulse' : 'text-cyan-200'}`}>
+            ⏱ {secs}s
+          </span>
+        </div>
         <p className="text-sm text-slate-300 mb-3">
           Leader <span className="font-black text-white">{leader?.name ?? '?'}</span> đề xuất đội cho Quest{' '}
           {state.currentQuest + 1}:
@@ -1648,6 +1861,9 @@ function TeamVoteSection({
         </div>
         <p className="text-[11px] text-slate-500">
           Đã bầu: {votedCount}/{gamePlayers.length}
+          {!myVote && (
+            <span className="ml-2 text-amber-400/80">⚠ Chưa bầu trong {secs}s sẽ bị tính là Từ chối</span>
+          )}
         </p>
       </div>
 
@@ -1745,6 +1961,11 @@ function QuestPlaySection({
 }) {
   const myCard = (myPlayer.gameData as Partial<AvalonGameData>).questCard;
   const team = state.proposedTeam.map((id) => gamePlayers.find((p) => p.id === id)).filter(Boolean) as Player[];
+  const [pendingCard, setPendingCard] = useState<QuestCard | null>(null);
+
+  useEffect(() => {
+    if (myCard) setPendingCard(null);
+  }, [myCard]);
 
   if (!onTeam) {
     return (
@@ -1796,7 +2017,7 @@ function QuestPlaySection({
           className={`text-3xl font-black ${myCard === 'success' ? 'text-blue-300' : 'text-red-300'
             }`}
         >
-          {myCard === 'success' ? 'PHE THIỆN' : 'PHE ÁC'}
+          {myCard === 'success' ? 'PHE NGƯỜI' : 'PHE QUỶ'}
         </p>
         <p className="mt-3 text-xs text-slate-400">Chờ các thành viên còn lại đặt bài...</p>
       </div>
@@ -1824,11 +2045,12 @@ function QuestPlaySection({
 
       <div className="grid grid-cols-2 gap-3">
         <button
-          onClick={() => onPlayQuestCard('success')}
-          className="rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-6 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30"
+          onClick={() => setPendingCard('success')}
+          className={`rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-6 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30 ${pendingCard === 'success' ? 'ring-4 ring-blue-300' : ''
+            }`}
         >
           <div className="text-4xl mb-1">🛡️</div>
-          PHE THIỆN
+          PHE NGƯỜI
         </button>
         <button
           onClick={() => {
@@ -1836,15 +2058,32 @@ function QuestPlaySection({
               alert('Phe Người không được đặt lá Phe Quỷ — bắt buộc phải đặt lá Phe Người.');
               return;
             }
-            onPlayQuestCard('fail');
+            setPendingCard('fail');
           }}
           disabled={myTeam === 'good'}
-          className="rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 py-6 font-black text-white text-base hover:from-red-500 hover:to-rose-500 active:scale-95 shadow-lg shadow-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed"
+          className={`rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 py-6 font-black text-white text-base hover:from-red-500 hover:to-rose-500 active:scale-95 shadow-lg shadow-red-500/30 disabled:opacity-30 disabled:cursor-not-allowed ${pendingCard === 'fail' ? 'ring-4 ring-red-300' : ''
+            }`}
         >
           <div className="text-4xl mb-1">🗡️</div>
-          PHE ÁC
+          PHE QUỶ
         </button>
       </div>
+
+      <button
+        onClick={() => {
+          if (!pendingCard) return;
+          onPlayQuestCard(pendingCard);
+        }}
+        disabled={!pendingCard}
+        className={`w-full rounded-2xl py-4 font-black text-white text-base active:scale-95 shadow-lg disabled:opacity-30 disabled:cursor-not-allowed ${pendingCard === 'fail'
+          ? 'bg-gradient-to-br from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 shadow-red-500/30'
+          : 'bg-gradient-to-br from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500 shadow-blue-500/30'
+          }`}
+      >
+        {pendingCard
+          ? `✅ Xác nhận đặt ${pendingCard === 'success' ? '🛡️ PHE NGƯỜI' : '🗡️ PHE QUỶ'}`
+          : 'Chọn 1 lá bài ở trên'}
+      </button>
     </div>
   );
 }
@@ -1951,7 +2190,7 @@ function QuestResultSection({
 
       <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
         <p className="text-[11px] uppercase font-bold text-slate-400 mb-3 text-center">
-          Số lá bài (không lộ ai đặt)
+          Tổng lựa chọn
         </p>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border-2 border-blue-500/30 bg-blue-500/10 p-4 text-center">
@@ -1967,7 +2206,7 @@ function QuestResultSection({
         </div>
         {playerCount >= 7 && state.currentQuest === 3 && (
           <p className="mt-3 text-[11px] text-slate-400 text-center">
-            ⚠️ Quest này cần ≥2 lá Phe Quỷ để fail
+            ⚠️ Quest này cần ≥2 lá Phe Quỷ để Thất bại Quest
           </p>
         )}
       </div>
@@ -1981,6 +2220,7 @@ function LadySection({
   myTeam,
   gamePlayers,
   onLadyInspect,
+  onLadyConfirm,
   onLadyFinish,
 }: {
   state: AvalonGameState;
@@ -1988,6 +2228,7 @@ function LadySection({
   myTeam: 'good' | 'evil' | undefined;
   gamePlayers: Player[];
   onLadyInspect: (id: string) => void;
+  onLadyConfirm: () => void;
   onLadyShow: (card: 'good' | 'evil') => void;
   onLadyFinish: () => void;
 }) {
@@ -1996,30 +2237,55 @@ function LadySection({
   const holder = gamePlayers.find((p) => p.id === state.ladyHolderId);
   const target = state.ladyTargetId ? gamePlayers.find((p) => p.id === state.ladyTargetId) : null;
   const shown = state.ladyShownCard;
+  const inspected = shown !== null;
+
+  // Đếm ngược 45s — hiển thị cho cả Lady, target và bystander.
+  const TIMEOUT_MS = PHASE_TIMEOUTS_MS['lady-of-lake'];
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const elapsed = now - (state.phaseStartedAt ?? now);
+  const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+  const secs = Math.ceil(remaining / 1000);
+  const timeStr = `${secs}s`;
 
   if (isTarget) {
     const isEvil = myTeam === 'evil';
+    if (!inspected) {
+      return (
+        <div className="rounded-2xl border-2 border-fuchsia-500/60 bg-fuchsia-500/10 p-5 text-center">
+          <p className="text-[11px] uppercase font-black text-fuchsia-200 mb-2 tracking-widest">
+            🎯 {holder?.name} đang ngắm bạn
+          </p>
+          <p className="text-sm text-slate-300 mb-3">
+            Chờ Lady bấm <strong className="text-white">Xác nhận soi vai trò</strong> để xem phe của bạn.
+          </p>
+          <div className="text-3xl mb-1 animate-pulse">👁️</div>
+          <p className="text-[11px] text-slate-400">Còn lại {timeStr}</p>
+        </div>
+      );
+    }
     return (
       <div
-        className={`rounded-2xl border-2 p-6 text-center ${
-          isEvil
-            ? 'border-red-500/60 bg-red-500/10'
-            : 'border-blue-500/60 bg-blue-500/10'
-        }`}
+        className={`rounded-2xl border-2 p-6 text-center ${isEvil
+          ? 'border-red-500/60 bg-red-500/10'
+          : 'border-blue-500/60 bg-blue-500/10'
+          }`}
       >
         <p className="text-[11px] uppercase font-black text-slate-300 mb-2 tracking-widest">
-          🌊 {holder?.name} đang soi bạn
+          🌊 {holder?.name} đã soi vai trò của bạn
         </p>
         <div className="text-6xl mb-2">{isEvil ? '🗡️' : '🛡️'}</div>
         <p
-          className={`text-2xl font-black mb-1 ${
-            isEvil ? 'text-red-200' : 'text-blue-200'
-          }`}
+          className={`text-2xl font-black mb-1 ${isEvil ? 'text-red-200' : 'text-blue-200'
+            }`}
         >
           {isEvil ? 'PHE ÁC' : 'PHE THIỆN'}
         </p>
         <p className="text-[11px] text-slate-400 mt-2">
-          Lady tự động thấy phe thật của bạn — không thể nói xạo.
+          Lady đã thấy phe thật của bạn — không thể nói xạo.
         </p>
         <p className="mt-3 text-xs text-slate-400">
           Chờ {holder?.name} hoàn tất để chuyển token...
@@ -2030,7 +2296,8 @@ function LadySection({
   }
 
   if (isHolder) {
-    if (state.ladyTargetId && shown) {
+    // Bước 3: đã confirm → reveal + Hoàn tất.
+    if (state.ladyTargetId && inspected) {
       const isGoodCard = shown === 'good';
       return (
         <div className="space-y-3">
@@ -2042,7 +2309,7 @@ function LadySection({
               🌊 Kết quả soi
             </p>
             <p className="text-base font-black text-white mb-3">
-              {target?.name} đã hiện
+              {target?.name} là
             </p>
             <div className="text-7xl mb-2">{isGoodCard ? '🛡️' : '🗡️'}</div>
             <p
@@ -2051,8 +2318,8 @@ function LadySection({
             >
               {isGoodCard ? 'PHE THIỆN' : 'PHE ÁC'}
             </p>
-            <p className="mt-3 text-[11px] text-amber-400/80 italic">
-              ⚠️ Lưu ý: Phe Quỷ có thể nói xạo. Bạn cũng có thể chia sẻ thật/xạo với nhóm.
+            <p className="mt-3 text-[11px] text-slate-400 italic">
+              Bạn có thể chia sẻ thật / nói xạo với nhóm tuỳ ý.
             </p>
           </div>
           <button
@@ -2065,77 +2332,109 @@ function LadySection({
       );
     }
 
-    if (state.ladyTargetId) {
-      return (
-        <div className="space-y-3">
-          <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-5 text-center">
-            <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">
-              🌊 Đang chờ {target?.name} chọn lá...
-            </p>
-            <p className="text-sm text-slate-300 mb-3">
-              {target?.name} đang xem màn hình của họ và quyết định hiện lá nào cho bạn.
-            </p>
-            <div className="text-3xl animate-pulse">⏳</div>
-          </div>
-          <div className="lg:hidden">
-            <PlayerRoster
-              gamePlayers={gamePlayers}
-              state={state}
-              myPlayerId={myPlayer.id}
-              highlightedIds={state.ladyTargetId ? [state.ladyTargetId] : []}
-              showLadyTarget
-              title="Tất cả người chơi (highlight = bị soi)"
-              emphasis="lady"
-              viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
-            />
-          </div>
-        </div>
-      );
-    }
-
+    // Bước 1+2 gộp: luôn hiện candidate list. Click 1 người → highlight + sáng
+    // nút "Xác nhận soi". Click người khác → highlight chuyển + đồng hồ reset
+    // (thực hiện trong useAvalon.ladyInspect bằng cách ghi phaseStartedAt mới).
     const candidates = gamePlayers.filter((p) => {
       if (p.id === myPlayer.id) return false;
       if (state.ladyHistory.includes(p.id)) return false;
       return true;
     });
+    const hasPick = !!state.ladyTargetId;
 
     return (
-      <div className="rounded-2xl border border-cyan-500/40 bg-cyan-500/5 p-4">
-        <p className="text-[11px] uppercase font-black text-cyan-300 mb-1">🌊 Lady of the Lake</p>
-        <h3 className="text-base font-black text-white mb-1">Chọn 1 người để soi</h3>
-        <p className="text-xs text-slate-400 mb-4">
-          Người đã từng cầm token không được soi lại. Sau khi soi, người được soi trở thành Lady kế tiếp.
-        </p>
-        <div className="grid grid-cols-2 gap-2">
-          {candidates.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => onLadyInspect(p.id)}
-              className="rounded-xl border border-white/10 bg-white/5 p-3 text-left hover:bg-white/10 active:scale-95"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 text-sm font-black text-white">
-                  {p.name.charAt(0).toUpperCase()}
-                </div>
-                <span className="text-sm font-bold text-white truncate">{p.name}</span>
-              </div>
-              <TokenBadges playerId={p.id} state={state} />
-            </button>
-          ))}
+      <div className="space-y-3">
+        <div className="rounded-2xl border border-cyan-500/40 bg-cyan-500/5 p-4">
+          <div className="flex items-center justify-between mb-1">
+            <p className="text-[11px] uppercase font-black text-cyan-300">🌊 Lady of the Lake</p>
+            <span className={`text-xs font-black tabular-nums ${remaining < 10_000 ? 'text-red-300 animate-pulse' : 'text-cyan-200'}`}>
+              ⏱ {timeStr}
+            </span>
+          </div>
+          <h3 className="text-base font-black text-white mb-1">
+            {hasPick ? `Đã chọn ${target?.name} — bấm Xác nhận soi` : 'Chọn 1 người để soi'}
+          </h3>
+          <p className="text-xs text-slate-400 mb-3">
+            Người đã từng cầm token không được soi lại. Đổi người: bấm vào người khác trong danh sách (đồng hồ sẽ reset).
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {candidates.map((p) => {
+              const picked = state.ladyTargetId === p.id;
+              return (
+                <button
+                  key={p.id}
+                  onClick={() => onLadyInspect(p.id)}
+                  className={`rounded-xl border p-3 text-left transition-all active:scale-95 ${picked
+                    ? 'border-fuchsia-400 bg-fuchsia-500/20 ring-2 ring-fuchsia-400/60 shadow-lg shadow-fuchsia-500/40'
+                    : 'border-white/10 bg-white/5 hover:bg-white/10'
+                    }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black text-white ${picked
+                        ? 'bg-gradient-to-br from-fuchsia-500 to-purple-500 border-2 border-fuchsia-200'
+                        : 'bg-gradient-to-br from-cyan-500 to-teal-500'
+                        }`}
+                    >
+                      {p.name.charAt(0).toUpperCase()}
+                    </div>
+                    <span className="text-sm font-bold text-white truncate">{p.name}</span>
+                  </div>
+                  <TokenBadges playerId={p.id} state={state} />
+                  {picked && (
+                    <p className="mt-1 text-[10px] font-black text-fuchsia-200">🎯 Đang ngắm</p>
+                  )}
+                </button>
+              );
+            })}
+          </div>
         </div>
+
+        <button
+          onClick={onLadyConfirm}
+          disabled={!hasPick}
+          className={`w-full rounded-2xl py-3.5 text-base font-black text-white transition-all active:scale-95 ${hasPick
+            ? 'bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 shadow-lg shadow-fuchsia-500/40'
+            : 'bg-slate-800 text-slate-500 cursor-not-allowed'
+            }`}
+        >
+          👁️ Xác nhận soi {hasPick ? target?.name : '(chọn 1 người)'}
+        </button>
       </div>
     );
   }
 
+  // Bystander view — thấy ai đang được Lady ngắm/đã soi.
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-center">
         <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">🌊 Lady of the Lake</p>
-        <p className="text-sm text-slate-300">
-          <span className="text-[11px] uppercase font-bold text-cyan-300 mb-2">Lady</span> <span className="font-black text-white">{holder?.name}</span> đang soi 1 người chơi.
-        </p>
-        {target && (
-          <p className="mt-2 text-xs text-slate-400">→ {target.name}</p>
+        {!target && (
+          <>
+            <p className="text-sm text-slate-300">
+              <span className="font-black text-white">{holder?.name}</span> đang chọn người để soi...
+            </p>
+            <p className="mt-2 text-[11px] text-amber-300/80">⏱ Còn lại {timeStr}</p>
+          </>
+        )}
+        {target && !inspected && (
+          <>
+            <p className="text-sm text-slate-300">
+              <span className="font-black text-white">{holder?.name}</span> đang ngắm{' '}
+              <span className="font-black text-fuchsia-200">{target.name}</span>.
+            </p>
+            <p className="mt-1 text-xs text-slate-400">Chờ Lady xác nhận soi...</p>
+            <p className="mt-2 text-[11px] text-amber-300/80">⏱ Còn lại {timeStr}</p>
+          </>
+        )}
+        {target && inspected && (
+          <>
+            <p className="text-sm text-slate-300">
+              <span className="font-black text-white">{holder?.name}</span> đã soi{' '}
+              <span className="font-black text-fuchsia-200">{target.name}</span>.
+            </p>
+            <p className="mt-1 text-xs text-slate-400">Chờ Lady chuyển token...</p>
+          </>
         )}
         <div className="mt-3 text-3xl animate-pulse">⏳</div>
       </div>
@@ -2146,7 +2445,7 @@ function LadySection({
           myPlayerId={myPlayer.id}
           highlightedIds={state.ladyTargetId ? [state.ladyTargetId] : []}
           showLadyTarget
-          title="Tất cả người chơi (highlight = bị Lady soi)"
+          title="Tất cả người chơi (highlight = đang bị ngắm)"
           emphasis="lady"
           viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
         />
@@ -2161,12 +2460,14 @@ function AssassinSection({
   myRole,
   gamePlayers,
   onAssassinate,
+  onSetAssassinChoice,
 }: {
   state: AvalonGameState;
   myPlayer: Player;
   myRole: AvalonRole | undefined;
   gamePlayers: Player[];
-  onAssassinate: (id: string) => void;
+  onAssassinate: (id: string, callerId?: string) => void;
+  onSetAssassinChoice?: (id: string | null, callerId?: string) => void;
 }) {
   const isAssassin = myRole === AvalonRole.Assassin;
   const myTeam = (myPlayer.gameData as Partial<AvalonGameData>).team;
@@ -2180,11 +2481,55 @@ function AssassinSection({
   });
   const successes = state.quests.filter((q) => q.result === 'success').length;
   const failures = state.quests.filter((q) => q.result === 'fail').length;
+  const pickedId = state.assassinChoiceId ?? null;
+  const picked = pickedId ? gamePlayers.find((p) => p.id === pickedId) : null;
+
+  const [now, setNow] = useState(Date.now());
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, []);
+  const TIMEOUT_MS = PHASE_TIMEOUTS_MS['assassinate'];
+  const elapsed = now - (state.phaseStartedAt ?? now);
+  const remaining = Math.max(0, TIMEOUT_MS - elapsed);
+  const remainingSec = Math.ceil(remaining / 1000);
+  const mm = Math.floor(remainingSec / 60);
+  const ss = remainingSec % 60;
+  const timeLabel = `${mm}:${ss.toString().padStart(2, '0')}`;
+  const lowTime = remaining <= 30_000;
+
+  // Card "Sát Thủ đang ngắm <X>" — luôn hiển thị TRÊN khối Phe Quỷ lộ diện khi
+  // Sát Thủ đã pick (broadcast qua state.assassinChoiceId). Khi chưa pick thì
+  // ẩn để khối Phe Quỷ lên trên.
+  const pickedCard = picked && (
+    <div
+      key={picked.id}
+      className="rounded-2xl border-2 border-red-500/70 bg-gradient-to-br from-red-950/60 to-rose-950/60 p-4 shadow-lg shadow-red-500/30 animate-scale-in"
+    >
+      <p className="text-[11px] uppercase font-black text-red-200 mb-1 tracking-widest">
+        🎯 Sát Thủ đang ngắm
+      </p>
+      <div className="flex items-center gap-3">
+        <div className="relative flex h-14 w-14 items-center justify-center rounded-full border-[3px] border-red-400 bg-red-500/30 text-lg font-black text-white animate-stab">
+          {picked.name.charAt(0).toUpperCase()}
+          <span className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 text-2xl drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)] animate-bounce">
+            🗡️
+          </span>
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-base font-black text-white truncate">{picked.name}</p>
+          <p className="text-[11px] font-bold text-red-300">
+            Đang bị Sát Thủ nghi là Merlin
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 
   const evilRevealCard = (
     <div className="rounded-2xl border-2 border-red-500/50 bg-red-950/30 p-4">
       <p className="text-[11px] uppercase font-black text-red-300 mb-1 tracking-widest">
-        🗡️ Phe Quỷ lộ diện
+        👹 Phe Quỷ lộ diện
       </p>
       <p className="text-xs text-slate-300 mb-3">
         Tất cả Phe Quỷ hiện danh tính đầy đủ với Phe Người.
@@ -2223,8 +2568,16 @@ function AssassinSection({
       </p>
       <p className="text-sm text-slate-300">
         Phe Quỷ có cơ hội cuối: <span className="font-black text-red-300">tìm Merlin</span>.
-        Trúng → Phe Quỷ thắng ngược · Trật → Phe Người thắng.
+        Trúng → Phe Quỷ thắng ngược · Trật hoặc hết giờ → Phe Người thắng.
       </p>
+      <div
+        className={`mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 font-mono text-lg font-black tabular-nums ${lowTime
+          ? 'border-red-500/60 bg-red-500/15 text-red-200 animate-pulse'
+          : 'border-amber-500/40 bg-amber-500/10 text-amber-200'
+          }`}
+      >
+        ⏱️ {timeLabel}
+      </div>
       <p className="mt-2 text-[11px] text-slate-500">
         Quest: {successes} Người · {failures} Quỷ
       </p>
@@ -2235,6 +2588,7 @@ function AssassinSection({
     return (
       <div className="space-y-3">
         {headerCard}
+        {pickedCard}
         {evilRevealCard}
         <div className="rounded-2xl border border-blue-500/40 bg-blue-500/10 p-5 text-center">
           <div className="text-5xl mb-2">🤫</div>
@@ -2253,6 +2607,7 @@ function AssassinSection({
     return (
       <div className="space-y-3">
         {headerCard}
+        {pickedCard}
         {evilRevealCard}
         <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 text-center">
           <div className="text-5xl mb-2">🤝</div>
@@ -2270,33 +2625,225 @@ function AssassinSection({
   return (
     <div className="space-y-3">
       {headerCard}
+      {pickedCard}
       {evilRevealCard}
       <div className="rounded-2xl border-2 border-red-500/60 bg-red-500/15 p-4">
         <p className="text-[11px] uppercase font-black text-red-300 mb-1">🗡️ Bạn là Sát Thủ</p>
         <h3 className="text-base font-black text-white mb-1">Chọn ai là Merlin</h3>
         <p className="text-xs text-slate-300 mb-4">
-          Hội ý với đồng đội Quỷ trước. Khi đã chốt — bấm để xác nhận.
+          Hội ý với đồng đội Quỷ trước. Bấm vào người trong danh sách (hoặc bấm avatar trên bàn) để chọn — mọi người đều thấy bạn đang ngắm ai. Khi đã chốt thật, bấm <strong className="text-red-200">Xác nhận đâm</strong>.
         </p>
         <div className="grid grid-cols-2 gap-2">
-          {goodPlayers.map((p) => (
-            <button
-              key={p.id}
-              onClick={() => {
-                if (confirm(`Xác nhận: ${p.name} là Merlin?`)) {
-                  onAssassinate(p.id);
-                }
-              }}
-              className="rounded-xl border border-red-500/30 bg-red-500/10 p-3 text-left hover:bg-red-500/20 hover:border-red-500/50 active:scale-95"
-            >
-              <div className="flex items-center gap-2">
-                <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-rose-500 text-sm font-black text-white">
-                  {p.name.charAt(0).toUpperCase()}
+          {goodPlayers.map((p) => {
+            const isPicked = pickedId === p.id;
+            return (
+              <button
+                key={p.id}
+                onClick={() => onSetAssassinChoice?.(p.id, myPlayer.id)}
+                className={`rounded-xl border p-3 text-left transition-all active:scale-95 ${isPicked
+                  ? 'border-red-400 bg-red-500/30 ring-2 ring-red-400/70 shadow-lg shadow-red-500/40'
+                  : 'border-red-500/30 bg-red-500/10 hover:bg-red-500/20 hover:border-red-500/50'
+                  }`}
+              >
+                <div className="flex items-center gap-2">
+                  <div
+                    className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black text-white ${isPicked
+                      ? 'bg-gradient-to-br from-red-400 to-rose-500 animate-stab'
+                      : 'bg-gradient-to-br from-red-500 to-rose-500'
+                      }`}
+                  >
+                    {p.name.charAt(0).toUpperCase()}
+                  </div>
+                  <span className="text-sm font-bold text-white truncate flex-1">{p.name}</span>
+                  {isPicked && <span className="text-base">🗡️</span>}
                 </div>
-                <span className="text-sm font-bold text-white truncate">{p.name}</span>
-              </div>
-            </button>
-          ))}
+              </button>
+            );
+          })}
         </div>
+        <button
+          onClick={() => {
+            if (!pickedId) return;
+            const p = gamePlayers.find((pp) => pp.id === pickedId);
+            if (!p) return;
+            if (confirm(`Đâm ${p.name} làm Merlin? Không thể đổi sau khi xác nhận.`)) {
+              onAssassinate(pickedId, myPlayer.id);
+            }
+          }}
+          disabled={!pickedId}
+          className="mt-4 w-full rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 py-3.5 text-base font-black text-white hover:from-red-500 hover:to-rose-500 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-red-500/30"
+        >
+          {pickedId ? `🗡️ Xác nhận đâm ${picked?.name ?? ''}` : 'Chọn 1 người trước'}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// Overlay full-screen 3 giai đoạn: card bay vào giữa → kiếm chém → card tách
+// đôi và lộ role thật. Tự ẩn sau ~3.2s. Mọi người đều thấy được vì target được
+// đọc từ state.merlinTargetId — broadcast qua DB.
+function AssassinRevealOverlay({
+  target,
+  targetRole,
+}: {
+  target: Player;
+  targetRole: AvalonRole | null;
+}) {
+  // 5 stage:
+  //   fly-in   : 0-1000ms — card cam (target) bay vào giữa
+  //   blackout : 1000-1800ms — màn hình tắt đèn đen kịt rồi mở lại (0.8s)
+  //   split    : 1800-3550ms — card tách đôi + đường chém đỏ, hold lâu
+  //                            cho mọi người thấy rõ vết cắt (1.75s, +1s)
+  //   white    : 3550-4250ms — flash trắng xoá
+  //   reveal   : 4250-7950ms — card lộ vai thật + tuyên bố thắng/thua (3.7s)
+  //   done     : ≥7950ms
+  const [stage, setStage] = useState<
+    'fly-in' | 'blackout' | 'split' | 'white' | 'reveal' | 'done'
+  >('fly-in');
+
+  useEffect(() => {
+    const t1 = setTimeout(() => setStage('blackout'), 1000);
+    const t2 = setTimeout(() => setStage('split'), 1800);
+    const t3 = setTimeout(() => setStage('white'), 3550);
+    const t4 = setTimeout(() => setStage('reveal'), 4250);
+    const t5 = setTimeout(() => setStage('done'), 7950);
+    return () => {
+      clearTimeout(t1);
+      clearTimeout(t2);
+      clearTimeout(t3);
+      clearTimeout(t4);
+      clearTimeout(t5);
+    };
+  }, []);
+
+  if (stage === 'done') return null;
+
+  const role = targetRole;
+  const isMerlin = role === AvalonRole.Merlin;
+  const team = role ? ROLE_TEAM[role] : null;
+
+  // Nội dung lá bài (cùng 1 layout) — reuse cho fly-in, slash và 2 nửa khi
+  // split để 2 nửa trông như được cắt ra từ chính card này.
+  const cardContent = (
+    <>
+      <p className="text-[11px] uppercase font-bold tracking-widest text-amber-300">
+        Sát Thủ chọn
+      </p>
+      <div className="mt-4 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-4xl font-black text-white border-4 border-amber-200 shadow-lg shadow-amber-500/40">
+        {target.name.charAt(0).toUpperCase()}
+      </div>
+      <p className="mt-4 text-2xl font-black text-white">{target.name}</p>
+      <p className="mt-2 text-xs text-slate-400">là Merlin?</p>
+    </>
+  );
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm animate-fade-in">
+      <div className="relative w-[280px] h-[380px] sm:w-[320px] sm:h-[440px]">
+        {(stage === 'fly-in' || stage === 'blackout') && (
+          <div className="absolute inset-0 flex items-center justify-center">
+            <div
+              className={`flex h-full w-full flex-col items-center justify-center rounded-3xl border-4 bg-gradient-to-br from-amber-900/80 via-orange-900/70 to-slate-950 shadow-2xl border-amber-400/80 shadow-amber-500/50 ${stage === 'fly-in' ? 'animate-assassin-fly-in' : ''
+                }`}
+            >
+              {cardContent}
+            </div>
+          </div>
+        )}
+
+        {stage === 'split' && (
+          <div className="absolute inset-0">
+            {/* Nửa trên-phải: clip tam giác (top-left, top-right, bottom-right).
+                Trôi lên-phải. */}
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-4 border-amber-400/80 bg-gradient-to-br from-amber-900/80 via-orange-900/70 to-slate-950 shadow-2xl shadow-amber-500/40 animate-split-upper"
+              style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%)' }}
+            >
+              {cardContent}
+            </div>
+            {/* Nửa dưới-trái: clip tam giác (top-left, bottom-right, bottom-left).
+                Trôi xuống-trái. */}
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-4 border-amber-400/80 bg-gradient-to-br from-amber-900/80 via-orange-900/70 to-slate-950 shadow-2xl shadow-amber-500/40 animate-split-lower"
+              style={{ clipPath: 'polygon(0% 0%, 100% 100%, 0% 100%)' }}
+            >
+              {cardContent}
+            </div>
+            {/* Đường chém đỏ phát sáng — xoay -45° để cùng hướng đường tách
+                clip-path TL→BR của 2 nửa lá bài. */}
+            <div
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[140%] w-[3px] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-gradient-to-b from-transparent via-red-400 to-transparent shadow-[0_0_24px_4px_rgba(248,113,113,0.75)]"
+            />
+          </div>
+        )}
+
+        {stage === 'white' && (
+          <div className="fixed inset-0 z-10 animate-assassin-whiteout" />
+        )}
+
+        {/* Blackout layer: tách độc lập, fixed inset-0 che cả màn hình. z-40
+            đè lên cả card và bg overlay. animation alpha 0→1→1→0 (0.8s) tạo
+            hiệu ứng tắt-đèn-rồi-mở-lại. */}
+        {stage === 'blackout' && (
+          <div className="fixed inset-0 z-40 animate-assassin-blackout pointer-events-none" />
+        )}
+
+        {stage === 'reveal' && (
+          <div className="fixed inset-0 z-30 flex items-center justify-center bg-white/95 animate-fade-in">
+            <div
+              className={`mx-4 max-w-md w-full rounded-3xl border-4 px-6 py-7 text-center shadow-2xl animate-scale-in ${isMerlin
+                ? 'border-red-500/80 bg-gradient-to-br from-red-950/95 to-rose-950/95 shadow-red-500/50'
+                : team === 'good'
+                  ? 'border-blue-500/80 bg-gradient-to-br from-blue-950/95 to-cyan-950/95 shadow-blue-500/50'
+                  : 'border-slate-500/80 bg-gradient-to-br from-slate-900/95 to-slate-950/95'
+                }`}
+            >
+              <p className="text-[11px] uppercase font-black tracking-widest text-slate-300">
+                Lá bài bị chém
+              </p>
+              <p className="mt-1 text-xl font-black text-white">{target.name}</p>
+              {role ? (
+                <>
+                  <div className="my-3 text-7xl">{ROLE_ICONS[role]}</div>
+                  <p
+                    className={`text-2xl font-black ${isMerlin
+                      ? 'text-red-200'
+                      : team === 'good'
+                        ? 'text-blue-200'
+                        : 'text-slate-200'
+                      }`}
+                  >
+                    {role}
+                  </p>
+                  <p
+                    className={`mt-1 text-[11px] uppercase font-black tracking-widest ${team === 'good' ? 'text-blue-300' : 'text-red-300'
+                      }`}
+                  >
+                    {team === 'good' ? '🛡️ Phe Người' : '👹 Phe Quỷ'}
+                  </p>
+                </>
+              ) : (
+                <p className="my-6 text-sm text-slate-300">(Không xác định vai)</p>
+              )}
+              <div
+                className={`mt-4 rounded-2xl border-2 py-3 px-4 ${isMerlin
+                  ? 'border-red-500/60 bg-red-500/15'
+                  : 'border-blue-500/60 bg-blue-500/15'
+                  }`}
+              >
+                <p
+                  className={`text-base font-black uppercase tracking-widest ${isMerlin ? 'text-red-200' : 'text-blue-200'
+                    }`}
+                >
+                  {isMerlin
+                    ? '💀 Sát Thủ đoán đúng — Phe Quỷ thắng'
+                    : '🛡️ Sát Thủ đoán sai — Phe Người thắng'}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -2330,6 +2877,12 @@ function EndSection({
 
   return (
     <div className="space-y-4">
+      {merlinTarget && (
+        <AssassinRevealOverlay
+          target={merlinTarget}
+          targetRole={merlinTargetRole ?? null}
+        />
+      )}
       <div
         className={`rounded-2xl border p-6 text-center relative overflow-hidden ${isGood
           ? 'border-blue-500/40 bg-blue-500/10'

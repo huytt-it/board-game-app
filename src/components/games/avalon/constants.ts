@@ -78,10 +78,10 @@ export const QUEST_TEAM_SIZES: Record<SupportedPlayerCount, [number, number, num
   10: [3, 4, 4, 5, 5],
 };
 
-// House rule: Quest 4 luôn cần ≥ 2 lá Phe Quỷ để fail, bất kể số người chơi
-// (mặc định Avalon chỉ áp dụng cho 7+; ở đây mở rộng cho cả 5, 6 người).
+// Theo luật chính thức (xem docs/guide.md): Quest 4 chỉ cần ≥ 2 lá Phe Quỷ
+// để fail KHI có từ 7 người chơi trở lên. 5-6 người vẫn chỉ cần 1 lá Fail.
 export function questNeedsTwoFails(playerCount: number, questIndex: number): boolean {
-  return playerCount >= 5 && questIndex === 3;
+  return playerCount >= 7 && questIndex === 3;
 }
 
 export const ALL_OPTIONAL_ROLES: AvalonRole[] = [

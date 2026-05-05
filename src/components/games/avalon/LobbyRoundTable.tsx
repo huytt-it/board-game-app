@@ -8,8 +8,10 @@ interface LobbyRoundTableProps {
   roomCode?: string;
   maxPlayers?: number;
   minPlayers?: number;
-  /** Show empty seats up to this count so the ring stays full while waiting. */
+  /** Số ghế hiển thị quanh bàn. Mặc định = số người đã vào (không thêm ghế trống). */
   reserveSeats?: number;
+  /** Cung cấp khi viewer là host — render nút kick trên avatar người khác. */
+  onKick?: (playerId: string, playerName: string) => void;
 }
 
 export default function LobbyRoundTable({
@@ -19,11 +21,11 @@ export default function LobbyRoundTable({
   maxPlayers,
   minPlayers,
   reserveSeats,
+  onKick,
 }: LobbyRoundTableProps) {
-  const ringSize = Math.max(
-    players.length,
-    reserveSeats ?? Math.max(players.length, 5),
-  );
+  // Số ghế = số người chơi hiện tại (không hiện ghế trống dư).
+  // Tối thiểu 1 ghế để bàn không sụp khi phòng vừa mở (chưa ai vào).
+  const ringSize = Math.max(reserveSeats ?? players.length, 1);
   const seats = Array.from({ length: ringSize }).map((_, i) => players[i] ?? null);
   const enough = minPlayers === undefined || players.length >= minPlayers;
 
@@ -110,6 +112,22 @@ export default function LobbyRoundTable({
                       >
                         👑
                       </span>
+                    )}
+                    {/* Nút kick — chỉ hiện khi viewer là host và target không phải
+                        chính mình hoặc host khác (nếu có). */}
+                    {onKick && !isMe && !isHost && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onKick(p.id, p.name);
+                        }}
+                        title={`Kick ${p.name}`}
+                        aria-label={`Kick ${p.name}`}
+                        className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 border border-red-200 text-[12px] font-black text-white shadow shadow-red-500/50 hover:bg-red-500 active:scale-90 cursor-pointer"
+                      >
+                        ✕
+                      </button>
                     )}
                   </>
                 ) : (

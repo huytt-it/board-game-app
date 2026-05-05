@@ -35,17 +35,48 @@ function shuffle<T>(arr: T[]): T[] {
   return a;
 }
 
+// Leader đầu game được random, từ Q2 trở đi xoay theo CHIỀU KIM ĐỒNG HỒ
+// (index tăng dần quanh bàn). Người ngồi cạnh phải Leader hiện tại làm Leader kế.
+//
+// Quan trọng: rotation BẮT BUỘC dựa trên seatOrder (thứ tự ghế trên bàn) —
+// KHÔNG dựa trên array Player[] runtime, vì runtime array có thể bị thay đổi
+// thứ tự (ví dụ player rejoin được append cuối) khiến "+1 index" nhảy lung
+// tung không đúng kế bên trên bàn. Skip ghế của player đã rời phòng.
 function pickNextLeader(
-  allPlayers: Player[],
+  seatOrder: string[],
+  presentIds: string[],
+  currentLeaderId: string | null,
   used: string[]
 ): { leaderId: string; nextUsed: string[] } {
-  const candidates = allPlayers.filter((p) => !used.includes(p.id));
-  if (candidates.length === 0) {
-    const pick = allPlayers[Math.floor(Math.random() * allPlayers.length)];
-    return { leaderId: pick.id, nextUsed: [pick.id] };
+  const seatIds = seatOrder.length > 0 ? seatOrder : presentIds;
+  const n = seatIds.length;
+  if (n === 0) {
+    return { leaderId: currentLeaderId ?? '', nextUsed: used };
   }
-  const pick = candidates[Math.floor(Math.random() * candidates.length)];
-  return { leaderId: pick.id, nextUsed: [...used, pick.id] };
+  const present = new Set(presentIds);
+  const startIdx = currentLeaderId ? seatIds.findIndex((id) => id === currentLeaderId) : -1;
+  // Khi chưa có currentLeader → random một ghế trong số ghế còn người.
+  if (startIdx < 0) {
+    const candidates = seatIds.filter((id) => present.has(id));
+    if (candidates.length === 0) return { leaderId: '', nextUsed: used };
+    const id = candidates[Math.floor(Math.random() * candidates.length)];
+    return {
+      leaderId: id,
+      nextUsed: used.includes(id) ? used : [...used, id],
+    };
+  }
+  // Quay clockwise từ ghế hiện tại, trả về player đầu tiên còn trong phòng.
+  for (let step = 1; step <= n; step++) {
+    const idx = (startIdx + step) % n;
+    const id = seatIds[idx];
+    if (present.has(id)) {
+      return {
+        leaderId: id,
+        nextUsed: used.includes(id) ? used : [...used, id],
+      };
+    }
+  }
+  return { leaderId: currentLeaderId ?? '', nextUsed: used };
 }
 
 export function readState(room: Room): AvalonGameState | null {
@@ -76,18 +107,26 @@ function buildRolePool(playerCount: SupportedPlayerCount, optionalRoles: AvalonR
   const evilOptional = optionalRoles.filter((r) => ROLE_TEAM[r] === 'evil');
 
   const morganaIncluded = optionalRoles.includes(AvalonRole.Morgana);
-  const morganaFitsEvil = evilOptional.indexOf(AvalonRole.Morgana) < dist.evil - 2;
-  const percivalActive = morganaIncluded && morganaFitsEvil && dist.good - 1 >= 1;
+  // Số slot evil còn trống sau Assassin + Mordred (đã push mặc định ở trên).
+  const evilSlotsAfterCore = dist.evil - 2;
+  const morganaFitsEvil = morganaIncluded && evilSlotsAfterCore >= 1;
+  const percivalActive = morganaFitsEvil && dist.good - 1 >= 1;
 
   if (percivalActive) {
     pool.push(AvalonRole.Percival);
   }
 
+  // Ưu tiên Morgana lên đầu danh sách evil optional để đảm bảo không bị Oberon
+  // chiếm mất slot khi chỉ còn 1 chỗ trống (7-9 người).
+  const evilOptionalOrdered = morganaFitsEvil
+    ? [AvalonRole.Morgana, ...evilOptional.filter((r) => r !== AvalonRole.Morgana)]
+    : evilOptional.filter((r) => r !== AvalonRole.Morgana);
+
   const goodSlotsLeft = dist.good - pool.filter((r) => ROLE_TEAM[r] === 'good').length;
   const evilSlotsLeft = dist.evil - pool.filter((r) => ROLE_TEAM[r] === 'evil').length;
 
   for (const r of goodOptional.slice(0, Math.max(0, goodSlotsLeft))) pool.push(r);
-  for (const r of evilOptional.slice(0, Math.max(0, evilSlotsLeft))) pool.push(r);
+  for (const r of evilOptionalOrdered.slice(0, Math.max(0, evilSlotsLeft))) pool.push(r);
 
   while (pool.filter((r) => ROLE_TEAM[r] === 'good').length < dist.good) {
     pool.push(AvalonRole.LoyalServant);
@@ -121,7 +160,21 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
   const config = useMemo(() => (room ? readConfig(room) : null), [room]);
   const state = useMemo(() => (room ? readState(room) : null), [room]);
 
-  const gamePlayers = useMemo(() => players, [players]);
+  const gamePlayers = useMemo(() => {
+    const seatOrder = state?.seatOrder;
+    if (!seatOrder || seatOrder.length === 0) return players;
+    const byId = new Map(players.map((p) => [p.id, p]));
+    const seated: Player[] = [];
+    for (const id of seatOrder) {
+      const p = byId.get(id);
+      if (p) seated.push(p);
+    }
+    const seenIds = new Set(seatOrder);
+    for (const p of players) {
+      if (!seenIds.has(p.id)) seated.push(p);
+    }
+    return seated;
+  }, [players, state]);
   const playerCount = gamePlayers.length;
   const isSupportedCount = (PLAYER_COUNTS as readonly number[]).includes(playerCount);
 
@@ -150,22 +203,31 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     const cfg = readConfig(room);
     const pool = buildRolePool(playerCount as SupportedPlayerCount, cfg.optionalRoles);
 
-    for (let i = 0; i < gamePlayers.length; i++) {
-      const role = pool[i];
-      const team = ROLE_TEAM[role];
-      await gameStorage.updatePlayerGameData(roomId, gamePlayers[i].id, {
-        role,
-        team,
-        questCard: null as unknown as QuestCard,
-      });
-    }
+    // Random hoá vị trí ngồi mỗi ván — lấy từ raw `players` để không bị ảnh
+    // hưởng bởi seatOrder cũ (nếu có) còn sót lại trong state.
+    const seatOrder = shuffle(players.map((p) => p.id));
+    const seatedPlayers = seatOrder
+      .map((id) => players.find((p) => p.id === id))
+      .filter((p): p is Player => Boolean(p));
 
-    const firstLeader = gamePlayers[Math.floor(Math.random() * gamePlayers.length)];
-    const ladyCandidates = gamePlayers.filter((p) => p.id !== firstLeader.id);
-    const initialLady =
-      playerCount >= 7 && ladyCandidates.length > 0
-        ? ladyCandidates[Math.floor(Math.random() * ladyCandidates.length)]
-        : null;
+    // Atomic: dùng batch để tránh trường hợp mất mạng giữa chừng khiến chỉ
+    // một phần player có role, phần còn lại không → game stuck "Đang chia bài".
+    const roleUpdates = seatedPlayers.map((p, i) => ({
+      playerId: p.id,
+      data: {
+        role: pool[i],
+        team: ROLE_TEAM[pool[i]],
+        questCard: null,
+      },
+    }));
+    await gameStorage.updatePlayersGameDataBatch(roomId, roleUpdates);
+
+    // Leader đầu: random. Lady đầu: người ngồi BÊN TRÁI Leader đầu — vòng quanh
+    // bàn xếp clockwise theo index 0..n-1, nên "bên trái" của index i = (i-1+n)%n.
+    const firstLeaderIdx = Math.floor(Math.random() * seatedPlayers.length);
+    const firstLeader = seatedPlayers[firstLeaderIdx];
+    const ladyIdx = (firstLeaderIdx - 1 + seatedPlayers.length) % seatedPlayers.length;
+    const initialLady = playerCount >= 7 ? seatedPlayers[ladyIdx] : null;
 
     const fresh: AvalonGameState = {
       rolesAssigned: true,
@@ -188,10 +250,12 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       leadersUsed: [firstLeader.id],
       lastTeamVoteResult: null,
       ladyShownCard: null,
+      seatOrder,
+      assassinChoiceId: null,
     };
     await writeState(fresh);
     await gameStorage.updateRoomStatus(roomId, 'night');
-  }, [roomId, room, gamePlayers, playerCount, isSupportedCount, writeState]);
+  }, [roomId, room, players, playerCount, isSupportedCount, writeState]);
 
   const proceedToRoleReveal = useCallback(async () => {
     if (!roomId) return;
@@ -257,6 +321,40 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     await gameStorage.updateRoomStatus(roomId, 'voting');
   }, [roomId, writeState]);
 
+  // Fallback khi Leader idle/disconnect quá 60s ở phase team-build:
+  //   - Nếu proposedTeam đã đúng số lượng yêu cầu → auto-submit sang vote.
+  //   - Nếu chưa đủ → bỏ qua Leader này, xoay sang Leader kế tiếp (clockwise),
+  //     KHÔNG burn vote-reject-streak (vì chưa có vote nào diễn ra).
+  const teamBuildTimeoutAdvance = useCallback(async () => {
+    if (!roomId || !state) return;
+    if (state.phase !== 'team-build') return;
+    const requiredSize =
+      state.quests[state.currentQuest]?.teamSize ?? 0;
+    if (state.proposedTeam.length === requiredSize && requiredSize > 0) {
+      await writeState({
+        phase: 'team-vote',
+        teamVotes: {},
+        phaseStartedAt: Date.now(),
+      });
+      await gameStorage.updateRoomStatus(roomId, 'voting');
+    } else {
+      const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
+        state.seatOrder ?? gamePlayers.map((p) => p.id),
+        gamePlayers.map((p) => p.id),
+        state.currentLeaderId,
+        state.leadersUsed ?? []
+      );
+      await writeState({
+        phase: 'team-build',
+        currentLeaderId: nextLeaderId,
+        leadersUsed: nextUsed,
+        proposedTeam: [],
+        teamVotes: {},
+        phaseStartedAt: Date.now(),
+      });
+    }
+  }, [roomId, state, gamePlayers, writeState]);
+
   const castTeamVote = useCallback(
     async (playerId: string, vote: TeamVote) => {
       if (!roomId) return;
@@ -269,15 +367,24 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
   const resolveTeamVote = useCallback(async () => {
     if (!roomId || !room || !state) return;
     if (state.phase !== 'team-vote') return;
-    const votes = Object.values(state.teamVotes);
-    const approves = votes.filter((v) => v === 'approve').length;
-    const rejects = votes.filter((v) => v === 'reject').length;
-    const approved = approves > rejects;
+    // Bất kỳ player nào không bỏ phiếu trong 30s đều được tính là REJECT.
+    // Vì vậy: rejects = totalPlayers - approves (kể cả khi vote sớm xong).
+    // Chỉ tính vote của những player CÒN trong phòng tại thời điểm chốt — phòng
+    // trường hợp player rời giữa phase nhưng vote cũ vẫn còn trong state.teamVotes.
+    const activeIds = new Set(gamePlayers.map((p) => p.id));
+    const totalPlayers = gamePlayers.length;
+    const approves = Object.entries(state.teamVotes).filter(
+      ([id, v]) => activeIds.has(id) && v === 'approve'
+    ).length;
+    const rejects = Math.max(0, totalPlayers - approves);
+    const approved = totalPlayers > 0 && approves > rejects;
 
     if (approved) {
       const quest = { ...state.quests[state.currentQuest] };
       quest.leaderId = state.currentLeaderId;
       quest.teamIds = state.proposedTeam;
+      quest.approveCount = approves;
+      quest.rejectCount = rejects;
       const newQuests = [...state.quests];
       newQuests[state.currentQuest] = quest;
       await writeState({
@@ -307,28 +414,39 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
         });
       }
     }
-  }, [roomId, room, state, writeState]);
+  }, [roomId, room, state, gamePlayers, writeState]);
 
   const proceedAfterTeamVoteResult = useCallback(async () => {
     if (!roomId || !state) return;
     if (state.phase !== 'team-vote-result') return;
 
     if (state.lastTeamVoteResult === 'approved') {
+      // Reset questCard TRƯỚC khi đổi phase sang 'quest-play'. Nếu đổi phase
+      // trước, có khoảng race ~100-300ms mà client thấy phase='quest-play'
+      // nhưng questCard vẫn còn 'success'/'fail' từ quest trước → vừa khoá
+      // UI chọn lá của thành viên team mới (PlayerPanel coi như đã đánh),
+      // vừa khiến host's auto-resolve effect (allCardsSynced) chốt quest
+      // ngay lập tức bằng các lá cũ. Điển hình: 6 người, Quest 4 với team là
+      // subset của Quest 3 → Mordred không kịp đặt lá Phe Quỷ.
+      await gameStorage.updatePlayersGameDataBatch(
+        roomId,
+        gamePlayers.map((p) => ({
+          playerId: p.id,
+          data: { questCard: null },
+        }))
+      );
       await writeState({
         phase: 'quest-play',
         voteRejectStreak: 0,
         questPlayedBy: [],
         phaseStartedAt: Date.now(),
       });
-      for (const p of gamePlayers) {
-        await gameStorage.updatePlayerGameData(roomId, p.id, {
-          questCard: null as unknown as QuestCard,
-        });
-      }
       await gameStorage.updateRoomStatus(roomId, 'day');
     } else {
       const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
-        gamePlayers,
+        state.seatOrder ?? gamePlayers.map((p) => p.id),
+        gamePlayers.map((p) => p.id),
+        state.currentLeaderId,
         state.leadersUsed ?? []
       );
       await writeState({
@@ -345,27 +463,36 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
 
   const playQuestCard = useCallback(
     async (playerId: string, card: QuestCard) => {
-      if (!roomId || !state) return;
+      if (!roomId) return;
+      // Chỉ ghi questCard per-player. Source of truth cho "đã chơi" là
+      // mỗi player.gameData.questCard, KHÔNG phải state.questPlayedBy.
+      // (Trước đây đọc-rồi-ghi state.questPlayedBy gây race khi nhiều
+      // người chơi nộp đồng thời, làm phase quest-play kẹt đến khi timeout.)
       await gameStorage.updatePlayerGameData(roomId, playerId, { questCard: card });
-      const next = state.questPlayedBy.includes(playerId)
-        ? state.questPlayedBy
-        : [...state.questPlayedBy, playerId];
-      const payload = { [`questPlayedBy`]: next };
-      await gameStorage.updateRoomGameState(roomId, payload as never);
     },
-    [roomId, state]
+    [roomId]
   );
 
   const resolveQuest = useCallback(async () => {
     if (!roomId || !state) return;
     if (state.phase !== 'quest-play') return;
     const teamIds = state.proposedTeam;
-    const cards: QuestCard[] = teamIds.map((id) => {
+    // Design choice: nếu một thành viên team không kịp chơi card trước timeout,
+    // coi là 'success' (KHÔNG đếm fail). Chỉ những lá 'fail' thực sự được nộp
+    // mới count vào fails — quest fail cần ≥1 (hoặc ≥2 cho quest 4 với 7+
+    // người chơi). Hệ quả: Phe Quỷ idle/disconnect tự động mất cơ hội fail.
+    let fails = 0;
+    let missing = 0;
+    for (const id of teamIds) {
       const p = players.find((pp) => pp.id === id);
       const card = (p?.gameData as Partial<AvalonGameData> | undefined)?.questCard;
-      return card === 'fail' ? 'fail' : 'success';
-    });
-    const fails = cards.filter((c) => c === 'fail').length;
+      if (card === 'fail') fails += 1;
+      else if (card !== 'success') missing += 1;
+    }
+    if (missing > 0 && process.env.NODE_ENV !== 'production') {
+      // eslint-disable-next-line no-console
+      console.warn(`[avalon] quest ${state.currentQuest + 1}: ${missing} player(s) didn't play a card before timeout — counted as success.`);
+    }
     const needTwo = questNeedsTwoFails(playerCount, state.currentQuest);
     const failed = needTwo ? fails >= 2 : fails >= 1;
 
@@ -389,48 +516,34 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
 
     const successes = state.quests.filter((q) => q.result === 'success').length;
     const failures = state.quests.filter((q) => q.result === 'fail').length;
-    const allQuestsDone = state.quests.every((q) => q.result !== null);
 
-    // Game-end checks only apply AFTER all 5 quests are played.
-    // (House rule: phải hoàn tất đủ 5 quest rồi mới chốt thắng/thua.)
-    if (allQuestsDone) {
-      // Evil wins outright on 3+ failed quests (no assassinate chance).
-      if (failures >= QUESTS_TO_WIN) {
-        await writeState({
-          phase: 'end',
-          winner: 'evil',
-          proposedTeam: [],
-          teamVotes: {},
-          questPlayedBy: [],
-        });
-        await gameStorage.updateRoomStatus(roomId, 'end');
-        return;
-      }
-      // Good wins outright (4-1 or 5-0) — no assassinate chance.
-      if (successes >= 4) {
-        await writeState({
-          phase: 'end',
-          winner: 'good',
-          proposedTeam: [],
-          teamVotes: {},
-          questPlayedBy: [],
-        });
-        await gameStorage.updateRoomStatus(roomId, 'end');
-        return;
-      }
-      // Good 3 / Evil 2 — only now assassin gets a shot at Merlin.
-      if (successes === 3) {
-        await writeState({
-          phase: 'assassinate',
-          proposedTeam: [],
-          teamVotes: {},
-          questPlayedBy: [],
-          roleAcks: {},
-          phaseStartedAt: Date.now(),
-        });
-        await gameStorage.updateRoomStatus(roomId, 'day');
-        return;
-      }
+    // Decisive end-conditions kích hoạt NGAY khi đạt, không cần đợi đủ 5 quest:
+    //   - ≥ 3 fail → Phe Quỷ thắng outright
+    //   - ≥ 3 success → Sát Thủ LUÔN có cơ hội đâm Merlin (bất kể thứ tự
+    //     win/fail, bất kể tỉ số 3-0/3-1/3-2). Phe Người chỉ thắng nếu Sát
+    //     Thủ đoán sai hoặc hết giờ không chốt.
+    if (failures >= QUESTS_TO_WIN) {
+      await writeState({
+        phase: 'end',
+        winner: 'evil',
+        proposedTeam: [],
+        teamVotes: {},
+        questPlayedBy: [],
+      });
+      await gameStorage.updateRoomStatus(roomId, 'end');
+      return;
+    }
+    if (successes >= QUESTS_TO_WIN) {
+      await writeState({
+        phase: 'assassinate',
+        proposedTeam: [],
+        teamVotes: {},
+        questPlayedBy: [],
+        roleAcks: {},
+        phaseStartedAt: Date.now(),
+      });
+      await gameStorage.updateRoomStatus(roomId, 'day');
+      return;
     }
 
     const justFinishedQuest = state.currentQuest;
@@ -441,7 +554,9 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
 
     const nextQuest = state.currentQuest + 1;
     const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
-      gamePlayers,
+      state.seatOrder ?? gamePlayers.map((p) => p.id),
+      gamePlayers.map((p) => p.id),
+      state.currentLeaderId,
       state.leadersUsed ?? []
     );
 
@@ -495,17 +610,29 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     [roomId]
   );
 
+  // Bước 1: Lady chọn / đổi target. CHỈ set ladyTargetId, KHÔNG reveal phe.
+  // Mọi đổi người đều RESET đồng hồ 45s để Lady có đủ thời gian cân nhắc.
+  // Truyền chuỗi rỗng để CLEAR target (không dùng trong UI mới nhưng giữ).
   const ladyInspect = useCallback(
     async (targetId: string) => {
       if (!roomId || !state) return;
-      // House rule: Lady soi ai thì biết phe ngay (target không có lựa chọn nói xạo).
-      const target = players.find((p) => p.id === targetId);
-      const team = (target?.gameData as Partial<AvalonGameData> | undefined)?.team;
-      const trueCard: 'good' | 'evil' = team === 'evil' ? 'evil' : 'good';
-      await writeState({ ladyTargetId: targetId, ladyShownCard: trueCard });
+      await writeState({
+        ladyTargetId: targetId || null,
+        ladyShownCard: null,
+        phaseStartedAt: Date.now(),
+      });
     },
-    [roomId, state, writeState, players]
+    [roomId, state, writeState]
   );
+
+  // Bước 2: Lady bấm Xác nhận → tính phe thật của target và reveal cho Lady.
+  const ladyConfirm = useCallback(async () => {
+    if (!roomId || !state || !state.ladyTargetId) return;
+    const target = players.find((p) => p.id === state.ladyTargetId);
+    const team = (target?.gameData as Partial<AvalonGameData> | undefined)?.team;
+    const trueCard: 'good' | 'evil' = team === 'evil' ? 'evil' : 'good';
+    await writeState({ ladyShownCard: trueCard });
+  }, [roomId, state, writeState, players]);
 
   const ladyShow = useCallback(
     async (_card: 'good' | 'evil') => {
@@ -529,12 +656,89 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     });
   }, [roomId, state, writeState]);
 
-  const assassinate = useCallback(
-    async (targetId: string) => {
+  // Fallback khi hết 45s. Lady chỉ thực sự "soi" khi đã CONFIRM (ladyShownCard
+  // được set). Nếu CHƯA confirm → bỏ qua lượt soi, đồng thời RANDOM 1 Lady mới
+  // từ những player chưa từng cầm token (loại current Lady và lịch sử).
+  const ladyTimeoutAdvance = useCallback(async () => {
+    if (!roomId || !state || state.phase !== 'lady-of-lake') return;
+    const inspectionConfirmed = state.ladyShownCard !== null && !!state.ladyTargetId;
+    if (inspectionConfirmed) {
+      const newHistory = [...state.ladyHistory, state.ladyHolderId!].filter(Boolean) as string[];
+      await writeState({
+        phase: 'discussion',
+        ladyHolderId: state.ladyTargetId,
+        ladyHistory: newHistory,
+        ladyTargetId: null,
+        ladyShownCard: null,
+        roleAcks: {},
+        phaseStartedAt: Date.now(),
+      });
+    } else {
+      const used = new Set(state.ladyHistory ?? []);
+      if (state.ladyHolderId) used.add(state.ladyHolderId);
+      const candidates = gamePlayers.filter((p) => !used.has(p.id));
+      const fallback =
+        candidates.length > 0
+          ? candidates[Math.floor(Math.random() * candidates.length)].id
+          : state.ladyHolderId; // không còn ai → giữ nguyên holder
+      const newHistory = state.ladyHolderId
+        ? [...state.ladyHistory, state.ladyHolderId].filter(Boolean) as string[]
+        : state.ladyHistory ?? [];
+      await writeState({
+        phase: 'discussion',
+        ladyHolderId: fallback,
+        ladyHistory: newHistory,
+        ladyTargetId: null,
+        ladyShownCard: null,
+        roleAcks: {},
+        phaseStartedAt: Date.now(),
+      });
+    }
+  }, [roomId, state, gamePlayers, writeState]);
+
+  const setAssassinChoice = useCallback(
+    async (targetId: string | null, callerId?: string) => {
       if (!roomId || !state) return;
+      if (state.phase !== 'assassinate') return;
+      if (callerId) {
+        const caller = players.find((p) => p.id === callerId);
+        const callerRole = (caller?.gameData as Partial<AvalonGameData> | undefined)?.role;
+        if (callerRole !== AvalonRole.Assassin) return;
+      }
+      if (targetId) {
+        const target = players.find((p) => p.id === targetId);
+        const targetData = target?.gameData as Partial<AvalonGameData> | undefined;
+        if (!target || targetData?.team !== 'good') return;
+      }
+      await writeState({ assassinChoiceId: targetId });
+    },
+    [roomId, state, players, writeState]
+  );
+
+  const assassinate = useCallback(
+    async (targetId: string, callerId?: string) => {
+      if (!roomId || !state) return;
+      // Guard phase: chỉ resolve được khi đang ở phase 'assassinate' (sau khi
+      // Phe Người đã đủ 3 Quest). Ngoài phase này, request bị bỏ qua.
+      if (state.phase !== 'assassinate') return;
+
+      // Guard caller: chỉ Sát Thủ mới được đâm. Khi callerId không truyền (hoặc
+      // không khớp), reject để tránh bypass UI.
+      if (callerId) {
+        const caller = players.find((p) => p.id === callerId);
+        const callerRole = (caller?.gameData as Partial<AvalonGameData> | undefined)?.role;
+        if (callerRole !== AvalonRole.Assassin) return;
+      }
+
+      // Guard target: target phải là một player còn trong phòng và thuộc Phe
+      // Người. Nếu Sát Thủ "trỏ" vào đồng đội Phe Quỷ → reject (không hợp lệ
+      // theo luật).
       const target = players.find((p) => p.id === targetId);
-      const role = (target?.gameData as Partial<AvalonGameData> | undefined)?.role;
-      const winner = role === AvalonRole.Merlin ? 'evil' : 'good';
+      if (!target) return;
+      const targetData = target.gameData as Partial<AvalonGameData> | undefined;
+      if (targetData?.team !== 'good') return;
+
+      const winner = targetData.role === AvalonRole.Merlin ? 'evil' : 'good';
       await writeState({
         phase: 'end',
         merlinTargetId: targetId,
@@ -544,6 +748,18 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     },
     [roomId, state, players, writeState]
   );
+
+  // Fallback: nếu Sát Thủ idle/disconnect, kết thúc với Phe Người thắng
+  // (vì Phe Người đã đạt 3 Quest và không bị ám sát trúng).
+  const assassinTimeoutAdvance = useCallback(async () => {
+    if (!roomId || !state || state.phase !== 'assassinate') return;
+    await writeState({
+      phase: 'end',
+      winner: 'good',
+      merlinTargetId: null,
+    });
+    await gameStorage.updateRoomStatus(roomId, 'end');
+  }, [roomId, state, writeState]);
 
   return {
     config,
@@ -563,6 +779,7 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     ackRole,
     setProposedTeam,
     submitTeam,
+    teamBuildTimeoutAdvance,
     castTeamVote,
     resolveTeamVote,
     proceedAfterTeamVoteResult,
@@ -572,9 +789,13 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     proceedAfterDiscussion,
     ackDiscussion,
     ladyInspect,
+    ladyConfirm,
     ladyShow,
     ladyFinish,
+    ladyTimeoutAdvance,
+    setAssassinChoice,
     assassinate,
+    assassinTimeoutAdvance,
   };
 }
 
