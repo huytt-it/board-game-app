@@ -1,11 +1,11 @@
 'use client';
 
 import { use, useState } from 'react';
-import { useRoom } from '@/hooks/useRoom';
-import { useAuth } from '@/hooks/useAuth';
-import { getGameComponent, getGameEntry } from '@/lib/gameRegistry';
-import LoadingSpinner from '@/components/core/LoadingSpinner';
-import type { GameType } from '@/types/room';
+import { useRoom } from '@core/hooks/useRoom';
+import { useAuth } from '@core/hooks/useAuth';
+import { getGameComponent, getGameEntry } from '@core/lib/gameRegistry';
+import LoadingSpinner from '@core/components/LoadingSpinner';
+import type { GameType } from '@core/types/room';
 
 export default function RoomPage({
   params,

@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import GameSelectionMenu from '@/components/core/GameSelectionMenu';
-import RoomEntry from '@/components/core/RoomEntry';
-import type { GameRegistryEntry } from '@/lib/gameRegistry';
+import GameSelectionMenu from '@core/components/GameSelectionMenu';
+import RoomEntry from '@core/components/RoomEntry';
+import type { GameRegistryEntry } from '@core/lib/gameRegistry';
 
 export default function HomePage() {
   const [selectedGame, setSelectedGame] = useState<GameRegistryEntry | null>(null);
