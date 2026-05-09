@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@core/services/firebase/config';
+
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:5111';
+const STORAGE_KEY = 'boardgame_player_id';
 
 interface UseAuthReturn {
   playerId: string | null;
@@ -16,34 +17,33 @@ export function useAuth(): UseAuthReturn {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const stored = localStorage.getItem('boardgame_player_id');
-    if (stored) {
-      setPlayerId(stored);
-      setIsLoading(false);
-      return;
-    }
+    const stored = localStorage.getItem(STORAGE_KEY);
 
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
+    async function authenticate(existingId: string | null) {
       try {
-        if (user) {
-          setPlayerId(user.uid);
-          localStorage.setItem('boardgame_player_id', user.uid);
-        } else {
-          const cred = await signInAnonymously(auth);
-          setPlayerId(cred.user.uid);
-          localStorage.setItem('boardgame_player_id', cred.user.uid);
-        }
+        const res = await fetch(`${API_BASE_URL}/api/auth/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ playerId: existingId }),
+        });
+
+        if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
+
+        const data = await res.json();
+        const id: string = data.playerId;
+        setPlayerId(id);
+        localStorage.setItem(STORAGE_KEY, id);
       } catch (err) {
-        const fallbackId = crypto.randomUUID();
+        const fallbackId = existingId ?? crypto.randomUUID();
         setPlayerId(fallbackId);
-        localStorage.setItem('boardgame_player_id', fallbackId);
+        localStorage.setItem(STORAGE_KEY, fallbackId);
         setError(err instanceof Error ? err.message : 'Auth failed, using local ID');
       } finally {
         setIsLoading(false);
       }
-    });
+    }
 
-    return () => unsubscribe();
+    authenticate(stored);
   }, []);
 
   return { playerId, isLoading, error };
