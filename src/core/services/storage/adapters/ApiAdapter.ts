@@ -88,7 +88,12 @@ export class ApiAdapter implements IGameStorage {
   }
 
   async removePlayer(roomId: string, playerId: string): Promise<void> {
-    await this.request(`/rooms/${roomId}/players/${playerId}`, { method: 'DELETE' });
+    try {
+      await this.request(`/rooms/${roomId}/players/${playerId}`, { method: 'DELETE' });
+    } catch (e) {
+      if (e instanceof Error && e.message.includes('404')) return;
+      throw e;
+    }
   }
 
   async updatePlayerGameData(roomId: string, playerId: string, data: Partial<BaseGameData>): Promise<void> {
@@ -109,7 +114,11 @@ export class ApiAdapter implements IGameStorage {
   }
 
   async getPlayers(roomId: string): Promise<Player[]> {
-    return this.request<Player[]>(`/rooms/${roomId}/players`);
+    try { return await this.request<Player[]>(`/rooms/${roomId}/players`); }
+    catch (e) {
+      if (e instanceof Error && e.message.includes('404')) return [];
+      throw e;
+    }
   }
 
   subscribeToPlayers(roomId: string, callback: (players: Player[]) => void): () => void {
