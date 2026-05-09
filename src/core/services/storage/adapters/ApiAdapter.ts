@@ -3,6 +3,7 @@ import type { Room, CreateRoomPayload, RoomStatus, RoomGameState, RoomConfig } f
 import type { Player, CreatePlayerPayload, BaseGameData } from '@core/types/player';
 import type { GameAction, SubmitActionPayload, ActionResult } from '@core/types/actions';
 import type { GameHistoryEvent, AddHistoryEventPayload } from '@core/types/history';
+import { tokenStore } from '@core/services/auth/tokenStore';
 
 /**
  * ApiAdapter — REST API + Server-Sent Events implementation of IGameStorage.
@@ -13,8 +14,12 @@ export class ApiAdapter implements IGameStorage {
   constructor(private baseUrl: string) {}
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
+    const token = tokenStore.get();
     const res = await fetch(`${this.baseUrl}${path}`, {
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       ...init,
     });
     if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
@@ -22,7 +27,10 @@ export class ApiAdapter implements IGameStorage {
   }
 
   private sse(path: string, callback: (data: unknown) => void): () => void {
-    const es = new EventSource(`${this.baseUrl}${path}`);
+    const token = tokenStore.get();
+    const url = new URL(`${this.baseUrl}${path}`);
+    if (token) url.searchParams.set('token', token);
+    const es = new EventSource(url.toString());
     es.onmessage = (e) => { try { callback(JSON.parse(e.data)); } catch {} };
     es.onerror = () => callback(null);
     return () => es.close();

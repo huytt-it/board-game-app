@@ -1,4 +1,5 @@
 import type { IAuthProvider } from '../IAuthProvider';
+import { tokenStore } from '../tokenStore';
 
 export class ApiAuthAdapter implements IAuthProvider {
   constructor(private readonly baseUrl: string) {}
@@ -10,7 +11,8 @@ export class ApiAuthAdapter implements IAuthProvider {
       body: JSON.stringify({ playerId: existingId }),
     });
     if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
-    const data = await res.json();
+    const data: { token: string; playerId: string } = await res.json();
+    tokenStore.set(data.token);
     return data.playerId;
   }
 }
