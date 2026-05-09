@@ -53,6 +53,7 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
       try {
         setError(null);
         const activeRoomId = localStorage.getItem('active_room_id');
+        localStorage.removeItem('active_room_id');
         if (activeRoomId) {
           try {
             await storage.removePlayer(activeRoomId, hostId);

@@ -90,7 +90,18 @@ export class ApiAdapter implements IGameStorage {
 
   // ─── Player Operations ─────────────────────────────────────────────
   async addPlayer(roomId: string, player: CreatePlayerPayload): Promise<void> {
-    await this.request(`/rooms/${roomId}/players`, { method: 'POST', body: JSON.stringify(player) });
+    try {
+      await this.request(`/rooms/${roomId}/players`, { method: 'POST', body: JSON.stringify(player) });
+    } catch (e) {
+      if (e instanceof Error && (e.message.includes('409') || e.message.includes('already') || e.message.includes('duplicate') || e.message.includes('tồn tại'))) {
+        await this.request(`/rooms/${roomId}/players/${player.id}`, {
+          method: 'PATCH',
+          body: JSON.stringify({ name: player.name }),
+        });
+        return;
+      }
+      throw e;
+    }
   }
 
   async removePlayer(roomId: string, playerId: string): Promise<void> {
