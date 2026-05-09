@@ -27,7 +27,8 @@ export class ApiAdapter implements IGameStorage {
       ...init,
     });
     if (!res.ok) throw new Error(`API error ${res.status}: ${await res.text()}`);
-    return res.json() as Promise<T>;
+    const text = await res.text();
+    return (text ? JSON.parse(text) : undefined) as T;
   }
 
   private sse(path: string, callback: (data: unknown) => void): () => void {
