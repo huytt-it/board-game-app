@@ -67,6 +67,7 @@ export class ApiAdapter implements IGameStorage {
   }
 
   subscribeToRoom(roomId: string, callback: (room: Room | null) => void): () => void {
+    this.getRoom(roomId).then(callback).catch(() => callback(null));
     return this.sse(`/rooms/${roomId}/stream`, callback as (d: unknown) => void);
   }
 
@@ -122,6 +123,7 @@ export class ApiAdapter implements IGameStorage {
   }
 
   subscribeToPlayers(roomId: string, callback: (players: Player[]) => void): () => void {
+    this.getPlayers(roomId).then(callback).catch(() => {});
     return this.sse(`/rooms/${roomId}/players/stream`, callback as (d: unknown) => void);
   }
 
