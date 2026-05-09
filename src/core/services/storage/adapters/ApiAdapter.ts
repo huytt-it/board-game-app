@@ -11,11 +11,15 @@ import { tokenStore } from '@core/services/auth/tokenStore';
  * Configure NEXT_PUBLIC_API_BASE_URL to point at your backend.
  */
 export class ApiAdapter implements IGameStorage {
-  constructor(private baseUrl: string) {}
+  private readonly base: string;
+
+  constructor(baseUrl: string) {
+    this.base = `${baseUrl}/api`;
+  }
 
   private async request<T>(path: string, init?: RequestInit): Promise<T> {
     const token = tokenStore.get();
-    const res = await fetch(`${this.baseUrl}${path}`, {
+    const res = await fetch(`${this.base}${path}`, {
       headers: {
         'Content-Type': 'application/json',
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -28,7 +32,7 @@ export class ApiAdapter implements IGameStorage {
 
   private sse(path: string, callback: (data: unknown) => void): () => void {
     const token = tokenStore.get();
-    const url = new URL(`${this.baseUrl}${path}`);
+    const url = new URL(`${this.base}${path}`);
     if (token) url.searchParams.set('token', token);
     const es = new EventSource(url.toString());
     es.onmessage = (e) => { try { callback(JSON.parse(e.data)); } catch {} };

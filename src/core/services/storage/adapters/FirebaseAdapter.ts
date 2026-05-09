@@ -82,7 +82,7 @@ export class FirebaseAdapter implements IGameStorage {
         winner: null,
         ...payload.initialGameState,
       },
-      createdAt: serverTimestamp() as Room['createdAt'],
+      createdAt: serverTimestamp() as unknown as Room['createdAt'],
     };
     await setDoc(roomDoc, roomData);
     return roomDoc.id;
@@ -194,12 +194,12 @@ export class FirebaseAdapter implements IGameStorage {
       await updateDoc(playerDoc, { name: player.name });
       return;
     }
-    const playerData: Omit<Player, 'id'> = {
+    const playerData: Omit<Player, 'id' | 'joinedAt'> & { joinedAt: ReturnType<typeof serverTimestamp> } = {
       name: player.name,
       isAlive: true,
       isHost: player.isHost,
       gameData: {},
-      joinedAt: serverTimestamp() as Player['joinedAt'],
+      joinedAt: serverTimestamp(),
     };
     await setDoc(playerDoc, playerData);
   }
@@ -260,7 +260,7 @@ export class FirebaseAdapter implements IGameStorage {
     const actionData: Omit<GameAction, 'id'> = {
       ...action,
       status: 'pending',
-      createdAt: serverTimestamp() as GameAction['createdAt'],
+      createdAt: serverTimestamp() as unknown as GameAction['createdAt'],
     };
     const docRef = await addDoc(actionsCol, actionData);
     return docRef.id;

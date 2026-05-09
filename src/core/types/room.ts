@@ -1,5 +1,3 @@
-import type { Timestamp } from 'firebase/firestore';
-
 // ─── Game Type Registry ───────────────────────────────────────────────
 export type GameType = 'clock-tower' | 'werewolf' | 'avalon' | 'sheriff' | 'shadowhunter';
 
@@ -37,7 +35,7 @@ export interface Room {
   roomCode: string;
   config: RoomConfig;
   gameState?: RoomGameState;
-  createdAt: Timestamp | Date;
+  createdAt: string | Date;
 }
 
 // ─── Room creation payload ────────────────────────────────────────────

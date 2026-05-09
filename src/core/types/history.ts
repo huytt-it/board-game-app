@@ -1,6 +1,3 @@
-import type { Timestamp } from 'firebase/firestore';
-
-// ─── History Event Types ───────────────────────────────────────────────
 export type GameHistoryEventType =
   | 'phase_change'
   | 'night_action'
@@ -11,7 +8,6 @@ export type GameHistoryEventType =
   | 'host_decision'
   | 'note';
 
-// ─── Result state tags ─────────────────────────────────────────────────
 export type ResultState =
   | 'poisoned'
   | 'poison_cleared'
@@ -40,7 +36,7 @@ export interface GameHistoryEvent {
   secondTargetRole?: string;
   resultState?: ResultState;
   messageSent?: string;
-  createdAt: Timestamp | Date;
+  createdAt: string | Date;
 }
 
 export interface AddHistoryEventPayload {
