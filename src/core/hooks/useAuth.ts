@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
+import { DEFAULT_AUTH_ADAPTER } from '@core/services/auth/AuthFactory';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'http://localhost:5111';
 const STORAGE_KEY = 'boardgame_player_id';
 
 interface UseAuthReturn {
@@ -19,22 +19,13 @@ export function useAuth(): UseAuthReturn {
   useEffect(() => {
     const stored = localStorage.getItem(STORAGE_KEY);
 
-    async function authenticate(existingId: string | null) {
+    async function authenticate() {
       try {
-        const res = await fetch(`${API_BASE_URL}/api/auth/token`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ playerId: existingId }),
-        });
-
-        if (!res.ok) throw new Error(`Auth failed: ${res.status}`);
-
-        const data = await res.json();
-        const id: string = data.playerId;
+        const id = await DEFAULT_AUTH_ADAPTER.authenticate(stored);
         setPlayerId(id);
         localStorage.setItem(STORAGE_KEY, id);
       } catch (err) {
-        const fallbackId = existingId ?? crypto.randomUUID();
+        const fallbackId = stored ?? crypto.randomUUID();
         setPlayerId(fallbackId);
         localStorage.setItem(STORAGE_KEY, fallbackId);
         setError(err instanceof Error ? err.message : 'Auth failed, using local ID');
@@ -43,7 +34,7 @@ export function useAuth(): UseAuthReturn {
       }
     }
 
-    authenticate(stored);
+    authenticate();
   }, []);
 
   return { playerId, isLoading, error };
