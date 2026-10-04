@@ -14,7 +14,7 @@ export default function RoomPage({
 }) {
   const { gameType, roomId } = use(params);
   const { playerId, isLoading: authLoading } = useAuth();
-  const { room, players, isHost, isLoading: roomLoading, joinRoomById } = useRoom(roomId, playerId);
+  const { room, players, isHost, isLoading: roomLoading, loadError, joinRoomById } = useRoom(roomId, playerId);
   const [displayName, setDisplayName] = useState('');
   const [isJoining, setIsJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
@@ -23,10 +23,30 @@ export default function RoomPage({
   const gameEntry = getGameEntry(gameType as GameType);
   const GameComponent = getGameComponent(gameType as GameType);
 
-  if (authLoading || roomLoading) {
+  // useRoom does not load anything until there is a playerId, so only wait on
+  // the room once we have one — otherwise a failed auth would spin forever.
+  if (authLoading || (playerId && roomLoading)) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <LoadingSpinner text="Entering room..." />
+      </div>
+    );
+  }
+
+  if (loadError && !room) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 px-4">
+        <div className="text-6xl">⚠️</div>
+        <h1 className="text-2xl font-bold text-white">Connection Problem</h1>
+        <p className="max-w-md text-center text-slate-400">
+          Couldn&apos;t load this room: <span className="text-red-300">{loadError}</span>
+        </p>
+        <button
+          onClick={() => window.location.reload()}
+          className="mt-4 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 px-6 py-3 font-semibold text-white transition-all hover:from-purple-500 hover:to-indigo-500"
+        >
+          Try again
+        </button>
       </div>
     );
   }

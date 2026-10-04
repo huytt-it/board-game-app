@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { serverNow } from '@/lib/serverClock';
 import type { Player } from '@/types/player';
 import { AvalonRole, PHASE_TIMEOUTS_MS, type AvalonGameData, type AvalonGameState, type QuestCard, type TeamVote } from './types';
 import {
@@ -382,9 +383,9 @@ function DiscussionSection({
   gamePlayers: Player[];
   onAckDiscussion: () => void;
 }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(serverNow()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -898,9 +899,9 @@ function LineupPreviewSection({
   gamePlayers: Player[];
   onAckRole: () => void;
 }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(serverNow()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -1118,9 +1119,9 @@ function RoleRevealWaitingSection({
   gamePlayers: Player[];
   onShowMyRole: () => void;
 }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(serverNow()), 1000);
     return () => clearInterval(t);
   }, []);
 
@@ -1310,9 +1311,9 @@ function NightCountdown({
   allActiveAcked: boolean;
   warnAt?: number;
 }) {
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(serverNow()), 1000);
     return () => clearInterval(t);
   }, []);
   const TIMEOUT_MS = PHASE_TIMEOUTS_MS[phase];
@@ -1668,9 +1669,9 @@ function TeamBuildSection({
   // Countdown 60s cho Leader chọn đội. Hết giờ: auto-submit nếu đủ size,
   // ngược lại xoay sang Leader kế tiếp (xử lý trong useAvalon).
   const TIMEOUT_MS = PHASE_TIMEOUTS_MS['team-build'];
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(serverNow()), 1000);
     return () => clearInterval(t);
   }, []);
   const elapsed = now - (state.phaseStartedAt ?? now);
@@ -1826,9 +1827,9 @@ function TeamVoteSection({
 
   // Đếm ngược 30s — hết giờ player chưa bầu = REJECT mặc định.
   const TIMEOUT_MS = PHASE_TIMEOUTS_MS['team-vote'];
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(serverNow()), 1000);
     return () => clearInterval(t);
   }, []);
   const elapsed = now - (state.phaseStartedAt ?? now);
@@ -1924,7 +1925,7 @@ function TeamVoteSection({
           >
             {myVote === 'approve' ? '✓ Đồng ý' : '✕ Từ chối'}
           </p>
-          <p className="mt-2 text-xs text-slate-400">Chờ Leader lật phiếu...</p>
+          <p className="mt-2 text-xs text-slate-400">Đang chờ những người còn lại...</p>
         </div>
       )}
 
@@ -2241,9 +2242,9 @@ function LadySection({
 
   // Đếm ngược 45s — hiển thị cho cả Lady, target và bystander.
   const TIMEOUT_MS = PHASE_TIMEOUTS_MS['lady-of-lake'];
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(serverNow()), 1000);
     return () => clearInterval(t);
   }, []);
   const elapsed = now - (state.phaseStartedAt ?? now);
@@ -2484,9 +2485,9 @@ function AssassinSection({
   const pickedId = state.assassinChoiceId ?? null;
   const picked = pickedId ? gamePlayers.find((p) => p.id === pickedId) : null;
 
-  const [now, setNow] = useState(Date.now());
+  const [now, setNow] = useState(serverNow());
   useEffect(() => {
-    const t = setInterval(() => setNow(Date.now()), 1000);
+    const t = setInterval(() => setNow(serverNow()), 1000);
     return () => clearInterval(t);
   }, []);
   const TIMEOUT_MS = PHASE_TIMEOUTS_MS['assassinate'];

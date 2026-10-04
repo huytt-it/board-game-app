@@ -1,8 +1,11 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { signInAnonymously, onAuthStateChanged } from 'firebase/auth';
-import { auth } from '@/services/firebase/config';
+import { useState, useEffect } from 'react';
+import { ensureAnonymousUser } from '@/services/firebase/auth';
+
+// Only used when Firebase Auth is unreachable/disabled, so the app keeps a
+// stable local identity. The normal identity is the Firebase anonymous uid.
+const FALLBACK_ID_KEY = 'boardgame_player_id';
 
 interface UseAuthReturn {
   playerId: string | null;
@@ -16,37 +19,29 @@ export function useAuth(): UseAuthReturn {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    // Try localStorage first for persistence
-    const stored = localStorage.getItem('boardgame_player_id');
-    if (stored) {
-      setPlayerId(stored);
-      setIsLoading(false);
-      return;
-    }
+    let cancelled = false;
 
-    // Firebase anonymous auth
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      try {
-        if (user) {
-          setPlayerId(user.uid);
-          localStorage.setItem('boardgame_player_id', user.uid);
-        } else {
-          const cred = await signInAnonymously(auth);
-          setPlayerId(cred.user.uid);
-          localStorage.setItem('boardgame_player_id', cred.user.uid);
-        }
-      } catch (err) {
-        // Fallback to UUID if Firebase auth fails
-        const fallbackId = crypto.randomUUID();
+    // Always go through Firebase Auth — never trust a cached id on its own.
+    // Otherwise Firebase Auth is never initialised on repeat visits and every
+    // Firestore request goes out unauthenticated.
+    ensureAnonymousUser()
+      .then((user) => {
+        if (!cancelled) setPlayerId(user.uid);
+      })
+      .catch((err) => {
+        if (cancelled) return;
+        const fallbackId = localStorage.getItem(FALLBACK_ID_KEY) ?? crypto.randomUUID();
+        localStorage.setItem(FALLBACK_ID_KEY, fallbackId);
         setPlayerId(fallbackId);
-        localStorage.setItem('boardgame_player_id', fallbackId);
         setError(err instanceof Error ? err.message : 'Auth failed, using local ID');
-      } finally {
-        setIsLoading(false);
-      }
-    });
+      })
+      .finally(() => {
+        if (!cancelled) setIsLoading(false);
+      });
 
-    return () => unsubscribe();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   return { playerId, isLoading, error };

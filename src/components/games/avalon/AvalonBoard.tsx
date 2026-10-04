@@ -2,8 +2,11 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useRoom } from '@/hooks/useRoom';
+import { useRoom, ACTIVE_ROOM_KEY } from '@/hooks/useRoom';
+import { useWakeLock } from '@/hooks/useWakeLock';
+import { serverNow } from '@/lib/serverClock';
 import { gameStorage } from '@/services/database/firebaseAdapter';
+import type { Player } from '@/types/player';
 import QRCodeDisplay from '@/components/core/QRCodeDisplay';
 import type { GameModuleProps } from '@/lib/gameRegistry';
 import RoleReveal from './RoleReveal';
@@ -15,9 +18,23 @@ import PlayerPanel from './PlayerPanel';
 import AvalonPreview from './AvalonPreview';
 import LobbyRoundTable from './LobbyRoundTable';
 import { useAvalon, defaultAvalonConfig } from './useAvalon';
-import { AvalonRole, type AvalonGameData, PHASE_TIMEOUTS_MS } from './types';
+import { AvalonRole, type AvalonGameData, type AvalonGameState, PHASE_TIMEOUTS_MS } from './types';
 import { PLAYER_COUNTS } from './constants';
 import './avalon.css';
+
+// How long non-host clients wait before stepping in to advance a phase the host
+// has not advanced (host offline / asleep).
+const TAKEOVER_MS = 2500;
+
+// Time left in the current phase, on the shared server clock.
+function remainingMs(state: AvalonGameState): number {
+  return PHASE_TIMEOUTS_MS[state.phase] - (serverNow() - (state.phaseStartedAt ?? serverNow()));
+}
+
+// True once every player still in the room has an entry (ack / vote).
+function everyoneIn(players: Player[], record: Record<string, unknown> | undefined): boolean {
+  return players.length > 0 && players.every((p) => !!record?.[p.id]);
+}
 
 export default function AvalonBoard({ room, players, playerId, isHost }: GameModuleProps) {
   const router = useRouter();
@@ -25,6 +42,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   const {
     state,
+    gamePlayers,
     playerCount,
     isSupportedCount,
     assignRoles,
@@ -61,6 +79,42 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   const [showPreview, setShowPreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showRoleGuide, setShowRoleGuide] = useState(false);
+  const [offline, setOffline] = useState(false);
+  const [notice, setNotice] = useState<string | null>(null);
+
+  const inGame = room.status !== 'lobby' && room.status !== 'end';
+  // A sleeping phone stops its timers and drops its connection, which stalls the table.
+  useWakeLock(inGame);
+
+  // Show the "offline" banner only once the connection has been down for a moment,
+  // so the brief cache-then-server flicker on load doesn't trigger it.
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const unsub = gameStorage.subscribeToConnection(room.id, (online) => {
+      clearTimeout(timer);
+      if (online) setOffline(false);
+      else timer = setTimeout(() => setOffline(true), 3000);
+    });
+    return () => {
+      clearTimeout(timer);
+      unsub();
+    };
+  }, [room.id]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(null), 4000);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  // Wraps a player action: if it cannot be sent (offline), say so instead of failing silently.
+  const act =
+    <A extends unknown[]>(fn: (...args: A) => unknown) =>
+    (...args: A) => {
+      Promise.resolve(fn(...args)).catch(() =>
+        setNotice('Không gửi được — kiểm tra kết nối mạng rồi thử lại.')
+      );
+    };
 
   useEffect(() => {
     if (room.status !== 'night' || state?.phase !== 'role-reveal') {
@@ -72,235 +126,141 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   const myRole = (myPlayer?.gameData as Partial<AvalonGameData> | undefined)?.role;
   const myAcked = !!(state?.roleAcks && state.roleAcks[playerId]);
 
-  // Auto-progression: lineup-preview → role-reveal (when all acked or timeout)
+  // ── Auto-progression ────────────────────────────────────────────────
+  // EVERY client runs these timers. Each phase change is a compare-and-set on
+  // the room (see useAvalon.advance), so only one attempt can win and a stale or
+  // duplicate one is dropped. The host fires first; everyone else waits
+  // TAKEOVER_MS, so the game keeps moving when the host is offline or asleep
+  // without all ten clients writing at once.
+  const arm = useCallback(
+    (delayMs: number, advance: () => Promise<unknown>) => {
+      const t = setTimeout(
+        () => {
+          advance().catch(() => {}); // offline: another client will pick it up
+        },
+        Math.max(0, delayMs) + (isHost ? 0 : TAKEOVER_MS)
+      );
+      return () => clearTimeout(t);
+    },
+    [isHost]
+  );
+
+  // lineup-preview → role-reveal (all acked or timeout)
   useEffect(() => {
     if (!state || state.phase !== 'lineup-preview') return;
-    const ackCount = Object.keys(state.roleAcks ?? {}).length;
-    const allAcked = ackCount >= playerCount && playerCount > 0;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['lineup-preview'] - elapsed;
-    if (allAcked || remaining <= 0) {
-      proceedToRoleReveal();
-      return;
-    }
-    const t = setTimeout(() => proceedToRoleReveal(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [state, playerCount, proceedToRoleReveal]);
+    const done = everyoneIn(gamePlayers, state.roleAcks);
+    return arm(done ? 0 : remainingMs(state) + 250, proceedToRoleReveal);
+  }, [state, gamePlayers, arm, proceedToRoleReveal]);
 
-  // Auto-progression: role-reveal → night-evils (when all acked or timeout)
+  // role-reveal → night-evils (all acked or timeout)
   useEffect(() => {
     if (!state || room.status !== 'night' || state.phase !== 'role-reveal') return;
-    const ackCount = Object.keys(state.roleAcks ?? {}).length;
-    const allAcked = ackCount >= playerCount && playerCount > 0;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['role-reveal'] - elapsed;
-    if (allAcked || remaining <= 0) {
-      proceedToNightEvils();
-      return;
-    }
-    const t = setTimeout(() => proceedToNightEvils(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [state, room.status, playerCount, proceedToNightEvils]);
+    const done = everyoneIn(gamePlayers, state.roleAcks);
+    return arm(done ? 0 : remainingMs(state) + 250, proceedToNightEvils);
+  }, [state, room.status, gamePlayers, arm, proceedToNightEvils]);
 
-  // Auto-progression: night-evils → night-merlin (when all evils acked or timeout)
+  // night-evils → night-merlin (all evils acked or timeout)
   useEffect(() => {
     if (!state || state.phase !== 'night-evils') return;
-    const evilIds = players
-      .filter((p) => (p.gameData as Partial<AvalonGameData> | undefined)?.team === 'evil')
-      .map((p) => p.id);
-    const ackedIds = Object.keys(state.roleAcks ?? {});
-    const activeAckedCount = evilIds.filter((id) => ackedIds.includes(id)).length;
-    const allActiveAcked = evilIds.length > 0 && activeAckedCount >= evilIds.length;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['night-evils'] - elapsed;
-    if (allActiveAcked || remaining <= 0) {
-      proceedToNightMerlin();
-      return;
-    }
-    const t = setTimeout(() => proceedToNightMerlin(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [state, players, proceedToNightMerlin]);
+    const evils = players.filter((p) => (p.gameData as Partial<AvalonGameData> | undefined)?.team === 'evil');
+    const done = evils.length > 0 && evils.every((p) => state.roleAcks?.[p.id]);
+    return arm(done ? 0 : remainingMs(state) + 250, proceedToNightMerlin);
+  }, [state, players, arm, proceedToNightMerlin]);
 
-  // Auto-progression: night-merlin → night-percival (or skip to team-build if no Percival)
+  // night-merlin → night-percival (or straight to team-build if there is no Percival)
   useEffect(() => {
     if (!state || state.phase !== 'night-merlin') return;
-    const merlinIds = players
-      .filter((p) => (p.gameData as Partial<AvalonGameData> | undefined)?.role === AvalonRole.Merlin)
-      .map((p) => p.id);
-    const ackedIds = Object.keys(state.roleAcks ?? {});
-    const activeAckedCount = merlinIds.filter((id) => ackedIds.includes(id)).length;
-    const allActiveAcked = merlinIds.length > 0 && activeAckedCount >= merlinIds.length;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['night-merlin'] - elapsed;
+    const merlins = players.filter((p) => (p.gameData as Partial<AvalonGameData> | undefined)?.role === AvalonRole.Merlin);
+    const done = merlins.length > 0 && merlins.every((p) => state.roleAcks?.[p.id]);
     const hasPercival = (state.roleLineup ?? []).includes(AvalonRole.Percival);
-    const advance = () => (hasPercival ? proceedToNightPercival() : beginTeamBuild());
-    if (allActiveAcked || remaining <= 0) {
-      advance();
-      return;
-    }
-    const t = setTimeout(() => advance(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [state, players, proceedToNightPercival, beginTeamBuild]);
+    return arm(
+      done ? 0 : remainingMs(state) + 250,
+      () => (hasPercival ? proceedToNightPercival() : beginTeamBuild())
+    );
+  }, [state, players, arm, proceedToNightPercival, beginTeamBuild]);
 
-  // Toàn bộ auto-progression server-side CHỈ chạy ở client của Host. Mục đích:
-  // tránh race condition khi nhiều client cùng trigger timeout → double rotate
-  // leader, double increment voteRejectStreak, hoặc double advance phase.
-
-  // Auto-progression: night-percival → team-build
+  // night-percival → team-build
   useEffect(() => {
-    if (!isHost) return;
     if (!state || state.phase !== 'night-percival') return;
-    const percivalIds = players
-      .filter((p) => (p.gameData as Partial<AvalonGameData> | undefined)?.role === AvalonRole.Percival)
-      .map((p) => p.id);
-    const ackedIds = Object.keys(state.roleAcks ?? {});
-    const activeAckedCount = percivalIds.filter((id) => ackedIds.includes(id)).length;
-    const allActiveAcked = percivalIds.length > 0 && activeAckedCount >= percivalIds.length;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['night-percival'] - elapsed;
-    if (allActiveAcked || remaining <= 0) {
-      beginTeamBuild();
-      return;
-    }
-    const t = setTimeout(() => beginTeamBuild(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [isHost, state, players, beginTeamBuild]);
+    const percivals = players.filter((p) => (p.gameData as Partial<AvalonGameData> | undefined)?.role === AvalonRole.Percival);
+    const done = percivals.length > 0 && percivals.every((p) => state.roleAcks?.[p.id]);
+    return arm(done ? 0 : remainingMs(state) + 250, beginTeamBuild);
+  }, [state, players, arm, beginTeamBuild]);
 
-  // Auto-progression fallback: team-build → vote (auto-submit) hoặc rotate Leader
-  // sau 60s nếu Leader idle. Chỉ submit khi proposedTeam đủ size, ngược lại
-  // bỏ qua Leader này, xoay sang người kế tiếp clockwise.
+  // team-build → vote (auto-submit) or rotate Leader after 60s if the Leader is idle.
   useEffect(() => {
-    if (!isHost) return;
     if (!state || state.phase !== 'team-build') return;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['team-build'] - elapsed;
-    if (remaining <= 0) {
-      teamBuildTimeoutAdvance();
-      return;
-    }
-    const t = setTimeout(() => teamBuildTimeoutAdvance(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [isHost, state, teamBuildTimeoutAdvance]);
+    return arm(remainingMs(state) + 250, teamBuildTimeoutAdvance);
+  }, [state, arm, teamBuildTimeoutAdvance]);
 
-  // Auto-progression: team-vote → resolve (when everyone voted or timeout)
+  // team-vote → resolve (everyone voted or timeout; a missing vote counts as reject)
   useEffect(() => {
-    if (!isHost) return;
     if (!state || state.phase !== 'team-vote') return;
-    const votedCount = Object.keys(state.teamVotes ?? {}).length;
-    const allVoted = votedCount >= playerCount && playerCount > 0;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['team-vote'] - elapsed;
-    if (allVoted || remaining <= 0) {
-      resolveTeamVote();
-      return;
-    }
-    const t = setTimeout(() => resolveTeamVote(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [isHost, state, playerCount, resolveTeamVote]);
+    const done = everyoneIn(gamePlayers, state.teamVotes);
+    return arm(done ? 0 : remainingMs(state) + 250, resolveTeamVote);
+  }, [state, gamePlayers, arm, resolveTeamVote]);
 
-  // Auto-progression: quest-play → resolve (when team played all or timeout)
-  // Dùng allCardsSynced (đọc questCard per-player) làm nguồn chân lý — tránh
-  // race condition trên array state.questPlayedBy khi nhiều player nộp đồng thời.
+  // quest-play → resolve (team played all cards or timeout). Each player's own
+  // questCard is the source of truth — not the shared questPlayedBy array, which
+  // races when several players submit at once.
   useEffect(() => {
-    if (!isHost) return;
     if (!state || state.phase !== 'quest-play') return;
-    const teamSize = state.proposedTeam.length;
     const allCardsSynced =
-      teamSize > 0 &&
+      state.proposedTeam.length > 0 &&
       state.proposedTeam.every((id) => {
-        const p = players.find((pp) => pp.id === id);
-        const card = (p?.gameData as Partial<AvalonGameData> | undefined)?.questCard;
+        const card = (players.find((p) => p.id === id)?.gameData as Partial<AvalonGameData> | undefined)?.questCard;
         return card === 'success' || card === 'fail';
       });
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['quest-play'] - elapsed;
-    if (allCardsSynced || remaining <= 0) {
-      resolveQuest();
-      return;
-    }
-    const t = setTimeout(() => resolveQuest(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [isHost, state, players, resolveQuest]);
+    return arm(allCardsSynced ? 0 : remainingMs(state) + 250, resolveQuest);
+  }, [state, players, arm, resolveQuest]);
 
-  // Auto-progression: team-vote-result → next (after short review timeout)
+  // team-vote-result → next (short review pause)
   useEffect(() => {
-    if (!isHost) return;
     if (!state || state.phase !== 'team-vote-result') return;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['team-vote-result'] - elapsed;
-    if (remaining <= 0) {
-      proceedAfterTeamVoteResult();
-      return;
-    }
-    const t = setTimeout(() => proceedAfterTeamVoteResult(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [isHost, state, proceedAfterTeamVoteResult]);
+    return arm(remainingMs(state) + 250, proceedAfterTeamVoteResult);
+  }, [state, arm, proceedAfterTeamVoteResult]);
 
-  // Auto-progression: quest-result → next (after short review timeout)
+  // quest-result → next (short review pause)
   useEffect(() => {
-    if (!isHost) return;
     if (!state || state.phase !== 'quest-result') return;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['quest-result'] - elapsed;
-    if (remaining <= 0) {
-      proceedAfterQuestResult();
-      return;
-    }
-    const t = setTimeout(() => proceedAfterQuestResult(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [isHost, state, proceedAfterQuestResult]);
+    return arm(remainingMs(state) + 250, proceedAfterQuestResult);
+  }, [state, arm, proceedAfterQuestResult]);
 
-  // Auto-progression: discussion → team-build (all-ack or 10-min timeout)
+  // discussion → team-build (everyone ready or 10-min timeout)
   useEffect(() => {
-    if (!isHost) return;
     if (!state || state.phase !== 'discussion') return;
-    const ackCount = Object.keys(state.roleAcks ?? {}).length;
-    const allAcked = ackCount >= playerCount && playerCount > 0;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['discussion'] - elapsed;
-    if (allAcked || remaining <= 0) {
-      proceedAfterDiscussion();
-      return;
-    }
-    const t = setTimeout(() => proceedAfterDiscussion(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [isHost, state, playerCount, proceedAfterDiscussion]);
+    const done = everyoneIn(gamePlayers, state.roleAcks);
+    return arm(done ? 0 : remainingMs(state) + 250, proceedAfterDiscussion);
+  }, [state, gamePlayers, arm, proceedAfterDiscussion]);
 
-  // Auto-progression fallback: lady-of-lake → discussion (90s timeout)
-  // Holder mất kết nối / không bấm Finish → tự chuyển token (nếu đã pick) hoặc skip.
+  // lady-of-lake → discussion if the holder is idle / disconnected
   useEffect(() => {
-    if (!isHost) return;
     if (!state || state.phase !== 'lady-of-lake') return;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['lady-of-lake'] - elapsed;
-    if (remaining <= 0) {
-      ladyTimeoutAdvance();
-      return;
-    }
-    const t = setTimeout(() => ladyTimeoutAdvance(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [isHost, state, ladyTimeoutAdvance]);
+    return arm(remainingMs(state) + 250, ladyTimeoutAdvance);
+  }, [state, arm, ladyTimeoutAdvance]);
 
-  // Auto-progression fallback: assassinate → end (Phe Người thắng nếu Sát Thủ idle 180s)
+  // assassinate → end (Good wins if the Assassin is idle for 180s)
   useEffect(() => {
-    if (!isHost) return;
     if (!state || state.phase !== 'assassinate') return;
-    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
-    const remaining = PHASE_TIMEOUTS_MS['assassinate'] - elapsed;
-    if (remaining <= 0) {
-      assassinTimeoutAdvance();
-      return;
-    }
-    const t = setTimeout(() => assassinTimeoutAdvance(), Math.max(500, remaining + 250));
-    return () => clearTimeout(t);
-  }, [isHost, state, assassinTimeoutAdvance]);
+    return arm(remainingMs(state) + 250, assassinTimeoutAdvance);
+  }, [state, arm, assassinTimeoutAdvance]);
 
   const handleLeave = useCallback(async () => {
+    if (inGame) {
+      // Leaving mid-game must NOT delete the player: their role lives on that
+      // record and the rest of the table is counting on it. It works like closing
+      // the tab — they can come back through the room link.
+      if (confirm('Thoát khỏi ván? Bạn vẫn là người chơi — mở lại link phòng để vào lại.')) {
+        localStorage.removeItem(ACTIVE_ROOM_KEY);
+        router.push('/');
+      }
+      return;
+    }
     if (confirm('Rời phòng?')) {
       await leaveRoom(playerId);
       router.push('/');
     }
-  }, [leaveRoom, playerId, router]);
+  }, [inGame, leaveRoom, playerId, router]);
 
   const handleDelete = useCallback(async () => {
     if (confirm('Xoá phòng? Thao tác không thể hoàn tác.')) {
@@ -327,7 +287,10 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   const handleRoleRevealDone = useCallback(async () => {
     setLocalRoleSeen(true);
     if (playerId) {
-      await ackRole(playerId);
+      // Offline: the ack is lost, but the phase also ends on its own timer.
+      await ackRole(playerId).catch(() =>
+        setNotice('Không gửi được xác nhận — kiểm tra kết nối mạng.')
+      );
     }
   }, [ackRole, playerId]);
 
@@ -445,6 +408,21 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     );
   }
 
+  const banner =
+    offline || notice ? (
+      <div className="fixed inset-x-0 top-0 z-40 px-4 pt-2">
+        <div
+          className={`mx-auto max-w-md rounded-xl border px-4 py-2 text-center text-sm font-bold shadow-lg ${
+            offline
+              ? 'border-red-500/40 bg-red-950/90 text-red-200'
+              : 'border-amber-500/40 bg-amber-950/90 text-amber-200'
+          }`}
+        >
+          {offline ? '📡 Mất kết nối — đang thử kết nối lại. Thao tác của bạn chưa được gửi.' : notice}
+        </div>
+      </div>
+    ) : null;
+
   if (!state) {
     return (
       <div className="flex min-h-dvh items-center justify-center text-slate-400">
@@ -473,6 +451,12 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         <div>
           <div className="text-4xl mb-2">⚠️</div>
           <p className="text-sm">Số người chơi không hợp lệ ({playerCount}). Avalon cần 5–10 người.</p>
+          <button
+            onClick={isHost ? handleDelete : handleLeave}
+            className="mt-4 rounded-lg border border-white/10 bg-slate-900/80 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-red-500/10 hover:text-red-400"
+          >
+            {isHost ? '🗑️ Xoá phòng' : '🚪 Rời'}
+          </button>
         </div>
       </div>
     );
@@ -480,17 +464,21 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   if (state.phase === 'role-reveal' && !localRoleSeen && !myAcked) {
     return (
-      <RoleReveal
-        myRole={myRole}
-        myPlayerId={playerId}
-        players={players}
-        onDone={handleRoleRevealDone}
-      />
+      <>
+        {banner}
+        <RoleReveal
+          myRole={myRole}
+          myPlayerId={playerId}
+          players={players}
+          onDone={handleRoleRevealDone}
+        />
+      </>
     );
   }
 
   return (
     <>
+      {banner}
       <div className="absolute right-4 top-4 z-30 flex gap-2">
         <button
           onClick={isHost ? handleDelete : handleLeave}
@@ -504,20 +492,20 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         myPlayer={myPlayer}
         players={players}
         playerCount={playerCount}
-        onProposedTeamChange={setProposedTeam}
-        onSubmitTeam={submitTeam}
-        onCastVote={(v) => castTeamVote(playerId, v)}
-        onPlayQuestCard={(c) => playQuestCard(playerId, c)}
-        onLadyInspect={ladyInspect}
-        onLadyConfirm={ladyConfirm}
+        onProposedTeamChange={act(setProposedTeam)}
+        onSubmitTeam={act(submitTeam)}
+        onCastVote={act((v) => castTeamVote(playerId, v))}
+        onPlayQuestCard={act((c) => playQuestCard(playerId, c))}
+        onLadyInspect={act(ladyInspect)}
+        onLadyConfirm={act(ladyConfirm)}
         onLadyShow={ladyShow}
-        onLadyFinish={ladyFinish}
-        onAssassinate={assassinate}
-        onSetAssassinChoice={setAssassinChoice}
+        onLadyFinish={act(ladyFinish)}
+        onAssassinate={act(assassinate)}
+        onSetAssassinChoice={act(setAssassinChoice)}
         onShowMyRole={() => setShowMyRoleCard(true)}
         onShowRolePreview={() => setShowRolePreview(true)}
-        onAckRole={() => ackRole(playerId)}
-        onAckDiscussion={() => ackDiscussion(playerId)}
+        onAckRole={act(() => ackRole(playerId))}
+        onAckDiscussion={act(() => ackDiscussion(playerId))}
         onPlayAgain={handleNewGame}
         onLeaveRoom={isHost ? handleDelete : handleLeave}
         isHost={isHost}

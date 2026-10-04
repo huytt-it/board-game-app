@@ -2,10 +2,12 @@
 
 import { useCallback, useMemo } from 'react';
 import { gameStorage } from '@/services/database/firebaseAdapter';
-import type { Player } from '@/types/player';
-import type { Room } from '@/types/room';
+import { serverNow } from '@/lib/serverClock';
+import type { BaseGameData, Player } from '@/types/player';
+import type { Room, RoomStatus } from '@/types/room';
 import {
   AvalonRole,
+  type AvalonPhase,
   type AvalonGameState,
   type AvalonGameData,
   type AvalonQuestRecord,
@@ -175,7 +177,12 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     }
     return seated;
   }, [players, state]);
-  const playerCount = gamePlayers.length;
+  // Seats are fixed when the game starts. Rules that depend on the table size
+  // (quest sizes, Quest 4 needing 2 fails, Lady) must not change because someone's
+  // record disappears mid-game, so they use the seat count. Voting and acks count
+  // only the players still present (gamePlayers).
+  const seatCount = state?.seatOrder?.length ?? 0;
+  const playerCount = seatCount > 0 ? seatCount : gamePlayers.length;
   const isSupportedCount = (PLAYER_COUNTS as readonly number[]).includes(playerCount);
 
   const currentQuestIdx = state?.currentQuest ?? 0;
@@ -187,10 +194,47 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
   const successCount = state?.quests.filter((q) => q.result === 'success').length ?? 0;
   const failCount = state?.quests.filter((q) => q.result === 'fail').length ?? 0;
 
-  const writeState = useCallback(
-    async (patch: Partial<AvalonGameState>) => {
-      if (!roomId) return;
-      await gameStorage.updateRoomGameState(roomId, patch as never);
+  // Every phase change goes through here. It only applies if the room is still in
+  // the phase THIS client is looking at (phase + phaseStartedAt), so a stale
+  // client (asleep, offline, slow) or a second client racing us can't overwrite
+  // newer state. Resolves false when someone else already moved on; throws when
+  // offline (nothing is queued for later).
+  //
+  // A decision that rests on data which can still change inside the phase (votes,
+  // the proposed team, quest cards) must say so via `expect` / `expectPlayerData`:
+  // the phase token alone can't tell that this client's copy of that data is stale.
+  const advance = useCallback(
+    async (
+      patch: Partial<AvalonGameState>,
+      opts?: {
+        status?: RoomStatus;
+        playerData?: Array<{ playerId: string; data: Partial<BaseGameData> }>;
+        expect?: Record<string, unknown>;
+        expectPlayerData?: Array<{ playerId: string; data: Partial<BaseGameData> }>;
+      }
+    ) => {
+      if (!roomId || !state) return false;
+      const { expect, ...rest } = opts ?? {};
+      return gameStorage.casGameState(
+        roomId,
+        { phase: state.phase, phaseStartedAt: state.phaseStartedAt, ...expect },
+        { phaseStartedAt: serverNow(), ...patch },
+        rest
+      );
+    },
+    [roomId, state]
+  );
+
+  // Changes inside a phase (votes, acks, picks) are dropped the same way if that
+  // phase has already ended, instead of landing in a later one.
+  const updateInPhase = useCallback(
+    async (
+      phase: AvalonPhase,
+      patch: Record<string, unknown>,
+      playerData?: Array<{ playerId: string; data: Partial<BaseGameData> }>
+    ) => {
+      if (!roomId) return false;
+      return gameStorage.casGameState(roomId, { phase }, patch, { playerData });
     },
     [roomId]
   );
@@ -245,7 +289,7 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       merlinTargetId: null,
       winner: null,
       roleAcks: {},
-      phaseStartedAt: Date.now(),
+      phaseStartedAt: serverNow(),
       roleLineup: pool.slice(),
       leadersUsed: [firstLeader.id],
       lastTeamVoteResult: null,
@@ -253,90 +297,66 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       seatOrder,
       assassinChoiceId: null,
     };
-    await writeState(fresh);
+    await gameStorage.updateRoomGameState(roomId, fresh as never);
     await gameStorage.updateRoomStatus(roomId, 'night');
-  }, [roomId, room, players, playerCount, isSupportedCount, writeState]);
+  }, [roomId, room, players, playerCount, isSupportedCount]);
 
-  const proceedToRoleReveal = useCallback(async () => {
-    if (!roomId) return;
-    await writeState({
-      phase: 'role-reveal',
-      roleAcks: {},
-      phaseStartedAt: Date.now(),
-    });
-  }, [roomId, writeState]);
+  const proceedToRoleReveal = useCallback(
+    () => advance({ phase: 'role-reveal', roleAcks: {} }),
+    [advance]
+  );
 
-  const proceedToNightEvils = useCallback(async () => {
-    if (!roomId) return;
-    await writeState({
-      phase: 'night-evils',
-      roleAcks: {},
-      phaseStartedAt: Date.now(),
-    });
-  }, [roomId, writeState]);
+  const proceedToNightEvils = useCallback(
+    () => advance({ phase: 'night-evils', roleAcks: {} }),
+    [advance]
+  );
 
-  const proceedToNightMerlin = useCallback(async () => {
-    if (!roomId) return;
-    await writeState({
-      phase: 'night-merlin',
-      roleAcks: {},
-      phaseStartedAt: Date.now(),
-    });
-  }, [roomId, writeState]);
+  const proceedToNightMerlin = useCallback(
+    () => advance({ phase: 'night-merlin', roleAcks: {} }),
+    [advance]
+  );
 
-  const proceedToNightPercival = useCallback(async () => {
-    if (!roomId) return;
-    await writeState({
-      phase: 'night-percival',
-      roleAcks: {},
-      phaseStartedAt: Date.now(),
-    });
-  }, [roomId, writeState]);
+  const proceedToNightPercival = useCallback(
+    () => advance({ phase: 'night-percival', roleAcks: {} }),
+    [advance]
+  );
 
-  const beginTeamBuild = useCallback(async () => {
-    if (!roomId) return;
-    await writeState({ phase: 'team-build', phaseStartedAt: Date.now() });
-    await gameStorage.updateRoomStatus(roomId, 'day');
-  }, [roomId, writeState]);
+  const beginTeamBuild = useCallback(
+    () => advance({ phase: 'team-build' }, { status: 'day' }),
+    [advance]
+  );
 
   const ackRole = useCallback(
     async (playerId: string) => {
-      if (!roomId) return;
-      const payload = { [`roleAcks.${playerId}`]: true };
-      await gameStorage.updateRoomGameState(roomId, payload as never);
+      if (!state) return;
+      await updateInPhase(state.phase, { [`roleAcks.${playerId}`]: true });
     },
-    [roomId]
+    [state, updateInPhase]
   );
 
   const setProposedTeam = useCallback(
     async (teamIds: string[]) => {
-      await writeState({ proposedTeam: teamIds });
+      await updateInPhase('team-build', { proposedTeam: teamIds });
     },
-    [writeState]
+    [updateInPhase]
   );
 
-  const submitTeam = useCallback(async () => {
-    if (!roomId) return;
-    await writeState({ phase: 'team-vote', teamVotes: {}, phaseStartedAt: Date.now() });
-    await gameStorage.updateRoomStatus(roomId, 'voting');
-  }, [roomId, writeState]);
+  const submitTeam = useCallback(
+    () => advance({ phase: 'team-vote', teamVotes: {} }, { status: 'voting' }),
+    [advance]
+  );
 
   // Fallback khi Leader idle/disconnect quá 60s ở phase team-build:
   //   - Nếu proposedTeam đã đúng số lượng yêu cầu → auto-submit sang vote.
   //   - Nếu chưa đủ → bỏ qua Leader này, xoay sang Leader kế tiếp (clockwise),
   //     KHÔNG burn vote-reject-streak (vì chưa có vote nào diễn ra).
   const teamBuildTimeoutAdvance = useCallback(async () => {
-    if (!roomId || !state) return;
-    if (state.phase !== 'team-build') return;
+    if (!state || state.phase !== 'team-build') return;
     const requiredSize =
       state.quests[state.currentQuest]?.teamSize ?? 0;
+    const expect = { proposedTeam: state.proposedTeam };
     if (state.proposedTeam.length === requiredSize && requiredSize > 0) {
-      await writeState({
-        phase: 'team-vote',
-        teamVotes: {},
-        phaseStartedAt: Date.now(),
-      });
-      await gameStorage.updateRoomStatus(roomId, 'voting');
+      await advance({ phase: 'team-vote', teamVotes: {} }, { status: 'voting', expect });
     } else {
       const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
         state.seatOrder ?? gamePlayers.map((p) => p.id),
@@ -344,29 +364,28 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
         state.currentLeaderId,
         state.leadersUsed ?? []
       );
-      await writeState({
-        phase: 'team-build',
-        currentLeaderId: nextLeaderId,
-        leadersUsed: nextUsed,
-        proposedTeam: [],
-        teamVotes: {},
-        phaseStartedAt: Date.now(),
-      });
+      await advance(
+        {
+          phase: 'team-build',
+          currentLeaderId: nextLeaderId,
+          leadersUsed: nextUsed,
+          proposedTeam: [],
+          teamVotes: {},
+        },
+        { expect }
+      );
     }
-  }, [roomId, state, gamePlayers, writeState]);
+  }, [state, gamePlayers, advance]);
 
   const castTeamVote = useCallback(
     async (playerId: string, vote: TeamVote) => {
-      if (!roomId) return;
-      const payload = { [`teamVotes.${playerId}`]: vote };
-      await gameStorage.updateRoomGameState(roomId, payload as never);
+      await updateInPhase('team-vote', { [`teamVotes.${playerId}`]: vote });
     },
-    [roomId]
+    [updateInPhase]
   );
 
   const resolveTeamVote = useCallback(async () => {
-    if (!roomId || !room || !state) return;
-    if (state.phase !== 'team-vote') return;
+    if (!state || state.phase !== 'team-vote') return;
     // Bất kỳ player nào không bỏ phiếu trong 30s đều được tính là REJECT.
     // Vì vậy: rejects = totalPlayers - approves (kể cả khi vote sớm xong).
     // Chỉ tính vote của những player CÒN trong phòng tại thời điểm chốt — phòng
@@ -378,6 +397,9 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     ).length;
     const rejects = Math.max(0, totalPlayers - approves);
     const approved = totalPlayers > 0 && approves > rejects;
+    // The tally must be checked against the votes actually stored, not just this
+    // client's copy: a client with a stale view would otherwise reverse the result.
+    const expect = { teamVotes: state.teamVotes, proposedTeam: state.proposedTeam };
 
     if (approved) {
       const quest = { ...state.quests[state.currentQuest] };
@@ -387,61 +409,57 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       quest.rejectCount = rejects;
       const newQuests = [...state.quests];
       newQuests[state.currentQuest] = quest;
-      await writeState({
-        phase: 'team-vote-result',
-        lastTeamVoteResult: 'approved',
-        quests: newQuests,
-        phaseStartedAt: Date.now(),
-      });
+      await advance(
+        {
+          phase: 'team-vote-result',
+          lastTeamVoteResult: 'approved',
+          quests: newQuests,
+        },
+        { expect }
+      );
     } else {
       const newStreak = state.voteRejectStreak + 1;
       if (newStreak >= VOTE_TRACK_LIMIT) {
-        await writeState({
-          voteRejectStreak: newStreak,
-          phase: 'end',
-          winner: 'evil',
-          teamVotes: {},
-          proposedTeam: [],
-          lastTeamVoteResult: 'rejected',
-        });
-        await gameStorage.updateRoomStatus(roomId, 'end');
+        await advance(
+          {
+            voteRejectStreak: newStreak,
+            phase: 'end',
+            winner: 'evil',
+            teamVotes: {},
+            proposedTeam: [],
+            lastTeamVoteResult: 'rejected',
+          },
+          { status: 'end', expect }
+        );
       } else {
-        await writeState({
-          phase: 'team-vote-result',
-          lastTeamVoteResult: 'rejected',
-          voteRejectStreak: newStreak,
-          phaseStartedAt: Date.now(),
-        });
+        await advance(
+          {
+            phase: 'team-vote-result',
+            lastTeamVoteResult: 'rejected',
+            voteRejectStreak: newStreak,
+          },
+          { expect }
+        );
       }
     }
-  }, [roomId, room, state, gamePlayers, writeState]);
+  }, [state, gamePlayers, advance]);
 
   const proceedAfterTeamVoteResult = useCallback(async () => {
-    if (!roomId || !state) return;
-    if (state.phase !== 'team-vote-result') return;
+    if (!state || state.phase !== 'team-vote-result') return;
 
     if (state.lastTeamVoteResult === 'approved') {
-      // Reset questCard TRƯỚC khi đổi phase sang 'quest-play'. Nếu đổi phase
-      // trước, có khoảng race ~100-300ms mà client thấy phase='quest-play'
-      // nhưng questCard vẫn còn 'success'/'fail' từ quest trước → vừa khoá
-      // UI chọn lá của thành viên team mới (PlayerPanel coi như đã đánh),
-      // vừa khiến host's auto-resolve effect (allCardsSynced) chốt quest
-      // ngay lập tức bằng các lá cũ. Điển hình: 6 người, Quest 4 với team là
-      // subset của Quest 3 → Mordred không kịp đặt lá Phe Quỷ.
-      await gameStorage.updatePlayersGameDataBatch(
-        roomId,
-        gamePlayers.map((p) => ({
-          playerId: p.id,
-          data: { questCard: null },
-        }))
+      // questCard của mọi người được reset TRONG CÙNG transaction với việc đổi
+      // phase sang 'quest-play', nên không có khoảng hở nào mà client thấy
+      // phase='quest-play' nhưng questCard vẫn còn lá của quest trước (sẽ khoá
+      // UI chọn lá của thành viên team mới và làm auto-resolve chốt quest
+      // ngay bằng các lá cũ).
+      await advance(
+        { phase: 'quest-play', voteRejectStreak: 0, questPlayedBy: [] },
+        {
+          status: 'day',
+          playerData: gamePlayers.map((p) => ({ playerId: p.id, data: { questCard: null } })),
+        }
       );
-      await writeState({
-        phase: 'quest-play',
-        voteRejectStreak: 0,
-        questPlayedBy: [],
-        phaseStartedAt: Date.now(),
-      });
-      await gameStorage.updateRoomStatus(roomId, 'day');
     } else {
       const { leaderId: nextLeaderId, nextUsed } = pickNextLeader(
         state.seatOrder ?? gamePlayers.map((p) => p.id),
@@ -449,33 +467,32 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
         state.currentLeaderId,
         state.leadersUsed ?? []
       );
-      await writeState({
-        phase: 'team-build',
-        currentLeaderId: nextLeaderId,
-        leadersUsed: nextUsed,
-        teamVotes: {},
-        proposedTeam: [],
-        phaseStartedAt: Date.now(),
-      });
-      await gameStorage.updateRoomStatus(roomId, 'day');
+      await advance(
+        {
+          phase: 'team-build',
+          currentLeaderId: nextLeaderId,
+          leadersUsed: nextUsed,
+          teamVotes: {},
+          proposedTeam: [],
+        },
+        { status: 'day' }
+      );
     }
-  }, [roomId, state, gamePlayers, writeState]);
+  }, [state, gamePlayers, advance]);
 
   const playQuestCard = useCallback(
     async (playerId: string, card: QuestCard) => {
-      if (!roomId) return;
       // Chỉ ghi questCard per-player. Source of truth cho "đã chơi" là
       // mỗi player.gameData.questCard, KHÔNG phải state.questPlayedBy.
-      // (Trước đây đọc-rồi-ghi state.questPlayedBy gây race khi nhiều
-      // người chơi nộp đồng thời, làm phase quest-play kẹt đến khi timeout.)
-      await gameStorage.updatePlayerGameData(roomId, playerId, { questCard: card });
+      // Chỉ nhận khi phase vẫn là 'quest-play' — một lá bài gửi muộn sẽ không
+      // rơi vào quest kế tiếp.
+      await updateInPhase('quest-play', {}, [{ playerId, data: { questCard: card } }]);
     },
-    [roomId]
+    [updateInPhase]
   );
 
   const resolveQuest = useCallback(async () => {
-    if (!roomId || !state) return;
-    if (state.phase !== 'quest-play') return;
+    if (!state || state.phase !== 'quest-play') return;
     const teamIds = state.proposedTeam;
     // Design choice: nếu một thành viên team không kịp chơi card trước timeout,
     // coi là 'success' (KHÔNG đếm fail). Chỉ những lá 'fail' thực sự được nộp
@@ -503,16 +520,20 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       failCount: fails,
     };
 
-    await writeState({
-      quests: newQuests,
-      phase: 'quest-result',
-      phaseStartedAt: Date.now(),
-    });
-  }, [roomId, state, players, playerCount, writeState]);
+    // Same rule as the vote: the count of fails must match the cards actually stored.
+    const expectPlayerData = teamIds.map((id) => ({
+      playerId: id,
+      data: {
+        questCard:
+          (players.find((pp) => pp.id === id)?.gameData as Partial<AvalonGameData> | undefined)
+            ?.questCard ?? null,
+      },
+    }));
+    await advance({ quests: newQuests, phase: 'quest-result' }, { expectPlayerData });
+  }, [state, players, playerCount, advance]);
 
   const proceedAfterQuestResult = useCallback(async () => {
-    if (!roomId || !state) return;
-    if (state.phase !== 'quest-result') return;
+    if (!state || state.phase !== 'quest-result') return;
 
     const successes = state.quests.filter((q) => q.result === 'success').length;
     const failures = state.quests.filter((q) => q.result === 'fail').length;
@@ -523,26 +544,23 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     //     win/fail, bất kể tỉ số 3-0/3-1/3-2). Phe Người chỉ thắng nếu Sát
     //     Thủ đoán sai hoặc hết giờ không chốt.
     if (failures >= QUESTS_TO_WIN) {
-      await writeState({
-        phase: 'end',
-        winner: 'evil',
-        proposedTeam: [],
-        teamVotes: {},
-        questPlayedBy: [],
-      });
-      await gameStorage.updateRoomStatus(roomId, 'end');
+      await advance(
+        { phase: 'end', winner: 'evil', proposedTeam: [], teamVotes: {}, questPlayedBy: [] },
+        { status: 'end' }
+      );
       return;
     }
     if (successes >= QUESTS_TO_WIN) {
-      await writeState({
-        phase: 'assassinate',
-        proposedTeam: [],
-        teamVotes: {},
-        questPlayedBy: [],
-        roleAcks: {},
-        phaseStartedAt: Date.now(),
-      });
-      await gameStorage.updateRoomStatus(roomId, 'day');
+      await advance(
+        {
+          phase: 'assassinate',
+          proposedTeam: [],
+          teamVotes: {},
+          questPlayedBy: [],
+          roleAcks: {},
+        },
+        { status: 'day' }
+      );
       return;
     }
 
@@ -561,53 +579,47 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     );
 
     if (ladyApplies) {
-      await writeState({
-        phase: 'lady-of-lake',
-        proposedTeam: [],
-        teamVotes: {},
-        questPlayedBy: [],
-        ladyTargetId: null,
-        ladyShownCard: null,
-        currentQuest: nextQuest,
-        currentLeaderId: nextLeaderId,
-        leadersUsed: nextUsed,
-        phaseStartedAt: Date.now(),
-      });
-      await gameStorage.updateRoomStatus(roomId, 'day');
+      await advance(
+        {
+          phase: 'lady-of-lake',
+          proposedTeam: [],
+          teamVotes: {},
+          questPlayedBy: [],
+          ladyTargetId: null,
+          ladyShownCard: null,
+          currentQuest: nextQuest,
+          currentLeaderId: nextLeaderId,
+          leadersUsed: nextUsed,
+        },
+        { status: 'day' }
+      );
     } else {
-      await writeState({
-        phase: 'discussion',
-        proposedTeam: [],
-        teamVotes: {},
-        questPlayedBy: [],
-        currentQuest: nextQuest,
-        currentLeaderId: nextLeaderId,
-        leadersUsed: nextUsed,
-        roleAcks: {},
-        phaseStartedAt: Date.now(),
-      });
-      await gameStorage.updateRoomStatus(roomId, 'day');
+      await advance(
+        {
+          phase: 'discussion',
+          proposedTeam: [],
+          teamVotes: {},
+          questPlayedBy: [],
+          currentQuest: nextQuest,
+          currentLeaderId: nextLeaderId,
+          leadersUsed: nextUsed,
+          roleAcks: {},
+        },
+        { status: 'day' }
+      );
     }
-  }, [roomId, state, gamePlayers, playerCount, writeState]);
+  }, [state, gamePlayers, playerCount, advance]);
 
   const proceedAfterDiscussion = useCallback(async () => {
-    if (!roomId || !state) return;
-    if (state.phase !== 'discussion') return;
-    await writeState({
-      phase: 'team-build',
-      roleAcks: {},
-      phaseStartedAt: Date.now(),
-    });
-    await gameStorage.updateRoomStatus(roomId, 'day');
-  }, [roomId, state, writeState]);
+    if (!state || state.phase !== 'discussion') return;
+    await advance({ phase: 'team-build', roleAcks: {} }, { status: 'day' });
+  }, [state, advance]);
 
   const ackDiscussion = useCallback(
     async (playerId: string) => {
-      if (!roomId) return;
-      const payload = { [`roleAcks.${playerId}`]: true };
-      await gameStorage.updateRoomGameState(roomId, payload as never);
+      await updateInPhase('discussion', { [`roleAcks.${playerId}`]: true });
     },
-    [roomId]
+    [updateInPhase]
   );
 
   // Bước 1: Lady chọn / đổi target. CHỈ set ladyTargetId, KHÔNG reveal phe.
@@ -615,24 +627,23 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
   // Truyền chuỗi rỗng để CLEAR target (không dùng trong UI mới nhưng giữ).
   const ladyInspect = useCallback(
     async (targetId: string) => {
-      if (!roomId || !state) return;
-      await writeState({
+      await updateInPhase('lady-of-lake', {
         ladyTargetId: targetId || null,
         ladyShownCard: null,
-        phaseStartedAt: Date.now(),
+        phaseStartedAt: serverNow(),
       });
     },
-    [roomId, state, writeState]
+    [updateInPhase]
   );
 
   // Bước 2: Lady bấm Xác nhận → tính phe thật của target và reveal cho Lady.
   const ladyConfirm = useCallback(async () => {
-    if (!roomId || !state || !state.ladyTargetId) return;
+    if (!state || !state.ladyTargetId) return;
     const target = players.find((p) => p.id === state.ladyTargetId);
     const team = (target?.gameData as Partial<AvalonGameData> | undefined)?.team;
     const trueCard: 'good' | 'evil' = team === 'evil' ? 'evil' : 'good';
-    await writeState({ ladyShownCard: trueCard });
-  }, [roomId, state, writeState, players]);
+    await updateInPhase('lady-of-lake', { ladyShownCard: trueCard });
+  }, [state, updateInPhase, players]);
 
   const ladyShow = useCallback(
     async (_card: 'good' | 'evil') => {
@@ -643,36 +654,38 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
   );
 
   const ladyFinish = useCallback(async () => {
-    if (!roomId || !state || !state.ladyTargetId) return;
+    if (!state || !state.ladyTargetId) return;
     const newHistory = [...state.ladyHistory, state.ladyHolderId!].filter(Boolean) as string[];
-    await writeState({
+    await advance({
       phase: 'discussion',
       ladyHolderId: state.ladyTargetId,
       ladyHistory: newHistory,
       ladyTargetId: null,
       ladyShownCard: null,
       roleAcks: {},
-      phaseStartedAt: Date.now(),
     });
-  }, [roomId, state, writeState]);
+  }, [state, advance]);
 
   // Fallback khi hết 45s. Lady chỉ thực sự "soi" khi đã CONFIRM (ladyShownCard
   // được set). Nếu CHƯA confirm → bỏ qua lượt soi, đồng thời RANDOM 1 Lady mới
   // từ những player chưa từng cầm token (loại current Lady và lịch sử).
   const ladyTimeoutAdvance = useCallback(async () => {
-    if (!roomId || !state || state.phase !== 'lady-of-lake') return;
+    if (!state || state.phase !== 'lady-of-lake') return;
     const inspectionConfirmed = state.ladyShownCard !== null && !!state.ladyTargetId;
+    const expect = { ladyTargetId: state.ladyTargetId, ladyShownCard: state.ladyShownCard };
     if (inspectionConfirmed) {
       const newHistory = [...state.ladyHistory, state.ladyHolderId!].filter(Boolean) as string[];
-      await writeState({
-        phase: 'discussion',
-        ladyHolderId: state.ladyTargetId,
-        ladyHistory: newHistory,
-        ladyTargetId: null,
-        ladyShownCard: null,
-        roleAcks: {},
-        phaseStartedAt: Date.now(),
-      });
+      await advance(
+        {
+          phase: 'discussion',
+          ladyHolderId: state.ladyTargetId,
+          ladyHistory: newHistory,
+          ladyTargetId: null,
+          ladyShownCard: null,
+          roleAcks: {},
+        },
+        { expect }
+      );
     } else {
       const used = new Set(state.ladyHistory ?? []);
       if (state.ladyHolderId) used.add(state.ladyHolderId);
@@ -684,22 +697,23 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       const newHistory = state.ladyHolderId
         ? [...state.ladyHistory, state.ladyHolderId].filter(Boolean) as string[]
         : state.ladyHistory ?? [];
-      await writeState({
-        phase: 'discussion',
-        ladyHolderId: fallback,
-        ladyHistory: newHistory,
-        ladyTargetId: null,
-        ladyShownCard: null,
-        roleAcks: {},
-        phaseStartedAt: Date.now(),
-      });
+      await advance(
+        {
+          phase: 'discussion',
+          ladyHolderId: fallback,
+          ladyHistory: newHistory,
+          ladyTargetId: null,
+          ladyShownCard: null,
+          roleAcks: {},
+        },
+        { expect }
+      );
     }
-  }, [roomId, state, gamePlayers, writeState]);
+  }, [state, gamePlayers, advance]);
 
   const setAssassinChoice = useCallback(
     async (targetId: string | null, callerId?: string) => {
-      if (!roomId || !state) return;
-      if (state.phase !== 'assassinate') return;
+      if (!state || state.phase !== 'assassinate') return;
       if (callerId) {
         const caller = players.find((p) => p.id === callerId);
         const callerRole = (caller?.gameData as Partial<AvalonGameData> | undefined)?.role;
@@ -710,17 +724,16 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
         const targetData = target?.gameData as Partial<AvalonGameData> | undefined;
         if (!target || targetData?.team !== 'good') return;
       }
-      await writeState({ assassinChoiceId: targetId });
+      await updateInPhase('assassinate', { assassinChoiceId: targetId });
     },
-    [roomId, state, players, writeState]
+    [state, players, updateInPhase]
   );
 
   const assassinate = useCallback(
     async (targetId: string, callerId?: string) => {
-      if (!roomId || !state) return;
       // Guard phase: chỉ resolve được khi đang ở phase 'assassinate' (sau khi
       // Phe Người đã đủ 3 Quest). Ngoài phase này, request bị bỏ qua.
-      if (state.phase !== 'assassinate') return;
+      if (!state || state.phase !== 'assassinate') return;
 
       // Guard caller: chỉ Sát Thủ mới được đâm. Khi callerId không truyền (hoặc
       // không khớp), reject để tránh bypass UI.
@@ -739,27 +752,17 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       if (targetData?.team !== 'good') return;
 
       const winner = targetData.role === AvalonRole.Merlin ? 'evil' : 'good';
-      await writeState({
-        phase: 'end',
-        merlinTargetId: targetId,
-        winner,
-      });
-      await gameStorage.updateRoomStatus(roomId, 'end');
+      await advance({ phase: 'end', merlinTargetId: targetId, winner }, { status: 'end' });
     },
-    [roomId, state, players, writeState]
+    [state, players, advance]
   );
 
   // Fallback: nếu Sát Thủ idle/disconnect, kết thúc với Phe Người thắng
   // (vì Phe Người đã đạt 3 Quest và không bị ám sát trúng).
   const assassinTimeoutAdvance = useCallback(async () => {
-    if (!roomId || !state || state.phase !== 'assassinate') return;
-    await writeState({
-      phase: 'end',
-      winner: 'good',
-      merlinTargetId: null,
-    });
-    await gameStorage.updateRoomStatus(roomId, 'end');
-  }, [roomId, state, writeState]);
+    if (!state || state.phase !== 'assassinate') return;
+    await advance({ phase: 'end', winner: 'good', merlinTargetId: null }, { status: 'end' });
+  }, [state, advance]);
 
   return {
     config,

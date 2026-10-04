@@ -55,6 +55,12 @@ export interface Room {
   config: RoomConfig;
   gameState?: RoomGameState;
   createdAt: Timestamp | Date;
+  /**
+   * Epoch millis of the last write that changed the room (status, game state,
+   * config, a player joining). Drives stale-room cleanup. Absent on rooms
+   * created before this field existed — fall back to `createdAt`.
+   */
+  lastActivityAt?: number;
 }
 
 // ─── Room creation payload (without auto-generated fields) ────────────

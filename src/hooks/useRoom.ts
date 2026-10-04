@@ -5,12 +5,16 @@ import { gameStorage } from '@/services/database/firebaseAdapter';
 import type { Room, RoomStatus, GameType, RoomConfig, RoomGameState } from '@/types/room';
 import type { Player } from '@/types/player';
 
+export const ACTIVE_ROOM_KEY = 'active_room_id';
+
 interface UseRoomReturn {
   room: Room | null;
   players: Player[];
   isHost: boolean;
   isLoading: boolean;
   error: string | null;
+  /** Set when the room/players listener was terminated (e.g. permission denied). */
+  loadError: string | null;
   createRoom: (hostId: string, hostName: string, gameType: GameType, config: RoomConfig) => Promise<string>;
   joinRoom: (roomCode: string, playerId: string, playerName: string) => Promise<string>;
   joinRoomById: (roomId: string, playerId: string, playerName: string) => Promise<void>;
@@ -22,57 +26,83 @@ interface UseRoomReturn {
   resetRoom: () => Promise<void>;
 }
 
+// A player can only be in one room at a time: joining/creating a room leaves the
+// previous one, and a room left with nobody in it is deleted instead of lingering.
+async function leavePreviousRoom(playerId: string, nextRoomId?: string): Promise<void> {
+  const activeRoomId = localStorage.getItem(ACTIVE_ROOM_KEY);
+  if (!activeRoomId || activeRoomId === nextRoomId) return;
+  try {
+    await gameStorage.leaveRoom(activeRoomId, playerId);
+  } catch (e) {
+    console.error('Failed to leave old room', e);
+  }
+}
+
+/**
+ * `playerId` must be the authenticated id from useAuth. The Firestore listeners
+ * are only attached once it is set: attaching them earlier sends the request
+ * without an auth token, Firestore rejects it and the listener is terminated
+ * for good (it never retries once auth arrives).
+ */
 export function useRoom(roomId?: string, playerId?: string | null): UseRoomReturn {
   const [room, setRoom] = useState<Room | null>(null);
   const [players, setPlayers] = useState<Player[]>([]);
   const [isLoading, setIsLoading] = useState(!!roomId);
   const [error, setError] = useState<string | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   const isHost = !!(room && playerId && room.hostId === playerId);
 
   // Subscribe to room updates
   useEffect(() => {
-    if (!roomId) return;
-    setIsLoading(true);
-    const unsub = gameStorage.subscribeToRoom(roomId, (r) => {
-      setRoom(r);
-      setIsLoading(false);
-      if (!r) setError('Room not found');
-    });
+    if (!roomId || !playerId) return;
+    const unsub = gameStorage.subscribeToRoom(
+      roomId,
+      (r) => {
+        setRoom(r);
+        setIsLoading(false);
+        if (!r) {
+          setError('Room not found');
+          // The room is gone (deleted, or swept as stale) — don't keep pointing at it.
+          if (localStorage.getItem(ACTIVE_ROOM_KEY) === roomId) {
+            localStorage.removeItem(ACTIVE_ROOM_KEY);
+          }
+        }
+      },
+      (err) => {
+        setLoadError(err.message);
+        setIsLoading(false);
+      }
+    );
     return () => unsub();
-  }, [roomId]);
+  }, [roomId, playerId]);
 
   // Subscribe to players
   useEffect(() => {
-    if (!roomId) return;
-    const unsub = gameStorage.subscribeToPlayers(roomId, (p) => {
-      setPlayers(p);
-    });
+    if (!roomId || !playerId) return;
+    const unsub = gameStorage.subscribeToPlayers(
+      roomId,
+      (p) => {
+        setPlayers(p);
+      },
+      (err) => {
+        setLoadError(err.message);
+        setIsLoading(false);
+      }
+    );
     return () => unsub();
-  }, [roomId]);
+  }, [roomId, playerId]);
 
   const createRoom = useCallback(
     async (hostId: string, hostName: string, gameType: GameType, config: RoomConfig) => {
       try {
         setError(null);
-        
-        // Auto-leave old room if one exists
-        const activeRoomId = localStorage.getItem('active_room_id');
-        if (activeRoomId) {
-          try {
-            await gameStorage.removePlayer(activeRoomId, hostId);
-            const oldPlayers = await gameStorage.getPlayers(activeRoomId);
-            if (oldPlayers.length === 0) {
-              await gameStorage.deleteRoom(activeRoomId);
-            }
-          } catch (e) {
-            console.error('Failed to leave old room', e);
-          }
-        }
+
+        await leavePreviousRoom(hostId);
 
         const newRoomId = await gameStorage.createRoom({ hostId, gameType, config });
         await gameStorage.addPlayer(newRoomId, { id: hostId, name: hostName, isHost: true });
-        localStorage.setItem('active_room_id', newRoomId);
+        localStorage.setItem(ACTIVE_ROOM_KEY, newRoomId);
         return newRoomId;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to create room';
@@ -89,7 +119,7 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
         setError(null);
         const foundRoom = await gameStorage.getRoomByCode(roomCode);
         if (!foundRoom) throw new Error('Room not found');
-        
+
         const existingPlayer = await gameStorage.getPlayer(foundRoom.id, pId);
         const currentPlayers = await gameStorage.getPlayers(foundRoom.id);
         const nonHostPlayers = currentPlayers.filter((p) => !p.isHost);
@@ -101,22 +131,10 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
           throw new Error('Game already in progress');
         }
 
-        // Auto-leave old room
-        const activeRoomId = localStorage.getItem('active_room_id');
-        if (activeRoomId && activeRoomId !== foundRoom.id) {
-          try {
-            await gameStorage.removePlayer(activeRoomId, pId);
-            const oldPlayers = await gameStorage.getPlayers(activeRoomId);
-            if (oldPlayers.length === 0) {
-              await gameStorage.deleteRoom(activeRoomId);
-            }
-          } catch (e) {
-            console.error('Failed to leave old room', e);
-          }
-        }
-        
+        await leavePreviousRoom(pId, foundRoom.id);
+
         await gameStorage.addPlayer(foundRoom.id, { id: pId, name: playerName, isHost: false });
-        localStorage.setItem('active_room_id', foundRoom.id);
+        localStorage.setItem(ACTIVE_ROOM_KEY, foundRoom.id);
         return foundRoom.id;
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to join room';
@@ -133,7 +151,7 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
         setError(null);
         const foundRoom = await gameStorage.getRoom(rId);
         if (!foundRoom) throw new Error('Room not found');
-        
+
         const existingPlayer = await gameStorage.getPlayer(rId, pId);
         const currentPlayers = await gameStorage.getPlayers(rId);
         const nonHostPlayers = currentPlayers.filter((p) => !p.isHost);
@@ -145,22 +163,10 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
           throw new Error('Game already in progress');
         }
 
-        // Auto-leave old room
-        const activeRoomId = localStorage.getItem('active_room_id');
-        if (activeRoomId && activeRoomId !== rId) {
-          try {
-            await gameStorage.removePlayer(activeRoomId, pId);
-            const oldPlayers = await gameStorage.getPlayers(activeRoomId);
-            if (oldPlayers.length === 0) {
-              await gameStorage.deleteRoom(activeRoomId);
-            }
-          } catch (e) {
-            console.error('Failed to leave old room', e);
-          }
-        }
+        await leavePreviousRoom(pId, rId);
 
         await gameStorage.addPlayer(rId, { id: pId, name: playerName, isHost: false });
-        localStorage.setItem('active_room_id', rId);
+        localStorage.setItem(ACTIVE_ROOM_KEY, rId);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Failed to join room';
         setError(msg);
@@ -210,13 +216,8 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
     async (pId: string) => {
       if (!roomId) return;
       try {
-        await gameStorage.removePlayer(roomId, pId);
-        localStorage.removeItem('active_room_id');
-        
-        const remaining = await gameStorage.getPlayers(roomId);
-        if (remaining.length === 0) {
-          await gameStorage.deleteRoom(roomId);
-        }
+        localStorage.removeItem(ACTIVE_ROOM_KEY);
+        await gameStorage.leaveRoom(roomId, pId);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to leave room');
       }
@@ -248,6 +249,7 @@ export function useRoom(roomId?: string, playerId?: string | null): UseRoomRetur
     isHost,
     isLoading,
     error,
+    loadError,
     createRoom,
     joinRoom,
     joinRoomById,
