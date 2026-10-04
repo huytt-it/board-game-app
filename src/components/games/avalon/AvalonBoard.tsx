@@ -8,6 +8,7 @@ import QRCodeDisplay from '@/components/core/QRCodeDisplay';
 import type { GameModuleProps } from '@/lib/gameRegistry';
 import RoleReveal from './RoleReveal';
 import RoleCard from './RoleCard';
+import RolePreviewPopup from './RolePreviewPopup';
 import RoomSettings from './RoomSettings';
 import RoleGuide from './RoleGuide';
 import PlayerPanel from './PlayerPanel';
@@ -16,6 +17,7 @@ import LobbyRoundTable from './LobbyRoundTable';
 import { useAvalon, defaultAvalonConfig } from './useAvalon';
 import { AvalonRole, type AvalonGameData, PHASE_TIMEOUTS_MS } from './types';
 import { PLAYER_COUNTS } from './constants';
+import './avalon.css';
 
 export default function AvalonBoard({ room, players, playerId, isHost }: GameModuleProps) {
   const router = useRouter();
@@ -34,6 +36,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     ackRole,
     setProposedTeam,
     submitTeam,
+    teamBuildTimeoutAdvance,
     castTeamVote,
     resolveTeamVote,
     proceedAfterTeamVoteResult,
@@ -43,13 +46,18 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     proceedAfterDiscussion,
     ackDiscussion,
     ladyInspect,
+    ladyConfirm,
     ladyShow,
     ladyFinish,
+    ladyTimeoutAdvance,
+    setAssassinChoice,
     assassinate,
+    assassinTimeoutAdvance,
   } = useAvalon(room.id, room, players);
 
   const [localRoleSeen, setLocalRoleSeen] = useState(false);
   const [showMyRoleCard, setShowMyRoleCard] = useState(false);
+  const [showRolePreview, setShowRolePreview] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showRoleGuide, setShowRoleGuide] = useState(false);
@@ -134,8 +142,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     return () => clearTimeout(t);
   }, [state, players, proceedToNightPercival, beginTeamBuild]);
 
+  // Toàn bộ auto-progression server-side CHỈ chạy ở client của Host. Mục đích:
+  // tránh race condition khi nhiều client cùng trigger timeout → double rotate
+  // leader, double increment voteRejectStreak, hoặc double advance phase.
+
   // Auto-progression: night-percival → team-build
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'night-percival') return;
     const percivalIds = players
       .filter((p) => (p.gameData as Partial<AvalonGameData> | undefined)?.role === AvalonRole.Percival)
@@ -151,10 +164,27 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => beginTeamBuild(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, players, beginTeamBuild]);
+  }, [isHost, state, players, beginTeamBuild]);
+
+  // Auto-progression fallback: team-build → vote (auto-submit) hoặc rotate Leader
+  // sau 60s nếu Leader idle. Chỉ submit khi proposedTeam đủ size, ngược lại
+  // bỏ qua Leader này, xoay sang người kế tiếp clockwise.
+  useEffect(() => {
+    if (!isHost) return;
+    if (!state || state.phase !== 'team-build') return;
+    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
+    const remaining = PHASE_TIMEOUTS_MS['team-build'] - elapsed;
+    if (remaining <= 0) {
+      teamBuildTimeoutAdvance();
+      return;
+    }
+    const t = setTimeout(() => teamBuildTimeoutAdvance(), Math.max(500, remaining + 250));
+    return () => clearTimeout(t);
+  }, [isHost, state, teamBuildTimeoutAdvance]);
 
   // Auto-progression: team-vote → resolve (when everyone voted or timeout)
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'team-vote') return;
     const votedCount = Object.keys(state.teamVotes ?? {}).length;
     const allVoted = votedCount >= playerCount && playerCount > 0;
@@ -166,31 +196,35 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => resolveTeamVote(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, playerCount, resolveTeamVote]);
+  }, [isHost, state, playerCount, resolveTeamVote]);
 
   // Auto-progression: quest-play → resolve (when team played all or timeout)
+  // Dùng allCardsSynced (đọc questCard per-player) làm nguồn chân lý — tránh
+  // race condition trên array state.questPlayedBy khi nhiều player nộp đồng thời.
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'quest-play') return;
     const teamSize = state.proposedTeam.length;
-    const playedCount = state.questPlayedBy.length;
-    const allPlayed = teamSize > 0 && playedCount >= teamSize;
-    const allCardsSynced = state.proposedTeam.every((id) => {
-      const p = players.find((pp) => pp.id === id);
-      const card = (p?.gameData as Partial<AvalonGameData> | undefined)?.questCard;
-      return card === 'success' || card === 'fail';
-    });
+    const allCardsSynced =
+      teamSize > 0 &&
+      state.proposedTeam.every((id) => {
+        const p = players.find((pp) => pp.id === id);
+        const card = (p?.gameData as Partial<AvalonGameData> | undefined)?.questCard;
+        return card === 'success' || card === 'fail';
+      });
     const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
     const remaining = PHASE_TIMEOUTS_MS['quest-play'] - elapsed;
-    if ((allPlayed && allCardsSynced) || remaining <= 0) {
+    if (allCardsSynced || remaining <= 0) {
       resolveQuest();
       return;
     }
     const t = setTimeout(() => resolveQuest(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, players, resolveQuest]);
+  }, [isHost, state, players, resolveQuest]);
 
   // Auto-progression: team-vote-result → next (after short review timeout)
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'team-vote-result') return;
     const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
     const remaining = PHASE_TIMEOUTS_MS['team-vote-result'] - elapsed;
@@ -200,10 +234,11 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => proceedAfterTeamVoteResult(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, proceedAfterTeamVoteResult]);
+  }, [isHost, state, proceedAfterTeamVoteResult]);
 
   // Auto-progression: quest-result → next (after short review timeout)
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'quest-result') return;
     const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
     const remaining = PHASE_TIMEOUTS_MS['quest-result'] - elapsed;
@@ -213,10 +248,11 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => proceedAfterQuestResult(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, proceedAfterQuestResult]);
+  }, [isHost, state, proceedAfterQuestResult]);
 
   // Auto-progression: discussion → team-build (all-ack or 10-min timeout)
   useEffect(() => {
+    if (!isHost) return;
     if (!state || state.phase !== 'discussion') return;
     const ackCount = Object.keys(state.roleAcks ?? {}).length;
     const allAcked = ackCount >= playerCount && playerCount > 0;
@@ -228,7 +264,36 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     }
     const t = setTimeout(() => proceedAfterDiscussion(), Math.max(500, remaining + 250));
     return () => clearTimeout(t);
-  }, [state, playerCount, proceedAfterDiscussion]);
+  }, [isHost, state, playerCount, proceedAfterDiscussion]);
+
+  // Auto-progression fallback: lady-of-lake → discussion (90s timeout)
+  // Holder mất kết nối / không bấm Finish → tự chuyển token (nếu đã pick) hoặc skip.
+  useEffect(() => {
+    if (!isHost) return;
+    if (!state || state.phase !== 'lady-of-lake') return;
+    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
+    const remaining = PHASE_TIMEOUTS_MS['lady-of-lake'] - elapsed;
+    if (remaining <= 0) {
+      ladyTimeoutAdvance();
+      return;
+    }
+    const t = setTimeout(() => ladyTimeoutAdvance(), Math.max(500, remaining + 250));
+    return () => clearTimeout(t);
+  }, [isHost, state, ladyTimeoutAdvance]);
+
+  // Auto-progression fallback: assassinate → end (Phe Người thắng nếu Sát Thủ idle 180s)
+  useEffect(() => {
+    if (!isHost) return;
+    if (!state || state.phase !== 'assassinate') return;
+    const elapsed = Date.now() - (state.phaseStartedAt ?? Date.now());
+    const remaining = PHASE_TIMEOUTS_MS['assassinate'] - elapsed;
+    if (remaining <= 0) {
+      assassinTimeoutAdvance();
+      return;
+    }
+    const t = setTimeout(() => assassinTimeoutAdvance(), Math.max(500, remaining + 250));
+    return () => clearTimeout(t);
+  }, [isHost, state, assassinTimeoutAdvance]);
 
   const handleLeave = useCallback(async () => {
     if (confirm('Rời phòng?')) {
@@ -265,6 +330,19 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       await ackRole(playerId);
     }
   }, [ackRole, playerId]);
+
+  const handleKickPlayer = useCallback(
+    async (targetId: string, targetName: string) => {
+      if (!confirm(`Kick "${targetName}" khỏi phòng?`)) return;
+      try {
+        await gameStorage.removePlayer(room.id, targetId);
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : 'Không thể kick người chơi';
+        alert(msg);
+      }
+    },
+    [room.id]
+  );
 
   if (room.status === 'lobby') {
     const enoughPlayers = (PLAYER_COUNTS as readonly number[]).includes(playerCount);
@@ -329,7 +407,10 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
               roomCode={room.roomCode}
               maxPlayers={(room.config.maxPlayers as number | undefined) ?? 10}
               minPlayers={5}
-              reserveSeats={Math.max(playerCount, 5)}
+              // Số ghế trên bàn = maxPlayers trong cài đặt phòng. Ghế chưa có
+              // người sẽ hiện dạng dashed "+".
+              reserveSeats={(room.config.maxPlayers as number | undefined) ?? 10}
+              onKick={isHost ? handleKickPlayer : undefined}
             />
             {!enoughPlayers && (
               <p className="mt-3 text-xs text-amber-400 text-center font-bold">
@@ -428,10 +509,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         onCastVote={(v) => castTeamVote(playerId, v)}
         onPlayQuestCard={(c) => playQuestCard(playerId, c)}
         onLadyInspect={ladyInspect}
+        onLadyConfirm={ladyConfirm}
         onLadyShow={ladyShow}
         onLadyFinish={ladyFinish}
         onAssassinate={assassinate}
+        onSetAssassinChoice={setAssassinChoice}
         onShowMyRole={() => setShowMyRoleCard(true)}
+        onShowRolePreview={() => setShowRolePreview(true)}
         onAckRole={() => ackRole(playerId)}
         onAckDiscussion={() => ackDiscussion(playerId)}
         onPlayAgain={handleNewGame}
@@ -440,6 +524,14 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       />
       {showMyRoleCard && (
         <RoleCard role={myRole} onClose={() => setShowMyRoleCard(false)} />
+      )}
+      {showRolePreview && state && myPlayer && (
+        <RolePreviewPopup
+          state={state}
+          myPlayer={myPlayer}
+          players={players}
+          onClose={() => setShowRolePreview(false)}
+        />
       )}
     </>
   );
