@@ -10,9 +10,13 @@ import {
   deleteField,
   query,
   where,
+  orderBy,
+  limit,
   onSnapshot,
+  runTransaction,
   serverTimestamp,
   writeBatch,
+  type DocumentData,
   type Unsubscribe,
 } from 'firebase/firestore';
 import { getDb } from '@/services/firebase/config';
@@ -33,13 +37,51 @@ function comparePlayersByJoinedAt(a: Player, b: Player): number {
   return a.id.localeCompare(b.id);
 }
 
-function readMillis(v: Player['joinedAt']): number {
+function readMillis(v: unknown): number {
   if (!v) return 0;
+  if (typeof v === 'number') return v;
   // Firestore Timestamp → toMillis(); fallback cho serverTimestamp pending.
   const anyV = v as { toMillis?: () => number; seconds?: number };
   if (typeof anyV.toMillis === 'function') return anyV.toMillis();
   if (typeof anyV.seconds === 'number') return anyV.seconds * 1000;
   return 0;
+}
+
+// ─── Stale-data cleanup policy ────────────────────────────────────────
+const HOUR_MS = 60 * 60 * 1000;
+// A room in the lobby or on the end screen has nothing left to wait for.
+const IDLE_LIMIT_WAITING_MS = 3 * HOUR_MS;
+// A game in progress gets far longer before it counts as abandoned.
+const IDLE_LIMIT_IN_PROGRESS_MS = 12 * HOUR_MS;
+// Rooms inspected per sweep, oldest first. Keeps one sweep cheap; the backlog
+// of old garbage is worked off over successive sweeps.
+const SWEEP_MAX_CANDIDATES = 50;
+// Firestore caps a batch at 500 writes; stay well below it.
+const DELETE_CHUNK_SIZE = 400;
+
+function isRoomStale(data: DocumentData, now: number): boolean {
+  // Rooms created before `lastActivityAt` existed fall back to their creation time.
+  const lastActive = readMillis(data.lastActivityAt ?? data.createdAt);
+  if (!lastActive) return false; // unknown age → never delete
+  const waiting = data.status === 'lobby' || data.status === 'end';
+  return now - lastActive > (waiting ? IDLE_LIMIT_WAITING_MS : IDLE_LIMIT_IN_PROGRESS_MS);
+}
+
+// Order-independent deep equality for plain Firestore values (undefined == null).
+function sameValue(a: unknown, b: unknown): boolean {
+  return JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
+}
+
+function canonical(v: unknown): unknown {
+  if (Array.isArray(v)) return v.map(canonical);
+  if (v && typeof v === 'object') {
+    return Object.fromEntries(
+      Object.entries(v)
+        .sort(([x], [y]) => (x < y ? -1 : 1))
+        .map(([k, val]) => [k, canonical(val)])
+    );
+  }
+  return v ?? null;
 }
 
 // ─── Room Code Generator ──────────────────────────────────────────────
@@ -58,16 +100,55 @@ export class FirebaseAdapter implements IGameStorage {
     return collection(getDb(), 'rooms');
   }
 
-  private async cleanupStaleRooms() {
+  private sweeping: Promise<number> | null = null;
+
+  // ─── Cleanup ───────────────────────────────────────────────────────
+  cleanupStaleRooms(): Promise<number> {
+    // One sweep at a time per tab.
+    if (!this.sweeping) {
+      this.sweeping = this.sweepStaleRooms().finally(() => {
+        this.sweeping = null;
+      });
+    }
+    return this.sweeping;
+  }
+
+  private async sweepStaleRooms(): Promise<number> {
+    let removed = 0;
     try {
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-      const q = query(this.roomsRef, where('createdAt', '<', twelveHoursAgo));
+      const now = Date.now();
+      // lastActivityAt >= createdAt, so no room can be stale before the shortest
+      // idle limit has elapsed since creation. Same index as before (createdAt).
+      const q = query(
+        this.roomsRef,
+        where('createdAt', '<', new Date(now - IDLE_LIMIT_WAITING_MS)),
+        orderBy('createdAt'),
+        limit(SWEEP_MAX_CANDIDATES)
+      );
       const snap = await getDocs(q);
       for (const d of snap.docs) {
-        await this.deleteRoom(d.id);
+        if (!isRoomStale(d.data(), now)) continue;
+        try {
+          await this.deleteRoom(d.id);
+          removed++;
+        } catch (err) {
+          // One bad room must not stop the rest of the sweep.
+          console.error(`Failed to delete stale room ${d.id}`, err);
+        }
       }
     } catch (err) {
       console.error('Failed to cleanup stale rooms', err);
+    }
+    return removed;
+  }
+
+  // Best-effort "someone was here": a failed activity write must never break
+  // the operation that triggered it.
+  private async touchRoom(roomId: string): Promise<void> {
+    try {
+      await updateDoc(doc(getDb(), 'rooms', roomId), { lastActivityAt: Date.now() });
+    } catch (err) {
+      console.error('Failed to update room activity', err);
     }
   }
 
@@ -90,6 +171,7 @@ export class FirebaseAdapter implements IGameStorage {
         rolesAssigned: false,
       },
       createdAt: serverTimestamp() as Room['createdAt'],
+      lastActivityAt: Date.now(),
     };
     await setDoc(roomDoc, roomData);
     return roomDoc.id;
@@ -110,7 +192,7 @@ export class FirebaseAdapter implements IGameStorage {
   }
 
   async updateRoomConfig(roomId: string, config: Partial<RoomConfig>): Promise<void> {
-    const updates: Record<string, unknown> = {};
+    const updates: Record<string, unknown> = { lastActivityAt: Date.now() };
     for (const [key, value] of Object.entries(config)) {
       updates[`config.${key}`] = value;
     }
@@ -118,31 +200,98 @@ export class FirebaseAdapter implements IGameStorage {
   }
 
   async updateRoomStatus(roomId: string, status: RoomStatus): Promise<void> {
-    await updateDoc(doc(getDb(), 'rooms', roomId), { status });
+    await updateDoc(doc(getDb(), 'rooms', roomId), { status, lastActivityAt: Date.now() });
   }
 
   async updateRoomGameState(roomId: string, state: Partial<RoomGameState>): Promise<void> {
-    const updates: Record<string, unknown> = {};
+    // lastActivityAt rides along in the same write (millis, not serverTimestamp,
+    // so it doesn't trigger a second snapshot when the server value arrives).
+    const updates: Record<string, unknown> = { lastActivityAt: Date.now() };
     for (const [key, value] of Object.entries(state)) {
       updates[`gameState.${key}`] = value;
     }
     await updateDoc(doc(getDb(), 'rooms', roomId), updates);
   }
 
-  async deleteRoom(roomId: string): Promise<void> {
-    const batch = writeBatch(getDb());
+  async casGameState(
+    roomId: string,
+    expected: Record<string, unknown>,
+    patch: Record<string, unknown>,
+    opts: {
+      status?: RoomStatus;
+      playerData?: Array<{ playerId: string; data: Partial<BaseGameData> }>;
+      expectPlayerData?: Array<{ playerId: string; data: Partial<BaseGameData> }>;
+    } = {}
+  ): Promise<boolean> {
+    const db = getDb();
+    const roomRef = doc(db, 'rooms', roomId);
+    return runTransaction(db, async (tx) => {
+      const snap = await tx.get(roomRef);
+      const current = (snap.data()?.gameState ?? {}) as Record<string, unknown>;
+      if (!snap.exists() || Object.entries(expected).some(([key, value]) => !sameValue(current[key], value))) {
+        return false;
+      }
 
-    // Delete all players
+      // The decision may also rest on per-player data this client saw (e.g. quest cards).
+      for (const { playerId, data } of opts.expectPlayerData ?? []) {
+        const playerSnap = await tx.get(doc(db, 'rooms', roomId, 'players', playerId));
+        const gameData = (playerSnap.data()?.gameData ?? {}) as Record<string, unknown>;
+        if (Object.entries(data).some(([key, value]) => !sameValue(gameData[key], value))) {
+          return false;
+        }
+      }
+
+      const updates: Record<string, unknown> = { lastActivityAt: Date.now() };
+      for (const [key, value] of Object.entries(patch)) {
+        updates[`gameState.${key}`] = value;
+      }
+      if (opts.status) updates.status = opts.status;
+      tx.update(roomRef, updates);
+
+      for (const { playerId, data } of opts.playerData ?? []) {
+        const flat: Record<string, unknown> = {};
+        for (const [key, value] of Object.entries(data)) {
+          flat[`gameData.${key}`] = value;
+        }
+        tx.update(doc(db, 'rooms', roomId, 'players', playerId), flat);
+      }
+      return true;
+    });
+  }
+
+  subscribeToConnection(roomId: string, callback: (online: boolean) => void): Unsubscribe {
+    // Snapshots are served from the local cache while the backend is unreachable.
+    return onSnapshot(
+      doc(getDb(), 'rooms', roomId),
+      { includeMetadataChanges: true },
+      (snap) => callback(!snap.metadata.fromCache),
+      () => callback(false)
+    );
+  }
+
+  async deleteRoom(roomId: string): Promise<void> {
+    // Deleting a document does NOT delete its subcollections — they would stay
+    // behind as unreachable orphans — so every subcollection is removed
+    // explicitly. The room doc goes last: if this is interrupted the room is
+    // still there for the next sweep to find and finish.
+    await this.deleteSubcollection(roomId, 'history');
+    await this.deleteSubcollection(roomId, 'actions');
+
+    // Players + room in one batch so listeners see the room disappear atomically.
+    const batch = writeBatch(getDb());
     const playersSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'players'));
     playersSnap.docs.forEach((d) => batch.delete(d.ref));
-
-    // Delete all actions
-    const actionsSnap = await getDocs(collection(getDb(), 'rooms', roomId, 'actions'));
-    actionsSnap.docs.forEach((d) => batch.delete(d.ref));
-
-    // Delete room
     batch.delete(doc(getDb(), 'rooms', roomId));
     await batch.commit();
+  }
+
+  private async deleteSubcollection(roomId: string, name: 'history' | 'actions'): Promise<void> {
+    const snap = await getDocs(collection(getDb(), 'rooms', roomId, name));
+    for (let i = 0; i < snap.docs.length; i += DELETE_CHUNK_SIZE) {
+      const batch = writeBatch(getDb());
+      snap.docs.slice(i, i + DELETE_CHUNK_SIZE).forEach((d) => batch.delete(d.ref));
+      await batch.commit();
+    }
   }
 
   async resetRoom(roomId: string): Promise<void> {
@@ -152,6 +301,7 @@ export class FirebaseAdapter implements IGameStorage {
     const roomRef = doc(getDb(), 'rooms', roomId);
     batch.update(roomRef, {
       status: 'lobby',
+      lastActivityAt: Date.now(),
       gameState: {
         dayCount: 0,
         votes: {},
@@ -208,6 +358,7 @@ export class FirebaseAdapter implements IGameStorage {
 
     // Reset gameState (status untouched so there is no lobby flash)
     batch.update(doc(getDb(), 'rooms', roomId), {
+      lastActivityAt: Date.now(),
       gameState: {
         dayCount: 0,
         votes: {},
@@ -226,14 +377,22 @@ export class FirebaseAdapter implements IGameStorage {
     await batch.commit();
   }
 
-  subscribeToRoom(roomId: string, callback: (room: Room | null) => void): Unsubscribe {
-    return onSnapshot(doc(getDb(), 'rooms', roomId), (snap) => {
-      if (!snap.exists()) {
-        callback(null);
-        return;
-      }
-      callback({ id: snap.id, ...snap.data() } as Room);
-    });
+  subscribeToRoom(
+    roomId: string,
+    callback: (room: Room | null) => void,
+    onError?: (error: Error) => void
+  ): Unsubscribe {
+    return onSnapshot(
+      doc(getDb(), 'rooms', roomId),
+      (snap) => {
+        if (!snap.exists()) {
+          callback(null);
+          return;
+        }
+        callback({ id: snap.id, ...snap.data() } as Room);
+      },
+      (err) => onError?.(err)
+    );
   }
 
   // ─── Player Operations ─────────────────────────────────────────────
@@ -268,10 +427,19 @@ export class FirebaseAdapter implements IGameStorage {
       joinedAt: serverTimestamp() as Player['joinedAt'],
     };
     await setDoc(playerDoc, playerData);
+    await this.touchRoom(roomId);
   }
 
   async removePlayer(roomId: string, playerId: string): Promise<void> {
     await deleteDoc(doc(getDb(), 'rooms', roomId, 'players', playerId));
+  }
+
+  async leaveRoom(roomId: string, playerId: string): Promise<void> {
+    await this.removePlayer(roomId, playerId);
+    const remaining = await this.getPlayers(roomId);
+    if (remaining.length === 0) {
+      await this.deleteRoom(roomId);
+    }
   }
 
   async updatePlayerGameData(
@@ -309,17 +477,25 @@ export class FirebaseAdapter implements IGameStorage {
     await updateDoc(playerRef, { isAlive });
   }
 
-  subscribeToPlayers(roomId: string, callback: (players: Player[]) => void): Unsubscribe {
+  subscribeToPlayers(
+    roomId: string,
+    callback: (players: Player[]) => void,
+    onError?: (error: Error) => void
+  ): Unsubscribe {
     const playersCol = collection(getDb(), 'rooms', roomId, 'players');
-    return onSnapshot(playersCol, (snap) => {
-      const players = (
-        snap.docs.map((d) => ({
-          id: d.id,
-          ...d.data(),
-        })) as Player[]
-      ).sort(comparePlayersByJoinedAt);
-      callback(players);
-    });
+    return onSnapshot(
+      playersCol,
+      (snap) => {
+        const players = (
+          snap.docs.map((d) => ({
+            id: d.id,
+            ...d.data(),
+          })) as Player[]
+        ).sort(comparePlayersByJoinedAt);
+        callback(players);
+      },
+      (err) => onError?.(err)
+    );
   }
 
   subscribeToPlayer(
