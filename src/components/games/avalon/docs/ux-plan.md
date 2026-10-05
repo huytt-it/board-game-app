@@ -1,0 +1,468 @@
+# Kế hoạch UX/UI, cảnh truyện & animation — Avalon
+
+> Tài liệu điều phối. Session "nhạc trưởng" viết và duy trì file này; mỗi giai đoạn (GĐ) do một session thực thi riêng làm theo đúng phạm vi bên dưới.
+> Số dòng được trích theo commit `c74fcbad` (trên `dev`). Sau GĐ0 file sẽ bị tách nên các GĐ sau tra theo **tên hàm/component**, không theo số dòng.
+
+---
+
+## 0. Cách làm việc
+
+### Vai trò
+- **Nhạc trưởng** (session gốc): giữ kế hoạch, review kết quả từng GĐ, cập nhật file này và memory, chỉnh brief cho GĐ kế tiếp.
+- **Người thực thi** (session mới, có thể là model khác): làm **một** GĐ, đúng phạm vi.
+
+### Quy trình cho người thực thi
+1. Đọc hết file này, nhất là mục 2 (Luật) và mục của GĐ được giao. Đọc `AGENTS.md`: bản Next.js trong repo có thay đổi lớn, nên đọc hướng dẫn trong `node_modules/next/dist/docs/` trước khi dùng API của Next (ví dụ `next/font`).
+2. Làm trực tiếp trên branch tích hợp **`dev-avalon-uxui`** (tách từ `dev`): `git checkout dev-avalon-uxui`. Kiểm tra working tree sạch và ghi lại commit hiện tại (`git rev-parse --short HEAD`): đó là điểm bắt đầu của GĐ.
+3. Chỉ làm trong phạm vi của GĐ. Nếu thấy cần sửa logic-core (mục 2.1) hoặc cần thêm dependency: **dừng lại và hỏi người dùng**, không tự làm.
+4. Chạy các bước ở mục 9 (Kiểm thử).
+5. Cập nhật mục 10 (Nhật ký tiến độ): trạng thái, commit bắt đầu → commit kết thúc, các điểm lệch kế hoạch, việc còn dở.
+6. Commit lên `dev-avalon-uxui` với message `feat(avalon-ux): GĐ<N> — <tóm tắt>`. Nếu chia nhỏ thì mọi commit đều mang tiền tố `GĐ<N>`. **Không push**, trừ khi người dùng bảo.
+7. Báo cáo cho người dùng: đã làm gì, lệch kế hoạch ở đâu, kết quả kiểm thử (kèm ảnh chụp 375px và 1440px nếu có), và khoảng commit để nhạc trưởng review (`git diff <đầu>..<cuối>`).
+
+Nhạc trưởng review theo khoảng commit đó. Nếu một GĐ hỏng thì dùng `git revert`, không viết lại lịch sử. Các GĐ **làm tuần tự**, không song song, vì cùng sửa `RoundTable`, các section và `avalon.css`. Khi xong (hoặc tới mốc người dùng muốn), `dev-avalon-uxui` được merge vào `dev`, rồi mở PR `dev` → `main` như quy trình thường lệ.
+
+### Prompt mẫu để mở session thực thi
+```
+Bạn là người thực thi GĐ<N> của kế hoạch src/components/games/avalon/docs/ux-plan.md.
+Đọc toàn bộ file đó (bắt buộc mục 0 "Cách làm việc", mục 2 "Luật" và mục GĐ<N>) và AGENTS.md,
+rồi làm đúng phạm vi GĐ<N> trên branch dev-avalon-uxui. Không sửa logic-core. Không thêm dependency nếu chưa hỏi.
+Xong thì chạy kiểm thử ở mục 9, cập nhật mục 10 (Nhật ký tiến độ), commit (không push)
+và báo cáo: đã làm gì, lệch kế hoạch chỗ nào, kết quả kiểm thử, khoảng commit để review.
+```
+Gợi ý model: GĐ0 (refactor cơ học, cần cẩn thận) dùng Sonnet hoặc Opus đều được. GĐ1–GĐ2 (thiết kế, vẽ SVG) nên dùng Opus. GĐ3–GĐ6 dùng Opus hoặc Sonnet.
+
+---
+
+## 1. Quyết định đã chốt (người dùng, 2026-10-05)
+
+| Chủ đề | Quyết định |
+|---|---|
+| Phong cách hình ảnh | **Cắt giấy vector nhiều lớp** (SVG phẳng, xếp lớp). Có thể thay bằng tranh vẽ sau này |
+| Cảnh theo Quest | Mỗi Quest một địa điểm. **Thứ tự random mỗi ván**, nhưng mọi máy phải giống nhau |
+| Icon | Trước mắt dùng **game-icons.net** (CC BY 3.0, cần ghi credit). Sau này muốn **nhờ AI vẽ rồi thay vào linh hoạt**, nên mọi icon và cảnh phải đi qua một registry có thể nhận cả SVG lẫn file ảnh |
+| Phiếu bầu | **Ẩn**: chỉ hiện tổng số, không lộ ai bầu gì |
+| Thời gian xem kết quả | Giữ **8 giây** (`team-vote-result`, `quest-result`) |
+| Âm thanh | **Không** thêm âm thanh |
+| Rung máy | Chưa bàn tới. Mặc định **không rung**; nếu muốn thêm thì hỏi người dùng (không bao giờ rung vào ban đêm) |
+
+---
+
+## 2. Luật bất di bất dịch
+
+### 2.1 Không sửa logic-core
+- `useAvalon.ts`: toàn bộ.
+- `types.ts`: `AvalonGameState`, `PHASE_TIMEOUTS_MS`, các type.
+- `constants.ts`: các hằng **luật chơi** (`ROLE_TEAM`, `TEAM_DISTRIBUTION`, `QUEST_TEAM_SIZES`, `questNeedsTwoFails`, `REQUIRED_ROLES`, `ALL_OPTIONAL_ROLES`, `VOTE_TRACK_LIMIT`, `QUESTS_TO_WIN`, `PLAYER_COUNTS`).
+  - **Được** đổi hoặc chuyển các map hiển thị: `ROLE_ICONS`, `ROLE_NAMES_VI`, `ROLE_DESC_VI`, `TEAM_NAME_VI`.
+- `AvalonBoard.tsx`: không sửa khối auto-progression (`arm` + các `useEffect` ở dòng 129–246) và logic của các handler (`handleStartGame`, `handleNewGame`, `handleRoleRevealDone`…).
+  - **Được** sửa JSX, props truyền xuống, phần render lobby, `Modal`, banner.
+- Không đổi schema Firestore, không thêm field vào `gameState`.
+
+### 2.2 Animation là hàm của state
+- Mọi animation chỉ được tính từ `state`, `state.phaseStartedAt` và `serverNow()`, thông qua hook `usePhaseTimeline` (GĐ0). Như vậy mọi máy đồng bộ; reload giữa chừng thì nhảy đúng khung; mount lại **không phát lại**.
+- Không dùng `setTimeout` tính từ lúc mount cho animation có ý nghĩa chung.
+- Chỉ được dùng state cục bộ phía client (`useRef` giữ giá trị trước) cho hiệu ứng "chuyển tiếp" mang tính trang trí, ví dụ token bay khi `currentLeaderId` đổi. Reload thì bỏ qua hiệu ứng đó.
+
+### 2.3 Không chặn gameplay
+- Animation phải xong trước khi hết giờ phase (xem bảng ngân sách ở Phụ lục D).
+- Không khoá nút hành động trong các phase có hạn giờ. Overlay dài cho phép chạm để bỏ qua.
+
+### 2.4 Không lộ thông tin ẩn
+- **Nhìn từ xa, màn hình mọi người phải giống nhau.** Không tô nền theo phe của người xem. Ban đêm ai cũng thấy cùng một lớp phủ, người có vai phải nhấn giữ mới xem. Không rung hay nháy riêng cho ai vào ban đêm.
+- Thứ tự lật lá Quest không được gắn với người chơi. DB chỉ có `failCount`, nên dựng chuỗi lá từ số đếm rồi xáo theo seed.
+- Phiếu bầu vẫn ẩn (mục 1).
+
+### 2.5 Hiệu năng và trợ năng
+- Mobile-first: kiểm tra ở 375×812 trước, rồi 1440×900.
+- Chỉ animate `transform` và `opacity`. Hạt hiệu ứng ≤ 20 mỗi cảnh. Mỗi cảnh SVG khoảng ≤ 30KB.
+- Tôn trọng `prefers-reduced-motion`: bỏ chuyển động, hiện ngay trạng thái cuối.
+- Chữ trên cảnh nền phải đủ tương phản: khung nội dung dùng lớp kính tối.
+
+### 2.6 Phạm vi
+- Chỉ sửa trong `src/components/games/avalon/**`. Ngoại lệ duy nhất: GĐ4 được rẽ nhánh `gameType === 'avalon'` trong `src/app/room/[gameType]/[roomId]/page.tsx`.
+- Không sửa `globals.css` (dùng chung cho game khác); CSS mới của Avalon để trong `avalon.css`.
+- Không đụng các game khác (Clocktower, Sheriff, Shadow Hunters).
+- Không thêm dependency nếu chưa hỏi người dùng. Dùng CSS keyframes, Tailwind v4 và React.
+- Toàn bộ chữ hiển thị bằng tiếng Việt. Font mới phải có bộ ký tự `vietnamese`.
+
+---
+
+## 3. Bản đồ code hiện tại (commit `c74fcbad`)
+
+| File | Vai trò |
+|---|---|
+| `useAvalon.ts` | **Core.** State machine, transaction CAS (`advance`, `updateInPhase`), xoay Leader theo `seatOrder` |
+| `AvalonBoard.tsx` | Timer tự chuyển phase (core); render lobby; chọn màn theo phase; truyền props xuống `PlayerPanel` |
+| `PlayerPanel.tsx` (2982 dòng) | Toàn bộ UI trong ván: top bar, layout 3 cột, khoảng 20 section theo phase, overlay ám sát |
+| `RoundTable.tsx` | Bàn tròn trong ván: ghế, ô Quest ở tâm, thanh từ chối, popup chi tiết Quest |
+| `LobbyRoundTable.tsx` | Bàn tròn ở lobby |
+| `RoleReveal.tsx` | Màn lộ vai (hiện tại chỉ có emoji nhấp nháy rồi hiện thẻ) |
+| `RoleCard.tsx`, `RolePreviewPopup.tsx`, `RoleGuide.tsx`, `RoomSettings.tsx` | Các modal |
+| `AvalonPreview.tsx` | **Bộ dựng cảnh giả** cho từng phase (nút "👁️ Xem trước" ở lobby). Đây là công cụ chính để làm UI |
+| `avalon.css` | Keyframes của Avalon |
+| `QuestTrack.tsx`, `VoteTrack.tsx` | **Code chết**, không còn được import ở đâu |
+
+Thứ tự `players` mà `AvalonBoard` nhận được là theo `joinedAt` (`firebaseAdapter.ts:32`). `useAvalon` có trả về `gamePlayers` đã xếp theo `seatOrder` (thứ tự ghế được random lúc bắt đầu ván), nhưng `AvalonBoard` lại đang truyền `players` (theo thứ tự vào phòng) xuống `PlayerPanel`. Xem lỗi B1.
+
+---
+
+## 4. Kiến trúc đích (sau GĐ0–GĐ2)
+
+```
+src/components/games/avalon/
+  PlayerPanel.tsx            # chỉ còn layout + top bar + switch phase
+  panel/                     # các section, tách từ PlayerPanel
+    shared.tsx               # PhaseChip, TokenBadges, RoleLineChip, RoleIntroCard, WaitingCard…
+    PlayerRoster.tsx
+    LineupPreviewSection.tsx  RoleRevealWaitingSection.tsx  NightSections.tsx
+    TeamBuildSection.tsx  TeamVoteSection.tsx  TeamVoteResultSection.tsx
+    QuestPlaySection.tsx  QuestResultSection.tsx  DiscussionSection.tsx
+    LadySection.tsx  AssassinSection.tsx  EndSection.tsx  AssassinRevealOverlay.tsx
+  hooks/
+    usePhaseClock.ts         # đồng hồ đếm ngược theo giờ server (GĐ0)
+    usePhaseTimeline.ts      # các mốc animation theo phaseStartedAt (GĐ0)
+    useReducedMotion.ts      # (GĐ0)
+  table/
+    seatPosition.ts          # toạ độ ghế (tách từ RoundTable) (GĐ0)
+  assets/                    # GĐ1
+    registry.ts              # tên → nguồn (SVG component | file ảnh)
+    AvIcon.tsx
+    icons/*.tsx              # SVG từ game-icons.net, fill=currentColor
+    CREDITS.md  README.md    # README hướng dẫn thay icon/cảnh bằng ảnh AI
+  ui/                        # GĐ1
+    PlayerAvatar.tsx  RoleEmblem.tsx  GlassPanel.tsx  ConfirmDialog.tsx (GĐ5)
+  scenes/                    # GĐ2
+    types.ts  journey.ts  getScene.ts  SceneBackdrop.tsx  SceneTitle.tsx  JourneyStrip.tsx
+    layers/<sceneId>.tsx     # mỗi cảnh một component SVG nhiều lớp
+    weather/Storm.tsx
+```
+
+### 4.1 Asset registry (để sau này thay bằng ảnh AI)
+```ts
+type AssetSource =
+  | { kind: 'svg'; Component: React.ComponentType<React.SVGProps<SVGSVGElement>> }
+  | { kind: 'image'; src: string; alt?: string }; // ví dụ '/avalon/icons/merlin.webp'
+export const ICONS: Record<IconName, AssetSource>;
+export const SCENES: Record<SceneId, { layers: AssetSource[] /* xa → gần */; palette: ScenePalette }>;
+```
+- `<AvIcon name="merlin" size={24} />` render SVG inline (`currentColor`) hoặc thẻ `<img>`.
+- Thay một icon hay một cảnh bằng ảnh AI chỉ cần: thả file vào `public/avalon/...` rồi sửa **một dòng** trong `registry.ts`. Ghi rõ cách làm trong `assets/README.md`.
+
+---
+
+## 5. GĐ0 — Nền móng (không đổi giao diện, chỉ sửa lỗi UI)
+
+**Mục tiêu:** dọn đường cho các GĐ sau và sửa các lỗi UI đã phát hiện. Ngoài các lỗi được liệt kê, giao diện phải **giống hệt** trước.
+
+### Việc cần làm
+- **0.1 Một cây render duy nhất.**
+  - `PlayerPanel` đang render `phaseSection` và `RoundTable` **2 lần**: một cây desktop (`hidden lg:grid`, dòng 316) và một cây mobile (`lg:hidden`, dòng 357). Cây kia chỉ bị CSS ẩn nhưng timer, interval và state cục bộ vẫn chạy đôi.
+  - Gộp lại thành **một** DOM dùng grid responsive. Desktop vẫn 3 cột: roster | bàn | section; khi chưa có bàn (`lineup-preview`, `role-reveal`) thì section nằm ở cột giữa. Mobile xếp dọc: bàn rồi đến section.
+  - Gắn `data-phase-section` vào wrapper của section để kiểm thử.
+  - `RoundTable` luôn nhận `onTogglePick`, `canPick`, `onAssassinPick`, `canAssassinPick`. Việc này sửa lỗi B3.
+- **0.2 Truyền ghế đúng thứ tự (lỗi B1).** `AvalonBoard` truyền `gamePlayers` (từ `useAvalon`, đã xếp theo `seatOrder`) thay cho `players` vào `PlayerPanel` và `RolePreviewPopup`. Tập người chơi giữ nguyên, chỉ đổi thứ tự. Không sửa `useAvalon`.
+- **0.3 Tách `PlayerPanel.tsx`** vào `panel/` theo cấu trúc ở mục 4.
+  - Dùng script cắt theo khoảng dòng để code giữ **nguyên văn**, rồi chỉ sửa import/export.
+  - Khoảng dòng ở commit `c74fcbad`: Discussion 375–480; PhaseChip 482–505; TokenBadges 507–533; RosterMark, deriveAutoHighlight, buildRosterMarks, buildHistoryMarks, PlayerRoster 535–880; WaitingCard 882–889 (đang không dùng, có thể xoá); LineupPreview 891–1074; RoleLineChip 1076–1109; RoleRevealWaiting 1111–1230; RoleIntroCard 1232–1279; getActiveNightPlayerIds, NightCountdown, NightEvils, NightMerlin, NightPercival 1281–1646; TeamBuild 1649–1810; TeamVote 1812–1946; QuestPlay 1948–2090; TeamVoteResult 2092–2157; QuestResult 2159–2216; Lady 2218–2456; Assassin 2458–2682; AssassinRevealOverlay 2684–2851; End 2853–2982.
+  - Giữ nguyên default export và `PlayerPanelProps`, vì `AvalonBoard` và `AvalonPreview` đều dùng.
+- **0.4 `hooks/usePhaseClock.ts`.**
+  - `usePhaseClock(state, timeoutMs = PHASE_TIMEOUTS_MS[state.phase])` trả về `{ now, elapsed, remaining }`, tick mỗi giây theo `serverNow()`. Kèm helper `formatClock(ms)` (dạng `m:ss`, làm tròn xuống) và `formatSecs(ms)` (dạng `Ns`, làm tròn lên).
+  - Thay khoảng 10 chỗ đang tự viết `useState(serverNow()) + setInterval` (Discussion, LineupPreview, RoleRevealWaiting, NightCountdown, TeamBuild, TeamVote, Lady, Assassin). **Giữ đúng định dạng hiển thị** của từng chỗ.
+  - LineupPreview đang ghi cứng `60_000` (dòng 908): đổi sang `PHASE_TIMEOUTS_MS['lineup-preview']` (cùng giá trị).
+- **0.5 `hooks/usePhaseTimeline.ts` và `hooks/useReducedMotion.ts`.**
+  ```ts
+  // stages: [{ id: 'a', at: 0 }, { id: 'b', at: 1000 }, …, { id: 'done', at: 7950 }] — `at` tính bằng ms từ startedAt
+  usePhaseTimeline<S extends string>(startedAt: number, stages: readonly { id: S; at: number }[]): { stage: S; elapsed: number }
+  ```
+  - `elapsed = serverNow() - startedAt`; `stage` là mốc cuối cùng có `at ≤ elapsed`.
+  - Hẹn **một** `setTimeout` tới mốc kế tiếp (không dùng interval). Khi `startedAt` đổi thì tính lại.
+  - Nếu reduced motion: trả về mốc cuối ngay lập tức.
+  - Áp dụng ngay cho `AssassinRevealOverlay` (lỗi B4). Các mốc 0 / 1000 / 1800 / 3550 / 4250 / 7950 tính từ `state.phaseStartedAt` của phase `end`. Nhờ đó reload sau 8 giây không phát lại; vào lại ở giây thứ 5 thì nhảy thẳng tới khung lộ vai.
+- **0.6 Tách `seatPosition(i, n)`** khỏi `RoundTable` (góc `(360/n)*i - 90`, bán kính 43%) sang `table/seatPosition.ts`, để GĐ3 dùng cho token bay.
+- **0.7 CSS.**
+  - Đổi tên các class trong `avalon.css` sang tiền tố `av-`: `animate-stab` → `av-stab`, `animate-assassin-fly-in` → `av-assassin-fly-in`, `animate-assassin-blackout` → `av-assassin-blackout`, `animate-assassin-whiteout` → `av-assassin-whiteout`, `animate-split-upper/lower` → `av-split-upper/lower`. Cập nhật chỗ dùng (AssassinSection, AssassinRevealOverlay, `RoundTable` dòng 273).
+  - Lý do (lỗi B5): `.animate-stab` và `.animate-assassin-fly-in` đang được định nghĩa ở **cả** `globals.css` lẫn `avalon.css` với keyframes khác nhau. **Không sửa `globals.css`.**
+  - Thêm class `avalon-root` cho wrapper gốc của Avalon (mọi nhánh return trong `AvalonBoard`). Thêm luật `@media (prefers-reduced-motion: reduce)` trong `avalon.css` để tắt animation và transition bên trong `.avalon-root`.
+- **0.8 Sửa lỗi UI nhỏ.**
+  - **B2, `TeamVoteResultSection`** (dòng 2099–2100): đếm theo đúng luật của `useAvalon.resolveTeamVote`, tức `approves` = số phiếu approve của người còn trong phòng, `rejects = tổng − approves`. Nếu có người không bầu, hiện thêm "(gồm N người không bầu)". Phiếu vẫn ẩn.
+  - **B6**: chữ ở `RoleRevealWaitingSection` (dòng 1214–1215) nói "Quest", thực ra là chuyển sang lượt Đêm.
+  - **B7**: xoá `QuestTrack.tsx` và `VoteTrack.tsx` (grep lại để chắc chắn không còn import).
+- **0.9 Cập nhật `AvalonPreview`** (lỗi B8).
+  - Các cảnh Lady đã cũ: người bị soi không còn tự chọn lá, Lady luôn thấy phe thật. Danh sách mới: Lady đang chọn / đã chọn chưa xác nhận / kết quả Người / kết quả Quỷ; người bị soi đang bị ngắm / đã bị soi (Người) / đã bị soi (Quỷ); người ngoài cuộc lúc đang ngắm / lúc đã soi. Bỏ cảnh "Quỷ hiện Người (xạo)".
+  - Dùng `serverNow()` thay `Date.now()`.
+  - Thêm nút **"Phát lại"**: dựng lại cảnh với `phaseStartedAt = serverNow()` để xem lại animation. Các cảnh `end-*` có `merlinTargetId` phải phát được overlay.
+  - Truyền thêm `onSetAssassinChoice`, `onShowRolePreview` (dạng noop).
+
+### Không làm
+Không đổi màu, layout hay icon (trừ các lỗi kể trên). Không thêm cảnh, không thêm animation mới.
+
+### Nghiệm thu
+- `npm run lint`, `npx tsc --noEmit`, `npm run build` đều sạch.
+- `document.querySelectorAll('[data-phase-section]').length === 1` ở cả 375px và 1440px.
+- Mọi cảnh trong `AvalonPreview` trông giống trước (so ảnh chụp trước và sau ở 375 và 1440). Riêng B2 và B6 thì khác theo ý muốn.
+- Trên mobile, Leader chọn đội và Sát Thủ chọn mục tiêu được bằng cách chạm avatar trên bàn.
+- Trên bàn, thứ tự ghế khớp chiều xoay Leader: Leader kế tiếp luôn là ghế kế bên theo chiều kim đồng hồ.
+- Reload ở màn kết thúc (sau 8 giây) không phát lại overlay ám sát.
+- Bật giả lập reduced motion trong DevTools thì không còn animation nào trong Avalon.
+
+---
+
+## 6. GĐ1 — Bộ nhận diện (icon, màu, font, avatar, huy hiệu vai)
+
+**Mục tiêu:** thay toàn bộ emoji bằng bộ icon riêng, có hệ màu chuẩn và font tiêu đề. Làm **trước** animation để khỏi phải làm lại.
+
+### Việc cần làm
+- **1.1 Registry và `AvIcon`** theo mục 4.1. Viết `assets/README.md`: cách thay icon bằng ảnh (AI vẽ) và kích thước, định dạng nên dùng (SVG; hoặc WebP vuông 128/256px, nền trong suốt).
+- **1.2 Chọn icon** từ game-icons.net theo Phụ lục B.
+  - **Trước khi tải file, phải hỏi người dùng**: lập bảng gồm tên icon, tác giả, URL, kích thước, và chỉ tải khi người dùng đồng ý (theo luật an toàn của trợ lý).
+  - Tối ưu path rồi lưu thành component trong `assets/icons/*.tsx` với `fill="currentColor"`.
+  - Ghi tác giả vào `assets/CREDITS.md` và hiện một dòng credit trong `RoleGuide` (ví dụ "Icon: Lorc, Delapouite… — game-icons.net, CC BY 3.0").
+- **1.3 Thay emoji ở mọi nơi trong Avalon.**
+  - Tạo map hiển thị `ROLE_ICON_NAME: Record<AvalonRole, IconName>` (đặt trong `presentation.ts` hoặc ngay `constants.ts`, chỉ là dữ liệu hiển thị). Xoá `ROLE_ICONS` khi không còn chỗ nào dùng.
+  - Gỡ các chỗ trùng nghĩa: 👑 đang dùng cho cả Mordred, Leader và thanh từ chối; 🛡️ cho cả Percival, lá Thành công và nhãn Phe Người; 🗡️ cho cả Sát Thủ, lá Thất bại, nhãn Phe Quỷ và đêm của Quỷ.
+  - Thanh từ chối đổi thành **5 ngọn nến**: mỗi lần bị bác tắt một ngọn.
+- **1.4 Token màu** đặt dưới `.avalon-root` trong `avalon.css`: `--av-good`, `--av-evil`, `--av-leader` (vàng kim), `--av-lady` (xanh ngọc), `--av-gold`, `--av-parchment`, `--av-ink`, `--av-glass-bg`, `--av-glass-border`.
+  - Dùng qua giá trị tuỳ biến của Tailwind, ví dụ `text-[color:var(--av-gold)]`. **Không** thêm `@theme` vào `avalon.css`.
+  - Quy ước: xanh lam và đỏ **chỉ** dùng cho ý nghĩa phe.
+- **1.5 Font tiêu đề** dùng `next/font/google`, có subset `vietnamese` (ứng viên: Cormorant Garamond, EB Garamond; phải kiểm tra font có bộ tiếng Việt). Cinzel **không** có dấu tiếng Việt, đừng dùng. Gắn qua `--av-font-display` cho tiêu đề; chữ thân vẫn giữ Inter. Đọc docs `next/font` trong `node_modules/next/dist/docs/` trước khi làm.
+- **1.6 `ui/PlayerAvatar.tsx`.**
+  - Màu cố định theo người: hash `player.id` ra một bảng 10 màu, **không** dùng xanh lam hay đỏ thuần để khỏi lẫn với màu phe.
+  - Props cho các trạng thái: viền đội được chọn, Lady đang ngắm, mục tiêu Sát Thủ, "bạn".
+  - Thay mọi chỗ đang tự vẽ vòng tròn chữ cái đầu: RoundTable, PlayerRoster, lưới TeamBuild, Lady, Assassin, các danh sách đêm, QuestDetailPopup, End.
+- **1.7 `ui/RoleEmblem.tsx`**: khung khiên kèm icon vai, viền màu phe. Dùng cho RoleReveal, RoleCard, RoleIntroCard, chip lineup và danh sách vai ở màn kết thúc.
+- **1.8 Riêng tư.** Nút vai ở top bar (`PlayerPanel`, nút `onShowMyRole`) hiện đang hiện icon, tên vai và màu phe. Đổi thành nút trung tính "Vai của tôi" (icon con mắt); chạm vào thì mở `RoleCard` như cũ.
+
+### Nghiệm thu
+- Không còn emoji trong UI Avalon (grep dải ký tự emoji trong `src/components/games/avalon`, trừ thư mục `docs/`).
+- Mỗi icon chỉ mang một nghĩa.
+- Đổi một icon sang `{ kind: 'image', src }` thì hiển thị đúng (thử với một file PNG tạm rồi trả lại).
+- Tiếng Việt có dấu hiển thị đúng ở font tiêu đề.
+- Có credit.
+- `AvalonPreview` đi qua mọi cảnh mà không vỡ layout.
+
+---
+
+## 7. GĐ2 — Hệ thống cảnh truyện
+
+**Mục tiêu:** mỗi chặng của ván là một khung cảnh cắt giấy, mọi máy giống nhau. Bỏ kiểu nền tô theo phe.
+
+### Việc cần làm
+- **2.1 `scenes/types.ts`.**
+  - Cảnh cố định: `hall`, `night`, `camp`, `lake`, `blood-moon`, `end-good`, `end-evil`.
+  - Kho địa điểm Quest (7, để random có biến hoá): `forest`, `mountain`, `sea`, `ruins`, `chapel`, `marsh`, `cave`. Bảng màu ở Phụ lục C.
+- **2.2 `scenes/journey.ts`.**
+  - `getJourney(state, roomId): LocationId[5]` = xáo kho địa điểm bằng seed `hash(state.seatOrder.join('|'))` (PRNG nhỏ kiểu mulberry32), rồi lấy 5 cái đầu.
+  - `seatOrder` được random mỗi ván, giống nhau trên mọi máy và cố định suốt ván, nên mọi máy ra cùng một hành trình. Nếu `seatOrder` rỗng thì dùng `roomId` làm seed.
+  - Là hàm thuần, memo theo `seatOrder`.
+- **2.3 `scenes/getScene.ts`**, ánh xạ phase sang cảnh:
+
+  | Phase | Cảnh |
+  |---|---|
+  | Lobby, `lineup-preview`, `role-reveal` | `hall` |
+  | `night-*` | `night` |
+  | `team-build`, `team-vote`, `team-vote-result`, `quest-play`, `quest-result` | `journey[currentQuest]` |
+  | `discussion` | `camp` (lúc này `currentQuest` đã tăng, nên tiêu đề ghi "Dựng trại trước <địa điểm kế>") |
+  | `lady-of-lake` | `lake` |
+  | `assassinate` | `blood-moon` |
+  | `end` | `end-good` hoặc `end-evil` theo `winner` |
+
+  - **Thời tiết:** khi `currentQuest === 3 && questNeedsTwoFails(playerCount, 3)` thì phủ lớp `weather/Storm` (mưa và chớp thỉnh thoảng) lên địa điểm, để giữ tín hiệu "vòng nguy hiểm" dù thứ tự cảnh là random.
+  - **Tuỳ chọn:** phủ tối thêm `0.08 × số Quest thất bại`.
+- **2.4 `SceneBackdrop.tsx`.**
+  - Lớp `fixed inset-0` nằm dưới nội dung. Các lớp từ xa tới gần: bầu trời, lớp xa, lớp giữa, lớp gần, hạt hiệu ứng, vignette, và một lớp tối đảm bảo đọc được chữ.
+  - Đổi cảnh bằng crossfade 600–800ms: giữ cảnh cũ mounted cho tới khi mờ xong.
+  - Hạt hiệu ứng (đom đóm, tuyết, tia lửa, sương) làm bằng CSS, tối đa 20 hạt; tắt khi reduced motion.
+  - Mỗi cảnh là một component SVG trong `scenes/layers/` và đăng ký trong `SCENES` (registry). Lớp nào cũng có thể đổi sang `{ kind: 'image' }`.
+- **2.5 Bỏ nền tô theo phe** (`PlayerPanel` wrapper, dòng 307–311: gradient xanh hoặc đỏ theo `isGood`). Thay bằng `SceneBackdrop`.
+  - Các card hiện dùng `bg-white/5` sẽ khó đọc trên cảnh nền; chuyển sang `ui/GlassPanel` (tối, mờ nhẹ, viền mảnh).
+  - Lobby trong `AvalonBoard` dùng cảnh `hall`.
+- **2.6 `SceneTitle.tsx`.**
+  - Khi cảnh đổi, hiện tên địa điểm kèm **một câu dẫn truyện** trong khoảng 2,5 giây, đặt ở phía trên, `pointer-events: none`, có `aria-live="polite"`.
+  - Phát hiện đổi cảnh bằng `useRef` lưu cảnh trước. Khi reload, chỉ hiện nếu còn trong 3 giây đầu của phase.
+  - Mỗi cảnh viết 2–3 câu dẫn, chọn theo seed của ván. Giọng văn xem Phụ lục E.
+- **2.7 `JourneyStrip.tsx`**: dải 5 chặng gồm icon địa điểm; chặng đã xong tô màu theo kết quả, chặng hiện tại được đánh dấu. Hiện trong phase thảo luận; GĐ5 dùng lại cho màn tổng kết.
+- **2.8 `AvalonPreview`**: thêm ô chọn "Cảnh" để xem riêng từng cảnh (kể cả Storm). Cảnh của từng phase phải theo đúng `getScene`.
+
+### Nghiệm thu
+- 7 cảnh cố định, 7 địa điểm và lớp Storm đều xem được trong Preview.
+- Hai tab cùng một ván thấy cùng hành trình.
+- Reload giữ đúng cảnh.
+- DevTools giả lập CPU chậm 4 lần: không giật.
+- Chữ trên mọi cảnh đọc rõ (độ tương phản ≥ 4.5:1 cho chữ thân).
+- Không còn chỗ nào tô nền theo phe người xem.
+
+---
+
+## 8. GĐ3 → GĐ6 — Animation theo từng giai đoạn của ván
+
+Mọi animation đi qua `usePhaseTimeline`, tuân thủ mục 2 và ngân sách thời gian ở Phụ lục D.
+
+### GĐ3 — Vòng Quest (lặp nhiều nhất mỗi ván)
+- **`table/TableTokens.tsx`**: lớp phủ trên `RoundTable` vẽ token Leader (vương miện), token Lady và token "đề cử" ở vị trí `seatPosition`, với `transition: left, top` khoảng 500ms.
+  - Khi `currentLeaderId` đổi, vương miện **bay sang ghế mới**.
+  - Khi Leader chọn người, token khiên bay từ ghế Leader tới ghế được chọn.
+- **Thanh hành động cố định ở đáy màn hình trên mobile** (`ui/ActionDock`, có tính safe-area) cho nút chính của từng phase: trình đội, Đồng ý / Từ chối, đặt lá, xác nhận soi, xác nhận đâm, sẵn sàng. Desktop vẫn để ở cột phải.
+- **`team-vote`**: sau khi bầu, lá phiếu úp xuống ("đã bỏ phiếu", vẫn hiện nhỏ lựa chọn của mình). Chấm "đã bầu" trên bàn có hiệu ứng nảy. Mười giây cuối nhấp nháy cảnh báo.
+- **`team-vote-result`** (8s):
+  - 0–0,6s: tiêu đề hiện ra.
+  - 0,6–2,6s: hai bộ đếm Đồng ý / Từ chối chạy số.
+  - 2,8s: đóng dấu "ĐƯỢC DUYỆT" hoặc "BỊ BÁC".
+  - Nếu bị bác: 3,5s tắt ngọn nến thứ `voteRejectStreak`; khi `voteRejectStreak ≥ 4` thì rung và đỏ cảnh báo.
+  - Xong trước khoảng 5s.
+- **`quest-play`**: lá được chọn bay vào chồng bài úp ở tâm bàn. Hiện "x/y lá đã đặt" (đếm số người trong đội đã có `questCard`; chỉ đếm, không lộ nội dung).
+- **`quest-result`** (8s):
+  - 0–0,8s: xáo chồng bài.
+  - Sau đó lật từng lá, mỗi lá cách nhau 0,6s. Chuỗi lá dựng từ `teamSize − failCount` lá thành công và `failCount` lá thất bại, xáo bằng seed `phaseStartedAt`.
+  - Lá cuối lật xong cộng 0,4s thì đóng dấu THÀNH CÔNG / THẤT BẠI, và ô Quest tương ứng trên bàn được "niêm phong" màu.
+  - Xong trước khoảng 5,5s.
+- **`discussion`**: dấu tích sẵn sàng có hiệu ứng nảy, đồng hồ dạng vòng, `JourneyStrip`.
+
+### GĐ4 — Vào phòng, lobby, mở đầu ván
+- **Trang vào phòng:** rẽ nhánh `gameType === 'avalon'` trong `page.tsx`, render `AvalonJoinScreen` (cảnh `hall`, tiếng Việt). Game khác giữ nguyên.
+- **Lobby:** khi có người vào thì hiệu ứng "ngồi xuống" (scale và fade), khi rời thì fade out, kèm thông báo nhỏ "<Tên> đã vào phòng" (so danh sách người chơi phía client, bỏ qua lần tải đầu).
+- **Màn "Đang chia bài…"** (`AvalonBoard`, nhánh `!myPlayer || !myRole`): thay bằng animation xoè bài.
+- **`lineup-preview`:** hiện `RoundTable` ở phase này (hiện đang ẩn).
+  - 0–1,2s: **xáo chỗ ngồi**, ghế trượt từ thứ tự vào phòng (`players` theo `joinedAt`) sang `seatOrder`.
+  - 1,2–3,2s: **vương miện quay quanh bàn** chậm dần rồi dừng ở `currentLeaderId`. Số bước tính từ index ghế, nên mọi máy giống nhau.
+  - Đặt token Lady (khi từ 7 người trở lên).
+  - Chip vai lần lượt bay vào, cách nhau 80ms. Panel trông như cuộn giấy da.
+- **Lộ vai:** `RoleReveal` thành **thư niêm phong dấu sáp**.
+  - **Nhấn giữ để xem**, thả tay là che lại; sau đó bấm "Đã đọc". Giữ nguyên ngữ nghĩa của `onDone`.
+- **Đêm:** cảnh `night`.
+  - Mọi người thấy **cùng một** lớp phủ "nhắm mắt", kèm dòng dẫn công khai ("Phe Quỷ mở mắt…").
+  - Người có vai trong lượt đó nhấn giữ thì mới thấy thông tin. Trong lúc giữ, ghế liên quan trên bàn mới phát sáng.
+  - Không rung.
+
+### GĐ5 — Kết thúc ván
+- Cảnh `end-good` / `end-evil`. Banner cá nhân "Bạn thắng!" / "Bạn thua…" (so phe của người xem với `winner`).
+- Tàn lửa hoặc hạt lấp lánh trong 3 giây, tối đa 30 hạt.
+- Vai được lật lần lượt ngay trên `RoundTable` (thêm prop `revealAll`), mỗi ghế cách nhau 150ms. Màn này bắt đầu sau khi overlay ám sát xong (dùng chung timeline).
+- **Tổng kết:** `JourneyStrip` mở rộng. Mỗi Quest hiện địa điểm, Leader, đội, số Đồng ý / Từ chối (của đề xuất được duyệt), kết quả và số lá thất bại. Kèm lý do thắng: đủ 3 Quest / Sát Thủ trúng hoặc trật / 5 lần bị bác.
+- `ui/ConfirmDialog.tsx` thay cho `confirm()` gốc ở: ván mới, rời phòng, xoá phòng, kick (`AvalonBoard`), và xác nhận đâm (`AssassinSection`). Chỉ thay phần UI, giữ nguyên handler.
+
+### GĐ6 — Lady, ám sát, hoàn thiện
+- **Lady:** cảnh `lake`. Token Lady bay tới người bị ngắm. Lật bài kết quả, chỉ người cầm Lady thấy. Khi `ladyHolderId` đổi thì token chuyển ghế.
+- **Ám sát:** cảnh `blood-moon`. Hồng tâm và hiệu ứng nhịp tim trên mục tiêu đang ngắm. Overlay hiện có giữ nguyên (đã sửa ở GĐ0).
+- **"Đến lượt bạn"** (chỉ hình ảnh): viền nhấp nháy và tiền tố "● " trên tiêu đề tab. Không bao giờ bật vào ban đêm. Chỉ thêm rung nếu người dùng đồng ý.
+- **Trợ năng:** focus ring rõ, vùng chạm ≥ 44px, `aria-live` cho banner.
+- **Hiệu năng:** đo lại trên máy yếu; nếu bundle lớn thì lazy-load từng cảnh.
+
+---
+
+## 9. Kiểm thử (mọi GĐ)
+
+1. Chạy `npm run lint`, `npx tsc --noEmit`, `npm run build`.
+2. **AvalonPreview:**
+   - Chạy app, tạo phòng Avalon (dùng Firebase thật trong `.env.local`), bấm "👁️ Xem trước".
+   - Đi qua mọi cảnh liên quan ở 375×812 và 1440×900, chụp ảnh.
+   - **Xoá phòng test khi xong.**
+3. **Ván thật** (khi GĐ có đụng tới đồng bộ hoặc thời gian):
+   - Mở 5 tab trên 5 origin khác nhau: `localhost:3000`, `127.0.0.1:3000`, `a.localhost:3000`, `b.localhost:3000`, IP LAN.
+   - Dùng bản production (`npm run build` rồi `next start`), không dùng `next dev`.
+   - Trình duyệt trong app tự đóng `confirm()`, nên trước khi bấm cần stub `window.confirm = () => true`.
+4. Bật giả lập reduced motion và CPU chậm 4 lần trong DevTools.
+
+---
+
+## 10. Nhật ký tiến độ (người thực thi cập nhật)
+
+Branch: `dev-avalon-uxui`.
+
+| GĐ | Trạng thái | Commit (đầu → cuối) | Model | Ghi chú / lệch kế hoạch |
+|---|---|---|---|---|
+| 0 Nền móng | Chưa bắt đầu | | | |
+| 1 Bộ nhận diện | Chưa bắt đầu | | | |
+| 2 Cảnh truyện | Chưa bắt đầu | | | |
+| 3 Vòng Quest | Chưa bắt đầu | | | |
+| 4 Mở đầu | Chưa bắt đầu | | | |
+| 5 Kết thúc | Chưa bắt đầu | | | |
+| 6 Hoàn thiện | Chưa bắt đầu | | | |
+
+### Ghi chú review của nhạc trưởng
+_(trống)_
+
+---
+
+## Phụ lục A — Lỗi đã phát hiện (commit `c74fcbad`), đều xử lý ở GĐ0
+
+| # | Lỗi | Vị trí |
+|---|---|---|
+| B1 | Bàn tròn hiện ghế theo thứ tự vào phòng, nhưng Leader xoay theo `seatOrder` (random), nên trên màn hình Leader kế tiếp "nhảy cóc" | `AvalonBoard.tsx:493` truyền `players` thay vì `gamePlayers` |
+| B2 | Kết quả phiếu chỉ đếm phiếu reject đã bầu; logic thì tính người không bầu là Từ chối, nên số hiện ra có thể mâu thuẫn với kết quả | `PlayerPanel.tsx:2099` |
+| B3 | Mobile không chạm avatar trên bàn để chọn đội / chọn Merlin được, trong khi hướng dẫn bảo làm vậy | `PlayerPanel.tsx:360`, `:2635` |
+| B4 | Overlay ám sát chạy theo thời điểm mount, nên reload là phát lại | `PlayerPanel.tsx:2706` |
+| B5 | `.animate-stab` và `.animate-assassin-fly-in` được định nghĩa 2 lần với keyframes khác nhau | `avalon.css:20,39` và `globals.css:355,377` |
+| B6 | Chữ "Tự động vào Quest sau", thực ra là sang lượt Đêm | `PlayerPanel.tsx:1215` |
+| B7 | `QuestTrack.tsx`, `VoteTrack.tsx`, `WaitingCard` không được dùng | |
+| B8 | Các cảnh Lady trong `AvalonPreview` không còn khớp logic | `AvalonPreview.tsx:36-43,494-520` |
+| B9 | Mỗi section render 2 lần (cây desktop và mobile), timer chạy đôi | `PlayerPanel.tsx:316,357` |
+| B10 | Nền tô theo phe người xem: người bên cạnh nhìn là biết phe (để GĐ2 xử lý) | `PlayerPanel.tsx:307-311` |
+
+## Phụ lục B — Bản đồ icon (khái niệm; người thực thi đề xuất icon cụ thể để người dùng duyệt)
+
+| Tên | Khái niệm | Từ khoá gợi ý trên game-icons.net (cần xác minh) |
+|---|---|---|
+| `merlin` | Mũ phù thuỷ hoặc gậy phép có sao | pointy-hat, wizard-staff |
+| `percival` | Khiên chữ thập | templar-shield |
+| `loyal-servant` | Kiếm dựng đứng hoặc mũ giáp | broadsword, visored-helm |
+| `mordred` | Đầu lâu đội vương miện (tối) | crowned-skull |
+| `morgana` | Quả cầu pha lê hoặc trăng lưỡi liềm | crystal-ball |
+| `oberon` | Cú | owl |
+| `assassin` | Dao găm | plain-dagger |
+| `minion` | Người trùm mũ | hood, cultist |
+| `leader` | Vương miện vàng (khác hẳn Mordred) | crown |
+| `lady` | Kiếm nhô lên khỏi mặt hồ (Excalibur) | sword-altar, wave |
+| `quest-success` | Chén Thánh sáng | holy-grail |
+| `quest-fail` | Khiên vỡ hoặc chén đổ | broken-shield |
+| `vote-approve` / `vote-reject` | Cờ giương / cờ rách (không dùng xanh/đỏ phe) | flag, banner |
+| `candle-lit` / `candle-out` | Ngọn nến cháy / tắt, có khói | candle-light |
+| `team-good` / `team-evil` | Khiên sư tử / mắt quỷ | lion, evil-eyes |
+| Phase | `night` (trăng), `discussion` (lửa trại), `vote` (phiếu), `quest` (cuộn giấy), `assassinate` (đâm lén), `end` (lâu đài) | moon, campfire, scroll-unfurled, backstab, castle |
+| Khác | Con mắt (xem vai), dấu sáp, đồng hồ cát | eye, wax-seal, hourglass |
+
+## Phụ lục C — Bảng màu cảnh (đã phác thảo; cắt giấy phẳng, không gradient nặng)
+
+| Cảnh | Màu chính |
+|---|---|
+| `hall` | nền `#23170f`, vòm `#3a2a1c`, cờ `#9a7024`, đuốc `#f2a541`, sàn `#1a110b`, bàn `#5a3a1e` / `#7c5229` |
+| `night` | trời `#0e1326`, sao `#cfd6ff`, trăng `#e8e3c9`, lâu đài `#05070f`, cửa sổ `#f2c14e` |
+| `forest` (Rừng Broceliande) | `#0f2a22`, sương `#1d4a3c`, cây xa `#163d31`, cây gần `#0a1f19`, đom đóm `#d9f27a` |
+| `mountain` (Đèo núi tuyết) | `#1f2833`, núi xa `#3a4756`, tuyết `#c9d2db`, núi gần `#121921`, bông tuyết `#e8eef4` |
+| `sea` (Biển Tintagel) | trời `#2b2140`, chân trời `#7a4a2c`, mặt trời `#e0913a`, biển `#12304a`, sóng `#2a5170`, vách đá `#0b0f14` |
+| `ruins` (Phế tích) | `#1c1a26`, mây `#2c2838`, phế tích `#0b0a10` (mưa `#3c3850` và chớp `#e6e0ff` thuộc lớp Storm) |
+| `chapel` (Nhà nguyện Chén Thánh) | `#2a2210`, tia sáng `#4a3a14`, vòm `#120e06`, chén `#e3b341` |
+| `marsh` (Đầm lầy sương, mới) | `#1a2420`, sương `#2c3a33`, lau sậy `#0c1310`, ma trơi `#9fe3c8` |
+| `cave` (Hang rồng, mới) | `#120d0b`, đá `#2a201a`, mắt rồng `#e0663a`, ánh vàng `#e3b341` |
+| `camp` | `#140f0c`, quầng sáng `#22160e`, lều `#2b211a`, đất `#1f1712`, lửa `#e0663a` / `#f2c14e`, tia lửa `#f2a541` |
+| `lake` (Hồ Avalon) | `#132a33`, sương `#1f4450` / `#2a5560`, nước `#0d222a`, kiếm `#d6dee3`, chuôi `#b8a24a`, gợn sóng `#3f7280` |
+| `blood-moon` | `#1a0d10`, trăng `#8f2a2a`, cây và đất `#0a0506`, quạ `#050203` |
+| `end-good` (Bình minh Camelot) | trời `#5d6a8c`, rạng đông `#d9a86a` / `#f2c879`, mặt trời `#ffd98a`, lâu đài `#1a1d2b` |
+| `end-evil` (Camelot chìm lửa) | `#140a0a`, khói `#2a1a1a`, lửa `#a8321f` / `#e0663a`, lâu đài `#050303` |
+
+Không dùng mảng lớn xanh lam hoặc đỏ bão hoà ở các cảnh trong ván, để màu phe vẫn nổi bật.
+
+## Phụ lục D — Ngân sách thời gian animation theo phase (`PHASE_TIMEOUTS_MS`, không đổi)
+
+| Phase | Thời lượng | Animation tối đa | Ghi chú |
+|---|---|---|---|
+| `lineup-preview` | 60s | ~4s | Có nút sẵn sàng; không chặn nút |
+| `role-reveal` | 120s | ~1,5s | Mở thư do người chơi chủ động |
+| `night-*` | 45s mỗi lượt | ~1,5s | Không rung, không làm màn hình khác nhau |
+| `team-build` | 60s | ~1s | Token bay; không chặn việc chọn |
+| `team-vote` | 30s | ≤ 0,6s | Phase rất ngắn, tuyệt đối không chặn |
+| `team-vote-result` | **8s** | ≤ 5s | Chừa ~3s để đọc |
+| `quest-play` | 120s | ~0,8s | |
+| `quest-result` | **8s** | ≤ 5,5s | Lật tối đa 5 lá |
+| `discussion` | tối đa 600s | ~2,5s (tiêu đề cảnh) | |
+| `lady-of-lake` | 60s | ~1,5s | Mỗi lần đổi mục tiêu, đồng hồ được đặt lại |
+| `assassinate` | 180s | — | |
+| `end` | — | overlay ~8s, rồi tổng kết | Chạm để bỏ qua overlay |
+
+## Phụ lục E — Giọng văn dẫn truyện
+
+Câu ngắn (≤ 90 ký tự), ngôi thứ ba, không tiết lộ vai, có chút u tối, tránh sáo rỗng. Ví dụ:
+- `forest`: "Đoàn hiệp sĩ tiến vào rừng Broceliande. Trong sương, không ai chắc người bên cạnh là ai."
+- `camp`: "Lửa trại bập bùng. Đêm nay, lời nói cũng sắc như kiếm."
+- `lake`: "Mặt hồ Avalon lặng như gương — và gương thì không biết nói dối."
+- `blood-moon`: "Trăng nhuốm máu. Kẻ ám sát chỉ có một nhát duy nhất."
