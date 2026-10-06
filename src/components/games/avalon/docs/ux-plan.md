@@ -233,8 +233,20 @@ Không đổi màu, layout hay icon (trừ các lỗi kể trên). Không thêm 
 - **1.7 `ui/RoleEmblem.tsx`**: khung khiên kèm icon vai, viền màu phe. Dùng cho RoleReveal, RoleCard, RoleIntroCard, chip lineup và danh sách vai ở màn kết thúc.
 - **1.8 Riêng tư.** Nút vai ở top bar (`PlayerPanel`, nút `onShowMyRole`) hiện đang hiện icon, tên vai và màu phe. Đổi thành nút trung tính "Vai của tôi" (icon con mắt); chạm vào thì mở `RoleCard` như cũ.
 
+- **1.9 Ô Quest ở tâm bàn** (`RoundTable`): sửa nhãn "QUEST n" bị ngắt dòng ở 375px (rút gọn, ví dụ số La Mã hoặc "Q1", hoặc giảm cỡ chữ theo bề rộng). Ô đã xong dùng icon `quest-success` / `quest-fail` thay cho ✓ / ✕. Giữ vùng chạm để mở popup chi tiết.
+- **1.10 Icon giao diện chung** cũng thay emoji: cài đặt, hướng dẫn vai, xem trước, xoá phòng, rời phòng, mất kết nối (banner), đóng, chi tiết, đồng hồ, cảnh báo. Có ở `AvalonBoard` (header lobby, banner), `RoomSettings`, `RoleGuide`, `RolePreviewPopup`, `LobbyRoundTable`, `RoundTable`.
+- **1.11 `AvalonPreview`**: nhãn trong `<option>` không vẽ được SVG, nên chỉ cần bỏ emoji, để chữ thuần.
+
+### Bổ sung sau GĐ0 (nhạc trưởng, 2026-10-06)
+- Cấu trúc hiện tại: các section nằm trong `panel/*.tsx` (biểu tượng dùng chung ở `panel/shared.tsx`: `PhaseChip`, `TokenBadges`, `RoleLineChip`, `RoleIntroCard`); hook ở `hooks/`; toạ độ ghế ở `table/seatPosition.ts`.
+- **Khối lượng:** khoảng 200 emoji trong khoảng 26 file. Lệnh đếm (ripgrep, công cụ Grep): `rg -c "\p{Extended_Pictographic}" src/components/games/avalon -g "!**/docs/**"` (Bash có sẵn `rg`). `grep -P` trên máy này lỗi locale nên đừng dùng.
+- **Ký hiệu chữ** như ✓ ✕ ⏱ ⚠: nếu đứng riêng như một icon thì thay bằng `AvIcon`; nếu nằm trong câu ("✓ Đã chọn") thì được giữ.
+- **Chưa làm cảnh nền ở GĐ1:** nền tô theo phe (B10) vẫn giữ tới GĐ2. Không thêm animation.
+- **Duyệt icon:** người dùng có mặt ở session thực thi. Đưa bảng icon đề xuất (tên, tác giả, URL) và chờ người dùng đồng ý rồi mới tải.
+- GĐ1 **đổi giao diện**, nên không so bố cục trước/sau như GĐ0. Thay vào đó, chụp ảnh mọi cảnh trong Preview ở 375 và 1440 để nhạc trưởng xem.
+
 ### Nghiệm thu
-- Không còn emoji trong UI Avalon (grep dải ký tự emoji trong `src/components/games/avalon`, trừ thư mục `docs/`).
+- Không còn emoji trong UI Avalon: lệnh `rg` ở trên trả 0 với mọi file ngoài `docs/`.
 - Mỗi icon chỉ mang một nghĩa.
 - Đổi một icon sang `{ kind: 'image', src }` thì hiển thị đúng (thử với một file PNG tạm rồi trả lại).
 - Tiếng Việt có dấu hiển thị đúng ở font tiêu đề.
@@ -352,7 +364,8 @@ Mọi animation đi qua `usePhaseTimeline`, tuân thủ mục 2 và ngân sách 
 
 ## 9. Kiểm thử (mọi GĐ)
 
-1. Chạy `npm run lint`, `npx tsc --noEmit`, `npm run build`.
+1. Chạy `npx tsc --noEmit`, `npx eslint src/components/games/avalon` (không được thêm lỗi mới; mốc hiện tại là 2 lỗi `react-hooks/set-state-in-effect` có sẵn), và `npm run build`. Không dùng `npm run lint` toàn repo vì bị nhiễu bởi `.claude/worktrees/**`.
+   - Có thể kiểm UI mà không cần Firebase bằng trang harness tạm (xem memory `avalon-ux-test-recipes`); nhớ xoá harness trước khi commit.
 2. **AvalonPreview:**
    - Chạy app, tạo phòng Avalon (dùng Firebase thật trong `.env.local`), bấm "👁️ Xem trước".
    - Đi qua mọi cảnh liên quan ở 375×812 và 1440×900, chụp ảnh.
@@ -371,7 +384,7 @@ Branch: `dev-avalon-uxui`.
 
 | GĐ | Trạng thái | Commit (đầu → cuối) | Model | Ghi chú / lệch kế hoạch |
 |---|---|---|---|---|
-| 0 Nền móng | Xong, chờ nhạc trưởng review | `3e76509d` → `cba374f3` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3e76509d..HEAD` | Claude Sonnet 5.5 | Mọi lỗi B1–B8 đã xử lý, giao diện giữ nguyên. Chi tiết lệch kế hoạch + kết quả kiểm thử ở mục "Ghi chú của người thực thi GĐ0" bên dưới. |
+| 0 Nền móng | **Đã review — đạt** (2026-10-06) | `3e76509d` → `cba374f3` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3e76509d..HEAD` | Claude Sonnet 5.5 | Mọi lỗi B1–B8 đã xử lý, giao diện giữ nguyên. Chi tiết lệch kế hoạch + kết quả kiểm thử ở mục "Ghi chú của người thực thi GĐ0" bên dưới. |
 | 1 Bộ nhận diện | Chưa bắt đầu | | | |
 | 2 Cảnh truyện | Chưa bắt đầu | | | |
 | 3 Vòng Quest | Chưa bắt đầu | | | |
@@ -409,7 +422,21 @@ Branch: `dev-avalon-uxui`.
 **Quan sát ngoài phạm vi (không sửa):** nhãn "QUEST n" trong ô Quest ở tâm bàn nằm sát mép, có lúc ngắt dòng (rất rõ ở 375px, đôi khi cả 1440px) — có từ trước, nên xem lại ở GĐ1/GĐ3 khi làm lại ô Quest.
 
 ### Ghi chú review của nhạc trưởng
-_(trống)_
+
+**GĐ0 (2026-10-06): đạt, đã push.** Nhạc trưởng tự kiểm lại:
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: chỉ còn 2 lỗi có sẵn từ trước.
+- Logic-core không đổi: `useAvalon.ts`, `types.ts`, `constants.ts` không có trong diff. `AvalonBoard.tsx` chỉ đổi class `avalon-root` và `players` → `gamePlayers`.
+- So tự động từng hàm gốc của `PlayerPanel` với file mới trong `panel/`: chỉ khác ở các chỗ cố ý (đồng hồ dùng `usePhaseClock`, định dạng giữ nguyên; class `av-*`; B2; B6; `startedAt` cho overlay).
+
+Lưu ý cho các GĐ sau:
+1. `usePhaseTimeline` chỉ render lại ở **mốc chuyển stage**, không theo từng khung hình. Hiệu ứng chạy liên tục (đếm số, thanh tiến độ) nên làm bằng CSS animation, đồng bộ bằng `animation-delay: -<elapsed>ms` (để reload nhảy đúng chỗ), không setState mỗi frame.
+2. Khi bật reduced motion, overlay ám sát bị bỏ hẳn. GĐ5 nên hiện thay bằng **thẻ kết quả tĩnh** (nội dung của stage `reveal`) thay vì không hiện gì.
+3. Không dùng `pb-safe` hay `min-h-dvh` của `globals.css` khi cần ghi đè theo breakpoint: chúng không nằm trong `@layer` nên thắng utility của Tailwind. Dùng giá trị tuỳ biến như `pb-[max(1rem,env(safe-area-inset-bottom))]`. Liên quan tới `ActionDock` ở GĐ3.
+4. Nhãn "QUEST n" trong ô Quest ở tâm bàn bị ngắt dòng ở 375px: giao cho GĐ1 (mục 1.9).
+5. Lint: dùng `npx eslint src/components/games/avalon` làm thước đo. `npm run lint` toàn repo bị nhiễu bởi `.claude/worktrees/**` (ngoài phạm vi).
+6. Phòng mồ côi `O1e2bKPU1QMym1HvywJb` sẽ tự hết hạn nhờ bộ dọn phòng cũ, không cần xử lý.
+7. Mẹo kiểm thử không cần Firebase (harness tạm, so bố cục, kiểm reduced motion, bot chơi 5 tab) đã được lưu trong memory `avalon-ux-test-recipes`. Người thực thi các GĐ sau nên dùng.
 
 ---
 
