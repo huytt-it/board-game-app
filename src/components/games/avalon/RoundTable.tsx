@@ -4,6 +4,7 @@ import { useState } from 'react';
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, type AvalonQuestRecord } from './types';
 import { ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
+import { seatPosition } from './table/seatPosition';
 
 interface RoundTableProps {
   players: Player[];
@@ -206,17 +207,10 @@ export default function RoundTable({
         </div>
       </div>
 
-      {/* Player avatars arranged around the table.
-          Equivalent to the rotate(angle) translateY(-r) rotate(-angle) trick,
-          but computed with sin/cos so the radius can be a % of the container
-          (translateY % refers to the element itself, not the parent). */}
+      {/* Player avatars arranged around the table (see table/seatPosition.ts). */}
       {players.map((p, i) => {
         // Start the first player at the top (12 o'clock) and go clockwise.
-        const angleDeg = (360 / n) * i - 90;
-        const rad = (angleDeg * Math.PI) / 180;
-        const radiusPct = 43; // % of container — sits just outside the table (which is inset-[12%])
-        const x = 50 + radiusPct * Math.cos(rad);
-        const y = 50 + radiusPct * Math.sin(rad);
+        const { x, y } = seatPosition(i, n);
         const isOnTeam = state.proposedTeam.includes(p.id);
         const isLeader = state.currentLeaderId === p.id;
         const isLady = state.ladyHolderId === p.id;
@@ -270,7 +264,7 @@ export default function RoundTable({
         const wrapperExtra = isPickable
           ? `cursor-pointer active:scale-95 ${isOnTeam ? '' : 'hover:ring-2 hover:ring-amber-300/60'}`
           : isAssassinPickable
-            ? `cursor-pointer active:scale-95 hover:ring-2 hover:ring-red-400/70 ${isAssassinTarget ? 'animate-stab' : ''}`
+            ? `cursor-pointer active:scale-95 hover:ring-2 hover:ring-red-400/70 ${isAssassinTarget ? 'av-stab' : ''}`
             : '';
 
         return (

@@ -1,6 +1,6 @@
-/* Animations dành riêng cho game Avalon. Import từ AvalonBoard.tsx để các
-   class .animate-* dưới đây có hiệu lực global trong scope ván Avalon mà
-   KHÔNG đụng tới globals.css của app. */
+/* Animations dành riêng cho game Avalon. Import từ AvalonBoard.tsx. Mọi class
+   đều có tiền tố `av-` để không đụng tên với globals.css (dùng chung cho các
+   game khác — KHÔNG sửa file đó). */
 
 /* ─── Sword stab (Assassin click target) ─────────────────────────── */
 @keyframes avalon-stab {
@@ -17,7 +17,7 @@
     transform: translateX(0) translateY(0) rotate(0deg);
   }
 }
-.animate-stab {
+.av-stab {
   animation: avalon-stab 0.45s ease-out;
 }
 
@@ -36,7 +36,7 @@
     opacity: 1;
   }
 }
-.animate-assassin-fly-in {
+.av-assassin-fly-in {
   animation: avalon-assassin-fly-in 0.65s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
@@ -55,7 +55,7 @@
     background-color: rgba(0, 0, 0, 0);
   }
 }
-.animate-assassin-blackout {
+.av-assassin-blackout {
   animation: avalon-assassin-blackout 0.8s ease-in-out forwards;
 }
 
@@ -74,7 +74,7 @@
     background: rgba(255, 255, 255, 0.92);
   }
 }
-.animate-assassin-whiteout {
+.av-assassin-whiteout {
   animation: avalon-assassin-whiteout 0.8s ease-out forwards;
 }
 
@@ -87,7 +87,7 @@
     transform: translate(45%, -38%) rotate(18deg);
   }
 }
-.animate-split-upper {
+.av-split-upper {
   animation: avalon-split-upper 1.25s cubic-bezier(0.22, 0.5, 0.36, 1) forwards;
 }
 
@@ -99,6 +99,20 @@
     transform: translate(-45%, 38%) rotate(-18deg);
   }
 }
-.animate-split-lower {
+.av-split-lower {
   animation: avalon-split-lower 1.25s cubic-bezier(0.22, 0.5, 0.36, 1) forwards;
+}
+
+/* ─── Giảm chuyển động ───────────────────────────────────────────── */
+/* Người dùng bật "reduce motion" ở hệ điều hành / trình duyệt: tắt mọi
+   animation và transition bên trong Avalon (kể cả animate-pulse, fade-in,
+   scale-in... lấy từ Tailwind / globals.css). Phần tử hiện ngay ở trạng thái
+   cuối; các hiệu ứng nháy sáng (blackout / whiteout) không phát. */
+@media (prefers-reduced-motion: reduce) {
+  .avalon-root *,
+  .avalon-root *::before,
+  .avalon-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
 }

@@ -312,7 +312,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     const optionalRolesCount =
       ((room.config.optionalRoles as unknown[] | undefined)?.length) ?? 0;
     return (
-      <div className="mx-auto max-w-5xl animate-fade-in pb-32">
+      <div className="avalon-root mx-auto max-w-5xl animate-fade-in pb-32">
         {showPreview && <AvalonPreview onClose={() => setShowPreview(false)} />}
 
         <Modal open={showSettings} onClose={() => setShowSettings(false)} title="⚙️ Cài đặt Avalon">
@@ -425,7 +425,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   if (!state) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-slate-400">
+      <div className="avalon-root flex min-h-dvh items-center justify-center text-slate-400">
         <div className="text-center">
           <div className="text-4xl mb-2 animate-pulse">⏳</div>
           <p className="text-sm">Đang tải trạng thái ván...</p>
@@ -436,7 +436,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   if (!myPlayer || !myRole) {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-slate-400 p-4">
+      <div className="avalon-root flex min-h-dvh items-center justify-center text-slate-400 p-4">
         <div className="text-center">
           <div className="text-4xl mb-2 animate-pulse">⏳</div>
           <p className="text-sm">Đang chia bài...</p>
@@ -447,7 +447,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   if (!isSupportedCount && state.phase !== 'end') {
     return (
-      <div className="flex min-h-dvh items-center justify-center text-slate-400 p-4 text-center">
+      <div className="avalon-root flex min-h-dvh items-center justify-center text-slate-400 p-4 text-center">
         <div>
           <div className="text-4xl mb-2">⚠️</div>
           <p className="text-sm">Số người chơi không hợp lệ ({playerCount}). Avalon cần 5–10 người.</p>
@@ -464,7 +464,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   if (state.phase === 'role-reveal' && !localRoleSeen && !myAcked) {
     return (
-      <>
+      <div className="avalon-root">
         {banner}
         <RoleReveal
           myRole={myRole}
@@ -472,12 +472,12 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           players={players}
           onDone={handleRoleRevealDone}
         />
-      </>
+      </div>
     );
   }
 
   return (
-    <>
+    <div className="avalon-root">
       {banner}
       <div className="absolute right-4 top-4 z-30 flex gap-2">
         <button
@@ -490,7 +490,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       <PlayerPanel
         state={state}
         myPlayer={myPlayer}
-        players={players}
+        players={gamePlayers}
         playerCount={playerCount}
         onProposedTeamChange={act(setProposedTeam)}
         onSubmitTeam={act(submitTeam)}
@@ -517,11 +517,11 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         <RolePreviewPopup
           state={state}
           myPlayer={myPlayer}
-          players={players}
+          players={gamePlayers}
           onClose={() => setShowRolePreview(false)}
         />
       )}
-    </>
+    </div>
   );
 }
 

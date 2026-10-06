@@ -1,0 +1,114 @@
+import type { Player } from '@/types/player';
+import type { AvalonGameState } from '../types';
+import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
+
+export function RoleRevealWaitingSection({
+  state,
+  myPlayer,
+  gamePlayers,
+  onShowMyRole,
+}: {
+  state: AvalonGameState;
+  myPlayer: Player;
+  gamePlayers: Player[];
+  onShowMyRole: () => void;
+}) {
+  const { remaining } = usePhaseClock(state);
+  const timeStr = formatClock(remaining);
+
+  const ackedIds = Object.keys(state.roleAcks ?? {});
+  const myAcked = ackedIds.includes(myPlayer.id);
+  const ackCount = ackedIds.length;
+  const total = gamePlayers.length;
+  const allAcked = ackCount >= total;
+
+  return (
+    <div className="space-y-3">
+      <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-5 text-center">
+        <p className="text-[11px] uppercase font-black text-purple-300 mb-2">
+          🌙 Đang lộ vai
+        </p>
+        {myAcked ? (
+          <>
+            <div className="text-5xl mb-2">✅</div>
+            <p className="text-sm font-bold text-emerald-300">Bạn đã sẵn sàng</p>
+          </>
+        ) : (
+          <>
+            <div className="text-5xl mb-2 animate-pulse">📜</div>
+            <p className="text-sm font-bold text-amber-300 mb-3">
+              Bạn chưa xác nhận đã đọc role
+            </p>
+            <button
+              onClick={onShowMyRole}
+              className="rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-sm font-black text-white hover:from-amber-400 hover:to-orange-400"
+            >
+              📖 Xem lại role
+            </button>
+          </>
+        )}
+      </div>
+
+      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between mb-2">
+          <span className="text-[11px] uppercase font-bold text-slate-400">
+            Tiến độ
+          </span>
+          <span className="text-sm font-black text-white">
+            {ackCount} / {total}
+          </span>
+        </div>
+        <div className="h-2 rounded-full bg-white/5 overflow-hidden">
+          <div
+            className="h-full rounded-full bg-gradient-to-r from-purple-500 to-indigo-500 transition-all duration-500"
+            style={{ width: `${total > 0 ? (ackCount / total) * 100 : 0}%` }}
+          />
+        </div>
+        <div className="mt-3 space-y-1.5">
+          {gamePlayers.map((p) => {
+            const acked = ackedIds.includes(p.id);
+            return (
+              <div
+                key={p.id}
+                className="flex items-center justify-between text-xs"
+              >
+                <span className={acked ? 'text-white font-bold' : 'text-slate-500'}>
+                  {p.name}
+                  {p.id === myPlayer.id && (
+                    <span className="text-cyan-400 ml-1">(bạn)</span>
+                  )}
+                </span>
+                <span className={acked ? 'text-emerald-400 font-black' : 'text-slate-600'}>
+                  {acked ? '✓ Sẵn sàng' : '⏳ Đang đọc'}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      <div
+        className={`rounded-2xl border p-4 text-center ${allAcked
+          ? 'border-emerald-500/40 bg-emerald-500/10'
+          : remaining < 30000
+            ? 'border-amber-500/40 bg-amber-500/10'
+            : 'border-white/10 bg-white/5'
+          }`}
+      >
+        <p className="text-[11px] uppercase font-bold text-slate-400 mb-1">
+          {allAcked ? 'Đang chuyển sang lượt Đêm' : 'Tự động vào lượt Đêm sau'}
+        </p>
+        <p
+          className={`text-2xl font-black ${allAcked
+            ? 'text-emerald-300'
+            : remaining < 30000
+              ? 'text-amber-300'
+              : 'text-white'
+            }`}
+        >
+          {allAcked ? '✓' : timeStr}
+        </p>
+      </div>
+    </div>
+  );
+}
