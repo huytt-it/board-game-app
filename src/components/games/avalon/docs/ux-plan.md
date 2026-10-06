@@ -385,7 +385,7 @@ Branch: `dev-avalon-uxui`.
 | GĐ | Trạng thái | Commit (đầu → cuối) | Model | Ghi chú / lệch kế hoạch |
 |---|---|---|---|---|
 | 0 Nền móng | **Đã review — đạt** (2026-10-06) | `3e76509d` → `cba374f3` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3e76509d..HEAD` | Claude Sonnet 5.5 | Mọi lỗi B1–B8 đã xử lý, giao diện giữ nguyên. Chi tiết lệch kế hoạch + kết quả kiểm thử ở mục "Ghi chú của người thực thi GĐ0" bên dưới. |
-| 1 Bộ nhận diện | Chưa bắt đầu | | | |
+| 1 Bộ nhận diện | **Xong, chờ review** (2026-10-06) | `928c1afa` → `f92d548d` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 928c1afa..HEAD` | Claude Opus 5.5 | 47 icon game-icons.net (người dùng đã duyệt bảng) + 1 icon chỉnh sửa, registry + `AvIcon`, token màu, font Cormorant Garamond, `PlayerAvatar`, `RoleEmblem`; 0 emoji. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ1" bên dưới. |
 | 2 Cảnh truyện | Chưa bắt đầu | | | |
 | 3 Vòng Quest | Chưa bắt đầu | | | |
 | 4 Mở đầu | Chưa bắt đầu | | | |
@@ -437,6 +437,49 @@ Lưu ý cho các GĐ sau:
 5. Lint: dùng `npx eslint src/components/games/avalon` làm thước đo. `npm run lint` toàn repo bị nhiễu bởi `.claude/worktrees/**` (ngoài phạm vi).
 6. Phòng mồ côi `O1e2bKPU1QMym1HvywJb` sẽ tự hết hạn nhờ bộ dọn phòng cũ, không cần xử lý.
 7. Mẹo kiểm thử không cần Firebase (harness tạm, so bố cục, kiểm reduced motion, bot chơi 5 tab) đã được lưu trong memory `avalon-ux-test-recipes`. Người thực thi các GĐ sau nên dùng.
+
+### Ghi chú của người thực thi GĐ1
+
+**Đã làm:** đúng 1.1–1.11. Không sửa logic-core: `useAvalon.ts`, `types.ts` không có trong diff; ở `constants.ts` chỉ xoá map hiển thị `ROLE_ICONS`; ở `AvalonBoard.tsx` chỉ đổi JSX (header lobby, nút, banner, màn chờ, `Modal` thêm prop `icon`) và class gốc (`AVALON_ROOT` = `avalon-root` + biến font), khối auto-progression và các handler giữ nguyên. Không thêm dependency, không sửa `globals.css`.
+
+**Cấu trúc mới:** `assets/` (`registry.ts`, `AvIcon.tsx`, `fonts.ts`, `icons/*.tsx` + `icons/gameIcon.tsx`, `CREDITS.md`, `README.md`), `ui/PlayerAvatar.tsx`, `ui/RoleEmblem.tsx`, `presentation.ts` (`ROLE_ICON_NAME`, `TEAM_ICON_NAME`).
+
+**Lệch / quyết định nhỏ so với kế hoạch (nhạc trưởng nên liếc qua):**
+1. **Bộ icon** (bảng đã được người dùng duyệt trong session): 47 icon của Lorc, Delapouite, Sbed. So với Phụ lục B: `lady` = sóng nước (`lorc/waves`) vì game-icons.net không có "kiếm nhô khỏi hồ"; `quest-fail` = chén đổ (`lorc/pouring-chalice`) để thành cặp với Chén Thánh và tránh trùng hình khiên với Percival; `team-evil` = mặt nạ quỷ (đôi mắt khó đọc ở cỡ nhỏ); `minion` = `lorc/hood`. Thêm các tên ngoài Phụ lục B: `host` (chìa khoá — lobby đang dùng nhầm 👑 cho chủ phòng), `unknown`, `roles`, `seal`, `card-play`, `team`, `avalon` và 17 icon giao diện. `candle-out` là bản **chỉnh sửa** của `candle-light` (bỏ ngọn lửa, thêm nét khói tự vẽ), ghi rõ trong `CREDITS.md`.
+2. File icon đặt tên theo **icon gốc** (`icons/pointy-hat.tsx`), registry ánh xạ khái niệm → component, nên đổi sang icon khác chỉ là thêm file + sửa một dòng. Path làm tròn còn 1 chữ số thập phân bằng script có bù sai số cho toạ độ tương đối (sai lệch tối đa 0,05/512, không trôi): 59 KB → 45 KB ký tự path; toàn bộ `icons/` khoảng 21 KB gzip. `SCENES` để GĐ2 thêm vào cùng file.
+3. **Token màu:** thêm 3 token ngoài danh sách: `--av-team` (cam, người được đề cử), `--av-approve` (xanh lá), `--av-reject` (tím mận). Dùng cú pháp Tailwind v4 `text-(--av-gold)`, `bg-(--av-good)/20` (tương đương `text-[color:var(--av-gold)]`, có hỗ trợ độ trong suốt).
+4. **Quy ước xanh lam/đỏ chỉ cho phe:** đã đổi những chỗ không mang nghĩa phe: nút và kết quả Đồng ý / Từ chối (xanh lá / tím mận), đồng hồ sắp hết giờ (cam), banner mất kết nối và hover nút Xoá/Rời (cam), nhãn "bạn" (giấy da), nút "Bắt đầu ván" (vàng), mục tiêu Lady (xanh ngọc thay cho hồng fuchsia, ở bàn, danh sách, lưới chọn và nút xác nhận). Các thẻ mang nghĩa phe (thẻ vai, kết quả Quest, đêm, Lady soi ra phe) vẫn dùng lớp `blue-*`/`red-*` của Tailwind; chuyển hàng loạt sang token + `GlassPanel` để GĐ2 làm cùng lúc đổi nền.
+5. **Riêng tư (1.8 và hơn thế):** nút top bar thành "Vai của tôi" + icon con mắt, màu trung tính. Thêm: **ghế của chính mình trên `RoundTable` trước đây có viền xanh/đỏ theo phe** (nhìn từ xa là biết phe); nay `PlayerAvatar` dùng viền đứt nét màu giấy da cho "bạn". Còn tồn tại, **chưa sửa** (ngoài phạm vi GĐ1): `RoleReveal` tô cả màn hình theo phe (để GĐ4 làm thư niêm phong); thẻ "Lá bài bạn đã đặt" ở `QuestPlaySection` tô theo lá (GĐ3); huy hiệu gợi ý trên bàn/danh sách (mặt quỷ đỏ cho Merlin/Quỷ, dấu hỏi cho Percival) vẫn hiện suốt ván như trước.
+6. **Ô Quest (1.9):** dùng **số La Mã** (font tiêu đề) thay "QUEST n", không bao giờ ngắt dòng. Dưới 640px, ô đã xong chỉ hiện số + icon kết quả + kính lúp (chữ "Thành công/Thất bại", "Chi tiết" chỉ hiện từ `sm`; có `aria-label` đầy đủ); số người hiện thành icon `team` + số. Nhãn đếm lá trong popup chi tiết và màn kết quả Quest đổi thành "Lá Phe Người" / "Lá Phe Quỷ".
+7. **Thanh từ chối:** 5 ngọn nến, mỗi lần bị bác tắt một ngọn; ngọn thứ 5 cháy màu `--av-evil` (tắt là Phe Quỷ thắng); ngọn sắp tắt phóng to 125%. Bỏ vương miện đứng đầu thanh và số 1–5 (số còn trong `title`). Chip ở top bar dùng icon nến tắt.
+8. **Font:** Cormorant Garamond 600/700, subset `latin` + `vietnamese`, nạp ở `assets/fonts.ts`, gắn biến `--av-font-display` lên mọi `.avalon-root` của `AvalonBoard`. Class `.av-display` (không nằm trong `@layer`, nên thắng utility): ép `font-weight: 700` (font chỉ tới 700, tránh "đậm giả" khi gặp `font-black`) và `font-variant-numeric: lining-nums` (Cormorant mặc định dùng số kiểu cổ, "1" trông như "I"). Dùng cho tiêu đề lobby, tiêu đề modal, tên vai, tiêu đề kết quả và h3 các section; vài tiêu đề viết hoa toàn bộ đổi sang viết thường cho hợp chữ có chân ("Đội được duyệt", "Quest thất bại"…).
+9. `.av-icon` (trong `avalon.css`, ngoài `@layer`) đặt `display: inline-block` vì preflight của Tailwind biến mọi `svg` thành `block`. Muốn ẩn/hiện icon theo breakpoint thì bọc trong `<span>` (đã ghi trong `assets/README.md`).
+10. Nhánh `{ kind: 'image' }` của `AvIcon` dùng `<img>` thường (có `eslint-disable` cho `@next/next/no-img-element`): icon nhỏ, cỡ theo `em`, trình tối ưu ảnh không giúp gì.
+11. `PlayerAvatar`: 10 màu (không có xanh lam/đỏ thuần), băm FNV-1a theo `player.id`, nên 2 người có thể trùng màu (tên vẫn khác). Màu nền không đổi theo trạng thái nữa (trước đây đổi gradient khi được chọn); trạng thái thể hiện bằng vòng: đề cử (cam), Lady ngắm (xanh ngọc), Sát Thủ ngắm (đỏ), "bạn" (viền đứt nét). Dùng ở `RoundTable`, `LobbyRoundTable`, `PlayerRoster`, `TeamBuildSection` (lưới + chip đội), `LadySection`, `AssassinSection`, `NightSections`, `QuestDetailPopup`, `AssassinRevealOverlay`.
+12. `RoleEmblem`: khiên SVG tự vẽ, 5 cỡ (xs–xl). Dùng ở `RoleReveal`, `RoleCard`, `RoleIntroCard`, `RoleLineChip`, `RoleGuide`, `RolePreviewPopup`, `RoomSettings`, danh sách Phe Quỷ ở màn ám sát, overlay ám sát và màn kết thúc.
+13. Emoji chỉ để trang trí được thay bằng icon sẵn có hoặc bỏ: 🤫 → `team-good`, 🤝/💀 → `team-evil`, 😴 → `night`, 🤐 và 👤 bỏ. Ký hiệu ✓ nằm trong câu chữ của nút được giữ (đúng mục "Bổ sung sau GĐ0").
+14. Top bar ở 375px nay nằm gọn **một dòng** (GĐ0 ghi là cao thêm một dòng): `PhaseChip` không xuống dòng, nút "Các vai" chỉ còn icon dưới `sm`.
+15. Lobby: huy hiệu chủ phòng là chìa khoá; nút kick màu tối trung tính với icon đóng.
+16. Dọn kèm: bỏ import `ROLE_NAMES_VI` không dùng trong `RoomSettings` (cảnh báo ESLint có từ trước).
+
+**Kết quả kiểm thử:**
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: 2 lỗi `react-hooks/set-state-in-effect` có sẵn (`AvalonBoard.tsx:127` — trước là dòng 121, lệch do thêm import — và `QuestPlaySection.tsx:27`) + 2 cảnh báo có sẵn trong `useAvalon.ts`. Không có vấn đề mới (bớt 1 cảnh báo, xem mục 16).
+- `rg -c "\p{Extended_Pictographic}" src/components/games/avalon -g "!**/docs/**"` → **0**.
+- **Ảnh Preview:** 41 cảnh × 375px (chụp cả chiều cao trang) và 1440×900, cộng khung "lộ vai" của overlay ám sát ở 2 cảnh `end-*` có ám sát: 86 ảnh, chụp bằng Chrome headless qua DevTools Protocol trên trang harness tạm (không cần Firebase). Ảnh nằm ở `.claude/gd1-shots/` (git bỏ qua), mở `index.html` để xem theo cặp. Đã sửa sau khi xem ảnh: top bar xuống dòng, huy hiệu vai nằm cùng dòng với nhãn phe ở `RoleReveal`/`RoleCard`/`RolePreviewPopup`, số kiểu cổ.
+- **Đổi icon sang ảnh:** tạm đặt `merlin: { kind: 'image', src: '/avalon/icons/test-merlin.png' }` với một PNG 128×128 tự tạo: ảnh hiện đúng trong `RoleEmblem` và cả icon trong dòng tiêu đề (`tsc` vẫn sạch). Đã trả lại và xoá file.
+- **Font tiếng Việt:** chuỗi "ẦẨẪẬ ỀỂỄỆ ỒỔỖỘ ƯỪỬỮỰ", "Phe Người thắng!", "Đội bị từ chối" hiển thị đúng dấu bằng Cormorant Garamond; ở lobby thật, `--av-font-display` có trên `.avalon-root` và tiêu đề modal tính ra `font-family: "Cormorant Garamond"`.
+- **Reduced motion** (giả lập qua DevTools Protocol, 41 cảnh): 0 phần tử còn animation/transition trong `.avalon-root`; overlay ám sát bị bỏ qua như GĐ0. Không giả lập thì overlay hiện ở 2 cảnh có ám sát.
+- **CPU chậm 4×:** đổi cảnh → vẽ xong 2 khung: trung bình 85 ms, tối đa 127 ms (`team-vote-not-voted`). GĐ1 không thêm animation.
+- **Lỗi JS:** 0 trên cả 2 lượt quét 41 cảnh.
+- **Lobby thật** (`next dev`, Firebase thật): tạo phòng, kiểm header, các nút, huy hiệu chủ phòng, viền "bạn" ở 375px; header 1 hàng ở 1440px; mở modal Cài đặt và Hướng dẫn vai (icon tiêu đề, nút đóng, dòng credit). **Đã xoá phòng test** (mở lại link báo "Room Not Found").
+- **Không làm:** ván thật 5 người (GĐ1 không đụng đồng bộ hay thời gian).
+
+**Dọn dẹp:** trang harness `src/app/avtest` và file PNG thử đã xoá, không có trong commit. Đã tạo `.claude/launch.json` (git bỏ qua) để chạy preview.
+
+**Gợi ý cho GĐ sau:**
+- Ảnh chụp tự động qua DevTools Protocol (Chrome headless `--remote-debugging-port`, `Emulation.setDeviceMetricsOverride` cho 375px, đổi `<select>` của Preview bằng native setter + sự kiện `change`) ổn định hơn chụp trong pane trình duyệt của app (pane hay treo khi cửa sổ bị che).
+- Icon đứng riêng một dòng phía trên chữ (huy hiệu lớn, icon kết quả) nên bọc trong `<div className="flex justify-center">`: `AvIcon` và `RoleEmblem` là phần tử inline, đứng cạnh một `<span>` thì sẽ nằm cùng dòng.
 
 ---
 
