@@ -371,13 +371,42 @@ Branch: `dev-avalon-uxui`.
 
 | GĐ | Trạng thái | Commit (đầu → cuối) | Model | Ghi chú / lệch kế hoạch |
 |---|---|---|---|---|
-| 0 Nền móng | Chưa bắt đầu | | | |
+| 0 Nền móng | Xong, chờ nhạc trưởng review | `3e76509d` → `cba374f3` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3e76509d..HEAD` | Claude Sonnet 5.5 | Mọi lỗi B1–B8 đã xử lý, giao diện giữ nguyên. Chi tiết lệch kế hoạch + kết quả kiểm thử ở mục "Ghi chú của người thực thi GĐ0" bên dưới. |
 | 1 Bộ nhận diện | Chưa bắt đầu | | | |
 | 2 Cảnh truyện | Chưa bắt đầu | | | |
 | 3 Vòng Quest | Chưa bắt đầu | | | |
 | 4 Mở đầu | Chưa bắt đầu | | | |
 | 5 Kết thúc | Chưa bắt đầu | | | |
 | 6 Hoàn thiện | Chưa bắt đầu | | | |
+
+### Ghi chú của người thực thi GĐ0
+
+**Đã làm:** đúng 0.1–0.9. Không sửa logic-core (`useAvalon.ts`, `types.ts`, `constants.ts`, khối auto-progression `AvalonBoard.tsx`); diff `AvalonBoard.tsx` chỉ gồm thêm `avalon-root` và đổi `players` → `gamePlayers`. Không thêm dependency. Không sửa `globals.css`.
+
+**Lệch / quyết định nhỏ so với kế hoạch (nhạc trưởng nên liếc qua):**
+1. `usePhaseClock(state)` dùng timeout mặc định `PHASE_TIMEOUTS_MS[state.phase]` ở mọi section (kể cả `LineupPreview`, nên không còn `60_000` cứng); riêng `NightCountdown` vẫn truyền tường minh theo prop `phase`. Đồng hồ `Assassin` giữ định dạng cũ (làm tròn *lên* rồi mới ra `m:ss`) bằng `formatClock(Math.ceil(remaining / 1000) * 1000)`.
+2. Không dùng class `pb-safe` của `globals.css` cho wrapper gộp, vì nó là CSS không nằm trong `@layer` nên thắng cả `lg:pb-0`; thay bằng `pb-[max(1rem,env(safe-area-inset-bottom))]` (cùng giá trị). Cần nhớ khi GĐ3 làm `ActionDock`.
+3. Luật reduced-motion dùng `animation: none !important; transition: none !important` (không phải duration 0,01ms) để các nháy sáng `av-assassin-blackout/whiteout` không bật một khung trắng đứng yên. Hệ quả: với reduced motion, `usePhaseTimeline` trả mốc cuối ⇒ **overlay ám sát bị bỏ qua hoàn toàn** (màn kết thúc vẫn nêu đủ kết quả). Đúng với đề bài, ghi lại để GĐ5 biết.
+4. `AvalonPreview`: (a) cảnh `end-*` bắt đầu với `phaseStartedAt = serverNow()` nên overlay vẫn chạy khi vừa chọn cảnh như trước; (b) id cảnh Lady đổi: `lady-holder-waiting`→`lady-holder-picked`, `lady-target-*`/`lady-bystander` thay bằng `lady-target-aimed|inspected-good|inspected-evil`, `lady-bystander-aiming|inspected`; cảnh "kết quả Người" nay soi một người thuộc phe Người (trước dùng Morgana hiện "Người"); (c) thêm cảnh **mới** `team-vote-result-rejected-novote` để xem B2; (d) panel được `key` theo cảnh + lần phát lại nên mỗi lần đổi cảnh là mount mới; (e) vì Preview nay truyền `onShowRolePreview`, thanh trên cùng ở Preview có thêm nút "🎭 Preview" (ở 375px thanh cao thêm một dòng) — đúng yêu cầu 0.9 nhưng khác ảnh cũ.
+5. `RoleRevealWaitingSection` (B6): "Tự động vào lượt Đêm sau" / "Đang chuyển sang lượt Đêm". Nút "✓ Đã xem — Vào Quest" ở `NightPercival` giữ nguyên (sau đêm là vào chọn đội Quest 1).
+6. Xoá `WaitingCard` cùng `QuestTrack.tsx`, `VoteTrack.tsx` (đã grep: không còn import).
+
+**Kết quả kiểm thử:**
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- ESLint: `npm run lint` toàn repo **không sạch từ trước** (329 lỗi / ~10.300 cảnh báo, gần như toàn bộ nằm trong `.claude/worktrees/*/.next/**`). Riêng `npx eslint src`: 47 lỗi / 36 cảnh báo → 47 / 35 (hết cảnh báo `WaitingCard`). Hai lỗi còn lại trong Avalon là `react-hooks/set-state-in-effect` có sẵn (`AvalonBoard.tsx:121`, và `QuestPlaySection` — chuyển nguyên văn từ `PlayerPanel`). Không thêm vấn đề lint mới.
+- Phần thân các `panel/*.tsx` đã đối chiếu với đoạn gốc bằng script: chỉ khác ở các chỗ cố ý (đồng hồ, class `av-*`, B2, B6, overlay).
+- **Một cây render:** `document.querySelectorAll('[data-phase-section]').length === 1` ở mọi cảnh dùng `PlayerPanel` (375, 800, 1024, 1440) và cả trong ván thật.
+- **So bố cục trước/sau (Preview, dựng DOM không cần Firebase):** 40 cảnh × 375px và 1440px, cộng 10 cảnh × 800px và 1024px: tọa độ/kích thước/class từng phần tử giống hệt, trừ các khác biệt dự kiến — vài wrapper (gộp cây), avatar trên bàn thành `<button>` ở mobile (B3), nút "🎭 Preview" ở thanh trên (xem 4e), đếm ngược lệch 1 giây, thanh tiến độ đang chạy transition, các cảnh Lady/B2/B6 đổi có chủ ý. (Khi so ở 1440px phải ẩn nút "🎭 Preview", vì thanh trên cao hơn 3px làm nhiễu làm tròn.)
+- **B3:** ở 375px chạm avatar trên bàn để chọn đội (thêm, bỏ, thay người đầu khi đầy) và để Sát Thủ chọn mục tiêu đều chạy đúng (click thật).
+- **B4:** nhảy đúng khung theo thời gian từ `phaseStartedAt` (mount ở 0,5s → bay vào; 2,5s → chém; 4,3s và 6s → lộ vai; 9s → không hiện); các mốc chuyển khung đo được 1,09 / 1,86 / 3,60 / 4,36 / 8,06s so với mốc 1,0 / 1,8 / 3,55 / 4,25 / 7,95s. **Trong ván thật, reload ở màn kết thúc sau khi overlay xong thì không phát lại.**
+- **Reduced motion:** Chrome headless với `--force-prefers-reduced-motion`: `matchMedia` = true, số phần tử còn animation/transition trong `.avalon-root` = 0, overlay không hiện; không bật cờ thì 22 phần tử có animation và overlay hiện.
+- **B1 + đồng bộ, ván thật (bản production, 5 origin: `localhost`, `127.0.0.1`, `a.localhost`, `b.localhost`, IP LAN, host + 4 người):** thứ tự vào phòng Host1,P2,P3,P4,P5 nhưng ghế trên bàn P5,Host1,P3,P4,P2 và **giống hệt trên cả 5 tab**; Leader xoay P2 → P5 → Host1, tức luôn là ghế kế bên theo chiều kim đồng hồ. Ván chạy đủ lineup → lộ vai → đêm → 3 Quest → ám sát → kết thúc, không lỗi JS ở tab nào.
+- Giả lập CPU chậm 4× **chưa** làm (GĐ0 không thêm animation mới).
+- Ảnh chụp: không đính kèm file vào repo; xem phần báo cáo của session.
+
+**Dọn dẹp:** các trang harness tạm (`src/app/avtest*`, `api/avtest-save`) đã xoá, không có trong commit. Phòng test của ván thật đã xoá. **Còn sót 1 phòng lobby cũ `O1e2bKPU1QMym1HvywJb`** (tạo trước khi phiên bị ngắt, mất danh tính host nên không xoá được từ UI; có 4–5 người chơi giả). Nó sẽ tự hết hạn theo bộ dọn phòng cũ (lobby 3 giờ) hoặc xoá tay trong Firestore `rooms/O1e2bKPU1QMym1HvywJb`.
+
+**Quan sát ngoài phạm vi (không sửa):** nhãn "QUEST n" trong ô Quest ở tâm bàn nằm sát mép, có lúc ngắt dòng (rất rõ ở 375px, đôi khi cả 1440px) — có từ trước, nên xem lại ở GĐ1/GĐ3 khi làm lại ô Quest.
 
 ### Ghi chú review của nhạc trưởng
 _(trống)_
