@@ -1,4 +1,5 @@
 import type { AvalonGameState } from '../types';
+import AvIcon from '../assets/AvIcon';
 
 export function QuestResultSection({
   state,
@@ -24,12 +25,16 @@ export function QuestResultSection({
         <p className="text-[11px] uppercase font-bold text-slate-300 mb-1 tracking-widest">
           Kết quả Quest {state.currentQuest + 1}
         </p>
-        <div className="text-6xl mb-2">{success ? '🛡️' : '🗡️'}</div>
+        <AvIcon
+          name={success ? 'quest-success' : 'quest-fail'}
+          size={60}
+          className={`mb-2 ${success ? 'text-blue-100' : 'text-red-100'}`}
+        />
         <p
-          className={`text-3xl font-black ${success ? 'text-blue-200' : 'text-red-200'
+          className={`av-display text-4xl ${success ? 'text-blue-200' : 'text-red-200'
             }`}
         >
-          {success ? 'QUEST THÀNH CÔNG' : 'QUEST THẤT BẠI'}
+          {success ? 'Quest thành công' : 'Quest thất bại'}
         </p>
       </div>
 
@@ -39,19 +44,19 @@ export function QuestResultSection({
         </p>
         <div className="grid grid-cols-2 gap-3">
           <div className="rounded-xl border-2 border-blue-500/30 bg-blue-500/10 p-4 text-center">
-            <div className="text-3xl mb-1">🛡️</div>
-            <p className="text-[10px] uppercase font-bold text-blue-300 mb-0.5">Phe Người</p>
+            <AvIcon name="quest-success" size={30} className="mb-1 text-blue-200" />
+            <p className="text-[10px] uppercase font-bold text-blue-300 mb-0.5">Lá Phe Người</p>
             <p className="text-3xl font-black text-blue-200">{goodCount}</p>
           </div>
           <div className="rounded-xl border-2 border-red-500/30 bg-red-500/10 p-4 text-center">
-            <div className="text-3xl mb-1">🗡️</div>
-            <p className="text-[10px] uppercase font-bold text-red-300 mb-0.5">Phe Quỷ</p>
+            <AvIcon name="quest-fail" size={30} className="mb-1 text-red-200" />
+            <p className="text-[10px] uppercase font-bold text-red-300 mb-0.5">Lá Phe Quỷ</p>
             <p className="text-3xl font-black text-red-200">{evilCount}</p>
           </div>
         </div>
         {playerCount >= 7 && state.currentQuest === 3 && (
           <p className="mt-3 text-[11px] text-slate-400 text-center">
-            ⚠️ Quest này cần ≥2 lá Phe Quỷ để Thất bại Quest
+            <AvIcon name="warning" /> Quest này cần ≥2 lá Phe Quỷ để Thất bại Quest
           </p>
         )}
       </div>

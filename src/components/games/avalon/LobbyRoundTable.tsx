@@ -1,6 +1,8 @@
 'use client';
 
 import type { Player } from '@/types/player';
+import AvIcon from './assets/AvIcon';
+import PlayerAvatar from './ui/PlayerAvatar';
 
 interface LobbyRoundTableProps {
   players: Player[];
@@ -37,8 +39,8 @@ export default function LobbyRoundTable({
         <div className="absolute inset-5 rounded-full border border-amber-600/15" />
 
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 px-4 text-center">
-          <div className="text-3xl sm:text-4xl">⚔️</div>
-          <div className="text-[10px] sm:text-xs uppercase font-black tracking-[0.25em] text-amber-200/80">
+          <AvIcon name="avalon" className="h-9 w-9 sm:h-11 sm:w-11 text-(--av-gold)" />
+          <div className="av-display text-sm sm:text-lg tracking-[0.12em] text-amber-200/90">
             Phòng chờ Avalon
           </div>
           {roomCode && (
@@ -91,54 +93,43 @@ export default function LobbyRoundTable({
             }}
           >
             <div className="flex flex-col items-center gap-1">
-              <div
-                className={`relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border-[3px] text-sm font-black text-white transition-all ${
-                  p
-                    ? isMe
-                      ? 'border-blue-400 bg-blue-500/20 ring-2 ring-blue-300/50'
-                      : 'border-white/40 bg-gradient-to-br from-purple-500/40 to-cyan-500/40'
-                    : 'border-dashed border-white/15 bg-white/5 text-stone-500'
-                }`}
-              >
-                {p ? (
-                  <>
-                    <span className="text-base">
-                      {p.name.charAt(0).toUpperCase()}
+              {p ? (
+                <PlayerAvatar player={p} size="table" isMe={isMe}>
+                  {isHost && (
+                    <span
+                      title="Chủ phòng"
+                      className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-stone-200 border border-white text-[12px] text-(--av-ink) shadow shadow-black/40"
+                    >
+                      <AvIcon name="host" />
                     </span>
-                    {isHost && (
-                      <span
-                        title="Chủ phòng"
-                        className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 border border-amber-200 text-[10px] shadow shadow-amber-500/40"
-                      >
-                        👑
-                      </span>
-                    )}
-                    {/* Nút kick — chỉ hiện khi viewer là host và target không phải
-                        chính mình hoặc host khác (nếu có). */}
-                    {onKick && !isMe && !isHost && (
-                      <button
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onKick(p.id, p.name);
-                        }}
-                        title={`Kick ${p.name}`}
-                        aria-label={`Kick ${p.name}`}
-                        className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-600 border border-red-200 text-[12px] font-black text-white shadow shadow-red-500/50 hover:bg-red-500 active:scale-90 cursor-pointer"
-                      >
-                        ✕
-                      </button>
-                    )}
-                  </>
-                ) : (
+                  )}
+                  {/* Nút kick — chỉ hiện khi viewer là host và target không phải
+                      chính mình hoặc host khác (nếu có). */}
+                  {onKick && !isMe && !isHost && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onKick(p.id, p.name);
+                      }}
+                      title={`Kick ${p.name}`}
+                      aria-label={`Kick ${p.name}`}
+                      className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-stone-800 border border-stone-400 text-[14px] text-stone-100 shadow shadow-black/50 hover:bg-orange-700 active:scale-90 cursor-pointer"
+                    >
+                      <AvIcon name="close" />
+                    </button>
+                  )}
+                </PlayerAvatar>
+              ) : (
+                <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border-[3px] border-dashed border-white/15 bg-white/5 text-sm font-black text-stone-500">
                   <span className="text-base opacity-60">+</span>
-                )}
-              </div>
+                </div>
+              )}
               <div
                 className={`max-w-[90px] truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${
                   p
                     ? isMe
-                      ? 'bg-blue-500/30 text-blue-100 ring-1 ring-blue-400/40'
+                      ? 'bg-(--av-parchment)/20 text-(--av-parchment) ring-1 ring-(--av-parchment)/40'
                       : 'bg-black/50 text-white'
                     : 'bg-white/5 text-stone-500 italic'
                 }`}
@@ -147,7 +138,7 @@ export default function LobbyRoundTable({
                 {p ? (
                   <>
                     {p.name}
-                    {isMe && <span className="ml-0.5 text-blue-200">•</span>}
+                    {isMe && <span className="ml-0.5">•</span>}
                   </>
                 ) : (
                   'Trống'

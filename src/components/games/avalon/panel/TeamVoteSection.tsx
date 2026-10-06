@@ -2,6 +2,7 @@ import type { Player } from '@/types/player';
 import type { AvalonGameData, AvalonGameState, TeamVote } from '../types';
 import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
 import { PlayerRoster } from './PlayerRoster';
+import AvIcon from '../assets/AvIcon';
 
 export function TeamVoteSection({
   state,
@@ -28,9 +29,9 @@ export function TeamVoteSection({
     <div className="space-y-3">
       <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-[11px] uppercase font-black text-cyan-300">🗳️ Bỏ phiếu đội</p>
-          <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-red-300 animate-pulse' : 'text-cyan-200'}`}>
-            ⏱ {timeStr}
+          <p className="text-[11px] uppercase font-black text-cyan-300"><AvIcon name="vote" /> Bỏ phiếu đội</p>
+          <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-orange-300 animate-pulse' : 'text-cyan-200'}`}>
+            <AvIcon name="clock" /> {timeStr}
           </span>
         </div>
         <p className="text-sm text-slate-300 mb-3">
@@ -50,7 +51,7 @@ export function TeamVoteSection({
         <p className="text-[11px] text-slate-500">
           Đã bầu: {votedCount}/{gamePlayers.length}
           {!myVote && (
-            <span className="ml-2 text-amber-400/80">⚠ Chưa bầu trong {timeStr} sẽ bị tính là Từ chối</span>
+            <span className="ml-2 text-amber-400/80"><AvIcon name="warning" /> Chưa bầu trong {timeStr} sẽ bị tính là Từ chối</span>
           )}
         </p>
       </div>
@@ -70,10 +71,15 @@ export function TeamVoteSection({
                   : 'border-amber-500/30 bg-amber-500/5'
                   }`}
               >
-                <span className="text-base shrink-0">{voted ? '✅' : '⏳'}</span>
+                <AvIcon
+                  name={voted ? 'check' : 'waiting'}
+                  size={16}
+                  className={voted ? 'text-emerald-300' : 'text-amber-300/80'}
+                  title={voted ? 'Đã bầu' : 'Chưa bầu'}
+                />
                 <span className="text-xs font-bold text-white truncate flex-1">
                   {p.name}
-                  {p.id === myPlayer.id && <span className="text-blue-300"> (bạn)</span>}
+                  {p.id === myPlayer.id && <span className="text-(--av-parchment)"> (bạn)</span>}
                 </span>
               </div>
             );
@@ -85,32 +91,33 @@ export function TeamVoteSection({
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onCastVote('approve')}
-            className="rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-600 py-5 font-black text-white text-base hover:from-blue-500 hover:to-cyan-500 active:scale-95 shadow-lg shadow-blue-500/30"
+            className="flex flex-col items-center rounded-2xl bg-(--av-approve) py-5 font-black text-white text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30"
           >
-            <div className="text-3xl mb-1">✓</div>
+            <AvIcon name="vote-approve" size={34} className="mb-1" />
             ĐỒNG Ý
           </button>
           <button
             onClick={() => onCastVote('reject')}
-            className="rounded-2xl bg-gradient-to-br from-red-600 to-rose-600 py-5 font-black text-white text-base hover:from-red-500 hover:to-rose-500 active:scale-95 shadow-lg shadow-red-500/30"
+            className="flex flex-col items-center rounded-2xl bg-(--av-reject) py-5 font-black text-white text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30"
           >
-            <div className="text-3xl mb-1">✕</div>
+            <AvIcon name="vote-reject" size={34} className="mb-1" />
             TỪ CHỐI
           </button>
         </div>
       ) : (
         <div
           className={`rounded-2xl border p-4 text-center ${myVote === 'approve'
-            ? 'border-blue-500/40 bg-blue-500/10'
-            : 'border-red-500/40 bg-red-500/10'
+            ? 'border-(--av-approve)/40 bg-(--av-approve)/10'
+            : 'border-(--av-reject)/40 bg-(--av-reject)/10'
             }`}
         >
           <p className="text-xs uppercase font-bold text-slate-400 mb-1">Phiếu của bạn</p>
           <p
-            className={`text-2xl font-black ${myVote === 'approve' ? 'text-blue-300' : 'text-red-300'
+            className={`text-2xl font-black ${myVote === 'approve' ? 'text-(--av-approve)' : 'text-(--av-reject)'
               }`}
           >
-            {myVote === 'approve' ? '✓ Đồng ý' : '✕ Từ chối'}
+            <AvIcon name={myVote === 'approve' ? 'vote-approve' : 'vote-reject'} />{' '}
+            {myVote === 'approve' ? 'Đồng ý' : 'Từ chối'}
           </p>
           <p className="mt-2 text-xs text-slate-400">Đang chờ những người còn lại...</p>
         </div>
@@ -123,7 +130,7 @@ export function TeamVoteSection({
           myPlayerId={myPlayer.id}
           highlightedIds={state.proposedTeam}
           showVoteStatus
-          title="Tất cả người chơi (✓ = đã bầu, ⏳ = chưa bầu)"
+          title="Tất cả người chơi (kèm ai đã bầu / chưa bầu)"
           emphasis="team"
           viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
         />

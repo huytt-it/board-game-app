@@ -9,6 +9,7 @@ import RoleReveal from './RoleReveal';
 import RoleCard from './RoleCard';
 import LobbyRoundTable from './LobbyRoundTable';
 import { QUEST_TEAM_SIZES } from './constants';
+import AvIcon from './assets/AvIcon';
 
 type PreviewPhase =
   | 'lobby'
@@ -54,47 +55,47 @@ type PreviewPhase =
   | 'end-evil-rejects';
 
 const PHASE_LABELS: Record<PreviewPhase, string> = {
-  lobby: '🛋️ Phòng chờ (lobby)',
-  'lineup-preview': '🎭 Vai trong ván (preview)',
-  'role-reveal': '🌙 Lộ vai (Merlin)',
-  'night-evils-as-evil': '🗡️ Đêm — Phe Quỷ (xem đồng đội)',
-  'night-evils-as-oberon': '🗡️ Đêm — Oberon đơn độc',
-  'night-evils-as-good': '🗡️ Đêm — Phe Người chờ',
-  'night-merlin-as-merlin': '🧙 Đêm — Merlin nhìn Phe Quỷ',
-  'night-merlin-as-other': '🧙 Đêm — Người khác chờ',
-  'night-percival-as-percival': '🛡️ Đêm — Percival nhìn Merlin/Morgana',
-  'night-percival-as-other': '🛡️ Đêm — Người khác chờ',
-  'team-build-leader': '⚔️ Chọn đội (đang là Leader)',
-  'team-build-follower': '⚔️ Chọn đội (chờ Leader)',
-  'team-vote-not-voted': '🗳️ Bỏ phiếu (chưa bầu)',
-  'team-vote-voted': '🗳️ Bỏ phiếu (đã bầu)',
-  'team-vote-result-approved': '📊 KQ phiếu — Đội duyệt',
-  'team-vote-result-rejected': '📊 KQ phiếu — Đội từ chối',
-  'team-vote-result-rejected-novote': '📊 KQ phiếu — Từ chối (có người không bầu)',
-  'quest-play-on-team': '🎴 Chơi Quest (trong đội)',
-  'quest-play-not-on-team': '🎴 Chơi Quest (ngoài đội)',
-  'quest-result-success': '📜 KQ Quest — Người thành công',
-  'quest-result-fail': '📜 KQ Quest — Quỷ phá hoại',
-  'discussion-pending': '💬 Thảo luận — bạn chưa sẵn sàng',
-  'discussion-mostly-ready': '💬 Thảo luận — đa số đã sẵn sàng',
-  'discussion-i-acked': '💬 Thảo luận — bạn đã sẵn sàng (chờ người khác)',
-  'lady-holder': '🌊 Lady — bạn cầm token (đang chọn người)',
-  'lady-holder-picked': '🌊 Lady — bạn đã chọn người (chưa xác nhận)',
-  'lady-holder-result-good': '🌊 Lady — kết quả: người bị soi là Người',
-  'lady-holder-result-evil': '🌊 Lady — kết quả: người bị soi là Quỷ',
-  'lady-target-aimed': '🌊 Lady — bạn đang bị ngắm',
-  'lady-target-inspected-good': '🌊 Lady — bạn đã bị soi (Người)',
-  'lady-target-inspected-evil': '🌊 Lady — bạn đã bị soi (Quỷ)',
-  'lady-bystander-aiming': '🌊 Lady — ngoài cuộc (đang ngắm)',
-  'lady-bystander-inspected': '🌊 Lady — ngoài cuộc (đã soi)',
-  'assassinate-as-assassin': '🗡️ Ám sát (bạn là Sát Thủ)',
-  'assassinate-good-bystander': '🗡️ Ám sát (Người — im lặng)',
-  'assassinate-evil-bystander': '🗡️ Ám sát (Quỷ — hội ý)',
-  'end-good-quests': '🏁 Kết thúc — Người thắng (3 Quest)',
-  'end-good-missed-merlin': '🏁 Kết thúc — Người thắng (Sát Thủ trật)',
-  'end-evil-quests': '🏁 Kết thúc — Quỷ thắng (3 Quest fail)',
-  'end-evil-merlin': '🏁 Kết thúc — Quỷ thắng (đoán trúng Merlin)',
-  'end-evil-rejects': '🏁 Kết thúc — Quỷ thắng (5 lần từ chối)',
+  lobby: 'Phòng chờ (lobby)',
+  'lineup-preview': 'Vai trong ván (preview)',
+  'role-reveal': 'Lộ vai (Merlin)',
+  'night-evils-as-evil': 'Đêm — Phe Quỷ (xem đồng đội)',
+  'night-evils-as-oberon': 'Đêm — Oberon đơn độc',
+  'night-evils-as-good': 'Đêm — Phe Người chờ',
+  'night-merlin-as-merlin': 'Đêm — Merlin nhìn Phe Quỷ',
+  'night-merlin-as-other': 'Đêm — Người khác chờ',
+  'night-percival-as-percival': 'Đêm — Percival nhìn Merlin/Morgana',
+  'night-percival-as-other': 'Đêm — Người khác chờ',
+  'team-build-leader': 'Chọn đội (đang là Leader)',
+  'team-build-follower': 'Chọn đội (chờ Leader)',
+  'team-vote-not-voted': 'Bỏ phiếu (chưa bầu)',
+  'team-vote-voted': 'Bỏ phiếu (đã bầu)',
+  'team-vote-result-approved': 'KQ phiếu — Đội duyệt',
+  'team-vote-result-rejected': 'KQ phiếu — Đội từ chối',
+  'team-vote-result-rejected-novote': 'KQ phiếu — Từ chối (có người không bầu)',
+  'quest-play-on-team': 'Chơi Quest (trong đội)',
+  'quest-play-not-on-team': 'Chơi Quest (ngoài đội)',
+  'quest-result-success': 'KQ Quest — Người thành công',
+  'quest-result-fail': 'KQ Quest — Quỷ phá hoại',
+  'discussion-pending': 'Thảo luận — bạn chưa sẵn sàng',
+  'discussion-mostly-ready': 'Thảo luận — đa số đã sẵn sàng',
+  'discussion-i-acked': 'Thảo luận — bạn đã sẵn sàng (chờ người khác)',
+  'lady-holder': 'Lady — bạn cầm token (đang chọn người)',
+  'lady-holder-picked': 'Lady — bạn đã chọn người (chưa xác nhận)',
+  'lady-holder-result-good': 'Lady — kết quả: người bị soi là Người',
+  'lady-holder-result-evil': 'Lady — kết quả: người bị soi là Quỷ',
+  'lady-target-aimed': 'Lady — bạn đang bị ngắm',
+  'lady-target-inspected-good': 'Lady — bạn đã bị soi (Người)',
+  'lady-target-inspected-evil': 'Lady — bạn đã bị soi (Quỷ)',
+  'lady-bystander-aiming': 'Lady — ngoài cuộc (đang ngắm)',
+  'lady-bystander-inspected': 'Lady — ngoài cuộc (đã soi)',
+  'assassinate-as-assassin': 'Ám sát (bạn là Sát Thủ)',
+  'assassinate-good-bystander': 'Ám sát (Người — im lặng)',
+  'assassinate-evil-bystander': 'Ám sát (Quỷ — hội ý)',
+  'end-good-quests': 'Kết thúc — Người thắng (3 Quest)',
+  'end-good-missed-merlin': 'Kết thúc — Người thắng (Sát Thủ trật)',
+  'end-evil-quests': 'Kết thúc — Quỷ thắng (3 Quest fail)',
+  'end-evil-merlin': 'Kết thúc — Quỷ thắng (đoán trúng Merlin)',
+  'end-evil-rejects': 'Kết thúc — Quỷ thắng (5 lần từ chối)',
 };
 
 const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
@@ -868,7 +869,9 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
           >
             ← Đóng
           </button>
-          <h2 className="text-sm font-black text-white">👁️ Xem trước UI Avalon</h2>
+          <h2 className="text-sm font-black text-white">
+            <AvIcon name="preview" /> Xem trước UI Avalon
+          </h2>
           <span className="ml-auto rounded-full bg-amber-500/20 px-2.5 py-0.5 text-[10px] font-black text-amber-300 uppercase tracking-wider">
             Mock data
           </span>
@@ -916,7 +919,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             </button>
           </div>
           <p className="text-[11px] text-slate-500">
-            👤 Đang xem dưới góc nhìn của <span className="text-white font-bold">{myPlayer.name}</span>
+            Đang xem dưới góc nhìn của <span className="text-white font-bold">{myPlayer.name}</span>
           </p>
         </div>
       </header>

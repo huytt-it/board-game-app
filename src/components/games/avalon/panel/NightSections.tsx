@@ -2,6 +2,8 @@ import type { Player } from '@/types/player';
 import { AvalonRole, PHASE_TIMEOUTS_MS, type AvalonGameData, type AvalonGameState } from '../types';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
 import { RoleIntroCard } from './shared';
+import AvIcon from '../assets/AvIcon';
+import PlayerAvatar from '../ui/PlayerAvatar';
 
 function getActiveNightPlayerIds(
   phase: AvalonGameState['phase'],
@@ -59,7 +61,7 @@ function NightCountdown({
             : 'text-white'
           }`}
       >
-        {allActiveAcked ? '✓' : timeStr}
+        {allActiveAcked ? <AvIcon name="check" title="Đã xong" /> : timeStr}
       </p>
     </div>
   );
@@ -97,9 +99,9 @@ export function NightEvilsSection({
       <div className="space-y-3">
         <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 text-center">
           <p className="text-[11px] uppercase font-black text-red-300 mb-2">
-            👹 Đêm — Phe Quỷ đang nhận biết nhau
+            <AvIcon name="team-evil" /> Đêm — Phe Quỷ đang nhận biết nhau
           </p>
-          <div className="text-5xl mb-2 animate-pulse">😴</div>
+          <AvIcon name="night" size={48} className="mb-2 animate-pulse text-slate-200" />
           <p className="text-sm text-slate-300">
             Hãy nhắm mắt. Các tay sai của Mordred đang lộ diện với nhau (Oberon thì đơn độc).
           </p>
@@ -119,23 +121,23 @@ export function NightEvilsSection({
       {myRole && <RoleIntroCard role={myRole} variant="self" />}
       <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-red-300 mb-1">
-          👹 Đêm — Phe Quỷ lộ diện
+          <AvIcon name="team-evil" /> Đêm — Phe Quỷ lộ diện
         </p>
         {isOberon ? (
           <>
-            <h3 className="text-base font-black text-white mb-1">Bạn là Oberon — đơn độc</h3>
+            <h3 className="av-display text-xl text-white mb-1">Bạn là Oberon — đơn độc</h3>
             <p className="text-xs text-slate-300 mb-3">
               Bạn không biết đồng đội Quỷ là ai. Đồng đội Quỷ cũng không biết bạn.
               Tự xoay xở phá Quest.
             </p>
             <div className="rounded-xl border border-red-500/20 bg-red-950/30 p-4 text-center">
-              <div className="text-4xl mb-1">🦉</div>
+              <AvIcon name="oberon" size={40} className="mb-1 text-red-200" />
               <p className="text-xs text-slate-400">Không có đồng đội nào hiện ra với bạn.</p>
             </div>
           </>
         ) : (
           <>
-            <h3 className="text-base font-black text-white mb-1">Đồng đội Phe Quỷ của bạn</h3>
+            <h3 className="av-display text-xl text-white mb-1">Đồng đội Phe Quỷ của bạn</h3>
             <p className="text-xs text-slate-300 mb-3">
               {otherEvils.length === 0
                 ? 'Bạn là kẻ ác duy nhất hiện ra (Oberon nếu có sẽ ẩn).'
@@ -147,9 +149,7 @@ export function NightEvilsSection({
                   key={p.id}
                   className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5"
                 >
-                  <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-rose-500 text-sm font-black text-white">
-                    {p.name.charAt(0).toUpperCase()}
-                  </div>
+                  <PlayerAvatar player={p} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-white truncate">{p.name}</p>
                     <p className="text-[11px] font-bold text-red-300">Phe Quỷ</p>
@@ -208,9 +208,9 @@ export function NightMerlinSection({
       <div className="space-y-3">
         <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-5 text-center">
           <p className="text-[11px] uppercase font-black text-blue-300 mb-2">
-            🧙 Đêm — Merlin đang quan sát
+            <AvIcon name="merlin" /> Đêm — Merlin đang quan sát
           </p>
-          <div className="text-5xl mb-2 animate-pulse">🌙</div>
+          <AvIcon name="night" size={48} className="mb-2 animate-pulse text-slate-200" />
           <p className="text-sm text-slate-300">
             Hãy nhắm mắt. Merlin đang nhìn ra Phe Quỷ (Mordred ẩn).
           </p>
@@ -227,7 +227,7 @@ export function NightMerlinSection({
       <RoleIntroCard role={AvalonRole.Merlin} variant="self" />
       <div className="rounded-2xl border border-blue-500/40 bg-blue-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-blue-300 mb-1">
-          🧙 Phe Quỷ lộ diện trước bạn
+          <AvIcon name="merlin" /> Phe Quỷ lộ diện trước bạn
         </p>
         <p className="text-xs text-slate-300 mb-3">
           Bạn nhìn thấy {visibleEvils.length} quỷ. <strong>Mordred</strong> ẩn — không hiện ở đây.
@@ -239,9 +239,7 @@ export function NightMerlinSection({
               key={p.id}
               className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-red-500 to-rose-500 text-sm font-black text-white">
-                {p.name.charAt(0).toUpperCase()}
-              </div>
+              <PlayerAvatar player={p} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-black text-white truncate">{p.name}</p>
                 <p className="text-[11px] font-bold text-red-300">Phe Quỷ</p>
@@ -298,9 +296,9 @@ export function NightPercivalSection({
       <div className="space-y-3">
         <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 text-center">
           <p className="text-[11px] uppercase font-black text-indigo-300 mb-2">
-            🛡️ Đêm — Percival đang quan sát
+            <AvIcon name="percival" /> Đêm — Percival đang quan sát
           </p>
-          <div className="text-5xl mb-2 animate-pulse">🌙</div>
+          <AvIcon name="night" size={48} className="mb-2 animate-pulse text-slate-200" />
           <p className="text-sm text-slate-300">
             Hãy nhắm mắt. Percival đang nhìn ra Merlin & Morgana.
           </p>
@@ -317,7 +315,7 @@ export function NightPercivalSection({
       <RoleIntroCard role={AvalonRole.Percival} variant="self" />
       <div className="rounded-2xl border border-indigo-500/40 bg-indigo-500/10 p-5">
         <p className="text-[11px] uppercase font-black text-indigo-300 mb-1">
-          🛡️ Merlin & Morgana hiện ra trước bạn
+          <AvIcon name="percival" /> Merlin & Morgana hiện ra trước bạn
         </p>
         <p className="text-xs text-slate-300 mb-3">
           1 trong 2 người dưới đây là <strong>Merlin</strong>, người còn lại là{' '}
@@ -330,14 +328,12 @@ export function NightPercivalSection({
               key={p.id}
               className="flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-full bg-gradient-to-br from-indigo-500 to-purple-500 text-sm font-black text-white">
-                {p.name.charAt(0).toUpperCase()}
-              </div>
+              <PlayerAvatar player={p} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-black text-white truncate">{p.name}</p>
                 <p className="text-[11px] font-bold text-indigo-300">Merlin hoặc Morgana</p>
               </div>
-              <span className="shrink-0 text-2xl">❓</span>
+              <AvIcon name="unknown" size={24} className="text-indigo-300" title="Merlin hay Morgana?" />
             </div>
           ))}
         </div>

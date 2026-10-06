@@ -1,5 +1,6 @@
 import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
+import AvIcon from '../assets/AvIcon';
 
 export function TeamVoteResultSection({
   state,
@@ -23,30 +24,31 @@ export function TeamVoteResultSection({
     <div className="space-y-3 animate-scale-in">
       <div
         className={`rounded-2xl border-2 p-6 text-center ${approved
-          ? 'border-blue-500/50 bg-blue-500/15 shadow-lg shadow-blue-500/20'
-          : 'border-red-500/50 bg-red-500/15 shadow-lg shadow-red-500/20'
+          ? 'border-(--av-approve)/50 bg-(--av-approve)/15 shadow-lg shadow-black/20'
+          : 'border-(--av-reject)/50 bg-(--av-reject)/15 shadow-lg shadow-black/20'
           }`}
       >
         <p className="text-[11px] uppercase font-bold text-slate-300 mb-1 tracking-widest">
           Kết quả phiếu đội
         </p>
-        <div className="text-6xl mb-2">{approved ? '✅' : '❌'}</div>
-        <p
-          className={`text-3xl font-black ${approved ? 'text-blue-200' : 'text-red-200'
-            }`}
-        >
-          {approved ? 'ĐỘI ĐƯỢC DUYỆT' : 'ĐỘI BỊ TỪ CHỐI'}
+        <AvIcon
+          name={approved ? 'vote-approve' : 'vote-reject'}
+          size={60}
+          className={`mb-2 ${approved ? 'text-(--av-approve)' : 'text-(--av-reject)'}`}
+        />
+        <p className="av-display text-4xl text-white">
+          {approved ? 'Đội được duyệt' : 'Đội bị từ chối'}
         </p>
         <div className="mt-4 grid grid-cols-2 gap-3 max-w-xs mx-auto">
-          <div className="rounded-xl bg-blue-500/15 border border-blue-500/30 px-3 py-2">
-            <p className="text-[10px] uppercase font-bold text-blue-300">Đồng ý</p>
-            <p className="text-2xl font-black text-blue-200">{approves}</p>
+          <div className="rounded-xl bg-(--av-approve)/15 border border-(--av-approve)/30 px-3 py-2">
+            <p className="text-[10px] uppercase font-bold text-(--av-approve)">Đồng ý</p>
+            <p className="text-2xl font-black text-white">{approves}</p>
           </div>
-          <div className="rounded-xl bg-red-500/15 border border-red-500/30 px-3 py-2">
-            <p className="text-[10px] uppercase font-bold text-red-300">Từ chối</p>
-            <p className="text-2xl font-black text-red-200">{rejects}</p>
+          <div className="rounded-xl bg-(--av-reject)/15 border border-(--av-reject)/30 px-3 py-2">
+            <p className="text-[10px] uppercase font-bold text-(--av-reject)">Từ chối</p>
+            <p className="text-2xl font-black text-white">{rejects}</p>
             {nonVoters > 0 && (
-              <p className="text-[10px] font-bold leading-tight text-red-300/80">
+              <p className="text-[10px] font-bold leading-tight text-slate-300/80">
                 (gồm {nonVoters} người không bầu)
               </p>
             )}
@@ -72,7 +74,7 @@ export function TeamVoteResultSection({
           ))}
         </div>
         <p className="mt-3 text-[11px] text-slate-500 italic">
-          🤐 Không lộ ai bầu thế nào — chỉ có tổng số phiếu.
+          Không lộ ai bầu thế nào — chỉ có tổng số phiếu.
         </p>
       </div>
     </div>

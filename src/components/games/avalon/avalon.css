@@ -2,6 +2,44 @@
    đều có tiền tố `av-` để không đụng tên với globals.css (dùng chung cho các
    game khác — KHÔNG sửa file đó). */
 
+/* ─── Bộ nhận diện: token màu ────────────────────────────────────── */
+/* Dùng qua giá trị tuỳ biến của Tailwind, ví dụ `text-(--av-gold)`,
+   `border-(--av-good)/40`. Quy ước: xanh lam và đỏ CHỈ dùng cho ý nghĩa phe
+   (--av-good / --av-evil); Đồng ý / Từ chối, cảnh báo, "bạn"... dùng màu khác. */
+.avalon-root {
+  --av-good: #5b8def; /* Phe Người */
+  --av-evil: #e05555; /* Phe Quỷ */
+  --av-leader: #f2c14e; /* vương miện Leader — vàng kim */
+  --av-lady: #3cc1b4; /* Lady of the Lake — xanh ngọc */
+  --av-gold: #d4a64a; /* điểm nhấn, viền khung */
+  --av-parchment: #efe3c8; /* giấy da: chữ/icon sáng trên nền tối, "bạn" */
+  --av-ink: #16110d; /* mực: nền tối của huy hiệu */
+  --av-glass-bg: rgba(18, 13, 10, 0.72);
+  --av-glass-border: rgba(239, 227, 200, 0.14);
+  --av-team: #f0883e; /* người được đề cử vào đội */
+  --av-approve: #4fae74; /* phiếu Đồng ý */
+  --av-reject: #9a6bb4; /* phiếu Từ chối */
+}
+
+/* Font tiêu đề (Cormorant Garamond, có dấu tiếng Việt) — biến
+   --av-font-display do next/font gắn lên .avalon-root (assets/fonts.ts).
+   Font này chỉ có tới đậm 700, nên ép 700 để trình duyệt không tự "đậm giả". */
+.av-display {
+  font-family: var(--av-font-display), Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  /* Cormorant mặc định dùng số kiểu cổ: "1" trông như "I" — ép số thẳng hàng. */
+  font-variant-numeric: lining-nums;
+}
+
+/* AvIcon: preflight của Tailwind đặt svg/img thành display:block; icon của
+   Avalon phải nằm được trong dòng chữ. Muốn ẩn/hiện theo breakpoint thì bọc
+   icon trong một <span>. */
+.av-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: -0.125em;
+}
+
 /* ─── Sword stab (Assassin click target) ─────────────────────────── */
 @keyframes avalon-stab {
   0% {

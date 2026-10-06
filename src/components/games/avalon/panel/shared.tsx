@@ -1,27 +1,29 @@
 import type { AvalonGameState, AvalonRole } from '../types';
-import { ROLE_DESC_VI, ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAM } from '../constants';
+import { ROLE_DESC_VI, ROLE_NAMES_VI, ROLE_TEAM } from '../constants';
+import AvIcon, { type IconName } from '../assets/AvIcon';
+import RoleEmblem from '../ui/RoleEmblem';
 
 export function PhaseChip({ phase }: { phase: AvalonGameState['phase'] }) {
-  const map: Record<string, { emoji: string; text: string; cls: string }> = {
-    'lineup-preview': { emoji: '🎭', text: 'Vai trong ván', cls: 'bg-fuchsia-500/20 text-fuchsia-300' },
-    'role-reveal': { emoji: '🌙', text: 'Lộ vai', cls: 'bg-purple-500/20 text-purple-300' },
-    'night-evils': { emoji: '🗡️', text: 'Đêm — Phe Quỷ', cls: 'bg-red-500/20 text-red-300' },
-    'night-merlin': { emoji: '🧙', text: 'Đêm — Merlin', cls: 'bg-blue-500/20 text-blue-300' },
-    'night-percival': { emoji: '🛡️', text: 'Đêm — Percival', cls: 'bg-indigo-500/20 text-indigo-300' },
-    'team-build': { emoji: '⚔️', text: 'Chọn đội', cls: 'bg-amber-500/20 text-amber-300' },
-    'team-vote': { emoji: '🗳️', text: 'Bỏ phiếu', cls: 'bg-cyan-500/20 text-cyan-300' },
-    'team-vote-result': { emoji: '📊', text: 'Kết quả phiếu', cls: 'bg-cyan-500/20 text-cyan-300' },
-    'quest-play': { emoji: '🎴', text: 'Chơi Quest', cls: 'bg-purple-500/20 text-purple-300' },
-    'quest-result': { emoji: '📜', text: 'Kết quả Quest', cls: 'bg-purple-500/20 text-purple-300' },
-    'discussion': { emoji: '💬', text: 'Thảo luận', cls: 'bg-emerald-500/20 text-emerald-300' },
-    'lady-of-lake': { emoji: '🌊', text: 'Lady', cls: 'bg-cyan-500/20 text-cyan-300' },
-    assassinate: { emoji: '🗡️', text: 'Ám sát', cls: 'bg-red-500/20 text-red-300' },
-    end: { emoji: '🏁', text: 'Kết thúc', cls: 'bg-slate-500/20 text-slate-300' },
+  const map: Record<string, { icon: IconName; text: string; cls: string }> = {
+    'lineup-preview': { icon: 'roles', text: 'Vai trong ván', cls: 'bg-fuchsia-500/20 text-fuchsia-300' },
+    'role-reveal': { icon: 'seal', text: 'Lộ vai', cls: 'bg-purple-500/20 text-purple-300' },
+    'night-evils': { icon: 'night', text: 'Đêm — Phe Quỷ', cls: 'bg-(--av-evil)/20 text-(--av-evil)' },
+    'night-merlin': { icon: 'night', text: 'Đêm — Merlin', cls: 'bg-(--av-good)/20 text-(--av-good)' },
+    'night-percival': { icon: 'night', text: 'Đêm — Percival', cls: 'bg-indigo-500/20 text-indigo-300' },
+    'team-build': { icon: 'team', text: 'Chọn đội', cls: 'bg-amber-500/20 text-amber-300' },
+    'team-vote': { icon: 'vote', text: 'Bỏ phiếu', cls: 'bg-cyan-500/20 text-cyan-300' },
+    'team-vote-result': { icon: 'vote', text: 'Kết quả phiếu', cls: 'bg-cyan-500/20 text-cyan-300' },
+    'quest-play': { icon: 'card-play', text: 'Chơi Quest', cls: 'bg-purple-500/20 text-purple-300' },
+    'quest-result': { icon: 'quest', text: 'Kết quả Quest', cls: 'bg-purple-500/20 text-purple-300' },
+    'discussion': { icon: 'discussion', text: 'Thảo luận', cls: 'bg-emerald-500/20 text-emerald-300' },
+    'lady-of-lake': { icon: 'lady', text: 'Lady', cls: 'bg-(--av-lady)/20 text-(--av-lady)' },
+    assassinate: { icon: 'assassinate', text: 'Ám sát', cls: 'bg-(--av-evil)/20 text-(--av-evil)' },
+    end: { icon: 'end', text: 'Kết thúc', cls: 'bg-slate-500/20 text-slate-300' },
   };
   const cfg = map[phase] ?? map.end;
   return (
-    <span className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[11px] font-black ${cfg.cls}`}>
-      {cfg.emoji} {cfg.text}
+    <span className={`flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-black ${cfg.cls}`}>
+      <AvIcon name={cfg.icon} size={14} /> {cfg.text}
     </span>
   );
 }
@@ -41,13 +43,13 @@ export function TokenBadges({
   return (
     <div className={`flex gap-1 ${inline ? '' : 'mt-0.5'} flex-wrap`}>
       {isLeader && (
-        <span className="rounded-full bg-amber-500/30 border border-amber-400/40 px-1.5 py-0.5 text-[9px] font-black text-amber-200">
-          👑 Leader
+        <span className="inline-flex items-center gap-0.5 rounded-full bg-(--av-leader)/25 border border-(--av-leader)/45 px-1.5 py-0.5 text-[9px] font-black text-amber-100">
+          <AvIcon name="leader" className="text-(--av-leader)" /> Leader
         </span>
       )}
       {isLady && (
-        <span className="rounded-full bg-cyan-500/30 border border-cyan-400/40 px-1.5 py-0.5 text-[9px] font-black text-cyan-200">
-          🌊 Lady
+        <span className="inline-flex items-center gap-0.5 rounded-full bg-(--av-lady)/25 border border-(--av-lady)/45 px-1.5 py-0.5 text-[9px] font-black text-teal-100">
+          <AvIcon name="lady" className="text-(--av-lady)" /> Lady
         </span>
       )}
     </div>
@@ -71,7 +73,7 @@ export function RoleLineChip({
         }`}
       title={ROLE_NAMES_VI[role]}
     >
-      <span className="text-base shrink-0 leading-none">{ROLE_ICONS[role]}</span>
+      <RoleEmblem role={role} size="xs" />
       <span className="flex-1 min-w-0 text-[11px] font-black text-white truncate">
         {role}
       </span>
@@ -118,9 +120,9 @@ export function RoleIntroCard({
         {heading}
       </p>
       <div className="mt-1 flex items-center gap-3">
-        <div className="text-3xl shrink-0">{ROLE_ICONS[role]}</div>
+        <RoleEmblem role={role} size="md" />
         <div className="flex-1 min-w-0">
-          <p className="text-base font-black text-white truncate">{role}</p>
+          <p className="av-display text-xl leading-tight text-white truncate">{role}</p>
           <p
             className={`text-[11px] font-semibold ${isGood ? 'text-blue-300' : 'text-red-300'
               }`}

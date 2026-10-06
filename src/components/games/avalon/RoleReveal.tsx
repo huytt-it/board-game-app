@@ -3,7 +3,9 @@
 import { useEffect, useState } from 'react';
 import type { Player } from '@/types/player';
 import { AvalonRole } from './types';
-import { ROLE_DESC_VI, ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAM, TEAM_NAME_VI } from './constants';
+import { ROLE_DESC_VI, ROLE_NAMES_VI, ROLE_TEAM, TEAM_NAME_VI } from './constants';
+import AvIcon from './assets/AvIcon';
+import RoleEmblem from './ui/RoleEmblem';
 
 interface RoleRevealProps {
   myRole: AvalonRole;
@@ -26,7 +28,7 @@ export default function RoleReveal({ myRole, onDone }: RoleRevealProps) {
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-gradient-to-br from-slate-950 via-purple-950 to-slate-950 animate-fade-in">
         <div className="text-center">
-          <div className="text-7xl mb-4 animate-pulse">⚜️</div>
+          <AvIcon name="seal" size={72} className="mb-4 animate-pulse text-(--av-gold)" />
           <p className="text-slate-300 font-bold tracking-widest text-sm uppercase">
             Đang lật bài...
           </p>
@@ -57,14 +59,17 @@ export default function RoleReveal({ myRole, onDone }: RoleRevealProps) {
         >
           {TEAM_NAME_VI[team]}
         </span>
-        <div className="text-8xl my-5">{ROLE_ICONS[myRole]}</div>
-        <h2 className="text-3xl font-black text-white">{myRole}</h2>
+        <div className="my-5 flex justify-center">
+          <RoleEmblem role={myRole} size="xl" />
+        </div>
+        <h2 className="av-display text-4xl text-white">{myRole}</h2>
         <p className={`mt-1 text-sm font-bold ${isGood ? 'text-blue-300' : 'text-red-300'}`}>
           {ROLE_NAMES_VI[myRole]}
         </p>
         <p className="mt-4 text-sm leading-relaxed text-slate-300">{ROLE_DESC_VI[myRole]}</p>
         <p className="mt-3 text-[11px] text-slate-500 italic">
-          Sau khi mọi người đọc xong, hệ thống sẽ lần lượt gọi: 🗡️ Phe Quỷ → 🧙 Merlin → 🛡️ Percival
+          Sau khi mọi người đọc xong, hệ thống sẽ lần lượt gọi: <AvIcon name="team-evil" /> Phe Quỷ
+          → <AvIcon name="merlin" /> Merlin → <AvIcon name="percival" /> Percival
         </p>
         <button
           onClick={onDone}

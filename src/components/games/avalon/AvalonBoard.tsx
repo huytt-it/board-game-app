@@ -20,7 +20,13 @@ import LobbyRoundTable from './LobbyRoundTable';
 import { useAvalon, defaultAvalonConfig } from './useAvalon';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, PHASE_TIMEOUTS_MS } from './types';
 import { PLAYER_COUNTS } from './constants';
+import AvIcon, { type IconName } from './assets/AvIcon';
+import { avalonDisplayFont } from './assets/fonts';
 import './avalon.css';
+
+// Class for every Avalon root element: scopes avalon.css (tokens, reduced
+// motion) and provides the --av-font-display variable.
+const AVALON_ROOT = `avalon-root ${avalonDisplayFont.variable}`;
 
 // How long non-host clients wait before stepping in to advance a phase the host
 // has not advanced (host offline / asleep).
@@ -312,10 +318,10 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     const optionalRolesCount =
       ((room.config.optionalRoles as unknown[] | undefined)?.length) ?? 0;
     return (
-      <div className="avalon-root mx-auto max-w-5xl animate-fade-in pb-32">
+      <div className={`${AVALON_ROOT} mx-auto max-w-5xl animate-fade-in pb-32`}>
         {showPreview && <AvalonPreview onClose={() => setShowPreview(false)} />}
 
-        <Modal open={showSettings} onClose={() => setShowSettings(false)} title="⚙️ Cài đặt Avalon">
+        <Modal open={showSettings} onClose={() => setShowSettings(false)} icon="settings" title="Cài đặt Avalon">
           <RoomSettings
             config={room.config}
             onUpdateConfig={updateConfig}
@@ -323,26 +329,26 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           />
         </Modal>
 
-        <Modal open={showRoleGuide} onClose={() => setShowRoleGuide(false)} title="📖 Hướng dẫn các vai trò">
+        <Modal open={showRoleGuide} onClose={() => setShowRoleGuide(false)} icon="guide" title="Hướng dẫn các vai trò">
           <RoleGuide />
         </Modal>
 
         <div className="flex items-center gap-2 mb-4 flex-wrap">
-          <h1 className="text-xl md:text-2xl font-black text-white mr-auto">
-            ⚔️ The Resistance: Avalon
+          <h1 className="av-display flex items-center gap-2 text-2xl md:text-3xl text-white mr-auto">
+            <AvIcon name="avalon" className="text-(--av-gold)" /> The Resistance: Avalon
           </h1>
           <button
             onClick={() => setShowRoleGuide(true)}
-            className="rounded-lg border border-blue-500/30 bg-blue-500/10 px-3 py-1.5 text-sm font-bold text-blue-300 hover:bg-blue-500/20"
+            className="rounded-lg border border-(--av-parchment)/25 bg-(--av-parchment)/10 px-3 py-1.5 text-sm font-bold text-(--av-parchment) hover:bg-(--av-parchment)/20"
           >
-            📖 Vai trò
+            <AvIcon name="guide" /> Vai trò
           </button>
           {isHost && (
             <button
               onClick={() => setShowSettings(true)}
               className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-sm font-bold text-amber-300 hover:bg-amber-500/20"
             >
-              ⚙️ Cài đặt
+              <AvIcon name="settings" /> Cài đặt
               <span className="ml-1 rounded-full bg-amber-500/30 px-1.5 py-0.5 text-[10px]">
                 {optionalRolesCount}
               </span>
@@ -352,13 +358,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
             onClick={() => setShowPreview(true)}
             className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
           >
-            👁️ Xem trước
+            <AvIcon name="preview" /> Xem trước
           </button>
           <button
             onClick={isHost ? handleDelete : handleLeave}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 hover:bg-red-500/10 hover:text-red-400"
+            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 hover:bg-orange-500/10 hover:text-orange-300"
           >
-            {isHost ? '🗑️ Xoá' : '🚪 Rời'}
+            <AvIcon name={isHost ? 'delete' : 'leave'} /> {isHost ? 'Xoá' : 'Rời'}
           </button>
         </div>
 
@@ -396,11 +402,15 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
             <button
               onClick={handleStartGame}
               disabled={!enoughPlayers}
-              className="w-full max-w-5xl mx-auto block rounded-xl bg-gradient-to-r from-blue-600 to-cyan-600 px-6 py-4 text-lg font-bold text-white transition-all hover:from-blue-500 hover:to-cyan-500 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-blue-500/30"
+              className="w-full max-w-5xl mx-auto block rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 px-6 py-4 text-lg font-bold text-white transition-all hover:from-amber-500 hover:to-yellow-500 disabled:opacity-40 disabled:cursor-not-allowed shadow-lg shadow-amber-500/30"
             >
-              {!enoughPlayers
-                ? `Cần 5–10 người chơi (đang có ${playerCount})`
-                : '⚔️ Bắt đầu ván Avalon'}
+              {!enoughPlayers ? (
+                `Cần 5–10 người chơi (đang có ${playerCount})`
+              ) : (
+                <>
+                  <AvIcon name="avalon" /> Bắt đầu ván Avalon
+                </>
+              )}
             </button>
           </div>
         )}
@@ -414,20 +424,26 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         <div
           className={`mx-auto max-w-md rounded-xl border px-4 py-2 text-center text-sm font-bold shadow-lg ${
             offline
-              ? 'border-red-500/40 bg-red-950/90 text-red-200'
+              ? 'border-orange-500/40 bg-orange-950/90 text-orange-200'
               : 'border-amber-500/40 bg-amber-950/90 text-amber-200'
           }`}
         >
-          {offline ? '📡 Mất kết nối — đang thử kết nối lại. Thao tác của bạn chưa được gửi.' : notice}
+          {offline ? (
+            <>
+              <AvIcon name="offline" /> Mất kết nối — đang thử kết nối lại. Thao tác của bạn chưa được gửi.
+            </>
+          ) : (
+            notice
+          )}
         </div>
       </div>
     ) : null;
 
   if (!state) {
     return (
-      <div className="avalon-root flex min-h-dvh items-center justify-center text-slate-400">
+      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-400`}>
         <div className="text-center">
-          <div className="text-4xl mb-2 animate-pulse">⏳</div>
+          <AvIcon name="waiting" size={36} className="mb-2 animate-pulse" />
           <p className="text-sm">Đang tải trạng thái ván...</p>
         </div>
       </div>
@@ -436,9 +452,9 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   if (!myPlayer || !myRole) {
     return (
-      <div className="avalon-root flex min-h-dvh items-center justify-center text-slate-400 p-4">
+      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-400 p-4`}>
         <div className="text-center">
-          <div className="text-4xl mb-2 animate-pulse">⏳</div>
+          <AvIcon name="waiting" size={36} className="mb-2 animate-pulse" />
           <p className="text-sm">Đang chia bài...</p>
         </div>
       </div>
@@ -447,15 +463,15 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   if (!isSupportedCount && state.phase !== 'end') {
     return (
-      <div className="avalon-root flex min-h-dvh items-center justify-center text-slate-400 p-4 text-center">
+      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-400 p-4 text-center`}>
         <div>
-          <div className="text-4xl mb-2">⚠️</div>
+          <AvIcon name="warning" size={36} className="mb-2 text-amber-300" />
           <p className="text-sm">Số người chơi không hợp lệ ({playerCount}). Avalon cần 5–10 người.</p>
           <button
             onClick={isHost ? handleDelete : handleLeave}
-            className="mt-4 rounded-lg border border-white/10 bg-slate-900/80 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-red-500/10 hover:text-red-400"
+            className="mt-4 rounded-lg border border-white/10 bg-slate-900/80 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300"
           >
-            {isHost ? '🗑️ Xoá phòng' : '🚪 Rời'}
+            <AvIcon name={isHost ? 'delete' : 'leave'} /> {isHost ? 'Xoá phòng' : 'Rời'}
           </button>
         </div>
       </div>
@@ -464,7 +480,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   if (state.phase === 'role-reveal' && !localRoleSeen && !myAcked) {
     return (
-      <div className="avalon-root">
+      <div className={AVALON_ROOT}>
         {banner}
         <RoleReveal
           myRole={myRole}
@@ -477,14 +493,14 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   }
 
   return (
-    <div className="avalon-root">
+    <div className={AVALON_ROOT}>
       {banner}
       <div className="absolute right-4 top-4 z-30 flex gap-2">
         <button
           onClick={isHost ? handleDelete : handleLeave}
-          className="rounded-lg border border-white/10 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 text-xs font-bold text-slate-400 hover:bg-red-500/10 hover:text-red-400"
+          className="rounded-lg border border-white/10 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 text-xs font-bold text-slate-400 hover:bg-orange-500/10 hover:text-orange-300"
         >
-          {isHost ? '🗑️ Xoá' : '🚪 Rời'}
+          <AvIcon name={isHost ? 'delete' : 'leave'} /> {isHost ? 'Xoá' : 'Rời'}
         </button>
       </div>
       <PlayerPanel
@@ -528,11 +544,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 function Modal({
   open,
   onClose,
+  icon,
   title,
   children,
 }: {
   open: boolean;
   onClose: () => void;
+  icon?: IconName;
   title: string;
   children: React.ReactNode;
 }) {
@@ -546,12 +564,15 @@ function Modal({
       />
       <div className="relative w-full md:max-w-2xl max-h-[92vh] md:max-h-[85vh] flex flex-col rounded-t-3xl md:rounded-2xl border border-white/10 bg-slate-950 shadow-2xl overflow-hidden">
         <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-slate-900/60">
-          <h2 className="text-base font-black text-white truncate">{title}</h2>
+          <h2 className="av-display flex min-w-0 items-center gap-2 text-xl text-white">
+            {icon && <AvIcon name={icon} className="text-(--av-gold)" />}
+            <span className="truncate">{title}</span>
+          </h2>
           <button
             onClick={onClose}
             className="ml-auto rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-bold text-slate-300 hover:bg-white/10"
           >
-            ✕ Đóng
+            <AvIcon name="close" /> Đóng
           </button>
         </div>
         <div className="flex-1 overflow-y-auto p-4">{children}</div>

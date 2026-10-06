@@ -3,6 +3,7 @@ import type { AvalonGameState, AvalonRole } from '../types';
 import { ROLE_TEAM } from '../constants';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
 import { RoleLineChip } from './shared';
+import AvIcon from '../assets/AvIcon';
 
 export function LineupPreviewSection({
   state,
@@ -43,7 +44,7 @@ export function LineupPreviewSection({
       <div className="rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] uppercase font-black text-fuchsia-300 tracking-widest">
-            🎭 Các vai trò trong ván
+            <AvIcon name="roles" /> Các vai trò trong ván
           </p>
           <p className="text-xs text-slate-300 mt-0.5">
             {goodRoles.length} Phe Người · {evilRoles.length} Phe Quỷ
@@ -68,7 +69,7 @@ export function LineupPreviewSection({
                 : 'text-white'
               }`}
           >
-            {allAcked ? '✓' : timeStr}
+            {allAcked ? <AvIcon name="check" title="Mọi người đã sẵn sàng" /> : timeStr}
           </p>
         </div>
       </div>
@@ -77,7 +78,7 @@ export function LineupPreviewSection({
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-2xl border border-blue-500/30 bg-blue-900/15 p-2.5">
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-sm">🛡️</span>
+            <AvIcon name="team-good" size={14} className="text-blue-300" />
             <h3 className="text-xs font-black text-blue-200">Phe Người ({goodRoles.length})</h3>
           </div>
           <div className="grid grid-cols-1 gap-1.5">
@@ -93,7 +94,7 @@ export function LineupPreviewSection({
         </div>
         <div className="rounded-2xl border border-red-500/30 bg-red-900/15 p-2.5">
           <div className="flex items-center gap-1.5 mb-2">
-            <span className="text-sm">🗡️</span>
+            <AvIcon name="team-evil" size={14} className="text-red-300" />
             <h3 className="text-xs font-black text-red-200">Phe Quỷ ({evilRoles.length})</h3>
           </div>
           <div className="grid grid-cols-1 gap-1.5">
@@ -112,8 +113,8 @@ export function LineupPreviewSection({
       {/* 2-cột: Leader | Lady (Lady chỉ hiện khi ≥7) — gọn 1 hàng */}
       <div className={`grid gap-2 ${lady ? 'grid-cols-2' : 'grid-cols-1'}`}>
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-2.5 flex items-center gap-2">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-sm border-2 border-amber-300 shadow shadow-amber-500/40">
-            👑
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-leader) text-lg text-(--av-ink) border-2 border-amber-100 shadow shadow-black/40">
+            <AvIcon name="leader" />
           </div>
           <div className="flex-1 min-w-0">
             <p className="text-[9px] uppercase font-black tracking-widest text-amber-300">
@@ -129,8 +130,8 @@ export function LineupPreviewSection({
         </div>
         {lady && (
           <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-2.5 flex items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 text-sm border-2 border-cyan-300 shadow shadow-cyan-500/40">
-              🌊
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-lady) text-lg text-(--av-ink) border-2 border-teal-100 shadow shadow-black/40">
+              <AvIcon name="lady" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[9px] uppercase font-black tracking-widest text-cyan-300">

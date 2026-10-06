@@ -1,6 +1,7 @@
 import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
+import AvIcon from '../assets/AvIcon';
 
 export function RoleRevealWaitingSection({
   state,
@@ -26,16 +27,16 @@ export function RoleRevealWaitingSection({
     <div className="space-y-3">
       <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-5 text-center">
         <p className="text-[11px] uppercase font-black text-purple-300 mb-2">
-          🌙 Đang lộ vai
+          <AvIcon name="seal" /> Đang lộ vai
         </p>
         {myAcked ? (
           <>
-            <div className="text-5xl mb-2">✅</div>
+            <AvIcon name="check" size={48} className="mb-2 text-emerald-300" />
             <p className="text-sm font-bold text-emerald-300">Bạn đã sẵn sàng</p>
           </>
         ) : (
           <>
-            <div className="text-5xl mb-2 animate-pulse">📜</div>
+            <AvIcon name="seal" size={48} className="mb-2 animate-pulse text-(--av-gold)" />
             <p className="text-sm font-bold text-amber-300 mb-3">
               Bạn chưa xác nhận đã đọc role
             </p>
@@ -43,7 +44,7 @@ export function RoleRevealWaitingSection({
               onClick={onShowMyRole}
               className="rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-sm font-black text-white hover:from-amber-400 hover:to-orange-400"
             >
-              📖 Xem lại role
+              <AvIcon name="eye" /> Xem lại role
             </button>
           </>
         )}
@@ -75,11 +76,11 @@ export function RoleRevealWaitingSection({
                 <span className={acked ? 'text-white font-bold' : 'text-slate-500'}>
                   {p.name}
                   {p.id === myPlayer.id && (
-                    <span className="text-cyan-400 ml-1">(bạn)</span>
+                    <span className="text-(--av-parchment) ml-1">(bạn)</span>
                   )}
                 </span>
-                <span className={acked ? 'text-emerald-400 font-black' : 'text-slate-600'}>
-                  {acked ? '✓ Sẵn sàng' : '⏳ Đang đọc'}
+                <span className={acked ? 'text-emerald-400 font-black' : 'text-slate-500'}>
+                  <AvIcon name={acked ? 'check' : 'waiting'} /> {acked ? 'Sẵn sàng' : 'Đang đọc'}
                 </span>
               </div>
             );
@@ -106,7 +107,7 @@ export function RoleRevealWaitingSection({
               : 'text-white'
             }`}
         >
-          {allAcked ? '✓' : timeStr}
+          {allAcked ? <AvIcon name="check" title="Mọi người đã sẵn sàng" /> : timeStr}
         </p>
       </div>
     </div>

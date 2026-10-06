@@ -1,7 +1,9 @@
 'use client';
 
 import { AvalonRole } from './types';
-import { ROLE_DESC_VI, ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAM, TEAM_NAME_VI } from './constants';
+import { ROLE_DESC_VI, ROLE_NAMES_VI, ROLE_TEAM, TEAM_NAME_VI } from './constants';
+import AvIcon from './assets/AvIcon';
+import RoleEmblem from './ui/RoleEmblem';
 
 interface RoleCardProps {
   role: AvalonRole;
@@ -24,12 +26,15 @@ export default function RoleCard({ role, onClose }: RoleCardProps) {
         <button
           onClick={onClose}
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          aria-label="Đóng"
         >
-          ✕
+          <AvIcon name="close" size={20} />
         </button>
 
         <div className="text-center">
-          <div className="text-7xl mb-3">{ROLE_ICONS[role]}</div>
+          <div className="mb-3 flex justify-center">
+            <RoleEmblem role={role} size="xl" />
+          </div>
           <span
             className={`inline-block rounded-full px-3 py-1 text-xs font-black uppercase tracking-widest ${
               isGood ? 'bg-blue-500/20 text-blue-300' : 'bg-red-500/20 text-red-300'
@@ -37,7 +42,7 @@ export default function RoleCard({ role, onClose }: RoleCardProps) {
           >
             {TEAM_NAME_VI[team]}
           </span>
-          <h2 className="mt-3 text-2xl font-black text-white">{role}</h2>
+          <h2 className="av-display mt-3 text-4xl text-white">{role}</h2>
           <p className={`mt-1 text-sm font-semibold ${isGood ? 'text-blue-300' : 'text-red-300'}`}>
             {ROLE_NAMES_VI[role]}
           </p>

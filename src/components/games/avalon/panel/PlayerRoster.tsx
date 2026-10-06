@@ -1,6 +1,8 @@
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState } from '../types';
 import { ROLE_TEAM } from '../constants';
+import AvIcon, { type IconName } from '../assets/AvIcon';
+import PlayerAvatar from '../ui/PlayerAvatar';
 
 interface RosterMark {
   type:
@@ -19,6 +21,7 @@ interface RosterMark {
   | 'percival-sees';
   className: string;
   label: string;
+  icon?: IconName;
   key?: string;
 }
 
@@ -59,29 +62,33 @@ function buildRosterMarks(
   if (state.currentLeaderId === playerId) {
     marks.push({
       type: 'leader',
-      className: 'bg-amber-500/30 border border-amber-400/50 text-amber-100',
-      label: '👑 Leader',
+      className: 'bg-(--av-leader)/25 border border-(--av-leader)/50 text-amber-100',
+      icon: 'leader',
+      label: 'Leader',
     });
   }
   if (state.ladyHolderId === playerId) {
     marks.push({
       type: 'lady-holder',
-      className: 'bg-cyan-500/30 border border-cyan-400/50 text-cyan-100',
-      label: '🌊 Lady',
+      className: 'bg-(--av-lady)/25 border border-(--av-lady)/50 text-teal-100',
+      icon: 'lady',
+      label: 'Lady',
     });
   }
   if (options.showProposedTeam && state.proposedTeam.includes(playerId)) {
     marks.push({
       type: 'team-member',
-      className: 'bg-orange-500/30 border border-orange-400/50 text-orange-100',
-      label: '✓ Đề cử',
+      className: 'bg-(--av-team)/25 border border-(--av-team)/50 text-orange-100',
+      icon: 'team',
+      label: 'Đề cử',
     });
   }
   if (options.showLadyTarget && state.ladyTargetId === playerId) {
     marks.push({
       type: 'lady-target',
-      className: 'bg-fuchsia-500/30 border border-fuchsia-400/50 text-fuchsia-100',
-      label: '🎯 Bị soi',
+      className: 'bg-(--av-lady)/20 border border-(--av-lady)/45 text-teal-100',
+      icon: 'eye',
+      label: 'Bị soi',
     });
   }
   if (options.showVoteStatus) {
@@ -90,20 +97,22 @@ function buildRosterMarks(
       marks.push({
         type: 'voted',
         className: 'bg-emerald-500/30 border border-emerald-400/50 text-emerald-100',
-        label: '✓ Đã bầu',
+        icon: 'check',
+        label: 'Đã bầu',
       });
     } else {
       marks.push({
         type: 'not-voted',
         className: 'bg-slate-500/20 border border-slate-400/30 text-slate-300',
-        label: '⏳ Chưa bầu',
+        icon: 'waiting',
+        label: 'Chưa bầu',
       });
     }
   }
   if (playerId === myPlayerId) {
     marks.push({
       type: 'me',
-      className: 'bg-blue-500/20 border border-blue-400/40 text-blue-200',
+      className: 'bg-(--av-parchment)/15 border border-(--av-parchment)/40 text-(--av-parchment)',
       label: 'Bạn',
     });
   }
@@ -133,8 +142,9 @@ function buildHistoryMarks(playerId: string, state: AvalonGameState): RosterMark
   if (state.ladyHistory.includes(playerId) && state.ladyHolderId !== playerId) {
     marks.push({
       type: 'was-lady',
-      className: 'bg-cyan-500/10 border border-cyan-400/25 text-cyan-300',
-      label: '🌊 đã cầm',
+      className: 'bg-(--av-lady)/10 border border-(--av-lady)/25 text-teal-300',
+      icon: 'lady',
+      label: 'đã cầm',
     });
   }
 
@@ -145,8 +155,9 @@ function buildHistoryMarks(playerId: string, state: AvalonGameState): RosterMark
   ) {
     marks.push({
       type: 'was-leader',
-      className: 'bg-amber-500/10 border border-amber-400/25 text-amber-300',
-      label: '👑 đã làm',
+      className: 'bg-(--av-leader)/10 border border-(--av-leader)/25 text-amber-300',
+      icon: 'leader',
+      label: 'đã làm',
     });
   }
 
@@ -216,7 +227,8 @@ export function PlayerRoster({
                 type: 'evil-ally',
                 className:
                   'bg-red-500/30 border border-red-400/50 text-red-100',
-                label: '👹 Đồng đội Quỷ',
+                icon: 'team-evil',
+                label: 'Đồng đội Quỷ',
               });
             }
           }
@@ -229,7 +241,8 @@ export function PlayerRoster({
                 type: 'merlin-sees',
                 className:
                   'bg-red-500/25 border border-red-400/40 text-red-100',
-                label: '👹 Quỷ (bạn thấy)',
+                icon: 'team-evil',
+                label: 'Quỷ (bạn thấy)',
               });
             }
           }
@@ -243,7 +256,8 @@ export function PlayerRoster({
                 type: 'percival-sees',
                 className:
                   'bg-indigo-500/25 border border-indigo-400/40 text-indigo-100',
-                label: '❓ Merlin/Morgana',
+                icon: 'unknown',
+                label: 'Merlin/Morgana',
               });
             }
           }
@@ -254,9 +268,9 @@ export function PlayerRoster({
           const hasPercivalClueMark = liveMarks.some((m) => m.type === 'percival-sees');
           const highlightCls =
             isHighlighted && finalEmphasis === 'team'
-              ? 'border-orange-400/60 bg-orange-500/15 ring-1 ring-orange-400/40 shadow shadow-orange-500/20'
+              ? 'border-(--av-team)/60 bg-(--av-team)/15 ring-1 ring-(--av-team)/40 shadow shadow-black/20'
               : isHighlighted && finalEmphasis === 'lady'
-                ? 'border-fuchsia-400/60 bg-fuchsia-500/15 ring-1 ring-fuchsia-400/40 shadow shadow-fuchsia-500/20'
+                ? 'border-(--av-lady)/60 bg-(--av-lady)/15 ring-1 ring-(--av-lady)/40 shadow shadow-black/20'
                 : hasRedClueMark
                   ? 'border-red-500/40 bg-red-500/10'
                   : hasPercivalClueMark
@@ -288,8 +302,9 @@ export function PlayerRoster({
                   {aboveTags.map((m) => (
                     <span
                       key={m.key ?? m.type}
-                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
+                      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
                     >
+                      {m.icon && <AvIcon name={m.icon} />}
                       {m.label}
                     </span>
                   ))}
@@ -300,16 +315,13 @@ export function PlayerRoster({
                   qua items-center) + right tags ngay dưới tên — không tách rời
                   khỏi avatar nên tag "Bạn" / "Đồng đội Quỷ"... nằm cạnh tên. */}
               <div className="flex items-center gap-2.5 min-w-0">
-                <div
-                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-black text-white ${isHighlighted && finalEmphasis === 'team'
-                    ? 'bg-gradient-to-br from-orange-500 to-amber-500'
-                    : isHighlighted && finalEmphasis === 'lady'
-                      ? 'bg-gradient-to-br from-fuchsia-500 to-purple-500'
-                      : 'bg-gradient-to-br from-purple-500 to-cyan-500'
-                    }`}
-                >
-                  {p.name.charAt(0).toUpperCase()}
-                </div>
+                <PlayerAvatar
+                  player={p}
+                  size="sm"
+                  selected={isHighlighted && finalEmphasis === 'team'}
+                  aim={isHighlighted && finalEmphasis === 'lady' ? 'lady' : null}
+                  isMe={p.id === myPlayerId}
+                />
                 <div className="min-w-0 flex-1 flex flex-col gap-1">
                   <span className="text-xs font-bold text-white truncate">{p.name}</span>
                   {rightTags.length > 0 && (
@@ -317,8 +329,9 @@ export function PlayerRoster({
                       {rightTags.map((m) => (
                         <span
                           key={m.key ?? m.type}
-                          className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
+                          className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
                         >
+                          {m.icon && <AvIcon name={m.icon} />}
                           {m.label}
                         </span>
                       ))}
@@ -334,8 +347,9 @@ export function PlayerRoster({
                   {belowTags.map((m) => (
                     <span
                       key={m.key ?? m.type}
-                      className={`rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
+                      className={`inline-flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-black ${m.className}`}
                     >
+                      {m.icon && <AvIcon name={m.icon} />}
                       {m.label}
                     </span>
                   ))}

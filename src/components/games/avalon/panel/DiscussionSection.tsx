@@ -1,6 +1,7 @@
 import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
+import AvIcon from '../assets/AvIcon';
 
 export function DiscussionSection({
   state,
@@ -26,7 +27,7 @@ export function DiscussionSection({
     <div className="space-y-3">
       <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/10 p-5 text-center">
         <p className="text-[11px] uppercase font-black text-emerald-300 mb-2 tracking-widest">
-          💬 Thảo luận trước Quest {state.currentQuest + 1}
+          <AvIcon name="discussion" /> Thảo luận trước Quest {state.currentQuest + 1}
         </p>
         <div className={`text-5xl font-black mb-2 ${remaining < 60_000 ? 'text-amber-300' : 'text-white'}`}>
           {timeStr}
@@ -80,10 +81,15 @@ export function DiscussionSection({
                   : 'border-white/10 bg-white/5'
                   }`}
               >
-                <span className="text-base shrink-0">{acked ? '✅' : '💬'}</span>
+                <AvIcon
+                  name={acked ? 'check' : 'discussion'}
+                  size={16}
+                  className={acked ? 'text-emerald-300' : 'text-amber-200/80'}
+                  title={acked ? 'Sẵn sàng' : 'Đang thảo luận'}
+                />
                 <span className="text-xs font-bold text-white truncate flex-1">
                   {p.name}
-                  {p.id === myPlayer.id && <span className="text-blue-300"> (bạn)</span>}
+                  {p.id === myPlayer.id && <span className="text-(--av-parchment)"> (bạn)</span>}
                 </span>
               </div>
             );

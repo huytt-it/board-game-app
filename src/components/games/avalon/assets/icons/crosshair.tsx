@@ -1,0 +1,7 @@
+import { gameIcon } from './gameIcon';
+
+// "Crosshair" by Delapouite — https://game-icons.net/1x1/delapouite/crosshair.html (CC BY 3.0)
+export default gameIcon(
+  'Crosshair',
+  'M247 32v23.2C143.3 59.8 59.8 143.3 55.2 247H32v18h23.2C59.8 368.8 143.3 452.2 247 456.8V480h18v-23.2C368.8 452.2 452.2 368.8 456.8 265H480v-18h-23.2C452.2 143.3 368.8 59.8 265 55.2V32h-18zm0 41.2V128h18V73.2C359 77.8 434.2 153 438.8 247H384v18h54.8C434.2 359 359 434.2 265 438.8V384h-18v54.8C153 434.2 77.8 359 73.2 265H128v-18H73.2C77.8 153 153 77.8 247 73.2zM247 224v23h-23v18h23v23h18v-23h23v-18h-23v-23h-18z'
+);

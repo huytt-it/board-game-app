@@ -3,6 +3,8 @@ import type { AvalonGameData, AvalonGameState } from '../types';
 import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
 import { PlayerRoster } from './PlayerRoster';
 import { TokenBadges } from './shared';
+import AvIcon from '../assets/AvIcon';
+import PlayerAvatar from '../ui/PlayerAvatar';
 
 export function LadySection({
   state,
@@ -37,14 +39,14 @@ export function LadySection({
     const isEvil = myTeam === 'evil';
     if (!inspected) {
       return (
-        <div className="rounded-2xl border-2 border-fuchsia-500/60 bg-fuchsia-500/10 p-5 text-center">
-          <p className="text-[11px] uppercase font-black text-fuchsia-200 mb-2 tracking-widest">
-            🎯 {holder?.name} đang ngắm bạn
+        <div className="rounded-2xl border-2 border-(--av-lady)/60 bg-(--av-lady)/10 p-5 text-center">
+          <p className="text-[11px] uppercase font-black text-teal-100 mb-2 tracking-widest">
+            <AvIcon name="lady" /> {holder?.name} đang ngắm bạn
           </p>
           <p className="text-sm text-slate-300 mb-3">
             Chờ Lady bấm <strong className="text-white">Xác nhận soi vai trò</strong> để xem phe của bạn.
           </p>
-          <div className="text-3xl mb-1 animate-pulse">👁️</div>
+          <AvIcon name="eye" size={30} className="mb-1 animate-pulse text-(--av-lady)" />
           <p className="text-[11px] text-slate-400">Còn lại {timeStr}</p>
         </div>
       );
@@ -57,9 +59,13 @@ export function LadySection({
           }`}
       >
         <p className="text-[11px] uppercase font-black text-slate-300 mb-2 tracking-widest">
-          🌊 {holder?.name} đã soi vai trò của bạn
+          <AvIcon name="lady" /> {holder?.name} đã soi vai trò của bạn
         </p>
-        <div className="text-6xl mb-2">{isEvil ? '🗡️' : '🛡️'}</div>
+        <AvIcon
+          name={isEvil ? 'team-evil' : 'team-good'}
+          size={60}
+          className={`mb-2 ${isEvil ? 'text-red-200' : 'text-blue-200'}`}
+        />
         <p
           className={`text-2xl font-black mb-1 ${isEvil ? 'text-red-200' : 'text-blue-200'
             }`}
@@ -72,7 +78,7 @@ export function LadySection({
         <p className="mt-3 text-xs text-slate-400">
           Chờ {holder?.name} hoàn tất để chuyển token...
         </p>
-        <div className="mt-2 text-2xl animate-pulse">⏳</div>
+        <AvIcon name="waiting" size={24} className="mt-2 animate-pulse text-slate-300" />
       </div>
     );
   }
@@ -88,14 +94,18 @@ export function LadySection({
               }`}
           >
             <p className="text-[11px] uppercase font-bold text-slate-300 mb-1 tracking-widest">
-              🌊 Kết quả soi
+              <AvIcon name="lady" /> Kết quả soi
             </p>
             <p className="text-base font-black text-white mb-3">
               {target?.name} là
             </p>
-            <div className="text-7xl mb-2">{isGoodCard ? '🛡️' : '🗡️'}</div>
+            <AvIcon
+              name={isGoodCard ? 'team-good' : 'team-evil'}
+              size={72}
+              className={`mb-2 ${isGoodCard ? 'text-blue-200' : 'text-red-200'}`}
+            />
             <p
-              className={`text-3xl font-black ${isGoodCard ? 'text-blue-200' : 'text-red-200'
+              className={`av-display text-4xl ${isGoodCard ? 'text-blue-200' : 'text-red-200'
                 }`}
             >
               {isGoodCard ? 'PHE THIỆN' : 'PHE ÁC'}
@@ -128,12 +138,12 @@ export function LadySection({
       <div className="space-y-3">
         <div className="rounded-2xl border border-cyan-500/40 bg-cyan-500/5 p-4">
           <div className="flex items-center justify-between mb-1">
-            <p className="text-[11px] uppercase font-black text-cyan-300">🌊 Lady of the Lake</p>
-            <span className={`text-xs font-black tabular-nums ${remaining < 10_000 ? 'text-red-300 animate-pulse' : 'text-cyan-200'}`}>
-              ⏱ {timeStr}
+            <p className="text-[11px] uppercase font-black text-(--av-lady)"><AvIcon name="lady" /> Lady of the Lake</p>
+            <span className={`text-xs font-black tabular-nums ${remaining < 10_000 ? 'text-orange-300 animate-pulse' : 'text-cyan-200'}`}>
+              <AvIcon name="clock" /> {timeStr}
             </span>
           </div>
-          <h3 className="text-base font-black text-white mb-1">
+          <h3 className="av-display text-xl text-white mb-1">
             {hasPick ? `Đã chọn ${target?.name} — bấm Xác nhận soi` : 'Chọn 1 người để soi'}
           </h3>
           <p className="text-xs text-slate-400 mb-3">
@@ -147,24 +157,19 @@ export function LadySection({
                   key={p.id}
                   onClick={() => onLadyInspect(p.id)}
                   className={`rounded-xl border p-3 text-left transition-all active:scale-95 ${picked
-                    ? 'border-fuchsia-400 bg-fuchsia-500/20 ring-2 ring-fuchsia-400/60 shadow-lg shadow-fuchsia-500/40'
+                    ? 'border-(--av-lady) bg-(--av-lady)/20 ring-2 ring-(--av-lady)/60 shadow-lg shadow-black/40'
                     : 'border-white/10 bg-white/5 hover:bg-white/10'
                     }`}
                 >
                   <div className="flex items-center gap-2">
-                    <div
-                      className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black text-white ${picked
-                        ? 'bg-gradient-to-br from-fuchsia-500 to-purple-500 border-2 border-fuchsia-200'
-                        : 'bg-gradient-to-br from-cyan-500 to-teal-500'
-                        }`}
-                    >
-                      {p.name.charAt(0).toUpperCase()}
-                    </div>
+                    <PlayerAvatar player={p} size="sm" aim={picked ? 'lady' : null} />
                     <span className="text-sm font-bold text-white truncate">{p.name}</span>
                   </div>
                   <TokenBadges playerId={p.id} state={state} />
                   {picked && (
-                    <p className="mt-1 text-[10px] font-black text-fuchsia-200">🎯 Đang ngắm</p>
+                    <p className="mt-1 text-[10px] font-black text-teal-100">
+                      <AvIcon name="eye" /> Đang ngắm
+                    </p>
                   )}
                 </button>
               );
@@ -176,11 +181,11 @@ export function LadySection({
           onClick={onLadyConfirm}
           disabled={!hasPick}
           className={`w-full rounded-2xl py-3.5 text-base font-black text-white transition-all active:scale-95 ${hasPick
-            ? 'bg-gradient-to-r from-fuchsia-600 to-purple-600 hover:from-fuchsia-500 hover:to-purple-500 shadow-lg shadow-fuchsia-500/40'
+            ? 'bg-gradient-to-r from-teal-600 to-cyan-600 hover:from-teal-500 hover:to-cyan-500 shadow-lg shadow-black/40'
             : 'bg-slate-800 text-slate-500 cursor-not-allowed'
             }`}
         >
-          👁️ Xác nhận soi {hasPick ? target?.name : '(chọn 1 người)'}
+          <AvIcon name="eye" /> Xác nhận soi {hasPick ? target?.name : '(chọn 1 người)'}
         </button>
       </div>
     );
@@ -190,35 +195,35 @@ export function LadySection({
   return (
     <div className="space-y-3">
       <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/5 p-5 text-center">
-        <p className="text-[11px] uppercase font-bold text-cyan-300 mb-2">🌊 Lady of the Lake</p>
+        <p className="text-[11px] uppercase font-bold text-(--av-lady) mb-2"><AvIcon name="lady" /> Lady of the Lake</p>
         {!target && (
           <>
             <p className="text-sm text-slate-300">
               <span className="font-black text-white">{holder?.name}</span> đang chọn người để soi...
             </p>
-            <p className="mt-2 text-[11px] text-amber-300/80">⏱ Còn lại {timeStr}</p>
+            <p className="mt-2 text-[11px] text-amber-300/80"><AvIcon name="clock" /> Còn lại {timeStr}</p>
           </>
         )}
         {target && !inspected && (
           <>
             <p className="text-sm text-slate-300">
               <span className="font-black text-white">{holder?.name}</span> đang ngắm{' '}
-              <span className="font-black text-fuchsia-200">{target.name}</span>.
+              <span className="font-black text-teal-100">{target.name}</span>.
             </p>
             <p className="mt-1 text-xs text-slate-400">Chờ Lady xác nhận soi...</p>
-            <p className="mt-2 text-[11px] text-amber-300/80">⏱ Còn lại {timeStr}</p>
+            <p className="mt-2 text-[11px] text-amber-300/80"><AvIcon name="clock" /> Còn lại {timeStr}</p>
           </>
         )}
         {target && inspected && (
           <>
             <p className="text-sm text-slate-300">
               <span className="font-black text-white">{holder?.name}</span> đã soi{' '}
-              <span className="font-black text-fuchsia-200">{target.name}</span>.
+              <span className="font-black text-teal-100">{target.name}</span>.
             </p>
             <p className="mt-1 text-xs text-slate-400">Chờ Lady chuyển token...</p>
           </>
         )}
-        <div className="mt-3 text-3xl animate-pulse">⏳</div>
+        <AvIcon name="waiting" size={30} className="mt-3 animate-pulse text-slate-300" />
       </div>
       <div className="lg:hidden">
         <PlayerRoster

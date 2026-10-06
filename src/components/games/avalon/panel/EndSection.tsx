@@ -1,7 +1,9 @@
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState } from '../types';
-import { ROLE_ICONS, ROLE_NAMES_VI, TEAM_NAME_VI } from '../constants';
+import { ROLE_NAMES_VI, TEAM_NAME_VI } from '../constants';
 import { AssassinRevealOverlay } from './AssassinRevealOverlay';
+import AvIcon from '../assets/AvIcon';
+import RoleEmblem from '../ui/RoleEmblem';
 
 export function EndSection({
   state,
@@ -44,8 +46,12 @@ export function EndSection({
           : 'border-red-500/40 bg-red-500/10'
           }`}
       >
-        <div className="text-6xl mb-3">{isGood ? '🛡️' : '🗡️'}</div>
-        <h2 className="text-3xl font-black text-white mb-1">
+        <AvIcon
+          name={isGood ? 'team-good' : 'team-evil'}
+          size={64}
+          className={`mb-3 ${isGood ? 'text-blue-200' : 'text-red-200'}`}
+        />
+        <h2 className="av-display text-4xl text-white mb-1">
           {isGood ? 'Phe Người thắng!' : 'Phe Quỷ thắng!'}
         </h2>
         <p className={`text-sm ${isGood ? 'text-blue-300' : 'text-red-300'}`}>
@@ -59,14 +65,17 @@ export function EndSection({
         </p>
         {myRole && (
           <p className="mt-3 text-xs text-slate-400">
-            Vai của bạn: <span className="font-bold text-white">{ROLE_ICONS[myRole]} {myRole}</span>
+            Vai của bạn:{' '}
+            <span className="inline-flex items-center gap-1 align-middle font-bold text-white">
+              <RoleEmblem role={myRole} size="xs" /> {myRole}
+            </span>
           </p>
         )}
       </div>
 
       <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
         <div className="px-4 py-3 border-b border-white/10">
-          <h3 className="text-sm font-black text-white">📜 Lộ tất cả vai trò</h3>
+          <h3 className="av-display text-xl text-white"><AvIcon name="roles" /> Lộ tất cả vai trò</h3>
         </div>
         <div className="divide-y divide-white/5">
           {gamePlayers.map((p) => {
@@ -76,7 +85,11 @@ export function EndSection({
             const isPlayerGood = team === 'good';
             return (
               <div key={p.id} className="flex items-center gap-3 px-4 py-3">
-                <span className="text-2xl shrink-0">{role ? ROLE_ICONS[role] : '🎭'}</span>
+                {role ? (
+                  <RoleEmblem role={role} size="sm" />
+                ) : (
+                  <AvIcon name="roles" size={30} className="text-slate-500" />
+                )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-black text-white">{p.name}</p>
                   {role && (
@@ -113,7 +126,7 @@ export function EndSection({
               className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3.5 text-sm font-black text-white hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] shadow-lg shadow-emerald-500/30 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none disabled:opacity-60 disabled:cursor-not-allowed"
               title={isHost === false ? 'Chỉ chủ phòng mới có thể bắt đầu ván mới' : undefined}
             >
-              🔄 Chơi tiếp ván mới
+              <AvIcon name="new-game" /> Chơi tiếp ván mới
               {isHost === false && (
                 <span className="block text-[10px] font-bold opacity-80 mt-0.5">
                   (chờ chủ phòng)
@@ -126,7 +139,7 @@ export function EndSection({
               onClick={onLeaveRoom}
               className="rounded-2xl border border-white/15 bg-white/5 py-3.5 text-sm font-black text-slate-200 hover:bg-white/10 active:scale-[0.98]"
             >
-              🚪 Thoát phòng
+              <AvIcon name="leave" /> Thoát phòng
             </button>
           )}
         </div>

@@ -3,6 +3,8 @@ import type { AvalonGameData, AvalonGameState } from '../types';
 import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
 import { PlayerRoster } from './PlayerRoster';
 import { TokenBadges } from './shared';
+import AvIcon from '../assets/AvIcon';
+import PlayerAvatar from '../ui/PlayerAvatar';
 
 export function TeamBuildSection({
   isLeader,
@@ -36,9 +38,9 @@ export function TeamBuildSection({
       <div className="space-y-3">
         <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 sm:p-5">
           <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-bold text-amber-300">⚔️ ĐANG CHỌN ĐỘI — QUEST {state.currentQuest + 1}</p>
-            <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-red-300 animate-pulse' : 'text-amber-200'}`}>
-              ⏱ {timeStr}
+            <p className="text-xs font-bold text-amber-300"><AvIcon name="team" /> ĐANG CHỌN ĐỘI — QUEST {state.currentQuest + 1}</p>
+            <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-orange-300 animate-pulse' : 'text-amber-200'}`}>
+              <AvIcon name="clock" /> {timeStr}
             </span>
           </div>
           <p className="text-sm text-slate-300 mb-3">
@@ -54,9 +56,10 @@ export function TeamBuildSection({
               return (
                 <span
                   key={id}
-                  className="rounded-full bg-amber-500/25 border border-amber-400/40 px-2.5 py-1 text-xs font-black text-amber-100"
+                  className="inline-flex items-center gap-1.5 rounded-full bg-(--av-team)/20 border border-(--av-team)/40 py-1 pl-1 pr-2.5 text-xs font-black text-orange-100"
                 >
-                  ✓ {p?.name ?? '?'}
+                  {p && <PlayerAvatar player={p} size="xs" />}
+                  {p?.name ?? '?'}
                 </span>
               );
             })}
@@ -99,19 +102,19 @@ export function TeamBuildSection({
   return (
     <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
       <div className="flex items-center justify-between mb-1">
-        <p className="text-[11px] uppercase font-black text-amber-300">⚔️ Bạn là Leader</p>
-        <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-red-300 animate-pulse' : 'text-amber-200'}`}>
-          ⏱ {timeStr}
+        <p className="text-[11px] uppercase font-black text-(--av-leader)"><AvIcon name="leader" /> Bạn là Leader</p>
+        <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-orange-300 animate-pulse' : 'text-amber-200'}`}>
+          <AvIcon name="clock" /> {timeStr}
         </span>
       </div>
-      <h3 className="text-base font-black text-white mb-1">
+      <h3 className="av-display text-xl text-white mb-1">
         Chọn {teamSize} người cho Quest {state.currentQuest + 1}
       </h3>
       <p className="text-xs text-slate-400 mb-1">
         Bạn có thể tự chọn mình. Nhấn lại để bỏ chọn.
       </p>
       <p className="text-[10px] text-amber-300/80 mb-4">
-        ⚠ Còn {timeStr} — hết giờ sẽ tự trình đội (nếu đủ) hoặc chuyển Leader.
+        <AvIcon name="warning" /> Còn {timeStr} — hết giờ sẽ tự trình đội (nếu đủ) hoặc chuyển Leader.
       </p>
 
       <div className="grid grid-cols-2 gap-2 mb-4">
@@ -122,24 +125,19 @@ export function TeamBuildSection({
               key={p.id}
               onClick={() => toggle(p.id)}
               className={`rounded-xl border p-3 text-left transition-all active:scale-95 ${picked
-                ? 'border-amber-500 bg-amber-500/15 ring-1 ring-amber-500/50 shadow shadow-amber-500/20'
+                ? 'border-(--av-team) bg-(--av-team)/15 ring-1 ring-(--av-team)/50 shadow shadow-black/20'
                 : 'border-white/10 bg-white/5 hover:bg-white/10'
                 }`}
             >
               <div className="flex items-center gap-2">
-                <div
-                  className={`flex h-9 w-9 items-center justify-center rounded-full text-sm font-black text-white ${picked
-                    ? 'bg-gradient-to-br from-amber-500 to-orange-500'
-                    : 'bg-gradient-to-br from-purple-500 to-cyan-500'
-                    }`}
-                >
-                  {p.name.charAt(0).toUpperCase()}
-                </div>
+                <PlayerAvatar player={p} size="sm" selected={picked} isMe={p.id === myPlayerId} />
                 <span className="text-sm font-bold text-white truncate">{p.name}</span>
               </div>
               <TokenBadges playerId={p.id} state={state} />
               {picked && (
-                <p className="mt-1 text-[10px] font-black text-amber-300">✓ Đã chọn</p>
+                <p className="mt-1 text-[10px] font-black text-orange-200">
+                  <AvIcon name="check" /> Đã chọn
+                </p>
               )}
             </button>
           );

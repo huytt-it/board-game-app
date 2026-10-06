@@ -5,6 +5,10 @@ import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, type AvalonQuestRecord } from './types';
 import { ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
 import { seatPosition } from './table/seatPosition';
+import AvIcon, { type IconName } from './assets/AvIcon';
+import PlayerAvatar from './ui/PlayerAvatar';
+
+const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 
 interface RoundTableProps {
   players: Player[];
@@ -23,9 +27,9 @@ interface RoundTableProps {
 }
 
 type VisibleTag =
-  | { kind: 'evil-ally'; label: string }
-  | { kind: 'merlin-sees'; label: string }
-  | { kind: 'percival-sees'; label: string };
+  | { kind: 'evil-ally'; icon: IconName; label: string }
+  | { kind: 'merlin-sees'; icon: IconName; label: string }
+  | { kind: 'percival-sees'; icon: IconName; label: string };
 
 function getViewerHint(
   target: Player,
@@ -39,17 +43,17 @@ function getViewerHint(
     ROLE_TEAM[viewerRole] === 'evil' && viewerRole !== AvalonRole.Oberon;
   if (viewerIsVisibleEvil) {
     if (data.team === 'evil' && data.role !== AvalonRole.Oberon) {
-      return { kind: 'evil-ally', label: '👹' };
+      return { kind: 'evil-ally', icon: 'team-evil', label: 'Đồng đội Phe Quỷ' };
     }
   }
   if (viewerRole === AvalonRole.Merlin) {
     if (data.team === 'evil' && data.role !== AvalonRole.Mordred) {
-      return { kind: 'merlin-sees', label: '👹' };
+      return { kind: 'merlin-sees', icon: 'team-evil', label: 'Phe Quỷ (bạn thấy)' };
     }
   }
   if (viewerRole === AvalonRole.Percival) {
     if (data.role === AvalonRole.Merlin || data.role === AvalonRole.Morgana) {
-      return { kind: 'percival-sees', label: '❓' };
+      return { kind: 'percival-sees', icon: 'unknown', label: 'Merlin hoặc Morgana' };
     }
   }
   return null;
@@ -104,39 +108,45 @@ export default function RoundTable({
                     ? 'text-amber-200'
                     : 'text-stone-400';
 
-              const baseCls = `flex flex-1 min-w-0 flex-col items-center justify-center rounded-2xl border-2 px-1.5 py-2.5 sm:py-3 text-center shadow ${ringColor}`;
+              const baseCls = `flex flex-1 min-w-0 flex-col items-center justify-center rounded-2xl border-2 px-1 py-2 sm:px-1.5 sm:py-3 text-center shadow ${ringColor}`;
 
+              // Roman numeral instead of "QUEST n": it never wraps, even at 375px.
               const badgeBody = (
                 <>
-                  <div className={`text-[10px] sm:text-xs font-black uppercase tracking-widest ${numberColor}`}>
-                    Quest {idx + 1}
+                  <div className={`av-display text-lg sm:text-2xl leading-none whitespace-nowrap ${numberColor}`}>
+                    {ROMAN[idx]}
                   </div>
                   {isDone ? (
                     <>
-                      <div className="font-black text-white text-2xl sm:text-3xl leading-none mt-0.5">
-                        {success ? '✓' : '✕'}
-                      </div>
+                      <AvIcon
+                        name={success ? 'quest-success' : 'quest-fail'}
+                        className={`mt-1 h-6 w-6 sm:h-8 sm:w-8 ${success ? 'text-blue-100' : 'text-red-100'}`}
+                      />
                       <div
-                        className={`mt-0.5 text-[10px] sm:text-xs font-black ${success ? 'text-blue-300' : 'text-red-300'
+                        className={`mt-0.5 hidden sm:block text-xs font-black whitespace-nowrap ${success ? 'text-blue-300' : 'text-red-300'
                           }`}
                       >
                         {success ? 'Thành công' : 'Thất bại'}
                       </div>
                       <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/15 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-slate-200">
-                        🔍 Chi tiết
+                        <AvIcon name="details" />
+                        <span className="hidden sm:inline">Chi tiết</span>
                       </div>
                     </>
                   ) : (
                     <>
                       <div
-                        className={`mt-0.5 text-[9px] sm:text-[11px] font-bold uppercase tracking-wider ${isCurrent ? 'text-amber-300/90' : 'text-stone-500'
+                        className={`mt-1 inline-flex items-center gap-0.5 whitespace-nowrap text-[11px] font-bold ${isCurrent ? 'text-amber-300/90' : 'text-stone-500'
                           }`}
                       >
-                        {q.teamSize} người
+                        <span className="sm:hidden"><AvIcon name="team" /></span>
+                        {q.teamSize}
+                        <span className="hidden sm:inline"> người</span>
                       </div>
                       {needsTwo && (
-                        <div className="mt-1 rounded-full bg-rose-500/30 border border-rose-400/50 px-1.5 py-px text-[9px] font-black text-rose-200">
-                          ≥ 2 lá Quỷ
+                        <div className="mt-1 inline-flex items-center gap-0.5 whitespace-nowrap rounded-full bg-rose-500/30 border border-rose-400/50 px-1.5 py-px text-[9px] font-black text-rose-200">
+                          ≥2<span className="hidden sm:inline"> lá Quỷ</span>
+                          <span className="sm:hidden"><AvIcon name="quest-fail" /></span>
                         </div>
                       )}
                     </>
@@ -151,6 +161,7 @@ export default function RoundTable({
                     onClick={() => setOpenQuestIdx(idx)}
                     className={`${baseCls} hover:brightness-110 active:scale-95 transition`}
                     title={`Xem chi tiết Quest ${idx + 1}`}
+                    aria-label={`Quest ${idx + 1}: ${success ? 'thành công' : 'thất bại'} — xem chi tiết`}
                   >
                     {badgeBody}
                   </button>
@@ -161,8 +172,8 @@ export default function RoundTable({
                   key={idx}
                   title={
                     needsTwo
-                      ? `Quest ${idx + 1} — Cần ≥ 2 lá Phe Quỷ để Quest fail`
-                      : `Quest ${idx + 1}`
+                      ? `Quest ${idx + 1} — ${q.teamSize} người — Cần ≥ 2 lá Phe Quỷ để Quest fail`
+                      : `Quest ${idx + 1} — ${q.teamSize} người`
                   }
                   className={baseCls}
                 >
@@ -172,37 +183,39 @@ export default function RoundTable({
             })}
           </div>
 
-          {/* Crown + 5 reject-streak dots */}
-          <div className="flex items-center gap-2">
-            <span className="text-xl sm:text-2xl drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)]">👑</span>
-            <div className="flex items-center gap-1.5">
-              {Array.from({ length: VOTE_TRACK_LIMIT }).map((_, i) => {
-                const filled = i < state.voteRejectStreak;
-                const isCurrent = i === state.voteRejectStreak;
-                const isLast = i === VOTE_TRACK_LIMIT - 1;
-                const dotCls = isLast
-                  ? filled
-                    ? 'bg-red-500 border-red-200 text-white shadow shadow-red-500/60'
-                    : 'bg-red-950/60 border-red-500/70 text-red-300'
-                  : filled
-                    ? 'bg-amber-500 border-amber-200 text-white shadow shadow-amber-500/40'
-                    : 'bg-stone-900/70 border-stone-600/70 text-stone-400';
-                return (
-                  <div
-                    key={i}
-                    title={
-                      isLast
-                        ? 'Lần từ chối thứ 5 — Phe Quỷ thắng ngay!'
-                        : `Đã từ chối ${i + 1} lần`
-                    }
-                    className={`flex h-6 w-6 sm:h-7 sm:w-7 items-center justify-center rounded-full border text-[11px] font-black transition-all ${dotCls} ${isCurrent ? 'ring-2 ring-white/70 scale-110' : ''
-                      }`}
-                  >
-                    {i + 1}
-                  </div>
-                );
-              })}
-            </div>
+          {/* Reject track: 5 candles, one goes out each time a team is rejected.
+              The 5th burns in the evil colour — if it goes out, evil wins. */}
+          <div
+            className="flex items-end gap-1 sm:gap-1.5"
+            role="img"
+            aria-label={`Đội bị từ chối liên tiếp ${state.voteRejectStreak}/${VOTE_TRACK_LIMIT} lần`}
+          >
+            {Array.from({ length: VOTE_TRACK_LIMIT }).map((_, i) => {
+              const out = i < state.voteRejectStreak;
+              const isNext = i === state.voteRejectStreak;
+              const isLast = i === VOTE_TRACK_LIMIT - 1;
+              const candleCls = out
+                ? 'text-stone-400/70'
+                : isLast
+                  ? 'text-(--av-evil) drop-shadow-[0_0_6px_var(--av-evil)]'
+                  : 'text-(--av-leader) drop-shadow-[0_0_5px_var(--av-leader)]';
+              return (
+                <span
+                  key={i}
+                  title={
+                    isLast
+                      ? 'Lần từ chối thứ 5 — Phe Quỷ thắng ngay!'
+                      : `Đã từ chối ${i + 1} lần`
+                  }
+                  className={`flex transition-transform ${isNext ? 'scale-125' : ''}`}
+                >
+                  <AvIcon
+                    name={out ? 'candle-out' : 'candle-lit'}
+                    className={`h-6 w-6 sm:h-7 sm:w-7 ${candleCls}`}
+                  />
+                </span>
+              );
+            })}
           </div>
         </div>
       </div>
@@ -219,28 +232,6 @@ export default function RoundTable({
         const isAssassinTarget = state.assassinChoiceId === p.id;
         const data = p.gameData as Partial<AvalonGameData>;
         const hint = getViewerHint(p, myPlayerId, viewerRole);
-
-        // Border / glow:
-        let borderCls = 'border-white/30 bg-white/10';
-        let glow = '';
-        if (isMe) {
-          borderCls =
-            data.team === 'evil'
-              ? 'border-red-400 bg-red-500/15'
-              : 'border-blue-400 bg-blue-500/15';
-        } else if (hint?.kind === 'evil-ally' || hint?.kind === 'merlin-sees') {
-          borderCls = 'border-red-400 bg-red-500/15';
-        } else if (hint?.kind === 'percival-sees') {
-          borderCls = 'border-indigo-400 bg-indigo-500/15';
-        }
-        if (isOnTeam) {
-          glow = 'ring-4 ring-orange-400/70 shadow-lg shadow-orange-500/50';
-        } else if (isLadyTarget) {
-          glow = 'ring-4 ring-fuchsia-400/70 shadow-lg shadow-fuchsia-500/50';
-        }
-        if (isAssassinTarget) {
-          glow = 'ring-4 ring-red-500/80 shadow-lg shadow-red-500/70';
-        }
 
         const voted = state.teamVotes && state.teamVotes[p.id];
         const showVoteDot = state.phase === 'team-vote';
@@ -297,18 +288,20 @@ export default function RoundTable({
                     : p.name
               }
             >
-              <div
-                className={`relative flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border-[3px] text-sm font-black text-white transition-all ${borderCls} ${glow} ${isOnTeam || isAssassinTarget ? 'animate-pulse' : ''
-                  }`}
+              <PlayerAvatar
+                player={p}
+                size="table"
+                selected={isOnTeam}
+                aim={isAssassinTarget ? 'assassin' : isLadyTarget ? 'lady' : null}
+                isMe={isMe}
+                className={isOnTeam || isAssassinTarget ? 'animate-pulse' : ''}
               >
-                <span className="text-base">{p.name.charAt(0).toUpperCase()}</span>
-
                 {isAssassinTarget && (
                   <span
-                    className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 text-2xl drop-shadow-[0_2px_3px_rgba(0,0,0,0.6)] animate-bounce"
+                    className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-2xl text-(--av-evil) drop-shadow-[0_2px_3px_rgba(0,0,0,0.7)] animate-bounce"
                     title="Sát Thủ đang ngắm"
                   >
-                    🗡️
+                    <AvIcon name="target" />
                   </span>
                 )}
 
@@ -316,30 +309,30 @@ export default function RoundTable({
                 {isLeader && (
                   <span
                     title="Leader"
-                    className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-amber-500 border border-amber-200 text-[10px] shadow shadow-amber-500/40"
+                    className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-(--av-leader) border border-amber-100 text-[12px] text-(--av-ink) shadow shadow-black/40"
                   >
-                    👑
+                    <AvIcon name="leader" />
                   </span>
                 )}
                 {/* Lady token */}
                 {isLady && (
                   <span
                     title="Lady of the Lake"
-                    className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-cyan-500 border border-cyan-200 text-[10px] shadow shadow-cyan-500/40"
+                    className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-(--av-lady) border border-teal-100 text-[12px] text-(--av-ink) shadow shadow-black/40"
                   >
-                    🌊
+                    <AvIcon name="lady" />
                   </span>
                 )}
                 {/* Hint icon (visible-evil / Percival uncertainty) */}
                 {hint && (
                   <span
-                    title={hint.kind}
-                    className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[10px] border ${hint.kind === 'percival-sees'
+                    title={hint.label}
+                    className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[12px] text-white border ${hint.kind === 'percival-sees'
                       ? 'bg-indigo-500 border-indigo-200'
-                      : 'bg-red-600 border-red-200'
+                      : 'bg-(--av-evil) border-red-100'
                       }`}
                   >
-                    {hint.label}
+                    <AvIcon name={hint.icon} />
                   </span>
                 )}
                 {/* Vote status dot (only during team-vote) */}
@@ -352,17 +345,17 @@ export default function RoundTable({
                       }`}
                   />
                 )}
-              </div>
+              </PlayerAvatar>
 
               <div
                 className={`max-w-[80px] truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${isMe
-                  ? 'bg-blue-500/30 text-blue-100 ring-1 ring-blue-400/40'
+                  ? 'bg-(--av-parchment)/20 text-(--av-parchment) ring-1 ring-(--av-parchment)/40'
                   : 'bg-black/50 text-white'
                   }`}
                 title={p.name}
               >
                 {p.name}
-                {isMe && <span className="ml-0.5 text-blue-200">•</span>}
+                {isMe && <span className="ml-0.5">•</span>}
               </div>
             </Wrapper>
           </div>
@@ -424,50 +417,58 @@ function QuestDetailPopup({
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           aria-label="Đóng"
         >
-          ✕
+          <AvIcon name="close" size={20} />
         </button>
 
         <div className="text-center">
           <p className="text-[11px] uppercase font-bold text-slate-300 tracking-widest">
             Quest {questIndex + 1}
           </p>
-          <div className="text-5xl my-2">{success ? '🛡️' : '🗡️'}</div>
+          <AvIcon
+            name={success ? 'quest-success' : 'quest-fail'}
+            size={52}
+            className={`my-2 ${success ? 'text-blue-100' : 'text-red-100'}`}
+          />
           <p
-            className={`text-2xl font-black ${success ? 'text-blue-200' : 'text-red-200'}`}
+            className={`av-display text-3xl ${success ? 'text-blue-200' : 'text-red-200'}`}
           >
-            {success ? 'THÀNH CÔNG' : 'THẤT BẠI'}
+            {success ? 'Thành công' : 'Thất bại'}
           </p>
           {needsTwo && (
             <p className="mt-1 text-[10px] font-bold text-rose-300">
-              ⚠ Quest này cần ≥ 2 lá Phe Quỷ để fail
+              <AvIcon name="warning" /> Quest này cần ≥ 2 lá Phe Quỷ để fail
             </p>
           )}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
           <div className="rounded-xl border-2 border-blue-500/30 bg-blue-500/10 p-3 text-center">
-            <div className="text-2xl mb-0.5">🛡️</div>
-            <p className="text-[10px] uppercase font-bold text-blue-300">Phe Người</p>
+            <AvIcon name="quest-success" size={26} className="mb-0.5 text-blue-200" />
+            <p className="text-[10px] uppercase font-bold text-blue-300">Lá Phe Người</p>
             <p className="text-2xl font-black text-blue-200 leading-tight">{goodCount}</p>
           </div>
           <div className="rounded-xl border-2 border-red-500/30 bg-red-500/10 p-3 text-center">
-            <div className="text-2xl mb-0.5">👹</div>
-            <p className="text-[10px] uppercase font-bold text-red-300">Phe Quỷ</p>
+            <AvIcon name="quest-fail" size={26} className="mb-0.5 text-red-200" />
+            <p className="text-[10px] uppercase font-bold text-red-300">Lá Phe Quỷ</p>
             <p className="text-2xl font-black text-red-200 leading-tight">{evilCount}</p>
           </div>
         </div>
 
         {(approve !== undefined || reject !== undefined) && (
           <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-2.5 text-center">
-              <p className="text-[10px] uppercase font-bold text-emerald-300">Đồng ý</p>
-              <p className="text-lg font-black text-emerald-200 leading-tight">
+            <div className="rounded-xl border border-(--av-approve)/30 bg-(--av-approve)/10 p-2.5 text-center">
+              <p className="text-[10px] uppercase font-bold text-(--av-approve)">
+                <AvIcon name="vote-approve" /> Đồng ý
+              </p>
+              <p className="text-lg font-black text-white leading-tight">
                 {approve ?? '—'}
               </p>
             </div>
-            <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-2.5 text-center">
-              <p className="text-[10px] uppercase font-bold text-rose-300">Từ chối</p>
-              <p className="text-lg font-black text-rose-200 leading-tight">
+            <div className="rounded-xl border border-(--av-reject)/30 bg-(--av-reject)/10 p-2.5 text-center">
+              <p className="text-[10px] uppercase font-bold text-(--av-reject)">
+                <AvIcon name="vote-reject" /> Từ chối
+              </p>
+              <p className="text-lg font-black text-white leading-tight">
                 {reject ?? '—'}
               </p>
             </div>
@@ -475,8 +476,14 @@ function QuestDetailPopup({
         )}
 
         <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3">
-          <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">
-            👥 Đội đi Quest{leader ? ` · 👑 ${leader.name}` : ''}
+          <p className="flex flex-wrap items-center gap-1 text-[10px] uppercase font-bold text-slate-400 mb-2">
+            <AvIcon name="team" /> Đội đi Quest
+            {leader && (
+              <>
+                {' · '}
+                <AvIcon name="leader" className="text-(--av-leader)" /> {leader.name}
+              </>
+            )}
           </p>
           {team.length === 0 ? (
             <p className="text-xs text-slate-500 italic">(không rõ)</p>
@@ -487,9 +494,7 @@ function QuestDetailPopup({
                   key={p.id}
                   className="inline-flex items-center gap-1.5 rounded-full bg-white/8 border border-white/15 px-2.5 py-1 text-xs font-bold text-white"
                 >
-                  <span className="flex h-5 w-5 items-center justify-center rounded-full bg-gradient-to-br from-purple-500 to-cyan-500 text-[10px] font-black">
-                    {p.name.charAt(0).toUpperCase()}
-                  </span>
+                  <PlayerAvatar player={p} size="xs" />
                   {p.name}
                 </span>
               ))}

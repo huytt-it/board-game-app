@@ -4,11 +4,12 @@ import type { Player } from '@/types/player';
 import { type AvalonRole, type AvalonGameData, type AvalonGameState } from './types';
 import {
   ROLE_DESC_VI,
-  ROLE_ICONS,
   ROLE_NAMES_VI,
   ROLE_TEAM,
   TEAM_NAME_VI,
 } from './constants';
+import AvIcon from './assets/AvIcon';
+import RoleEmblem from './ui/RoleEmblem';
 
 interface RolePreviewPopupProps {
   state: AvalonGameState;
@@ -67,7 +68,7 @@ export default function RolePreviewPopup({
           className="sticky top-0 float-right z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           aria-label="Đóng"
         >
-          ✕
+          <AvIcon name="close" size={20} />
         </button>
 
         {myRole && myTeam && (
@@ -75,7 +76,9 @@ export default function RolePreviewPopup({
             <p className="text-[11px] uppercase font-bold text-slate-300 tracking-widest">
               Vai của bạn
             </p>
-            <div className="text-5xl my-2">{ROLE_ICONS[myRole]}</div>
+            <div className="my-2 flex justify-center">
+              <RoleEmblem role={myRole} size="lg" />
+            </div>
             <span
               className={`inline-block rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
                 isGood ? 'bg-blue-500/20 text-blue-300' : 'bg-red-500/20 text-red-300'
@@ -83,7 +86,7 @@ export default function RolePreviewPopup({
             >
               {TEAM_NAME_VI[myTeam]}
             </span>
-            <h2 className="mt-2 text-xl font-black text-white">{myRole}</h2>
+            <h2 className="av-display mt-2 text-3xl text-white">{myRole}</h2>
             <p
               className={`text-xs font-semibold ${
                 isGood ? 'text-blue-300' : 'text-red-300'
@@ -106,7 +109,7 @@ export default function RolePreviewPopup({
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-2xl border border-blue-500/30 bg-blue-900/15 p-3">
               <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-base">🛡️</span>
+                <AvIcon name="team-good" size={16} className="text-blue-300" />
                 <h3 className="text-xs font-black text-blue-200">
                   Phe Người ({goodRoles.length})
                 </h3>
@@ -119,7 +122,7 @@ export default function RolePreviewPopup({
             </div>
             <div className="rounded-2xl border border-red-500/30 bg-red-900/15 p-3">
               <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-base">👹</span>
+                <AvIcon name="team-evil" size={16} className="text-red-300" />
                 <h3 className="text-xs font-black text-red-200">
                   Phe Quỷ ({evilRoles.length})
                 </h3>
@@ -135,8 +138,8 @@ export default function RolePreviewPopup({
 
         <section className={`mt-3 grid gap-2 ${firstLady ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 flex items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-sm border-2 border-amber-300 shadow shadow-amber-500/40">
-              👑
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-leader) text-lg text-(--av-ink) border-2 border-amber-100 shadow shadow-black/40">
+              <AvIcon name="leader" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] uppercase font-black tracking-widest text-amber-300">
@@ -152,8 +155,8 @@ export default function RolePreviewPopup({
           </div>
           {firstLady && (
             <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-3 flex items-center gap-2">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 text-sm border-2 border-cyan-300 shadow shadow-cyan-500/40">
-                🌊
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-lady) text-lg text-(--av-ink) border-2 border-teal-100 shadow shadow-black/40">
+                <AvIcon name="lady" />
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-[10px] uppercase font-black tracking-widest text-cyan-300">
@@ -203,7 +206,7 @@ function RoleRow({
       }`}
       title={ROLE_NAMES_VI[role]}
     >
-      <span className="text-base shrink-0 leading-none mt-0.5">{ROLE_ICONS[role]}</span>
+      <RoleEmblem role={role} size="xs" className="mt-0.5" />
       <div className="flex-1 min-w-0">
         <p className="text-[11px] font-black text-white truncate">{role}</p>
         <p className="text-[9px] text-slate-300/80 leading-snug line-clamp-2">

@@ -2,8 +2,9 @@
 
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, type QuestCard, type TeamVote } from './types';
-import { ROLE_ICONS, ROLE_NAMES_VI, questNeedsTwoFails } from './constants';
+import { VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
 import RoundTable from './RoundTable';
+import AvIcon from './assets/AvIcon';
 import { PhaseChip } from './panel/shared';
 import { PlayerRoster } from './panel/PlayerRoster';
 import { LineupPreviewSection } from './panel/LineupPreviewSection';
@@ -97,8 +98,10 @@ export default function PlayerPanel(props: PlayerPanelProps) {
     }
   };
 
-  // Slim top bar — phase + reject counter + my role chip — kept short so the
-  // round table fits in the viewport without scroll on lg+.
+  // Slim top bar — phase + reject counter + "my role" button — kept short so the
+  // round table fits in the viewport without scroll on lg+. The role button is
+  // deliberately neutral (no role icon, name or team colour): a neighbour
+  // glancing at the screen must not learn the viewer's team.
   const topBar = (
     <div className="bg-slate-950/95 backdrop-blur-md border-b border-white/10">
       <div className="flex items-center gap-2 px-4 py-2">
@@ -111,41 +114,42 @@ export default function PlayerPanel(props: PlayerPanelProps) {
             {props.onShowRolePreview && (
               <button
                 onClick={props.onShowRolePreview}
-                className="rounded-full border border-fuchsia-500/30 bg-fuchsia-950/40 text-fuchsia-200 px-2.5 py-1 text-[11px] font-bold active:opacity-75 hover:bg-fuchsia-900/40"
-                title="Xem lại preview vai trong ván"
+                className="flex items-center gap-1 whitespace-nowrap rounded-full border border-fuchsia-500/30 bg-fuchsia-950/40 text-fuchsia-200 px-2 py-1 text-[11px] font-bold active:opacity-75 hover:bg-fuchsia-900/40 sm:px-2.5"
+                title="Xem lại các vai trong ván"
+                aria-label="Các vai trong ván"
               >
-                🎭 Preview
+                <AvIcon name="roles" size={14} />
+                <span className="hidden sm:inline">Các vai</span>
               </button>
             )}
             <button
               onClick={onShowMyRole}
-              className={`flex items-center gap-2 rounded-full border px-2.5 py-1 text-[11px] font-bold active:opacity-75 ${isGood
-                ? 'border-blue-500/30 bg-blue-950/40 text-blue-200'
-                : 'border-red-500/30 bg-red-950/40 text-red-200'
-                }`}
+              className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-(--av-parchment)/25 bg-white/5 px-2.5 py-1 text-[11px] font-bold text-(--av-parchment) active:opacity-75 hover:bg-white/10"
+              title="Xem vai của tôi"
             >
-              <span className="text-base">{ROLE_ICONS[myRole]}</span>
-              <span className="truncate max-w-[100px]">{ROLE_NAMES_VI[myRole]}</span>
-              <span className="text-[10px] opacity-70">ⓘ</span>
+              <AvIcon name="eye" size={15} />
+              <span>Vai của tôi</span>
             </button>
           </div>
         )}
         <span
-          className={`rounded-full px-2 py-0.5 text-[10px] font-black ${!(myRole && myTeam) ? 'ml-auto' : ''
+          className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-black ${!(myRole && myTeam) ? 'ml-auto' : ''
             } ${state.voteRejectStreak >= 4
               ? 'bg-red-500/20 text-red-300 border border-red-500/40'
               : state.voteRejectStreak >= 3
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                 : 'bg-white/5 text-slate-400 border border-white/10'
             }`}
-          title="Số lần Leader bị từ chối liên tiếp"
+          title="Số lần đội bị từ chối liên tiếp (5 lần → Phe Quỷ thắng)"
         >
-          👑 {state.voteRejectStreak}/{5}
+          <AvIcon name="candle-out" size={12} /> {state.voteRejectStreak}/{VOTE_TRACK_LIMIT}
         </span>
       </div>
       {isLeader && state.phase !== 'role-reveal' && state.phase !== 'end' && (
         <div className="bg-amber-500/10 border-t border-amber-500/30 px-4 py-1 text-center">
-          <span className="text-[11px] font-black text-amber-300">👑 Bạn là Leader</span>
+          <span className="text-[11px] font-black text-(--av-leader)">
+            <AvIcon name="leader" /> Bạn là Leader
+          </span>
         </div>
       )}
     </div>
@@ -160,7 +164,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
         state.phase === 'quest-play') &&
         questNeedsTwoFails(playerCount, state.currentQuest) && (
           <div className="rounded-2xl border-2 border-rose-500/50 bg-rose-500/10 p-3 flex items-start gap-3">
-            <span className="text-2xl shrink-0 leading-none">⚠️</span>
+            <AvIcon name="warning" size={24} className="text-rose-300" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-black text-rose-200 uppercase tracking-wider">
                 Quest {state.currentQuest + 1} — Luật đặc biệt

@@ -1,7 +1,10 @@
 'use client';
 
 import { AvalonRole, type AvalonTeam } from './types';
-import { ROLE_DESC_VI, ROLE_ICONS, ROLE_NAMES_VI, ROLE_TEAM } from './constants';
+import { ROLE_DESC_VI, ROLE_NAMES_VI, ROLE_TEAM } from './constants';
+import { TEAM_ICON_NAME } from './presentation';
+import AvIcon from './assets/AvIcon';
+import RoleEmblem from './ui/RoleEmblem';
 
 const ROLE_ORDER: AvalonRole[] = [
   AvalonRole.Merlin,
@@ -38,6 +41,27 @@ export default function RoleGuide() {
           roles={ROLE_ORDER.filter((r) => ROLE_TEAM[r] === 'evil')}
         />
       </div>
+      <p className="border-t border-white/10 px-4 py-2 text-[10px] leading-relaxed text-slate-500">
+        Icon: Lorc, Delapouite, Sbed —{' '}
+        <a
+          href="https://game-icons.net"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-slate-300"
+        >
+          game-icons.net
+        </a>
+        , giấy phép{' '}
+        <a
+          href="https://creativecommons.org/licenses/by/3.0/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="underline hover:text-slate-300"
+        >
+          CC BY 3.0
+        </a>
+        .
+      </p>
     </div>
   );
 }
@@ -47,7 +71,7 @@ function RoleSection({ team, roles }: { team: AvalonTeam; roles: AvalonRole[] })
   return (
     <section>
       <div className="flex items-center gap-2 mb-3">
-        <span className="text-base">{isGood ? '🛡️' : '🗡️'}</span>
+        <AvIcon name={TEAM_ICON_NAME[team]} size={18} className={isGood ? 'text-blue-300' : 'text-red-300'} />
         <h4
           className={`text-[11px] uppercase tracking-widest font-black ${isGood ? 'text-blue-300' : 'text-red-300'
             }`}
@@ -72,10 +96,10 @@ function RoleCardRow({ role }: { role: AvalonRole }) {
         }`}
     >
       <div className="flex items-start gap-3">
-        <span className="text-3xl shrink-0 leading-none mt-0.5">{ROLE_ICONS[role]}</span>
+        <RoleEmblem role={role} size="md" className="mt-0.5" />
         <div className="flex-1 min-w-0">
           <div className="flex items-baseline gap-2 flex-wrap">
-            <p className="text-sm font-black text-white">{role}</p>
+            <p className="av-display text-lg leading-tight text-white">{role}</p>
             <p
               className={`text-[11px] font-bold ${isGood ? 'text-blue-300' : 'text-red-300'
                 }`}

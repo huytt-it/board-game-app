@@ -1,7 +1,10 @@
 import type { Player } from '@/types/player';
 import { AvalonRole } from '../types';
-import { ROLE_ICONS, ROLE_TEAM } from '../constants';
+import { ROLE_TEAM } from '../constants';
 import { usePhaseTimeline } from '../hooks/usePhaseTimeline';
+import AvIcon from '../assets/AvIcon';
+import PlayerAvatar from '../ui/PlayerAvatar';
+import RoleEmblem from '../ui/RoleEmblem';
 
 // Các mốc của overlay, tính bằng ms kể từ lúc phase `end` bắt đầu
 // (state.phaseStartedAt):
@@ -50,10 +53,8 @@ export function AssassinRevealOverlay({
       <p className="text-[11px] uppercase font-bold tracking-widest text-amber-300">
         Sát Thủ chọn
       </p>
-      <div className="mt-4 flex h-24 w-24 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-4xl font-black text-white border-4 border-amber-200 shadow-lg shadow-amber-500/40">
-        {target.name.charAt(0).toUpperCase()}
-      </div>
-      <p className="mt-4 text-2xl font-black text-white">{target.name}</p>
+      <PlayerAvatar player={target} size="xl" className="mt-4 border-4 border-amber-200 shadow-lg shadow-amber-500/40" />
+      <p className="av-display mt-4 text-3xl text-white">{target.name}</p>
       <p className="mt-2 text-xs text-slate-400">là Merlin?</p>
     </>
   );
@@ -125,9 +126,11 @@ export function AssassinRevealOverlay({
               <p className="mt-1 text-xl font-black text-white">{target.name}</p>
               {role ? (
                 <>
-                  <div className="my-3 text-7xl">{ROLE_ICONS[role]}</div>
+                  <div className="my-3 flex justify-center">
+                    <RoleEmblem role={role} size="xl" />
+                  </div>
                   <p
-                    className={`text-2xl font-black ${isMerlin
+                    className={`av-display text-3xl ${isMerlin
                       ? 'text-red-200'
                       : team === 'good'
                         ? 'text-blue-200'
@@ -140,7 +143,8 @@ export function AssassinRevealOverlay({
                     className={`mt-1 text-[11px] uppercase font-black tracking-widest ${team === 'good' ? 'text-blue-300' : 'text-red-300'
                       }`}
                   >
-                    {team === 'good' ? '🛡️ Phe Người' : '👹 Phe Quỷ'}
+                    <AvIcon name={team === 'good' ? 'team-good' : 'team-evil'} />{' '}
+                    {team === 'good' ? 'Phe Người' : 'Phe Quỷ'}
                   </p>
                 </>
               ) : (
@@ -156,9 +160,10 @@ export function AssassinRevealOverlay({
                   className={`text-base font-black uppercase tracking-widest ${isMerlin ? 'text-red-200' : 'text-blue-200'
                     }`}
                 >
+                  <AvIcon name={isMerlin ? 'team-evil' : 'team-good'} />{' '}
                   {isMerlin
-                    ? '💀 Sát Thủ đoán đúng — Phe Quỷ thắng'
-                    : '🛡️ Sát Thủ đoán sai — Phe Người thắng'}
+                    ? 'Sát Thủ đoán đúng — Phe Quỷ thắng'
+                    : 'Sát Thủ đoán sai — Phe Người thắng'}
                 </p>
               </div>
             </div>
