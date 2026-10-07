@@ -264,7 +264,7 @@ Không đổi màu, layout hay icon (trừ các lỗi kể trên). Không thêm 
 | Lượt | Phạm vi |
 |---|---|
 | **GĐ2a — Hệ thống + quét lộ phe** | 2.1, 2.2, 2.3, 2.4, 2.5, 2.8, 2.9, 2.10 và vẽ **4 cảnh mẫu**: `hall`, `night`, `camp`, `forest`. Cảnh chưa vẽ dùng **placeholder** (nền tối trung tính theo màu chủ đạo ở Phụ lục C), đăng ký trong `SCENES` với cờ `placeholder: true` |
-| **GĐ2b — Vẽ đủ cảnh** | Vẽ 10 cảnh còn lại (`mountain`, `sea`, `ruins`, `chapel`, `marsh`, `cave`, `lake`, `blood-moon`, `end-good`, `end-evil`), lớp `weather/Storm`, 2.6 `SceneTitle`, 2.7 `JourneyStrip`, tuỳ chọn phủ tối theo số Quest thất bại. Bỏ hết placeholder |
+| **GĐ2b — Vẽ đủ cảnh** | Vẽ 10 cảnh còn lại (`mountain`, `sea`, `ruins`, `chapel`, `marsh`, `cave`, `lake`, `blood-moon`, `end-good`, `end-evil`), lớp `weather/Storm`, 2.6 `SceneTitle`, 2.7 `JourneyStrip`, 2.11 huy hiệu vai trung tính ở chỗ riêng tư, tuỳ chọn phủ tối theo số Quest thất bại. Bỏ hết placeholder |
 
 ### Phong cách vẽ (áp dụng cho mọi cảnh)
 - **Cắt giấy phẳng:** 3–5 lớp hình bóng chồng lên nhau, mỗi lớp một màu phẳng theo Phụ lục C. Không gradient nặng, không ảnh, không `filter: blur`.
@@ -333,6 +333,27 @@ Không đổi màu, layout hay icon (trừ các lỗi kể trên). Không thêm 
 - `SceneTitle` hiện đúng lúc đổi cảnh, không hiện lại khi reload sau 3 giây.
 - `JourneyStrip` đúng thứ tự hành trình và kết quả.
 - Mỗi file cảnh khoảng ≤ 30KB.
+- Không còn `.av-storm-placeholder`.
+- Chữ trên 10 cảnh mới vẫn đạt độ tương phản ≥ 4.5:1 (đo bằng điểm ảnh như GĐ2a).
+- Cặp ảnh riêng tư đo lại **ở khung thẻ vai** (`RoleReveal` sau > 1,5 giây, modal `RoleCard`, `RoleIntroCard` ở đêm): thu còn 10% không phân biệt được phe (độ lệch trung bình xấp xỉ các cặp trung tính khác, ≤ 1,5).
+
+### Bổ sung cho GĐ2b (nhạc trưởng, 2026-10-07)
+- **Vẽ theo mẫu `scenes/layers/forest.tsx`**: dùng các hàm dựng hình trong `scenes/paper.tsx`; mỗi cảnh xuất `sceneLayer(...)`, `PALETTE`, `PARTICLES`, đăng ký trong `SCENES` và bỏ cờ `placeholder`. Nhớ luật `nonzero`: hình trong cùng một `<path>` phải cùng chiều; hình lật gương để ở `<path>` riêng.
+- **Gợi ý bố cục từng cảnh** (chi tiết chính ở giữa, nửa dưới; khung dọc chỉ thấy x ≈ 590–1010):
+  - `mountain`: đèo giữa hai sườn núi, có tuyết;
+  - `sea`: vách đá Tintagel và lâu đài đổ nát, mặt trời lặn trên biển;
+  - `ruins`: cột đá gãy, vòm sụp;
+  - `chapel`: vòm nhà nguyện, Chén Thánh phát sáng ở giữa;
+  - `marsh`: lau sậy, ma trơi, sương thấp;
+  - `cave`: miệng hang, hai mắt rồng đỏ cam trong bóng tối, ánh vàng kho báu;
+  - `lake`: mặt hồ phẳng, thanh kiếm nhô lên ở giữa (bù cho icon `lady` hiện là sóng nước);
+  - `blood-moon`: trăng đỏ lớn, cây chết, quạ;
+  - `end-good`: bình minh vàng sau lâu đài Camelot;
+  - `end-evil`: Camelot chìm lửa và khói.
+- **`weather/Storm.tsx`** thay `.av-storm-placeholder`: vệt mưa nghiêng bằng CSS (≤ 20 phần tử, hoặc một lớp `repeating-linear-gradient` trượt bằng `transform`) và chớp lóe hiếm (khoảng 8–14 giây một lần, chớp là `opacity` của một lớp sáng). Reduced motion: chỉ còn lớp phủ tối và mưa tĩnh, không chớp.
+- **2.11 Huy hiệu vai ở chỗ riêng tư:** thêm biến thể trung tính cho `RoleEmblem` (ví dụ prop `tone="neutral"`: viền vàng, lòng khiên màu mực, icon giấy da). Dùng ở `RoleReveal`, `RoleCard`, `RoleIntroCard`, chip "Vai của tôi", và mọi chỗ chỉ người xem mới thấy vai của mình. Phe chỉ còn thể hiện bằng **nhãn chữ nhỏ**. Các chỗ công khai (lineup, danh sách Phe Quỷ ở màn ám sát, màn kết thúc, `RoleGuide`) giữ màu phe.
+- **`SceneTitle`:** dò đổi cảnh bằng `getScene(...).id` (thuộc tính `data-scene` của backdrop có sẵn để kiểm thử). Câu "Dựng trại trước <địa điểm kế>" lấy từ `location` (dùng `SCENE_NAMES_VI`). Không hiện ở lần mount đầu nếu đã quá 3 giây kể từ `phaseStartedAt`.
+- **`JourneyStrip`:** dùng `getJourney`; icon địa điểm có thể là hình thu nhỏ của lớp xa nhất của cảnh, hoặc icon game-icons mới. Nếu cần icon mới thì phải hỏi người dùng duyệt như GĐ1. Hiện trong `DiscussionSection` (GĐ5 dùng lại).
 
 ---
 
@@ -416,7 +437,7 @@ Branch: `dev-avalon-uxui`.
 |---|---|---|---|---|
 | 0 Nền móng | **Đã review — đạt** (2026-10-06) | `3e76509d` → `cba374f3` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3e76509d..HEAD` | Claude Sonnet 5.5 | Mọi lỗi B1–B8 đã xử lý, giao diện giữ nguyên. Chi tiết lệch kế hoạch + kết quả kiểm thử ở mục "Ghi chú của người thực thi GĐ0" bên dưới. |
 | 1 Bộ nhận diện | **Đã review — đạt** (2026-10-06) | `928c1afa` → `f92d548d` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 928c1afa..HEAD` | Claude Opus 5.5 | 47 icon game-icons.net (người dùng đã duyệt bảng) + 1 icon chỉnh sửa, registry + `AvIcon`, token màu, font Cormorant Garamond, `PlayerAvatar`, `RoleEmblem`; 0 emoji. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ1" bên dưới. |
-| 2a Hệ thống cảnh + quét lộ phe | **Xong — chờ review** (2026-10-07) | `d6e27ed7` → `ccfb2005` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log d6e27ed7..HEAD` | Claude Opus 5.5 | `scenes/` (types, journey, getScene, SceneBackdrop, paper), 4 cảnh mẫu `hall`/`night`/`camp`/`forest` + 10 placeholder, `SCENES` trong registry, `ui/GlassPanel`, quét lộ phe, token màu phe (regex màu = 0). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2a" bên dưới. |
+| 2a Hệ thống cảnh + quét lộ phe | **Đã review — đạt** (2026-10-07) | `d6e27ed7` → `ccfb2005` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log d6e27ed7..HEAD` | Claude Opus 5.5 | `scenes/` (types, journey, getScene, SceneBackdrop, paper), 4 cảnh mẫu `hall`/`night`/`camp`/`forest` + 10 placeholder, `SCENES` trong registry, `ui/GlassPanel`, quét lộ phe, token màu phe (regex màu = 0). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2a" bên dưới. |
 | 2b Vẽ đủ cảnh + tiêu đề + hành trình | Chưa bắt đầu | | | |
 | 3 Vòng Quest | Chưa bắt đầu | | | |
 | 4 Mở đầu | Chưa bắt đầu | | | |
@@ -495,6 +516,22 @@ Lưu ý cho các GĐ sau:
 4. Màn kết thúc: Quest chưa chơi (ví dụ Quest V khi ván kết thúc ở Quest IV) vẫn hiện như "Quest hiện tại" (viền vàng). Giao cho GĐ5.
 5. `SCENES` thêm vào `assets/registry.ts` theo đúng mục 4.1. Mỗi lớp cảnh là một `AssetSource`, để sau này thay bằng ảnh AI.
 6. Cách chụp ảnh tự động bằng Chrome headless qua DevTools Protocol (cập nhật trong memory `avalon-ux-test-recipes`) dùng tốt; các GĐ sau dùng lại, ảnh để trong `.claude/gd<N>-shots/` (git đã bỏ qua thư mục này).
+
+**GĐ2a (2026-10-07): đạt, đã push.** Nhạc trưởng tự kiểm lại:
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: vẫn 2 lỗi có sẵn từ trước.
+- Logic-core không đổi: `useAvalon.ts`, `types.ts`, `constants.ts` và các file ngoài thư mục Avalon không có trong diff; `AvalonBoard.tsx` chỉ đổi JSX và thêm `withScene`.
+- Đếm emoji = 0; regex màu phe = 0.
+- Đã đọc `getScene`, `journey`, `SceneBackdrop`, `GlassPanel`: cảnh là hàm thuần của state; backdrop nằm cùng vị trí ở mọi nhánh `return` nên giữ mount; panel không dùng blur.
+- Đã xem 4 cảnh mẫu (đúng phong cách cắt giấy, tối vừa đủ, chi tiết chính ở giữa), cảnh rừng có UI đè lên, các cặp ảnh kiểm lộ phe và ảnh ván thật.
+
+Ghi nhận:
+1. **Cảnh trong ảnh ván thật trông mờ hoặc ám tím** là do chụp ở tab chạy nền: trình duyệt dừng CSS animation nên crossfade đứng ở khung đầu (log: `hall+night`, `night+sea`). Màu tím là placeholder `sea`. Không phải lỗi. Khi tab hiện lại, crossfade chạy tiếp.
+2. **Cặp ảnh "Lộ vai: Merlin | Sát Thủ" chụp ở khung "Đang lật bài…"** (1,2 giây đầu), chưa phải lúc thẻ vai hiện, nên số 0,13 chưa chứng minh được gì. Đọc code thì thẻ vai đã trung tính. GĐ2b đo lại ở khung thẻ vai (chờ > 1,5 giây).
+3. **Chỗ còn lộ lớn nhất là `RoleEmblem`:** khiên xanh hay đỏ khá to ở `RoleReveal`, modal `RoleCard` và `RoleIntroCard` (cặp "Vai của tôi" lệch 3,4, thu còn 10% vẫn phân biệt được). Kế hoạch cho phép tô viền theo phe nên không phải lỗi GĐ2a, nhưng cần siết: giao **GĐ2b, mục 2.11**.
+4. Nút "PHE NGƯỜI" / "PHE QUỶ" ở QuestPlay vẫn xanh / đỏ nhưng giống hệt nhau với mọi người xem: chấp nhận.
+5. Nút Xoá / Rời đè lên chip nến ở top bar (thấy rõ ở ván thật 375 và 1440): giao GĐ3 (gom vào top bar khi làm `ActionDock`). Padding `px-4 py-6` của trang phòng: giao GĐ4.
+6. Các section đêm vẫn khác nhau theo vai (nút "Đã xem" đỏ của Phe Quỷ…): đã nằm trong kế hoạch GĐ4.
 
 ### Ghi chú của người thực thi GĐ1
 
