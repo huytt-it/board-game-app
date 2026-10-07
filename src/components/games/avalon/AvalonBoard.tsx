@@ -22,11 +22,29 @@ import { AvalonRole, type AvalonGameData, type AvalonGameState, PHASE_TIMEOUTS_M
 import { PLAYER_COUNTS } from './constants';
 import AvIcon, { type IconName } from './assets/AvIcon';
 import { avalonDisplayFont } from './assets/fonts';
+import SceneBackdrop from './scenes/SceneBackdrop';
+import { getScene } from './scenes/getScene';
+import type { SceneResult } from './scenes/types';
+import GlassPanel from './ui/GlassPanel';
 import './avalon.css';
 
 // Class for every Avalon root element: scopes avalon.css (tokens, reduced
 // motion) and provides the --av-font-display variable.
 const AVALON_ROOT = `avalon-root ${avalonDisplayFont.variable}`;
+
+// Lobby and the waiting screens play in the great hall.
+const HALL: SceneResult = { id: 'hall', storm: false, location: null };
+
+// Every branch below returns the backdrop at the same position, so it stays
+// mounted (and crossfades) when the screen switches from lobby to game.
+function withScene(scene: SceneResult, body: React.ReactNode) {
+  return (
+    <>
+      <SceneBackdrop sceneId={scene.id} storm={scene.storm} />
+      {body}
+    </>
+  );
+}
 
 // How long non-host clients wait before stepping in to advance a phase the host
 // has not advanced (host offline / asleep).
@@ -317,7 +335,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     const enoughPlayers = (PLAYER_COUNTS as readonly number[]).includes(playerCount);
     const optionalRolesCount =
       ((room.config.optionalRoles as unknown[] | undefined)?.length) ?? 0;
-    return (
+    return withScene(
+      HALL,
       <div className={`${AVALON_ROOT} mx-auto max-w-5xl animate-fade-in pb-32`}>
         {showPreview && <AvalonPreview onClose={() => setShowPreview(false)} />}
 
@@ -388,13 +407,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
             )}
           </div>
 
-          <div className="rounded-2xl border border-white/10 bg-gradient-to-br from-slate-800/80 to-slate-900/80 p-4">
+          <GlassPanel className="p-4">
             <QRCodeDisplay
               roomId={room.id}
               roomCode={room.roomCode}
               gameType={room.gameType}
             />
-          </div>
+          </GlassPanel>
         </div>
 
         {isHost && (
@@ -440,8 +459,9 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     ) : null;
 
   if (!state) {
-    return (
-      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-400`}>
+    return withScene(
+      HALL,
+      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-300`}>
         <div className="text-center">
           <AvIcon name="waiting" size={36} className="mb-2 animate-pulse" />
           <p className="text-sm">Đang tải trạng thái ván...</p>
@@ -451,8 +471,9 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   }
 
   if (!myPlayer || !myRole) {
-    return (
-      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-400 p-4`}>
+    return withScene(
+      HALL,
+      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-300 p-4`}>
         <div className="text-center">
           <AvIcon name="waiting" size={36} className="mb-2 animate-pulse" />
           <p className="text-sm">Đang chia bài...</p>
@@ -462,14 +483,15 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   }
 
   if (!isSupportedCount && state.phase !== 'end') {
-    return (
-      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-400 p-4 text-center`}>
+    return withScene(
+      HALL,
+      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-300 p-4 text-center`}>
         <div>
           <AvIcon name="warning" size={36} className="mb-2 text-amber-300" />
           <p className="text-sm">Số người chơi không hợp lệ ({playerCount}). Avalon cần 5–10 người.</p>
           <button
             onClick={isHost ? handleDelete : handleLeave}
-            className="mt-4 rounded-lg border border-white/10 bg-slate-900/80 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300"
+            className="mt-4 rounded-lg border border-white/10 bg-(color:--av-bar-bg) px-4 py-2 text-xs font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300"
           >
             <AvIcon name={isHost ? 'delete' : 'leave'} /> {isHost ? 'Xoá phòng' : 'Rời'}
           </button>
@@ -478,8 +500,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     );
   }
 
+  // The scene every device shows for this moment of the game (hall, night,
+  // the quest's location…): a pure function of the shared state.
+  const scene = getScene(state, room.id, playerCount);
+
   if (state.phase === 'role-reveal' && !localRoleSeen && !myAcked) {
-    return (
+    return withScene(
+      scene,
       <div className={AVALON_ROOT}>
         {banner}
         <RoleReveal
@@ -492,13 +519,14 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     );
   }
 
-  return (
+  return withScene(
+    scene,
     <div className={AVALON_ROOT}>
       {banner}
       <div className="absolute right-4 top-4 z-30 flex gap-2">
         <button
           onClick={isHost ? handleDelete : handleLeave}
-          className="rounded-lg border border-white/10 bg-slate-900/80 backdrop-blur-md px-3 py-1.5 text-xs font-bold text-slate-400 hover:bg-orange-500/10 hover:text-orange-300"
+          className="rounded-lg border border-white/10 bg-(color:--av-bar-bg) px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300"
         >
           <AvIcon name={isHost ? 'delete' : 'leave'} /> {isHost ? 'Xoá' : 'Rời'}
         </button>

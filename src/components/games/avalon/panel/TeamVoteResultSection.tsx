@@ -1,6 +1,7 @@
 import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
 import AvIcon from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 
 export function TeamVoteResultSection({
   state,
@@ -22,12 +23,7 @@ export function TeamVoteResultSection({
 
   return (
     <div className="space-y-3 animate-scale-in">
-      <div
-        className={`rounded-2xl border-2 p-6 text-center ${approved
-          ? 'border-(--av-approve)/50 bg-(--av-approve)/15 shadow-lg shadow-black/20'
-          : 'border-(--av-reject)/50 bg-(--av-reject)/15 shadow-lg shadow-black/20'
-          }`}
-      >
+      <GlassPanel tone={approved ? 'approve' : 'reject'} emphasis className="p-6 text-center">
         <p className="text-[11px] uppercase font-bold text-slate-300 mb-1 tracking-widest">
           Kết quả phiếu đội
         </p>
@@ -45,7 +41,7 @@ export function TeamVoteResultSection({
             <p className="text-2xl font-black text-white">{approves}</p>
           </div>
           <div className="rounded-xl bg-(--av-reject)/15 border border-(--av-reject)/30 px-3 py-2">
-            <p className="text-[10px] uppercase font-bold text-(--av-reject)">Từ chối</p>
+            <p className="text-[10px] uppercase font-bold text-(--av-reject-light)">Từ chối</p>
             <p className="text-2xl font-black text-white">{rejects}</p>
             {nonVoters > 0 && (
               <p className="text-[10px] font-bold leading-tight text-slate-300/80">
@@ -59,9 +55,9 @@ export function TeamVoteResultSection({
             ? 'Đội tiến hành thực hiện Quest...'
             : `Leader bị thay · Thanh từ chối ${state.voteRejectStreak}/5`}
         </p>
-      </div>
+      </GlassPanel>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <GlassPanel className="p-4">
         <p className="text-[11px] uppercase font-bold text-slate-400 mb-2">Đội được đề xuất</p>
         <div className="flex flex-wrap gap-2">
           {team.map((p) => (
@@ -73,10 +69,10 @@ export function TeamVoteResultSection({
             </span>
           ))}
         </div>
-        <p className="mt-3 text-[11px] text-slate-500 italic">
+        <p className="mt-3 text-[11px] text-slate-400 italic">
           Không lộ ai bầu thế nào — chỉ có tổng số phiếu.
         </p>
-      </div>
+      </GlassPanel>
     </div>
   );
 }

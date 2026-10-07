@@ -1,7 +1,12 @@
-// Asset registry: every Avalon icon (and, from GĐ2, every scene layer) is
-// looked up here by name. To swap one for a drawn image, drop the file in
-// `public/avalon/...` and change its ONE line below — see assets/README.md.
+// Asset registry: every Avalon icon and every scene layer is looked up here by
+// name. To swap one for a drawn image, drop the file in `public/avalon/...` and
+// change its ONE line below — see assets/README.md.
 import type { ComponentType, SVGProps } from 'react';
+import type { ParticleGroup, SceneId, ScenePalette } from '../scenes/types';
+import { HallArcade, HallBack, HallFloor, HallTable, HALL_PALETTE, HALL_PARTICLES } from '../scenes/layers/hall';
+import { NightCastle, NightFront, NightHills, NightSky, NIGHT_PALETTE, NIGHT_PARTICLES } from '../scenes/layers/night';
+import { CampFire, CampSky, CampTents, CampTreeline, CAMP_PALETTE, CAMP_PARTICLES } from '../scenes/layers/camp';
+import { ForestFar, ForestMist, ForestNear, ForestSky, FOREST_PALETTE, FOREST_PARTICLES } from '../scenes/layers/forest';
 import PointyHat from './icons/pointy-hat';
 import TemplarShield from './icons/templar-shield';
 import VisoredHelm from './icons/visored-helm';
@@ -121,3 +126,60 @@ export const ICONS = {
 } satisfies Record<string, AssetSource>;
 
 export type IconName = keyof typeof ICONS;
+
+// ─── Scenes (GĐ2) ────────────────────────────────────────────────────
+// Each scene is a stack of full-frame layers, far → near, all framed the same
+// way (a 1600×900 picture that covers the screen, anchored bottom-centre; see
+// scenes/SceneBackdrop.tsx). Any layer can be an SVG component or an image:
+//   layers: [image('/avalon/scenes/forest-sky.webp'), svg(ForestFar), …]
+// A scene not drawn yet is a `placeholder`: a flat field of its base colour.
+
+export interface SceneDef {
+  /** Far → near. */
+  layers: AssetSource[];
+  palette: ScenePalette;
+  /** Ambient particles drawn over the layers (≤ 20 per scene). */
+  particles?: readonly ParticleGroup[];
+  placeholder?: true;
+}
+
+const placeholder = (base: string, accent: string): SceneDef => ({
+  layers: [],
+  palette: { base, accent },
+  placeholder: true,
+});
+
+export const SCENES: Record<SceneId, SceneDef> = {
+  hall: {
+    layers: [svg(HallBack), svg(HallArcade), svg(HallFloor), svg(HallTable)],
+    palette: HALL_PALETTE,
+    particles: HALL_PARTICLES,
+  },
+  night: {
+    layers: [svg(NightSky), svg(NightHills), svg(NightCastle), svg(NightFront)],
+    palette: NIGHT_PALETTE,
+    particles: NIGHT_PARTICLES,
+  },
+  camp: {
+    layers: [svg(CampSky), svg(CampTreeline), svg(CampTents), svg(CampFire)],
+    palette: CAMP_PALETTE,
+    particles: CAMP_PARTICLES,
+  },
+  forest: {
+    layers: [svg(ForestSky), svg(ForestFar), svg(ForestMist), svg(ForestNear)],
+    palette: FOREST_PALETTE,
+    particles: FOREST_PARTICLES,
+  },
+
+  // Not drawn yet (GĐ2b): base colours from ux-plan Phụ lục C.
+  lake: placeholder('#132a33', '#d6dee3'),
+  'blood-moon': placeholder('#1a0d10', '#8f2a2a'),
+  'end-good': placeholder('#5d6a8c', '#ffd98a'),
+  'end-evil': placeholder('#140a0a', '#e0663a'),
+  mountain: placeholder('#1f2833', '#e8eef4'),
+  sea: placeholder('#2b2140', '#e0913a'),
+  ruins: placeholder('#1c1a26', '#e6e0ff'),
+  chapel: placeholder('#2a2210', '#e3b341'),
+  marsh: placeholder('#1a2420', '#9fe3c8'),
+  cave: placeholder('#120d0b', '#e3b341'),
+};

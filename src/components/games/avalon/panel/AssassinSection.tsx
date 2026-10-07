@@ -3,6 +3,7 @@ import { AvalonRole, type AvalonGameData, type AvalonGameState } from '../types'
 import { ROLE_NAMES_VI } from '../constants';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
 import AvIcon from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 import RoleEmblem from '../ui/RoleEmblem';
 
@@ -44,13 +45,11 @@ export function AssassinSection({
 
   // Card "Sát Thủ đang ngắm <X>" — luôn hiển thị TRÊN khối Phe Quỷ lộ diện khi
   // Sát Thủ đã pick (broadcast qua state.assassinChoiceId). Khi chưa pick thì
-  // ẩn để khối Phe Quỷ lên trên.
+  // ẩn để khối Phe Quỷ lên trên. Trong phase này cả Phe Quỷ đã lộ diện công
+  // khai, nên màu phe trên các thẻ không lộ thêm gì.
   const pickedCard = picked && (
-    <div
-      key={picked.id}
-      className="rounded-2xl border-2 border-red-500/70 bg-gradient-to-br from-red-950/60 to-rose-950/60 p-4 shadow-lg shadow-red-500/30 animate-scale-in"
-    >
-      <p className="text-[11px] uppercase font-black text-red-200 mb-1 tracking-widest">
+    <GlassPanel key={picked.id} tone="evil" emphasis className="p-4 animate-scale-in">
+      <p className="text-[11px] uppercase font-black text-(--av-evil-light) mb-1 tracking-widest">
         <AvIcon name="target" /> Sát Thủ đang ngắm
       </p>
       <div className="flex items-center gap-3">
@@ -61,17 +60,17 @@ export function AssassinSection({
         </PlayerAvatar>
         <div className="flex-1 min-w-0">
           <p className="text-base font-black text-white truncate">{picked.name}</p>
-          <p className="text-[11px] font-bold text-red-300">
+          <p className="text-[11px] font-bold text-(--av-evil-light)">
             Đang bị Sát Thủ nghi là Merlin
           </p>
         </div>
       </div>
-    </div>
+    </GlassPanel>
   );
 
   const evilRevealCard = (
-    <div className="rounded-2xl border-2 border-red-500/50 bg-red-950/30 p-4">
-      <p className="text-[11px] uppercase font-black text-red-300 mb-1 tracking-widest">
+    <GlassPanel tone="evil" className="p-4">
+      <p className="text-[11px] uppercase font-black text-(--av-evil-light) mb-1 tracking-widest">
         <AvIcon name="team-evil" /> Phe Quỷ lộ diện
       </p>
       <p className="text-xs text-slate-300 mb-3">
@@ -83,17 +82,17 @@ export function AssassinSection({
           return (
             <div
               key={p.id}
-              className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5"
+              className="flex items-center gap-3 rounded-xl border border-(--av-evil)/30 bg-(--av-evil)/10 px-3 py-2.5"
             >
               <RoleEmblem role={role} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-black text-white truncate">{p.name}</p>
-                <p className="text-[11px] font-bold text-red-300">
+                <p className="text-[11px] font-bold text-(--av-evil-light)">
                   {role} · {ROLE_NAMES_VI[role]}
                 </p>
               </div>
               {role === AvalonRole.Assassin && (
-                <span className="shrink-0 rounded-full bg-red-500/40 border border-red-400/50 px-2 py-0.5 text-[10px] font-black text-red-100">
+                <span className="shrink-0 rounded-full bg-(--av-evil)/40 border border-(--av-evil-light)/50 px-2 py-0.5 text-[10px] font-black text-white">
                   <AvIcon name="assassin" /> Sát Thủ
                 </span>
               )}
@@ -101,30 +100,30 @@ export function AssassinSection({
           );
         })}
       </div>
-    </div>
+    </GlassPanel>
   );
 
   const headerCard = (
-    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4 text-center">
+    <GlassPanel tone="warning" className="p-4 text-center">
       <p className="text-[11px] uppercase font-bold text-amber-300 mb-1 tracking-widest">
         <AvIcon name="assassinate" /> Phe Người đã thắng {successes} Quest
       </p>
       <p className="text-sm text-slate-300">
-        Phe Quỷ có cơ hội cuối: <span className="font-black text-red-300">tìm Merlin</span>.
+        Phe Quỷ có cơ hội cuối: <span className="font-black text-(--av-evil-light)">tìm Merlin</span>.
         Trúng → Phe Quỷ thắng ngược · Trật hoặc hết giờ → Phe Người thắng.
       </p>
       <div
         className={`mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 font-mono text-lg font-black tabular-nums ${lowTime
-          ? 'border-red-500/60 bg-red-500/15 text-red-200 animate-pulse'
+          ? 'border-orange-500/60 bg-orange-500/15 text-orange-200 animate-pulse'
           : 'border-amber-500/40 bg-amber-500/10 text-amber-200'
           }`}
       >
         <AvIcon name="clock" /> {timeLabel}
       </div>
-      <p className="mt-2 text-[11px] text-slate-500">
+      <p className="mt-2 text-[11px] text-slate-400">
         Quest: {successes} Người · {failures} Quỷ
       </p>
-    </div>
+    </GlassPanel>
   );
 
   if (myTeam === 'good') {
@@ -133,15 +132,15 @@ export function AssassinSection({
         {headerCard}
         {pickedCard}
         {evilRevealCard}
-        <div className="rounded-2xl border border-blue-500/40 bg-blue-500/10 p-5 text-center">
-          <AvIcon name="team-good" size={48} className="mb-2 text-blue-200" />
-          <p className="text-sm font-black text-blue-200 mb-1">
+        <GlassPanel tone="good" className="p-5 text-center">
+          <AvIcon name="team-good" size={48} className="mb-2 text-(--av-good-light)" />
+          <p className="text-sm font-black text-(--av-good-light) mb-1">
             Phe Người hãy giữ im lặng
           </p>
           <p className="text-xs text-slate-300 leading-relaxed">
             Phe Quỷ đang hội ý chọn Merlin. Đừng phản ứng để không tiết lộ Merlin là ai.
           </p>
-        </div>
+        </GlassPanel>
       </div>
     );
   }
@@ -152,15 +151,15 @@ export function AssassinSection({
         {headerCard}
         {pickedCard}
         {evilRevealCard}
-        <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5 text-center">
-          <AvIcon name="team-evil" size={48} className="mb-2 text-red-200" />
-          <p className="text-sm font-black text-red-200 mb-1">
+        <GlassPanel tone="evil" className="p-5 text-center">
+          <AvIcon name="team-evil" size={48} className="mb-2 text-(--av-evil-light)" />
+          <p className="text-sm font-black text-(--av-evil-light) mb-1">
             Hội ý cùng Phe Quỷ
           </p>
           <p className="text-xs text-slate-300 leading-relaxed">
             Thảo luận với đồng đội Quỷ để xác định ai là Merlin. Sát Thủ là người ra quyết định cuối cùng.
           </p>
-        </div>
+        </GlassPanel>
       </div>
     );
   }
@@ -170,11 +169,11 @@ export function AssassinSection({
       {headerCard}
       {pickedCard}
       {evilRevealCard}
-      <div className="rounded-2xl border-2 border-red-500/60 bg-red-500/15 p-4">
-        <p className="text-[11px] uppercase font-black text-red-300 mb-1"><AvIcon name="assassin" /> Bạn là Sát Thủ</p>
+      <GlassPanel tone="evil" emphasis className="p-4">
+        <p className="text-[11px] uppercase font-black text-(--av-evil-light) mb-1"><AvIcon name="assassin" /> Bạn là Sát Thủ</p>
         <h3 className="av-display text-xl text-white mb-1">Chọn ai là Merlin</h3>
         <p className="text-xs text-slate-300 mb-4">
-          Hội ý với đồng đội Quỷ trước. Bấm vào người trong danh sách (hoặc bấm avatar trên bàn) để chọn — mọi người đều thấy bạn đang ngắm ai. Khi đã chốt thật, bấm <strong className="text-red-200">Xác nhận đâm</strong>.
+          Hội ý với đồng đội Quỷ trước. Bấm vào người trong danh sách (hoặc bấm avatar trên bàn) để chọn — mọi người đều thấy bạn đang ngắm ai. Khi đã chốt thật, bấm <strong className="text-(--av-evil-light)">Xác nhận đâm</strong>.
         </p>
         <div className="grid grid-cols-2 gap-2">
           {goodPlayers.map((p) => {
@@ -184,8 +183,8 @@ export function AssassinSection({
                 key={p.id}
                 onClick={() => onSetAssassinChoice?.(p.id, myPlayer.id)}
                 className={`rounded-xl border p-3 text-left transition-all active:scale-95 ${isPicked
-                  ? 'border-red-400 bg-red-500/30 ring-2 ring-red-400/70 shadow-lg shadow-red-500/40'
-                  : 'border-red-500/30 bg-red-500/10 hover:bg-red-500/20 hover:border-red-500/50'
+                  ? 'border-(--av-evil) bg-(--av-evil)/30 ring-2 ring-(--av-evil)/70 shadow-lg shadow-black/40'
+                  : 'border-(--av-evil)/30 bg-(--av-evil)/10 hover:bg-(--av-evil)/20 hover:border-(--av-evil)/50'
                   }`}
               >
                 <div className="flex items-center gap-2">
@@ -196,7 +195,7 @@ export function AssassinSection({
                     className={isPicked ? 'av-stab' : ''}
                   />
                   <span className="text-sm font-bold text-white truncate flex-1">{p.name}</span>
-                  {isPicked && <AvIcon name="target" size={16} className="text-red-200" />}
+                  {isPicked && <AvIcon name="target" size={16} className="text-(--av-evil-light)" />}
                 </div>
               </button>
             );
@@ -212,7 +211,7 @@ export function AssassinSection({
             }
           }}
           disabled={!pickedId}
-          className="mt-4 w-full rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 py-3.5 text-base font-black text-white hover:from-red-500 hover:to-rose-500 active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed shadow-lg shadow-red-500/30"
+          className="mt-4 w-full rounded-2xl bg-(--av-evil) py-3.5 text-base font-black text-(--av-ink) hover:brightness-110 active:scale-95 disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed shadow-lg shadow-black/40"
         >
           {pickedId ? (
             <>
@@ -222,7 +221,7 @@ export function AssassinSection({
             'Chọn 1 người trước'
           )}
         </button>
-      </div>
+      </GlassPanel>
     </div>
   );
 }

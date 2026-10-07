@@ -107,13 +107,13 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                 Tỉ lệ phe ({playerCount} người)
               </p>
               <div className="flex gap-3">
-                <div className="flex-1 rounded-xl bg-blue-500/10 border border-blue-500/30 px-3 py-2">
-                  <p className="text-[10px] uppercase text-blue-400 font-bold">Phe Người</p>
-                  <p className="text-2xl font-black text-blue-200">{dist.good}</p>
+                <div className="flex-1 rounded-xl bg-(--av-good)/10 border border-(--av-good)/35 px-3 py-2">
+                  <p className="text-[10px] uppercase text-(--av-good-light) font-bold">Phe Người</p>
+                  <p className="text-2xl font-black text-(--av-good-light)">{dist.good}</p>
                 </div>
-                <div className="flex-1 rounded-xl bg-red-500/10 border border-red-500/30 px-3 py-2">
-                  <p className="text-[10px] uppercase text-red-400 font-bold">Phe Quỷ</p>
-                  <p className="text-2xl font-black text-red-200">{dist.evil}</p>
+                <div className="flex-1 rounded-xl bg-(--av-evil)/10 border border-(--av-evil)/35 px-3 py-2">
+                  <p className="text-[10px] uppercase text-(--av-evil-light) font-bold">Phe Quỷ</p>
+                  <p className="text-2xl font-black text-(--av-evil-light)">{dist.evil}</p>
                 </div>
               </div>
             </section>
@@ -134,15 +134,15 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                   <div
                     key={role}
                     className={`flex items-center gap-2 rounded-xl border p-2.5 ${isGood
-                      ? 'border-blue-500/40 bg-blue-500/10'
-                      : 'border-red-500/40 bg-red-500/10'
+                      ? 'border-(--av-good)/45 bg-(--av-good)/10'
+                      : 'border-(--av-evil)/45 bg-(--av-evil)/10'
                       }`}
                   >
                     <RoleEmblem role={role} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-black text-white truncate">{role}</p>
                       <p
-                        className={`text-[10px] font-bold ${isGood ? 'text-blue-400' : 'text-red-400'
+                        className={`text-[10px] font-bold ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
                           }`}
                       >
                         {isGood ? 'Người' : 'Quỷ'} · luôn có
@@ -155,21 +155,21 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
             </div>
             <div
               className={`mt-2 flex items-center gap-2 rounded-xl border p-2.5 ${optionalRoles.includes(AvalonRole.Morgana)
-                ? 'border-blue-500/40 bg-blue-500/10'
+                ? 'border-(--av-good)/45 bg-(--av-good)/10'
                 : 'border-white/10 bg-white/5 opacity-70'
                 }`}
             >
               <RoleEmblem role={AvalonRole.Percival} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-black text-white truncate">{AvalonRole.Percival}</p>
-                <p className="text-[10px] font-bold text-blue-400">
+                <p className="text-[10px] font-bold text-(--av-good-light)">
                   Người · {optionalRoles.includes(AvalonRole.Morgana)
                     ? 'tự động có khi bật Morgana'
                     : 'chỉ xuất hiện nếu Morgana được bật'}
                 </p>
               </div>
               {optionalRoles.includes(AvalonRole.Morgana) ? (
-                <AvIcon name="check" size={16} className="text-blue-300" />
+                <AvIcon name="check" size={16} className="text-(--av-good-light)" />
               ) : (
                 <span className="h-4 w-4 shrink-0 rounded-full border-2 border-white/30" aria-hidden="true" />
               )}
@@ -208,8 +208,8 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                     disabled={disabled}
                     className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${enabled
                       ? isGood
-                        ? 'border-blue-500/50 bg-blue-500/10'
-                        : 'border-red-500/50 bg-red-500/10'
+                        ? 'border-(--av-good)/50 bg-(--av-good)/10'
+                        : 'border-(--av-evil)/50 bg-(--av-evil)/10'
                       : 'border-white/10 bg-white/5'
                       }`}
                   >
@@ -218,7 +218,7 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                       <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                         <span className="text-sm font-black text-white">{role}</span>
                         <span
-                          className={`text-[9px] uppercase font-bold tracking-wider ${isGood ? 'text-blue-400' : 'text-red-400'
+                          className={`text-[9px] uppercase font-bold tracking-wider ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
                             }`}
                         >
                           {isGood ? 'Người' : 'Quỷ'}
@@ -236,8 +236,8 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                     <div
                       className={`shrink-0 h-6 w-11 rounded-full border transition-all ${enabled
                         ? isGood
-                          ? 'bg-blue-500 border-blue-400'
-                          : 'bg-red-500 border-red-400'
+                          ? 'bg-(--av-good) border-(--av-good-light)'
+                          : 'bg-(--av-evil) border-(--av-evil-light)'
                         : 'bg-white/5 border-white/20'
                         }`}
                     >
@@ -268,7 +268,7 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
             </h4>
             <div
               className={`flex items-center gap-3 rounded-xl border p-3 ${playerCount >= 7
-                ? 'border-cyan-500/50 bg-cyan-500/10'
+                ? 'border-(--av-lady)/50 bg-(--av-lady)/10'
                 : 'border-white/10 bg-white/5 opacity-70'
                 }`}
             >
@@ -287,7 +287,7 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
               </div>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${playerCount >= 7
-                  ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400/40'
+                  ? 'bg-(--av-lady)/30 text-teal-100 border border-(--av-lady)/45'
                   : 'bg-slate-500/20 text-slate-400'
                   }`}
               >

@@ -5,6 +5,7 @@ import { AvalonRole, type AvalonGameData, type AvalonGameState, type QuestCard, 
 import { VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
 import RoundTable from './RoundTable';
 import AvIcon from './assets/AvIcon';
+import GlassPanel from './ui/GlassPanel';
 import { PhaseChip } from './panel/shared';
 import { PlayerRoster } from './panel/PlayerRoster';
 import { LineupPreviewSection } from './panel/LineupPreviewSection';
@@ -61,7 +62,6 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   const onTeam = state.proposedTeam.includes(myPlayer.id);
 
   const teamSize = state.quests[state.currentQuest]?.teamSize ?? 0;
-  const isGood = myTeam === 'good';
 
   const showRoundTable = state.phase !== 'lineup-preview' && state.phase !== 'role-reveal';
   const isAssassin = myRole === AvalonRole.Assassin;
@@ -101,12 +101,13 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   // Slim top bar — phase + reject counter + "my role" button — kept short so the
   // round table fits in the viewport without scroll on lg+. The role button is
   // deliberately neutral (no role icon, name or team colour): a neighbour
-  // glancing at the screen must not learn the viewer's team.
+  // glancing at the screen must not learn the viewer's team. Nearly opaque and
+  // without blur: the scene behind it moves.
   const topBar = (
-    <div className="bg-slate-950/95 backdrop-blur-md border-b border-white/10">
+    <div className="bg-(color:--av-bar-bg) border-b border-white/10">
       <div className="flex items-center gap-2 px-4 py-2">
         <PhaseChip phase={state.phase} />
-        <span className="text-xs text-slate-500 hidden sm:inline">
+        <span className="text-xs text-slate-400 hidden sm:inline">
           Quest {state.currentQuest + 1}/5
         </span>
         {myRole && myTeam && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal' && (
@@ -135,7 +136,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
         <span
           className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-black ${!(myRole && myTeam) ? 'ml-auto' : ''
             } ${state.voteRejectStreak >= 4
-              ? 'bg-red-500/20 text-red-300 border border-red-500/40'
+              ? 'bg-(--av-evil)/20 text-(--av-evil-light) border border-(--av-evil)/45'
               : state.voteRejectStreak >= 3
                 ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
                 : 'bg-white/5 text-slate-400 border border-white/10'
@@ -163,18 +164,18 @@ export default function PlayerPanel(props: PlayerPanelProps) {
         state.phase === 'team-vote' ||
         state.phase === 'quest-play') &&
         questNeedsTwoFails(playerCount, state.currentQuest) && (
-          <div className="rounded-2xl border-2 border-rose-500/50 bg-rose-500/10 p-3 flex items-start gap-3">
-            <AvIcon name="warning" size={24} className="text-rose-300" />
+          <GlassPanel tone="evil" emphasis className="p-3 flex items-start gap-3">
+            <AvIcon name="warning" size={24} className="text-(--av-evil-light)" />
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-rose-200 uppercase tracking-wider">
+              <p className="text-xs font-black text-(--av-evil-light) uppercase tracking-wider">
                 Quest {state.currentQuest + 1} — Luật đặc biệt
               </p>
               <p className="mt-1 text-xs text-slate-200 leading-relaxed">
-                Cần <strong className="text-rose-300">≥ 2 lá Phe Quỷ</strong> để Quest này thất bại.
+                Cần <strong className="text-(--av-evil-light)">≥ 2 lá Phe Quỷ</strong> để Quest này thất bại.
                 1 lá Phe Quỷ đơn lẻ vẫn coi như Phe Người thắng Quest.
               </p>
             </div>
-          </div>
+          </GlassPanel>
         )}
 
       {state.phase === 'lineup-preview' && (
@@ -312,13 +313,11 @@ export default function PlayerPanel(props: PlayerPanelProps) {
     </div>
   );
 
+  // No background of its own: the scene (SceneBackdrop, rendered by the
+  // container from getScene) shows through, the same on every screen. The old
+  // blue/red gradient told a neighbour the viewer's team (B10).
   return (
-    <div
-      className={`min-h-dvh ${isGood
-        ? 'bg-gradient-to-b from-blue-950/40 via-slate-950 to-slate-950'
-        : 'bg-gradient-to-b from-red-950/40 via-slate-950 to-slate-950'
-        }`}
-    >
+    <div className="min-h-dvh">
       <div className="sticky top-0 z-20">{topBar}</div>
 
       {/* ONE DOM for every breakpoint.

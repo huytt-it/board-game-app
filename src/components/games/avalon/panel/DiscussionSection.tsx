@@ -2,6 +2,7 @@ import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
 import AvIcon from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 
 export function DiscussionSection({
   state,
@@ -25,7 +26,7 @@ export function DiscussionSection({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border-2 border-emerald-500/40 bg-emerald-500/10 p-5 text-center">
+      <GlassPanel tone="success" emphasis className="p-5 text-center">
         <p className="text-[11px] uppercase font-black text-emerald-300 mb-2 tracking-widest">
           <AvIcon name="discussion" /> Thảo luận trước Quest {state.currentQuest + 1}
         </p>
@@ -37,25 +38,25 @@ export function DiscussionSection({
           Khi tất cả nhấn <strong className="text-emerald-300">Sẵn sàng</strong>, sẽ vào ngay{' '}
           <strong>Quest {state.currentQuest + 1}</strong>.
         </p>
-      </div>
+      </GlassPanel>
 
       {!myAcked ? (
         <button
           onClick={onAckDiscussion}
-          className="w-full rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-4 text-base font-black text-white hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] shadow-lg shadow-emerald-500/30"
+          className="w-full rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 py-4 text-base font-black text-white hover:from-emerald-600 hover:to-teal-600 active:scale-[0.98] shadow-lg shadow-emerald-500/30"
         >
           ✓ Tôi sẵn sàng — Bỏ qua thảo luận
         </button>
       ) : (
         <button
           disabled
-          className="w-full rounded-2xl border border-emerald-400/40 bg-emerald-500/10 py-4 text-base font-black text-emerald-200"
+          className="w-full rounded-2xl border border-emerald-400/40 bg-(color:--av-glass-bg) py-4 text-base font-black text-emerald-200"
         >
           ✓ Bạn đã sẵn sàng — Chờ những người còn lại
         </button>
       )}
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+      <GlassPanel className="p-3">
         <div className="flex items-center justify-between mb-2 px-1">
           <span className="text-[10px] uppercase font-bold text-slate-400 tracking-widest">
             Sẵn sàng kết thúc thảo luận
@@ -100,7 +101,7 @@ export function DiscussionSection({
             Tất cả sẵn sàng — đang chuyển sang Quest...
           </p>
         )}
-      </div>
+      </GlassPanel>
     </div>
   );
 }

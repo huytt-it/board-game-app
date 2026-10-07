@@ -3,6 +3,7 @@ import type { AvalonGameData, AvalonGameState, TeamVote } from '../types';
 import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
 import { PlayerRoster } from './PlayerRoster';
 import AvIcon from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 
 export function TeamVoteSection({
   state,
@@ -27,10 +28,10 @@ export function TeamVoteSection({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-4">
+      <GlassPanel tone="gold" className="p-4">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-[11px] uppercase font-black text-cyan-300"><AvIcon name="vote" /> Bỏ phiếu đội</p>
-          <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-orange-300 animate-pulse' : 'text-cyan-200'}`}>
+          <p className="text-[11px] uppercase font-black text-(--av-parchment)"><AvIcon name="vote" /> Bỏ phiếu đội</p>
+          <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-orange-300 animate-pulse' : 'text-(--av-parchment)'}`}>
             <AvIcon name="clock" /> {timeStr}
           </span>
         </div>
@@ -48,15 +49,15 @@ export function TeamVoteSection({
             </span>
           ))}
         </div>
-        <p className="text-[11px] text-slate-500">
+        <p className="text-[11px] text-slate-400">
           Đã bầu: {votedCount}/{gamePlayers.length}
           {!myVote && (
-            <span className="ml-2 text-amber-400/80"><AvIcon name="warning" /> Chưa bầu trong {timeStr} sẽ bị tính là Từ chối</span>
+            <span className="ml-2 text-amber-300/90"><AvIcon name="warning" /> Chưa bầu trong {timeStr} sẽ bị tính là Từ chối</span>
           )}
         </p>
-      </div>
+      </GlassPanel>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+      <GlassPanel className="p-3">
         <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-2 px-1">
           Tiến độ bầu phiếu (không lộ ai bầu thế nào)
         </p>
@@ -85,42 +86,40 @@ export function TeamVoteSection({
             );
           })}
         </div>
-      </div>
+      </GlassPanel>
 
       {!myVote ? (
         <div className="grid grid-cols-2 gap-3">
           <button
             onClick={() => onCastVote('approve')}
-            className="flex flex-col items-center rounded-2xl bg-(--av-approve) py-5 font-black text-white text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30"
+            className="flex flex-col items-center rounded-2xl bg-(--av-approve) py-5 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30"
           >
             <AvIcon name="vote-approve" size={34} className="mb-1" />
             ĐỒNG Ý
           </button>
           <button
             onClick={() => onCastVote('reject')}
-            className="flex flex-col items-center rounded-2xl bg-(--av-reject) py-5 font-black text-white text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30"
+            className="flex flex-col items-center rounded-2xl bg-(--av-reject) py-5 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30"
           >
             <AvIcon name="vote-reject" size={34} className="mb-1" />
             TỪ CHỐI
           </button>
         </div>
       ) : (
-        <div
-          className={`rounded-2xl border p-4 text-center ${myVote === 'approve'
-            ? 'border-(--av-approve)/40 bg-(--av-approve)/10'
-            : 'border-(--av-reject)/40 bg-(--av-reject)/10'
-            }`}
-        >
-          <p className="text-xs uppercase font-bold text-slate-400 mb-1">Phiếu của bạn</p>
-          <p
-            className={`text-2xl font-black ${myVote === 'approve' ? 'text-(--av-approve)' : 'text-(--av-reject)'
-              }`}
-          >
-            <AvIcon name={myVote === 'approve' ? 'vote-approve' : 'vote-reject'} />{' '}
-            {myVote === 'approve' ? 'Đồng ý' : 'Từ chối'}
+        // Votes are secret: once cast, the card looks the same whatever the
+        // vote; the viewer's own choice is only a small line (ux-plan 2.9).
+        <GlassPanel tone="gold" className="p-4 text-center">
+          <AvIcon name="vote" size={30} className="mb-1 text-(--av-parchment)" />
+          <p className="av-display text-2xl text-white">Đã bỏ phiếu</p>
+          <p className="mt-1 text-xs font-bold text-slate-300">
+            Phiếu của bạn:{' '}
+            <span className={myVote === 'approve' ? 'text-(--av-approve)' : 'text-(--av-reject-light)'}>
+              <AvIcon name={myVote === 'approve' ? 'vote-approve' : 'vote-reject'} />{' '}
+              {myVote === 'approve' ? 'Đồng ý' : 'Từ chối'}
+            </span>
           </p>
-          <p className="mt-2 text-xs text-slate-400">Đang chờ những người còn lại...</p>
-        </div>
+          <p className="mt-2 text-xs text-slate-300">Đang chờ những người còn lại...</p>
+        </GlassPanel>
       )}
 
       <div className="lg:hidden">

@@ -2,6 +2,7 @@ import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState } from '../types';
 import { ROLE_TEAM } from '../constants';
 import AvIcon, { type IconName } from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 
 interface RosterMark {
@@ -131,8 +132,8 @@ function buildHistoryMarks(playerId: string, state: AvalonGameState): RosterMark
         type: 'quest-history',
         key: `quest-${idx}`,
         className: success
-          ? 'bg-blue-500/30 border border-blue-400/50 text-blue-100'
-          : 'bg-red-500/30 border border-red-400/50 text-red-100',
+          ? 'bg-(--av-good)/30 border border-(--av-good)/55 text-white'
+          : 'bg-(--av-evil)/30 border border-(--av-evil)/55 text-white',
         label: `Quest ${idx + 1}`,
       });
     }
@@ -206,7 +207,7 @@ export function PlayerRoster({
   const viewerIsPercival = viewerRole === AvalonRole.Percival;
 
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 p-3">
+    <GlassPanel className="p-3">
       <p className="text-[10px] uppercase font-bold text-slate-400 tracking-widest mb-2 px-1">
         {title}
       </p>
@@ -226,7 +227,7 @@ export function PlayerRoster({
               liveMarks.unshift({
                 type: 'evil-ally',
                 className:
-                  'bg-red-500/30 border border-red-400/50 text-red-100',
+                  'bg-(--av-evil)/30 border border-(--av-evil)/55 text-white',
                 icon: 'team-evil',
                 label: 'Đồng đội Quỷ',
               });
@@ -240,7 +241,7 @@ export function PlayerRoster({
               liveMarks.unshift({
                 type: 'merlin-sees',
                 className:
-                  'bg-red-500/25 border border-red-400/40 text-red-100',
+                  'bg-(--av-evil)/25 border border-(--av-evil)/45 text-white',
                 icon: 'team-evil',
                 label: 'Quỷ (bạn thấy)',
               });
@@ -262,20 +263,16 @@ export function PlayerRoster({
             }
           }
           const historyMarks = showHistory ? buildHistoryMarks(p.id, state) : [];
-          const hasRedClueMark = liveMarks.some(
-            (m) => m.type === 'evil-ally' || m.type === 'merlin-sees'
-          );
-          const hasPercivalClueMark = liveMarks.some((m) => m.type === 'percival-sees');
+          // A row is only ever tinted by PUBLIC state (team pick, Lady's aim).
+          // What the viewer privately knows (Merlin's / the evils' view,
+          // Percival's) shows only in the small chips — a row tinted red or
+          // indigo would tell a neighbour who the viewer is (ux-plan 2.9).
           const highlightCls =
             isHighlighted && finalEmphasis === 'team'
               ? 'border-(--av-team)/60 bg-(--av-team)/15 ring-1 ring-(--av-team)/40 shadow shadow-black/20'
               : isHighlighted && finalEmphasis === 'lady'
                 ? 'border-(--av-lady)/60 bg-(--av-lady)/15 ring-1 ring-(--av-lady)/40 shadow shadow-black/20'
-                : hasRedClueMark
-                  ? 'border-red-500/40 bg-red-500/10'
-                  : hasPercivalClueMark
-                    ? 'border-indigo-500/40 bg-indigo-500/10'
-                    : 'border-white/10 bg-white/5';
+                : 'border-white/10 bg-white/5';
           // Phân nhóm tag theo vị trí trên card:
           //   aboveTags = leader/lady → trên avatar
           //   belowTags = quest-history → dưới avatar (chỉ "Quest N" + màu)
@@ -359,6 +356,6 @@ export function PlayerRoster({
           );
         })}
       </div>
-    </div>
+    </GlassPanel>
   );
 }

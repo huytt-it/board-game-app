@@ -6,6 +6,7 @@ import { AvalonRole, type AvalonGameData, type AvalonGameState, type AvalonQuest
 import { ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
 import { seatPosition } from './table/seatPosition';
 import AvIcon, { type IconName } from './assets/AvIcon';
+import GlassPanel from './ui/GlassPanel';
 import PlayerAvatar from './ui/PlayerAvatar';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
@@ -94,16 +95,16 @@ export default function RoundTable({
               const needsTwo = questNeedsTwoFails(playerCount, idx);
 
               const ringColor = success
-                ? 'border-blue-400/80 bg-blue-500/25 shadow-blue-500/40'
+                ? 'border-(--av-good)/80 bg-(--av-good)/25 shadow-black/40'
                 : fail
-                  ? 'border-red-400/80 bg-red-500/25 shadow-red-500/40'
+                  ? 'border-(--av-evil)/80 bg-(--av-evil)/25 shadow-black/40'
                   : isCurrent
                     ? 'border-amber-300/90 bg-amber-500/15 shadow-amber-400/40 ring-2 ring-amber-300/60 animate-pulse'
                     : 'border-stone-600/70 bg-stone-900/60';
               const numberColor = success
-                ? 'text-blue-200'
+                ? 'text-(--av-good-light)'
                 : fail
-                  ? 'text-red-200'
+                  ? 'text-(--av-evil-light)'
                   : isCurrent
                     ? 'text-amber-200'
                     : 'text-stone-400';
@@ -120,10 +121,10 @@ export default function RoundTable({
                     <>
                       <AvIcon
                         name={success ? 'quest-success' : 'quest-fail'}
-                        className={`mt-1 h-6 w-6 sm:h-8 sm:w-8 ${success ? 'text-blue-100' : 'text-red-100'}`}
+                        className={`mt-1 h-6 w-6 sm:h-8 sm:w-8 ${success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'}`}
                       />
                       <div
-                        className={`mt-0.5 hidden sm:block text-xs font-black whitespace-nowrap ${success ? 'text-blue-300' : 'text-red-300'
+                        className={`mt-0.5 hidden sm:block text-xs font-black whitespace-nowrap ${success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
                           }`}
                       >
                         {success ? 'Thành công' : 'Thất bại'}
@@ -136,7 +137,7 @@ export default function RoundTable({
                   ) : (
                     <>
                       <div
-                        className={`mt-1 inline-flex items-center gap-0.5 whitespace-nowrap text-[11px] font-bold ${isCurrent ? 'text-amber-300/90' : 'text-stone-500'
+                        className={`mt-1 inline-flex items-center gap-0.5 whitespace-nowrap text-[11px] font-bold ${isCurrent ? 'text-amber-300/90' : 'text-stone-400'
                           }`}
                       >
                         <span className="sm:hidden"><AvIcon name="team" /></span>
@@ -144,7 +145,7 @@ export default function RoundTable({
                         <span className="hidden sm:inline"> người</span>
                       </div>
                       {needsTwo && (
-                        <div className="mt-1 inline-flex items-center gap-0.5 whitespace-nowrap rounded-full bg-rose-500/30 border border-rose-400/50 px-1.5 py-px text-[9px] font-black text-rose-200">
+                        <div className="mt-1 inline-flex items-center gap-0.5 whitespace-nowrap rounded-full bg-(--av-evil)/30 border border-(--av-evil)/55 px-1.5 py-px text-[9px] font-black text-(--av-evil-light)">
                           ≥2<span className="hidden sm:inline"> lá Quỷ</span>
                           <span className="sm:hidden"><AvIcon name="quest-fail" /></span>
                         </div>
@@ -255,7 +256,7 @@ export default function RoundTable({
         const wrapperExtra = isPickable
           ? `cursor-pointer active:scale-95 ${isOnTeam ? '' : 'hover:ring-2 hover:ring-amber-300/60'}`
           : isAssassinPickable
-            ? `cursor-pointer active:scale-95 hover:ring-2 hover:ring-red-400/70 ${isAssassinTarget ? 'av-stab' : ''}`
+            ? `cursor-pointer active:scale-95 hover:ring-2 hover:ring-(--av-evil)/70 ${isAssassinTarget ? 'av-stab' : ''}`
             : '';
 
         return (
@@ -329,7 +330,7 @@ export default function RoundTable({
                     title={hint.label}
                     className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[12px] text-white border ${hint.kind === 'percival-sees'
                       ? 'bg-indigo-500 border-indigo-200'
-                      : 'bg-(--av-evil) border-red-100'
+                      : 'bg-(--av-evil) border-(--av-evil-light)'
                       }`}
                   >
                     <AvIcon name={hint.icon} />
@@ -404,12 +405,11 @@ function QuestDetailPopup({
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in"
       onClick={onClose}
     >
-      <div
-        className={`relative w-full sm:max-w-md overflow-hidden rounded-3xl border-2 p-5 shadow-2xl ${
-          success
-            ? 'border-blue-500/50 bg-gradient-to-br from-blue-950/95 to-slate-950/95'
-            : 'border-red-500/50 bg-gradient-to-br from-red-950/95 to-slate-950/95'
-        }`}
+      {/* A quest's result is public: tinted by it, the same on every screen. */}
+      <GlassPanel
+        tone={success ? 'good' : 'evil'}
+        emphasis
+        className="relative w-full sm:max-w-md overflow-hidden rounded-3xl p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <button
@@ -427,30 +427,30 @@ function QuestDetailPopup({
           <AvIcon
             name={success ? 'quest-success' : 'quest-fail'}
             size={52}
-            className={`my-2 ${success ? 'text-blue-100' : 'text-red-100'}`}
+            className={`my-2 ${success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'}`}
           />
           <p
-            className={`av-display text-3xl ${success ? 'text-blue-200' : 'text-red-200'}`}
+            className={`av-display text-3xl ${success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'}`}
           >
             {success ? 'Thành công' : 'Thất bại'}
           </p>
           {needsTwo && (
-            <p className="mt-1 text-[10px] font-bold text-rose-300">
+            <p className="mt-1 text-[10px] font-bold text-(--av-evil-light)">
               <AvIcon name="warning" /> Quest này cần ≥ 2 lá Phe Quỷ để fail
             </p>
           )}
         </div>
 
         <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border-2 border-blue-500/30 bg-blue-500/10 p-3 text-center">
-            <AvIcon name="quest-success" size={26} className="mb-0.5 text-blue-200" />
-            <p className="text-[10px] uppercase font-bold text-blue-300">Lá Phe Người</p>
-            <p className="text-2xl font-black text-blue-200 leading-tight">{goodCount}</p>
+          <div className="rounded-xl border-2 border-(--av-good)/35 bg-(--av-good)/10 p-3 text-center">
+            <AvIcon name="quest-success" size={26} className="mb-0.5 text-(--av-good-light)" />
+            <p className="text-[10px] uppercase font-bold text-(--av-good-light)">Lá Phe Người</p>
+            <p className="text-2xl font-black text-white leading-tight">{goodCount}</p>
           </div>
-          <div className="rounded-xl border-2 border-red-500/30 bg-red-500/10 p-3 text-center">
-            <AvIcon name="quest-fail" size={26} className="mb-0.5 text-red-200" />
-            <p className="text-[10px] uppercase font-bold text-red-300">Lá Phe Quỷ</p>
-            <p className="text-2xl font-black text-red-200 leading-tight">{evilCount}</p>
+          <div className="rounded-xl border-2 border-(--av-evil)/35 bg-(--av-evil)/10 p-3 text-center">
+            <AvIcon name="quest-fail" size={26} className="mb-0.5 text-(--av-evil-light)" />
+            <p className="text-[10px] uppercase font-bold text-(--av-evil-light)">Lá Phe Quỷ</p>
+            <p className="text-2xl font-black text-white leading-tight">{evilCount}</p>
           </div>
         </div>
 
@@ -465,7 +465,7 @@ function QuestDetailPopup({
               </p>
             </div>
             <div className="rounded-xl border border-(--av-reject)/30 bg-(--av-reject)/10 p-2.5 text-center">
-              <p className="text-[10px] uppercase font-bold text-(--av-reject)">
+              <p className="text-[10px] uppercase font-bold text-(--av-reject-light)">
                 <AvIcon name="vote-reject" /> Từ chối
               </p>
               <p className="text-lg font-black text-white leading-tight">
@@ -504,15 +504,11 @@ function QuestDetailPopup({
 
         <button
           onClick={onClose}
-          className={`mt-4 w-full rounded-xl py-2.5 text-sm font-black text-white ${
-            success
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500'
-              : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500'
-          }`}
+          className="mt-4 w-full rounded-xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-2.5 text-sm font-black text-(--av-parchment) hover:bg-(--av-gold)/30"
         >
           ✓ Đóng
         </button>
-      </div>
+      </GlassPanel>
     </div>
   );
 }

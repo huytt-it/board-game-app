@@ -94,7 +94,7 @@ export function AssassinRevealOverlay({
             {/* Đường chém đỏ phát sáng — xoay -45° để cùng hướng đường tách
                 clip-path TL→BR của 2 nửa lá bài. */}
             <div
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[140%] w-[3px] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-gradient-to-b from-transparent via-red-400 to-transparent shadow-[0_0_24px_4px_rgba(248,113,113,0.75)]"
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[140%] w-[3px] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-gradient-to-b from-transparent via-(--av-evil-light) to-transparent shadow-[0_0_24px_4px_rgba(224,85,85,0.75)]"
             />
           </div>
         )}
@@ -113,11 +113,11 @@ export function AssassinRevealOverlay({
         {stage === 'reveal' && (
           <div className="fixed inset-0 z-30 flex items-center justify-center bg-white/95 animate-fade-in">
             <div
-              className={`mx-4 max-w-md w-full rounded-3xl border-4 px-6 py-7 text-center shadow-2xl animate-scale-in ${isMerlin
-                ? 'border-red-500/80 bg-gradient-to-br from-red-950/95 to-rose-950/95 shadow-red-500/50'
+              className={`mx-4 max-w-md w-full rounded-3xl border-4 bg-(color:--av-ink) px-6 py-7 text-center shadow-2xl shadow-black/50 animate-scale-in ${isMerlin
+                ? 'border-(--av-evil)/80 bg-linear-to-br from-(--av-evil)/35 to-transparent'
                 : team === 'good'
-                  ? 'border-blue-500/80 bg-gradient-to-br from-blue-950/95 to-cyan-950/95 shadow-blue-500/50'
-                  : 'border-slate-500/80 bg-gradient-to-br from-slate-900/95 to-slate-950/95'
+                  ? 'border-(--av-good)/80 bg-linear-to-br from-(--av-good)/35 to-transparent'
+                  : 'border-slate-500/80 bg-linear-to-br from-slate-700/40 to-transparent'
                 }`}
             >
               <p className="text-[11px] uppercase font-black tracking-widest text-slate-300">
@@ -131,16 +131,16 @@ export function AssassinRevealOverlay({
                   </div>
                   <p
                     className={`av-display text-3xl ${isMerlin
-                      ? 'text-red-200'
+                      ? 'text-(--av-evil-light)'
                       : team === 'good'
-                        ? 'text-blue-200'
+                        ? 'text-(--av-good-light)'
                         : 'text-slate-200'
                       }`}
                   >
                     {role}
                   </p>
                   <p
-                    className={`mt-1 text-[11px] uppercase font-black tracking-widest ${team === 'good' ? 'text-blue-300' : 'text-red-300'
+                    className={`mt-1 text-[11px] uppercase font-black tracking-widest ${team === 'good' ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
                       }`}
                   >
                     <AvIcon name={team === 'good' ? 'team-good' : 'team-evil'} />{' '}
@@ -152,12 +152,12 @@ export function AssassinRevealOverlay({
               )}
               <div
                 className={`mt-4 rounded-2xl border-2 py-3 px-4 ${isMerlin
-                  ? 'border-red-500/60 bg-red-500/15'
-                  : 'border-blue-500/60 bg-blue-500/15'
+                  ? 'border-(--av-evil)/60 bg-(--av-evil)/15'
+                  : 'border-(--av-good)/60 bg-(--av-good)/15'
                   }`}
               >
                 <p
-                  className={`text-base font-black uppercase tracking-widest ${isMerlin ? 'text-red-200' : 'text-blue-200'
+                  className={`text-base font-black uppercase tracking-widest ${isMerlin ? 'text-(--av-evil-light)' : 'text-(--av-good-light)'
                     }`}
                 >
                   <AvIcon name={isMerlin ? 'team-evil' : 'team-good'} />{' '}

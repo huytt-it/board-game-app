@@ -71,9 +71,9 @@ function RoleSection({ team, roles }: { team: AvalonTeam; roles: AvalonRole[] })
   return (
     <section>
       <div className="flex items-center gap-2 mb-3">
-        <AvIcon name={TEAM_ICON_NAME[team]} size={18} className={isGood ? 'text-blue-300' : 'text-red-300'} />
+        <AvIcon name={TEAM_ICON_NAME[team]} size={18} className={isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'} />
         <h4
-          className={`text-[11px] uppercase tracking-widest font-black ${isGood ? 'text-blue-300' : 'text-red-300'
+          className={`text-[11px] uppercase tracking-widest font-black ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
             }`}
         >
           {isGood ? 'Phe Người' : 'Phe Quỷ'} ({roles.length})
@@ -92,7 +92,7 @@ function RoleCardRow({ role }: { role: AvalonRole }) {
   const isGood = ROLE_TEAM[role] === 'good';
   return (
     <div
-      className={`rounded-xl border p-3 ${isGood ? 'border-blue-500/30 bg-blue-500/5' : 'border-red-500/30 bg-red-500/5'
+      className={`rounded-xl border p-3 ${isGood ? 'border-(--av-good)/35 bg-(--av-good)/5' : 'border-(--av-evil)/35 bg-(--av-evil)/5'
         }`}
     >
       <div className="flex items-start gap-3">
@@ -101,7 +101,7 @@ function RoleCardRow({ role }: { role: AvalonRole }) {
           <div className="flex items-baseline gap-2 flex-wrap">
             <p className="av-display text-lg leading-tight text-white">{role}</p>
             <p
-              className={`text-[11px] font-bold ${isGood ? 'text-blue-300' : 'text-red-300'
+              className={`text-[11px] font-bold ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
                 }`}
             >
               {ROLE_NAMES_VI[role]}

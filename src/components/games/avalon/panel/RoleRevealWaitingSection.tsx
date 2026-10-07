@@ -2,6 +2,7 @@ import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
 import AvIcon from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 
 export function RoleRevealWaitingSection({
   state,
@@ -25,7 +26,7 @@ export function RoleRevealWaitingSection({
 
   return (
     <div className="space-y-3">
-      <div className="rounded-2xl border border-purple-500/30 bg-purple-500/5 p-5 text-center">
+      <GlassPanel tone="mystic" className="p-5 text-center">
         <p className="text-[11px] uppercase font-black text-purple-300 mb-2">
           <AvIcon name="seal" /> Đang lộ vai
         </p>
@@ -48,9 +49,9 @@ export function RoleRevealWaitingSection({
             </button>
           </>
         )}
-      </div>
+      </GlassPanel>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-4">
+      <GlassPanel className="p-4">
         <div className="flex items-center justify-between mb-2">
           <span className="text-[11px] uppercase font-bold text-slate-400">
             Tiến độ
@@ -73,28 +74,24 @@ export function RoleRevealWaitingSection({
                 key={p.id}
                 className="flex items-center justify-between text-xs"
               >
-                <span className={acked ? 'text-white font-bold' : 'text-slate-500'}>
+                <span className={acked ? 'text-white font-bold' : 'text-slate-400'}>
                   {p.name}
                   {p.id === myPlayer.id && (
                     <span className="text-(--av-parchment) ml-1">(bạn)</span>
                   )}
                 </span>
-                <span className={acked ? 'text-emerald-400 font-black' : 'text-slate-500'}>
+                <span className={acked ? 'text-emerald-400 font-black' : 'text-slate-400'}>
                   <AvIcon name={acked ? 'check' : 'waiting'} /> {acked ? 'Sẵn sàng' : 'Đang đọc'}
                 </span>
               </div>
             );
           })}
         </div>
-      </div>
+      </GlassPanel>
 
-      <div
-        className={`rounded-2xl border p-4 text-center ${allAcked
-          ? 'border-emerald-500/40 bg-emerald-500/10'
-          : remaining < 30000
-            ? 'border-amber-500/40 bg-amber-500/10'
-            : 'border-white/10 bg-white/5'
-          }`}
+      <GlassPanel
+        tone={allAcked ? 'success' : remaining < 30000 ? 'warning' : 'neutral'}
+        className="p-4 text-center"
       >
         <p className="text-[11px] uppercase font-bold text-slate-400 mb-1">
           {allAcked ? 'Đang chuyển sang lượt Đêm' : 'Tự động vào lượt Đêm sau'}
@@ -109,7 +106,7 @@ export function RoleRevealWaitingSection({
         >
           {allAcked ? <AvIcon name="check" title="Mọi người đã sẵn sàng" /> : timeStr}
         </p>
-      </div>
+      </GlassPanel>
     </div>
   );
 }

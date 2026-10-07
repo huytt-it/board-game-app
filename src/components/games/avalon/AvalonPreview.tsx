@@ -7,14 +7,21 @@ import { AvalonRole, type AvalonGameState, type AvalonGameData, type AvalonQuest
 import PlayerPanel from './PlayerPanel';
 import RoleReveal from './RoleReveal';
 import RoleCard from './RoleCard';
+import RolePreviewPopup from './RolePreviewPopup';
 import LobbyRoundTable from './LobbyRoundTable';
 import { QUEST_TEAM_SIZES } from './constants';
 import AvIcon from './assets/AvIcon';
+import { SCENES } from './assets/registry';
+import SceneBackdrop from './scenes/SceneBackdrop';
+import { getScene } from './scenes/getScene';
+import { getJourney, mulberry32 } from './scenes/journey';
+import { SCENE_IDS, SCENE_NAMES_VI, type SceneId } from './scenes/types';
 
 type PreviewPhase =
   | 'lobby'
   | 'lineup-preview'
   | 'role-reveal'
+  | 'role-reveal-evil'
   | 'night-evils-as-evil'
   | 'night-evils-as-oberon'
   | 'night-evils-as-good'
@@ -26,10 +33,14 @@ type PreviewPhase =
   | 'team-build-follower'
   | 'team-vote-not-voted'
   | 'team-vote-voted'
+  | 'team-vote-voted-reject'
   | 'team-vote-result-approved'
   | 'team-vote-result-rejected'
   | 'team-vote-result-rejected-novote'
   | 'quest-play-on-team'
+  | 'quest-play-on-team-evil'
+  | 'quest-play-played-good'
+  | 'quest-play-played-evil'
   | 'quest-play-not-on-team'
   | 'quest-result-success'
   | 'quest-result-fail'
@@ -58,6 +69,7 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
   lobby: 'Phòng chờ (lobby)',
   'lineup-preview': 'Vai trong ván (preview)',
   'role-reveal': 'Lộ vai (Merlin)',
+  'role-reveal-evil': 'Lộ vai (Sát Thủ)',
   'night-evils-as-evil': 'Đêm — Phe Quỷ (xem đồng đội)',
   'night-evils-as-oberon': 'Đêm — Oberon đơn độc',
   'night-evils-as-good': 'Đêm — Phe Người chờ',
@@ -68,11 +80,15 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
   'team-build-leader': 'Chọn đội (đang là Leader)',
   'team-build-follower': 'Chọn đội (chờ Leader)',
   'team-vote-not-voted': 'Bỏ phiếu (chưa bầu)',
-  'team-vote-voted': 'Bỏ phiếu (đã bầu)',
+  'team-vote-voted': 'Bỏ phiếu (đã bầu Đồng ý)',
+  'team-vote-voted-reject': 'Bỏ phiếu (đã bầu Từ chối)',
   'team-vote-result-approved': 'KQ phiếu — Đội duyệt',
   'team-vote-result-rejected': 'KQ phiếu — Đội từ chối',
   'team-vote-result-rejected-novote': 'KQ phiếu — Từ chối (có người không bầu)',
-  'quest-play-on-team': 'Chơi Quest (trong đội)',
+  'quest-play-on-team': 'Chơi Quest (trong đội, Phe Người)',
+  'quest-play-on-team-evil': 'Chơi Quest (trong đội, Phe Quỷ)',
+  'quest-play-played-good': 'Chơi Quest (đã đặt lá Phe Người)',
+  'quest-play-played-evil': 'Chơi Quest (đã đặt lá Phe Quỷ)',
   'quest-play-not-on-team': 'Chơi Quest (ngoài đội)',
   'quest-result-success': 'KQ Quest — Người thành công',
   'quest-result-fail': 'KQ Quest — Quỷ phá hoại',
@@ -101,7 +117,7 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
 const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
   { label: 'Phòng chờ', items: ['lobby'] },
   { label: 'Trước ván', items: ['lineup-preview'] },
-  { label: 'Lộ vai', items: ['role-reveal'] },
+  { label: 'Lộ vai', items: ['role-reveal', 'role-reveal-evil'] },
   {
     label: 'Đêm (sequenced)',
     items: [
@@ -115,9 +131,18 @@ const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
     ],
   },
   { label: 'Chọn đội', items: ['team-build-leader', 'team-build-follower'] },
-  { label: 'Bỏ phiếu đội', items: ['team-vote-not-voted', 'team-vote-voted'] },
+  { label: 'Bỏ phiếu đội', items: ['team-vote-not-voted', 'team-vote-voted', 'team-vote-voted-reject'] },
   { label: 'KQ phiếu đội', items: ['team-vote-result-approved', 'team-vote-result-rejected', 'team-vote-result-rejected-novote'] },
-  { label: 'Chơi Quest', items: ['quest-play-on-team', 'quest-play-not-on-team'] },
+  {
+    label: 'Chơi Quest',
+    items: [
+      'quest-play-on-team',
+      'quest-play-on-team-evil',
+      'quest-play-played-good',
+      'quest-play-played-evil',
+      'quest-play-not-on-team',
+    ],
+  },
   { label: 'KQ Quest', items: ['quest-result-success', 'quest-result-fail'] },
   {
     label: 'Thảo luận sau Quest',
@@ -263,6 +288,9 @@ function buildScene(
     case 'role-reveal':
       return { players, state: { ...base, phase: 'role-reveal' }, viewerId: 'p1' };
 
+    case 'role-reveal-evil':
+      return { players, state: { ...base, phase: 'role-reveal' }, viewerId: 'p6' };
+
     case 'night-evils-as-evil':
       return {
         players,
@@ -391,6 +419,52 @@ function buildScene(
         viewerId: 'p3',
       };
 
+    case 'team-vote-voted-reject':
+      return {
+        players,
+        state: {
+          ...base,
+          phase: 'team-vote',
+          proposedTeam: ['p1', 'p5'],
+          teamVotes: { p1: 'approve', p2: 'approve', p3: 'reject', p4: 'reject' },
+          voteRejectStreak: 2,
+        },
+        viewerId: 'p3',
+      };
+
+    // Privacy pairs: the on-team screens of a Good and an Evil player, before
+    // and after placing a card, must look alike from a distance (ux-plan 2.9).
+    case 'quest-play-on-team-evil':
+      return {
+        players,
+        // Charlie leads, so neither viewer gets the (public) "you are Leader" strip.
+        state: { ...base, phase: 'quest-play', currentLeaderId: 'p3', proposedTeam: ['p1', 'p5'], questPlayedBy: [] },
+        viewerId: 'p5',
+      };
+
+    case 'quest-play-played-good':
+    case 'quest-play-played-evil': {
+      const good = phase === 'quest-play-played-good';
+      const ps = players.map((p) =>
+        p.id === 'p1'
+          ? makePlayer('p1', 'Alice', AvalonRole.Merlin, good ? 'success' : undefined)
+          : p.id === 'p5'
+            ? makePlayer('p5', 'Eve', AvalonRole.Mordred, good ? undefined : 'fail')
+            : p
+      );
+      return {
+        players: ps,
+        state: {
+          ...base,
+          phase: 'quest-play',
+          currentLeaderId: 'p3',
+          proposedTeam: ['p1', 'p5'],
+          questPlayedBy: [good ? 'p1' : 'p5'],
+        },
+        viewerId: good ? 'p1' : 'p5',
+      };
+    }
+
     case 'quest-play-on-team': {
       const ps = players.map((p) =>
         p.id === 'p1' ? makePlayer('p1', 'Alice', AvalonRole.Merlin) : p
@@ -400,6 +474,7 @@ function buildScene(
         state: {
           ...base,
           phase: 'quest-play',
+          currentLeaderId: 'p3',
           proposedTeam: ['p1', 'p5'],
           questPlayedBy: [],
         },
@@ -841,27 +916,52 @@ function buildScene(
   }
 }
 
+// Seat order of mock game #n: game 0 keeps the cast order, the others are a
+// seeded shuffle — enough to watch the journey change from game to game.
+function mockSeatOrder(ids: string[], gameNo: number): string[] {
+  if (gameNo === 0) return ids;
+  const rand = mulberry32(gameNo * 7919);
+  const out = [...ids];
+  for (let i = out.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  return out;
+}
+
 export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   const [phase, setPhase] = useState<PreviewPhase>('team-build-leader');
   const [showRoleCard, setShowRoleCard] = useState(false);
+  const [showRolePreview, setShowRolePreview] = useState(false);
   // 0 = scene as first picked; each "Phát lại" press bumps it, which rebuilds the
   // scene with phaseStartedAt = now and remounts the panel so entry animations run again.
   const [replayNonce, setReplayNonce] = useState(0);
+  // Backdrop: 'auto' follows getScene for the phase; otherwise one scene, forced.
+  const [sceneChoice, setSceneChoice] = useState<'auto' | SceneId>('auto');
+  const [forceStorm, setForceStorm] = useState(false);
+  const [gameNo, setGameNo] = useState(0);
 
-  const { players, state, viewerId } = useMemo(
-    () => buildScene(phase, replayNonce > 0),
-    [phase, replayNonce]
-  );
+  const { players, state, viewerId } = useMemo(() => {
+    const built = buildScene(phase, replayNonce > 0);
+    const seatOrder = mockSeatOrder(built.state.seatOrder, gameNo);
+    return { ...built, state: { ...built.state, seatOrder } };
+  }, [phase, replayNonce, gameNo]);
   const myPlayer = players.find((p) => p.id === viewerId)!;
   const myRole = (myPlayer.gameData as Partial<AvalonGameData>).role!;
   const playerCount = players.length;
+
+  const autoScene = getScene(phase === 'lobby' ? null : state, 'preview', playerCount);
+  const sceneId = sceneChoice === 'auto' ? autoScene.id : sceneChoice;
+  const storm = forceStorm || (sceneChoice === 'auto' && autoScene.storm);
+  const journey = getJourney(state, 'preview');
 
   const noop = () => undefined;
   const stub = () => undefined;
 
   return (
     <div className="avalon-root fixed inset-0 z-50 bg-slate-950 animate-fade-in flex flex-col">
-      <header className="shrink-0 border-b border-white/10 bg-slate-950/95 backdrop-blur-md">
+      <SceneBackdrop sceneId={sceneId} storm={storm} />
+      <header className="shrink-0 border-b border-white/10 bg-(color:--av-bar-bg)">
         <div className="flex items-center gap-2 px-4 py-3 flex-wrap">
           <button
             onClick={onClose}
@@ -918,13 +1018,66 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
               ↻ Phát lại
             </button>
           </div>
-          <p className="text-[11px] text-slate-500">
+          <div className="flex items-end gap-2">
+            <div className="min-w-0 flex-1">
+              <label className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">
+                Cảnh
+              </label>
+              <select
+                value={sceneChoice}
+                onChange={(e) => setSceneChoice(e.target.value as 'auto' | SceneId)}
+                style={{ colorScheme: 'dark' }}
+                className="w-full mt-1 rounded-lg border border-white/10 bg-slate-900 px-3 py-2 text-sm font-bold text-white outline-none focus:border-purple-500"
+              >
+                <option value="auto" style={{ background: '#0f172a', color: '#ffffff' }}>
+                  Theo phase — {SCENE_NAMES_VI[autoScene.id]}
+                  {autoScene.storm ? ' (có bão)' : ''}
+                </option>
+                {SCENE_IDS.map((id) => (
+                  <option key={id} value={id} style={{ background: '#0f172a', color: '#ffffff' }}>
+                    {SCENE_NAMES_VI[id]}
+                    {SCENES[id].placeholder ? ' (chưa vẽ)' : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <label className="shrink-0 flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-200">
+              <input
+                type="checkbox"
+                checked={forceStorm}
+                onChange={(e) => setForceStorm(e.target.checked)}
+                className="accent-purple-500"
+              />
+              Bão
+            </label>
+          </div>
+          <div className="flex items-center gap-2 text-[11px] text-slate-400">
+            <p className="min-w-0 flex-1">
+              Hành trình ván #{gameNo + 1}:{' '}
+              <span className="text-slate-200">
+                {journey.map((id, i) => (
+                  <span key={id} className={i === state.currentQuest ? 'font-black text-white' : ''}>
+                    {i > 0 ? ' → ' : ''}
+                    {SCENE_NAMES_VI[id]}
+                  </span>
+                ))}
+              </span>
+            </p>
+            <button
+              onClick={() => setGameNo((n) => n + 1)}
+              title="Đổi thứ tự ghế (seatOrder) như một ván mới để xem hành trình đổi"
+              className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-bold text-slate-200 active:bg-white/10"
+            >
+              Ván khác
+            </button>
+          </div>
+          <p className="text-[11px] text-slate-400">
             Đang xem dưới góc nhìn của <span className="text-white font-bold">{myPlayer.name}</span>
           </p>
         </div>
       </header>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto" data-preview-scene={sceneId}>
         {phase === 'lobby' ? (
           <div className="p-4">
             <LobbyRoundTable
@@ -937,7 +1090,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
               onKick={(_id, name) => alert(`(Demo) Kick "${name}"?`)}
             />
           </div>
-        ) : phase === 'role-reveal' ? (
+        ) : phase === 'role-reveal' || phase === 'role-reveal-evil' ? (
           <RoleReveal key={`${phase}:${replayNonce}`} myRole={myRole} myPlayerId={viewerId} players={players} onDone={() => setPhase('team-build-follower')} />
         ) : (
           <PlayerPanel
@@ -957,7 +1110,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             onAssassinate={noop}
             onSetAssassinChoice={noop}
             onShowMyRole={() => setShowRoleCard(true)}
-            onShowRolePreview={noop}
+            onShowRolePreview={() => setShowRolePreview(true)}
             onAckRole={stub}
             onAckDiscussion={stub}
             onPlayAgain={stub}
@@ -969,6 +1122,14 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
 
       {showRoleCard && myRole && (
         <RoleCard role={myRole} onClose={() => setShowRoleCard(false)} />
+      )}
+      {showRolePreview && (
+        <RolePreviewPopup
+          state={state}
+          myPlayer={myPlayer}
+          players={players}
+          onClose={() => setShowRolePreview(false)}
+        />
       )}
     </div>
   );

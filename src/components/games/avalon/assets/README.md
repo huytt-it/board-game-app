@@ -57,8 +57,55 @@ Muốn quay lại SVG thì đảo ngược bước 3.
    ghi tác giả và URL ở dòng chú thích đầu file. Path nên làm tròn còn 1 chữ số thập phân.
 3. Thêm một dòng vào `ICONS` trong `registry.ts` và một dòng vào `CREDITS.md`.
 
-## Cảnh (GĐ2)
+## Cảnh nền (GĐ2)
 
-GĐ2 sẽ thêm `SCENES` vào `registry.ts` theo cùng kiểu `AssetSource`: mỗi lớp của cảnh là
-`{ kind: 'svg', Component }` hoặc `{ kind: 'image', src }`, nên thay một lớp cảnh bằng tranh vẽ
-cũng chỉ là sửa một dòng.
+Cảnh là nền cắt giấy phía sau toàn bộ màn hình Avalon. **Chọn cảnh nào** là việc của
+`../scenes/getScene.ts` (hàm thuần của `state`, mọi máy như nhau); **vẽ cảnh** là việc của
+`../scenes/SceneBackdrop.tsx`; còn **cảnh gồm những lớp gì** nằm trong `SCENES` ở `registry.ts`:
+
+```ts
+forest: {
+  layers: [svg(ForestSky), svg(ForestFar), svg(ForestMist), svg(ForestNear)], // xa → gần
+  palette: FOREST_PALETTE,      // màu nền (base) + màu sáng nhất (accent)
+  particles: FOREST_PARTICLES,  // đom đóm, tia lửa… (≤ 20 hạt / cảnh)
+},
+mountain: placeholder('#1f2833', '#e8eef4'), // chưa vẽ: chỉ một nền phẳng màu base
+```
+
+### Khung hình (mọi lớp, SVG hay ảnh, đều theo khung này)
+- Mỗi lớp là một bức **1600×900**, phủ kín màn hình và **neo đáy-giữa** (giống SVG
+  `preserveAspectRatio="xMidYMax slice"`).
+- Điện thoại dọc (375×812) thấy **đủ chiều cao** nhưng chỉ khoảng **420 đơn vị giữa** của bề
+  ngang (x ≈ 590–1010). Desktop 1440×900 thấy x ≈ 80–1520. Vì vậy chi tiết chính (lâu đài,
+  đống lửa, lối mòn…) đặt ở **giữa, nửa dưới**; hai bên chỉ là phần thêm cho màn hình rộng.
+- Cảnh chỉ là nền: tối, tương phản thấp, không mảng lớn xanh lam / đỏ bão hoà (màu đó dành cho
+  phe). `SceneBackdrop` tự phủ thêm vignette + một lớp tối để chữ phía trên luôn đọc được.
+
+### Thay một lớp (hoặc cả cảnh) bằng tranh vẽ
+1. Vẽ / xuất ảnh đúng khung **1600×900** (hoặc 3200×1800 cho màn hình nét), **WebP**, các lớp
+   phía trước nên có **nền trong suốt** để nhìn thấy lớp phía sau. Muốn thay cả cảnh bằng một
+   bức duy nhất thì dùng một ảnh đặc cho lớp đầu tiên và bỏ các lớp còn lại.
+2. Thả file vào `public/avalon/scenes/`, ví dụ `public/avalon/scenes/forest-near.webp`.
+3. Sửa **một dòng** trong `SCENES`:
+
+   ```ts
+   // trước
+   layers: [svg(ForestSky), svg(ForestFar), svg(ForestMist), svg(ForestNear)],
+   // sau: chỉ thay lớp gần nhất
+   layers: [svg(ForestSky), svg(ForestFar), svg(ForestMist), { kind: 'image', src: '/avalon/scenes/forest-near.webp' }],
+   ```
+4. Mở **Xem trước** → ô **Cảnh** → chọn cảnh đó, xem ở 375px và 1440px.
+
+Ảnh được vẽ bằng `<img class="object-cover object-bottom">` trên cùng khung, nên ảnh khác tỉ lệ
+16:9 vẫn phủ kín (bị cắt hai bên / phía trên). Hạt hiệu ứng (`particles`) giữ nguyên, toạ độ của
+chúng tính theo khung 1600×900 nên vẫn khớp với tranh mới; muốn bỏ thì xoá dòng `particles`.
+
+### Vẽ thêm cảnh SVG (GĐ2b)
+- Mỗi cảnh một file `../scenes/layers/<id>.tsx`, xuất 3–5 lớp bằng `sceneLayer(tên, <>…</>)`
+  và `PALETTE`, `PARTICLES`. Màu theo Phụ lục C của `docs/ux-plan.md`.
+- Hình dựng sẵn trong `../scenes/paper.tsx`: `ridge` (đồi / mặt đất), `pineRow` / `pine` (hàng
+  thông), `blobs` (tán cây, mây), `archPath` (vòm Gothic), `scatter` (sao). Tất cả có seed nên
+  máy chủ và trình duyệt vẽ giống hệt nhau.
+- **Mọi hình vẽ theo chiều kim đồng hồ** trong cùng một `<path>`; hình lật gương (ngược chiều)
+  thì để ở `<path>` riêng, nếu không chỗ chồng nhau sẽ bị thủng (luật tô `nonzero`).
+- Đăng ký trong `SCENES` (bỏ `placeholder`) — tên trong `../scenes/types.ts`.

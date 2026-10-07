@@ -3,6 +3,7 @@ import { AvalonRole, PHASE_TIMEOUTS_MS, type AvalonGameData, type AvalonGameStat
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
 import { RoleIntroCard } from './shared';
 import AvIcon from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 
 function getActiveNightPlayerIds(
@@ -42,13 +43,9 @@ function NightCountdown({
   const timeStr = formatClock(remaining);
 
   return (
-    <div
-      className={`rounded-2xl border p-4 text-center ${allActiveAcked
-        ? 'border-emerald-500/40 bg-emerald-500/10'
-        : remaining < warnAt
-          ? 'border-amber-500/40 bg-amber-500/10'
-          : 'border-white/10 bg-white/5'
-        }`}
+    <GlassPanel
+      tone={allActiveAcked ? 'success' : remaining < warnAt ? 'warning' : 'neutral'}
+      className="p-4 text-center"
     >
       <p className="text-[11px] uppercase font-bold text-slate-400 mb-1">
         {allActiveAcked ? 'Đang chuyển bước...' : 'Tự động qua bước sau'}
@@ -63,7 +60,7 @@ function NightCountdown({
       >
         {allActiveAcked ? <AvIcon name="check" title="Đã xong" /> : timeStr}
       </p>
-    </div>
+    </GlassPanel>
   );
 }
 
@@ -97,15 +94,15 @@ export function NightEvilsSection({
   if (myTeam !== 'evil') {
     return (
       <div className="space-y-3">
-        <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-5 text-center">
-          <p className="text-[11px] uppercase font-black text-red-300 mb-2">
+        <GlassPanel tone="evil" className="p-5 text-center">
+          <p className="text-[11px] uppercase font-black text-(--av-evil-light) mb-2">
             <AvIcon name="team-evil" /> Đêm — Phe Quỷ đang nhận biết nhau
           </p>
           <AvIcon name="night" size={48} className="mb-2 animate-pulse text-slate-200" />
           <p className="text-sm text-slate-300">
             Hãy nhắm mắt. Các tay sai của Mordred đang lộ diện với nhau (Oberon thì đơn độc).
           </p>
-        </div>
+        </GlassPanel>
         {myRole && (
           <RoleIntroCard role={myRole} variant="self" />
         )}
@@ -119,8 +116,8 @@ export function NightEvilsSection({
   return (
     <div className="space-y-3">
       {myRole && <RoleIntroCard role={myRole} variant="self" />}
-      <div className="rounded-2xl border border-red-500/40 bg-red-500/10 p-5">
-        <p className="text-[11px] uppercase font-black text-red-300 mb-1">
+      <GlassPanel tone="evil" className="p-5">
+        <p className="text-[11px] uppercase font-black text-(--av-evil-light) mb-1">
           <AvIcon name="team-evil" /> Đêm — Phe Quỷ lộ diện
         </p>
         {isOberon ? (
@@ -130,8 +127,8 @@ export function NightEvilsSection({
               Bạn không biết đồng đội Quỷ là ai. Đồng đội Quỷ cũng không biết bạn.
               Tự xoay xở phá Quest.
             </p>
-            <div className="rounded-xl border border-red-500/20 bg-red-950/30 p-4 text-center">
-              <AvIcon name="oberon" size={40} className="mb-1 text-red-200" />
+            <div className="rounded-xl border border-(--av-evil)/20 bg-(--av-evil)/10 p-4 text-center">
+              <AvIcon name="oberon" size={40} className="mb-1 text-(--av-evil-light)" />
               <p className="text-xs text-slate-400">Không có đồng đội nào hiện ra với bạn.</p>
             </div>
           </>
@@ -147,31 +144,31 @@ export function NightEvilsSection({
               {otherEvils.map((p) => (
                 <div
                   key={p.id}
-                  className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5"
+                  className="flex items-center gap-3 rounded-xl border border-(--av-evil)/30 bg-(--av-evil)/10 px-3 py-2.5"
                 >
                   <PlayerAvatar player={p} size="sm" />
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-black text-white truncate">{p.name}</p>
-                    <p className="text-[11px] font-bold text-red-300">Phe Quỷ</p>
+                    <p className="text-[11px] font-bold text-(--av-evil-light)">Phe Quỷ</p>
                   </div>
                 </div>
               ))}
             </div>
           </>
         )}
-      </div>
+      </GlassPanel>
 
       {!myAcked ? (
         <button
           onClick={onAckRole}
-          className="w-full rounded-2xl bg-gradient-to-r from-red-600 to-rose-600 py-4 text-base font-black text-white hover:from-red-500 hover:to-rose-500 active:scale-[0.98] shadow-lg shadow-red-500/30"
+          className="w-full rounded-2xl bg-(--av-evil) py-4 text-base font-black text-(--av-ink) hover:brightness-110 active:scale-[0.98] shadow-lg shadow-black/40"
         >
           ✓ Đã xem — Tiếp theo
         </button>
       ) : (
-        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-center">
+        <GlassPanel tone="success" className="p-3 text-center">
           <p className="text-sm font-bold text-emerald-300">✓ Bạn đã sẵn sàng</p>
-        </div>
+        </GlassPanel>
       )}
 
       <NightCountdown state={state} phase="night-evils" allActiveAcked={allActiveAcked} />
@@ -206,15 +203,15 @@ export function NightMerlinSection({
   if (myRole !== AvalonRole.Merlin) {
     return (
       <div className="space-y-3">
-        <div className="rounded-2xl border border-blue-500/30 bg-blue-500/5 p-5 text-center">
-          <p className="text-[11px] uppercase font-black text-blue-300 mb-2">
+        <GlassPanel tone="good" className="p-5 text-center">
+          <p className="text-[11px] uppercase font-black text-(--av-good-light) mb-2">
             <AvIcon name="merlin" /> Đêm — Merlin đang quan sát
           </p>
           <AvIcon name="night" size={48} className="mb-2 animate-pulse text-slate-200" />
           <p className="text-sm text-slate-300">
             Hãy nhắm mắt. Merlin đang nhìn ra Phe Quỷ (Mordred ẩn).
           </p>
-        </div>
+        </GlassPanel>
         <RoleIntroCard role={AvalonRole.Merlin} variant="other" />
         {myRole && <RoleIntroCard role={myRole} variant="self" compact />}
         <NightCountdown state={state} phase="night-merlin" allActiveAcked={allActiveAcked} />
@@ -225,8 +222,8 @@ export function NightMerlinSection({
   return (
     <div className="space-y-3">
       <RoleIntroCard role={AvalonRole.Merlin} variant="self" />
-      <div className="rounded-2xl border border-blue-500/40 bg-blue-500/10 p-5">
-        <p className="text-[11px] uppercase font-black text-blue-300 mb-1">
+      <GlassPanel tone="good" className="p-5">
+        <p className="text-[11px] uppercase font-black text-(--av-good-light) mb-1">
           <AvIcon name="merlin" /> Phe Quỷ lộ diện trước bạn
         </p>
         <p className="text-xs text-slate-300 mb-3">
@@ -237,29 +234,29 @@ export function NightMerlinSection({
           {visibleEvils.map((p) => (
             <div
               key={p.id}
-              className="flex items-center gap-3 rounded-xl border border-red-500/30 bg-red-500/10 px-3 py-2.5"
+              className="flex items-center gap-3 rounded-xl border border-(--av-evil)/30 bg-(--av-evil)/10 px-3 py-2.5"
             >
               <PlayerAvatar player={p} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-black text-white truncate">{p.name}</p>
-                <p className="text-[11px] font-bold text-red-300">Phe Quỷ</p>
+                <p className="text-[11px] font-bold text-(--av-evil-light)">Phe Quỷ</p>
               </div>
             </div>
           ))}
         </div>
-      </div>
+      </GlassPanel>
 
       {!myAcked ? (
         <button
           onClick={onAckRole}
-          className="w-full rounded-2xl bg-gradient-to-r from-blue-600 to-cyan-600 py-4 text-base font-black text-white hover:from-blue-500 hover:to-cyan-500 active:scale-[0.98] shadow-lg shadow-blue-500/30"
+          className="w-full rounded-2xl bg-(--av-good) py-4 text-base font-black text-(--av-ink) hover:brightness-110 active:scale-[0.98] shadow-lg shadow-black/40"
         >
           ✓ Đã xem — Tiếp theo
         </button>
       ) : (
-        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-center">
+        <GlassPanel tone="success" className="p-3 text-center">
           <p className="text-sm font-bold text-emerald-300">✓ Bạn đã sẵn sàng</p>
-        </div>
+        </GlassPanel>
       )}
 
       <NightCountdown state={state} phase="night-merlin" allActiveAcked={allActiveAcked} />
@@ -294,7 +291,7 @@ export function NightPercivalSection({
   if (myRole !== AvalonRole.Percival) {
     return (
       <div className="space-y-3">
-        <div className="rounded-2xl border border-indigo-500/30 bg-indigo-500/5 p-5 text-center">
+        <GlassPanel tone="mystic" className="p-5 text-center">
           <p className="text-[11px] uppercase font-black text-indigo-300 mb-2">
             <AvIcon name="percival" /> Đêm — Percival đang quan sát
           </p>
@@ -302,7 +299,7 @@ export function NightPercivalSection({
           <p className="text-sm text-slate-300">
             Hãy nhắm mắt. Percival đang nhìn ra Merlin & Morgana.
           </p>
-        </div>
+        </GlassPanel>
         <RoleIntroCard role={AvalonRole.Percival} variant="other" />
         {myRole && <RoleIntroCard role={myRole} variant="self" compact />}
         <NightCountdown state={state} phase="night-percival" allActiveAcked={allActiveAcked} />
@@ -313,7 +310,7 @@ export function NightPercivalSection({
   return (
     <div className="space-y-3">
       <RoleIntroCard role={AvalonRole.Percival} variant="self" />
-      <div className="rounded-2xl border border-indigo-500/40 bg-indigo-500/10 p-5">
+      <GlassPanel tone="mystic" className="p-5">
         <p className="text-[11px] uppercase font-black text-indigo-300 mb-1">
           <AvIcon name="percival" /> Merlin & Morgana hiện ra trước bạn
         </p>
@@ -337,7 +334,7 @@ export function NightPercivalSection({
             </div>
           ))}
         </div>
-      </div>
+      </GlassPanel>
 
       {!myAcked ? (
         <button
@@ -347,9 +344,9 @@ export function NightPercivalSection({
           ✓ Đã xem — Vào Quest
         </button>
       ) : (
-        <div className="rounded-2xl border border-emerald-500/40 bg-emerald-500/10 p-3 text-center">
+        <GlassPanel tone="success" className="p-3 text-center">
           <p className="text-sm font-bold text-emerald-300">✓ Bạn đã sẵn sàng</p>
-        </div>
+        </GlassPanel>
       )}
 
       <NightCountdown state={state} phase="night-percival" allActiveAcked={allActiveAcked} />

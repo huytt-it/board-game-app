@@ -4,6 +4,7 @@ import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
 import { PlayerRoster } from './PlayerRoster';
 import { TokenBadges } from './shared';
 import AvIcon from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 
 export function TeamBuildSection({
@@ -36,7 +37,7 @@ export function TeamBuildSection({
     const emptySlots = Math.max(0, teamSize - team.length);
     return (
       <div className="space-y-3">
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-4 sm:p-5">
+        <GlassPanel tone="leader" className="p-4 sm:p-5">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-bold text-amber-300"><AvIcon name="team" /> ĐANG CHỌN ĐỘI — QUEST {state.currentQuest + 1}</p>
             <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-orange-300 animate-pulse' : 'text-amber-200'}`}>
@@ -47,7 +48,7 @@ export function TeamBuildSection({
             Leader <span className="font-black text-white">{leader?.name ?? '?'}</span> đang chọn{' '}
             <span className="font-black text-amber-300">{teamSize} người tham gia</span>.
           </p>
-          <p className="text-[10px] uppercase font-bold text-slate-500 mb-2">
+          <p className="text-[10px] uppercase font-bold text-slate-400 mb-2">
             Đội đang được chọn ({team.length}/{teamSize})
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -72,7 +73,7 @@ export function TeamBuildSection({
               </span>
             ))}
           </div>
-        </div>
+        </GlassPanel>
 
         <div className="lg:hidden">
           <PlayerRoster
@@ -100,7 +101,7 @@ export function TeamBuildSection({
   };
 
   return (
-    <div className="rounded-2xl border border-amber-500/40 bg-amber-500/5 p-4">
+    <GlassPanel tone="leader" emphasis className="p-4">
       <div className="flex items-center justify-between mb-1">
         <p className="text-[11px] uppercase font-black text-(--av-leader)"><AvIcon name="leader" /> Bạn là Leader</p>
         <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-orange-300 animate-pulse' : 'text-amber-200'}`}>
@@ -110,7 +111,7 @@ export function TeamBuildSection({
       <h3 className="av-display text-xl text-white mb-1">
         Chọn {teamSize} người cho Quest {state.currentQuest + 1}
       </h3>
-      <p className="text-xs text-slate-400 mb-1">
+      <p className="text-xs text-slate-300 mb-1">
         Bạn có thể tự chọn mình. Nhấn lại để bỏ chọn.
       </p>
       <p className="text-[10px] text-amber-300/80 mb-4">
@@ -147,12 +148,12 @@ export function TeamBuildSection({
       <button
         onClick={onSubmitTeam}
         disabled={team.length !== teamSize}
-        className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 py-3.5 text-base font-black text-white hover:from-amber-400 hover:to-orange-400 disabled:opacity-40 disabled:cursor-not-allowed"
+        className="w-full rounded-2xl bg-gradient-to-r from-amber-500 to-orange-500 py-3.5 text-base font-black text-white hover:from-amber-400 hover:to-orange-400 disabled:from-slate-800 disabled:to-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed"
       >
         {team.length !== teamSize
           ? `Cần đủ ${teamSize} người (đang có ${team.length})`
           : '✓ Trình đội — Bỏ phiếu'}
       </button>
-    </div>
+    </GlassPanel>
   );
 }

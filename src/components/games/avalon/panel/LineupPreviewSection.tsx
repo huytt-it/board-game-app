@@ -4,6 +4,7 @@ import { ROLE_TEAM } from '../constants';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
 import { RoleLineChip } from './shared';
 import AvIcon from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 
 export function LineupPreviewSection({
   state,
@@ -41,7 +42,7 @@ export function LineupPreviewSection({
   return (
     <div className="space-y-2.5">
       {/* Header gọn: tổng quan + đếm ngược inline */}
-      <div className="rounded-2xl border border-fuchsia-500/30 bg-gradient-to-br from-fuchsia-900/20 to-purple-900/20 p-3 flex items-center justify-between gap-3">
+      <GlassPanel tone="mystic" className="p-3 flex items-center justify-between gap-3">
         <div className="min-w-0">
           <p className="text-[10px] uppercase font-black text-fuchsia-300 tracking-widest">
             <AvIcon name="roles" /> Các vai trò trong ván
@@ -72,14 +73,14 @@ export function LineupPreviewSection({
             {allAcked ? <AvIcon name="check" title="Mọi người đã sẵn sàng" /> : timeStr}
           </p>
         </div>
-      </div>
+      </GlassPanel>
 
-      {/* 2-cột: Phe Người | Phe Quỷ — ô role chip nhỏ gọn */}
+      {/* 2-cột: Phe Người | Phe Quỷ — ô role chip nhỏ gọn (thông tin công khai) */}
       <div className="grid grid-cols-2 gap-2">
-        <div className="rounded-2xl border border-blue-500/30 bg-blue-900/15 p-2.5">
+        <GlassPanel tone="good" className="p-2.5">
           <div className="flex items-center gap-1.5 mb-2">
-            <AvIcon name="team-good" size={14} className="text-blue-300" />
-            <h3 className="text-xs font-black text-blue-200">Phe Người ({goodRoles.length})</h3>
+            <AvIcon name="team-good" size={14} className="text-(--av-good-light)" />
+            <h3 className="text-xs font-black text-(--av-good-light)">Phe Người ({goodRoles.length})</h3>
           </div>
           <div className="grid grid-cols-1 gap-1.5">
             {Object.entries(goodCounts).map(([role, count]) => (
@@ -91,11 +92,11 @@ export function LineupPreviewSection({
               />
             ))}
           </div>
-        </div>
-        <div className="rounded-2xl border border-red-500/30 bg-red-900/15 p-2.5">
+        </GlassPanel>
+        <GlassPanel tone="evil" className="p-2.5">
           <div className="flex items-center gap-1.5 mb-2">
-            <AvIcon name="team-evil" size={14} className="text-red-300" />
-            <h3 className="text-xs font-black text-red-200">Phe Quỷ ({evilRoles.length})</h3>
+            <AvIcon name="team-evil" size={14} className="text-(--av-evil-light)" />
+            <h3 className="text-xs font-black text-(--av-evil-light)">Phe Quỷ ({evilRoles.length})</h3>
           </div>
           <div className="grid grid-cols-1 gap-1.5">
             {Object.entries(evilCounts).map(([role, count]) => (
@@ -107,12 +108,12 @@ export function LineupPreviewSection({
               />
             ))}
           </div>
-        </div>
+        </GlassPanel>
       </div>
 
       {/* 2-cột: Leader | Lady (Lady chỉ hiện khi ≥7) — gọn 1 hàng */}
       <div className={`grid gap-2 ${lady ? 'grid-cols-2' : 'grid-cols-1'}`}>
-        <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-2.5 flex items-center gap-2">
+        <GlassPanel tone="leader" className="p-2.5 flex items-center gap-2">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-leader) text-lg text-(--av-ink) border-2 border-amber-100 shadow shadow-black/40">
             <AvIcon name="leader" />
           </div>
@@ -127,29 +128,29 @@ export function LineupPreviewSection({
               )}
             </p>
           </div>
-        </div>
+        </GlassPanel>
         {lady && (
-          <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-2.5 flex items-center gap-2">
+          <GlassPanel tone="lady" className="p-2.5 flex items-center gap-2">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-lady) text-lg text-(--av-ink) border-2 border-teal-100 shadow shadow-black/40">
               <AvIcon name="lady" />
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[9px] uppercase font-black tracking-widest text-cyan-300">
+              <p className="text-[9px] uppercase font-black tracking-widest text-(--av-lady)">
                 Lady đầu
               </p>
               <p className="text-sm font-black text-white truncate">
                 {lady.name}
                 {lady.id === myPlayer.id && (
-                  <span className="ml-1 text-[10px] text-cyan-200">(bạn)</span>
+                  <span className="ml-1 text-[10px] text-teal-100">(bạn)</span>
                 )}
               </p>
             </div>
-          </div>
+          </GlassPanel>
         )}
       </div>
 
       {/* Ack button + progress bar gộp 1 card */}
-      <div className="rounded-2xl border border-white/10 bg-white/5 p-3 space-y-2">
+      <GlassPanel className="p-3 space-y-2">
         {!myAcked ? (
           <button
             onClick={onAckRole}
@@ -175,7 +176,7 @@ export function LineupPreviewSection({
           </div>
           <span className="text-xs font-black text-white tabular-nums">{ackCount}/{total}</span>
         </div>
-      </div>
+      </GlassPanel>
     </div>
   );
 }

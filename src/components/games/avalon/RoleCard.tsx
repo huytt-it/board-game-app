@@ -3,6 +3,8 @@
 import { AvalonRole } from './types';
 import { ROLE_DESC_VI, ROLE_NAMES_VI, ROLE_TEAM, TEAM_NAME_VI } from './constants';
 import AvIcon from './assets/AvIcon';
+import { TEAM_ICON_NAME } from './presentation';
+import GlassPanel from './ui/GlassPanel';
 import RoleEmblem from './ui/RoleEmblem';
 
 interface RoleCardProps {
@@ -14,15 +16,11 @@ export default function RoleCard({ role, onClose }: RoleCardProps) {
   const team = ROLE_TEAM[role];
   const isGood = team === 'good';
 
+  // Neutral frame and button for every role (ux-plan 2.9): the team shows only
+  // in the small label and the emblem's rim.
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
-      <div
-        className={`relative w-full max-w-md overflow-hidden rounded-3xl border-2 p-6 shadow-2xl ${
-          isGood
-            ? 'border-blue-500/50 bg-gradient-to-br from-blue-950/95 to-slate-950/95'
-            : 'border-red-500/50 bg-gradient-to-br from-red-950/95 to-slate-950/95'
-        }`}
-      >
+      <GlassPanel tone="gold" emphasis className="relative w-full max-w-md overflow-hidden rounded-3xl p-6">
         <button
           onClick={onClose}
           className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
@@ -36,33 +34,28 @@ export default function RoleCard({ role, onClose }: RoleCardProps) {
             <RoleEmblem role={role} size="xl" />
           </div>
           <span
-            className={`inline-block rounded-full px-3 py-1 text-xs font-black uppercase tracking-widest ${
-              isGood ? 'bg-blue-500/20 text-blue-300' : 'bg-red-500/20 text-red-300'
+            className={`inline-flex items-center gap-1.5 rounded-full border border-(--av-parchment)/20 bg-black/30 px-3 py-1 text-xs font-black uppercase tracking-widest ${
+              isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
             }`}
           >
-            {TEAM_NAME_VI[team]}
+            <AvIcon name={TEAM_ICON_NAME[team]} /> {TEAM_NAME_VI[team]}
           </span>
           <h2 className="av-display mt-3 text-4xl text-white">{role}</h2>
-          <p className={`mt-1 text-sm font-semibold ${isGood ? 'text-blue-300' : 'text-red-300'}`}>
-            {ROLE_NAMES_VI[role]}
-          </p>
+          <p className="mt-1 text-sm font-semibold text-(--av-parchment)">{ROLE_NAMES_VI[role]}</p>
         </div>
 
         <div className="mt-5 rounded-2xl border border-white/10 bg-black/30 p-4">
-          <p className="text-sm leading-relaxed text-slate-200">{ROLE_DESC_VI[role]}</p>
+          {/* min-h = the longest description (4 lines), so every role's card has the same size */}
+          <p className="min-h-[5.75rem] text-sm leading-relaxed text-slate-200">{ROLE_DESC_VI[role]}</p>
         </div>
 
         <button
           onClick={onClose}
-          className={`mt-5 w-full rounded-2xl py-3.5 text-base font-black text-white transition-all active:scale-[0.98] ${
-            isGood
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500'
-              : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500'
-          }`}
+          className="mt-5 w-full rounded-2xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-3.5 text-base font-black text-(--av-parchment) transition-all hover:bg-(--av-gold)/30 active:scale-[0.98]"
         >
           ✓ Đã rõ
         </button>
-      </div>
+      </GlassPanel>
     </div>
   );
 }

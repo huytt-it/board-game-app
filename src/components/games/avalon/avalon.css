@@ -14,11 +14,16 @@
   --av-gold: #d4a64a; /* điểm nhấn, viền khung */
   --av-parchment: #efe3c8; /* giấy da: chữ/icon sáng trên nền tối, "bạn" */
   --av-ink: #16110d; /* mực: nền tối của huy hiệu */
-  --av-glass-bg: rgba(18, 13, 10, 0.72);
+  --av-glass-bg: rgba(18, 13, 10, 0.8);
   --av-glass-border: rgba(239, 227, 200, 0.14);
+  --av-bar-bg: rgba(14, 10, 8, 0.94); /* thanh trên cùng: gần như đặc, không blur */
   --av-team: #f0883e; /* người được đề cử vào đội */
   --av-approve: #4fae74; /* phiếu Đồng ý */
   --av-reject: #9a6bb4; /* phiếu Từ chối */
+  --av-reject-light: #c9a8dc; /* chữ nhỏ "Từ chối" trên nền tối */
+  /* Bản sáng của màu phe, cho CHỮ nhỏ trên nền tối (đủ tương phản). */
+  --av-good-light: #a9c3f7;
+  --av-evil-light: #f2a7a7;
 }
 
 /* Font tiêu đề (Cormorant Garamond, có dấu tiếng Việt) — biến
@@ -38,6 +43,147 @@
   display: inline-block;
   flex-shrink: 0;
   vertical-align: -0.125em;
+}
+
+/* ─── Cảnh nền (GĐ2, scenes/SceneBackdrop.tsx) ───────────────────── */
+/* Sân khấu 1600×900 phủ kín màn hình, neo đáy-giữa (= SVG xMidYMax slice):
+   mọi lớp cảnh (SVG hay ảnh) và hạt hiệu ứng dùng chung khung này. */
+.av-scene {
+  container-type: size;
+}
+.av-scene-stage {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: max(100cqw, 177.7778cqh);
+  height: max(100cqh, 56.25cqw);
+  transform: translateX(-50%);
+}
+
+/* Đổi cảnh: cảnh mới mờ dần lên trên cảnh cũ. */
+@keyframes av-scene-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.av-scene-enter {
+  animation: av-scene-in 700ms ease-out both;
+}
+
+/* Vignette + lớp tối: cảnh chỉ là nền, chữ phía trên phải đọc được. */
+.av-scene-shade {
+  background:
+    radial-gradient(ellipse 120% 95% at 50% 42%, transparent 50%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.22));
+}
+
+/* Bão (GĐ2b vẽ thật trong weather/Storm.tsx) — tạm thời: phủ tối + vệt mưa tĩnh. */
+.av-storm-placeholder {
+  background:
+    repeating-linear-gradient(105deg, transparent 0 22px, rgba(200, 205, 230, 0.05) 22px 24px),
+    rgba(18, 20, 36, 0.38);
+}
+
+/* Hạt hiệu ứng: chỉ animate transform + opacity; màu lấy từ `color`. */
+.av-particle {
+  position: absolute;
+  border-radius: 9999px;
+  background: currentColor;
+  will-change: transform, opacity;
+  animation-iteration-count: infinite;
+}
+.av-particle-firefly {
+  box-shadow: 0 0 8px 2px currentColor;
+  animation-name: av-firefly;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+@keyframes av-firefly {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.9;
+  }
+  55% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0.2;
+  }
+  80% {
+    opacity: 0.85;
+  }
+  100% {
+    transform: translate(calc(var(--dx) * -0.6), calc(var(--dy) * 1.4));
+    opacity: 0.1;
+  }
+}
+.av-particle-ember {
+  box-shadow: 0 0 6px 1px currentColor;
+  animation-name: av-ember;
+  animation-timing-function: linear;
+}
+@keyframes av-ember {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  100% {
+    transform: translate(var(--dx), -190px);
+    opacity: 0;
+  }
+}
+.av-particle-twinkle {
+  box-shadow: 0 0 4px currentColor;
+  animation-name: av-twinkle;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+@keyframes av-twinkle {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.av-particle-mote {
+  opacity: 0.35;
+  animation-name: av-mote;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+@keyframes av-mote {
+  from {
+    transform: translate(0, 0);
+    opacity: 0.1;
+  }
+  to {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0.5;
+  }
+}
+.av-particle-flicker {
+  background: radial-gradient(circle, currentColor 0%, transparent 68%);
+  animation-name: av-flicker;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+@keyframes av-flicker {
+  from {
+    transform: scale(0.92);
+    opacity: 0.22;
+  }
+  to {
+    transform: scale(1.06);
+    opacity: 0.42;
+  }
 }
 
 /* ─── Sword stab (Assassin click target) ─────────────────────────── */
@@ -152,5 +298,9 @@
   .avalon-root *::after {
     animation: none !important;
     transition: none !important;
+  }
+  /* Hạt hiệu ứng của cảnh là trang trí thuần: ẩn hẳn. */
+  .av-particle {
+    display: none;
   }
 }

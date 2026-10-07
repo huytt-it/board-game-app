@@ -3,6 +3,7 @@ import { AvalonRole, type AvalonGameData, type AvalonGameState } from '../types'
 import { ROLE_NAMES_VI, TEAM_NAME_VI } from '../constants';
 import { AssassinRevealOverlay } from './AssassinRevealOverlay';
 import AvIcon from '../assets/AvIcon';
+import GlassPanel from '../ui/GlassPanel';
 import RoleEmblem from '../ui/RoleEmblem';
 
 export function EndSection({
@@ -40,21 +41,17 @@ export function EndSection({
           startedAt={state.phaseStartedAt}
         />
       )}
-      <div
-        className={`rounded-2xl border p-6 text-center relative overflow-hidden ${isGood
-          ? 'border-blue-500/40 bg-blue-500/10'
-          : 'border-red-500/40 bg-red-500/10'
-          }`}
-      >
+      {/* The winner is public: every screen shows the same card. */}
+      <GlassPanel tone={isGood ? 'good' : 'evil'} emphasis className="p-6 text-center relative overflow-hidden">
         <AvIcon
           name={isGood ? 'team-good' : 'team-evil'}
           size={64}
-          className={`mb-3 ${isGood ? 'text-blue-200' : 'text-red-200'}`}
+          className={`mb-3 ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'}`}
         />
         <h2 className="av-display text-4xl text-white mb-1">
           {isGood ? 'Phe Người thắng!' : 'Phe Quỷ thắng!'}
         </h2>
-        <p className={`text-sm ${isGood ? 'text-blue-300' : 'text-red-300'}`}>
+        <p className={`text-sm ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'}`}>
           {fiveRejections
             ? '5 lần liên tiếp đội bị từ chối — Phe Quỷ chiến thắng.'
             : merlinTarget
@@ -64,16 +61,16 @@ export function EndSection({
               : `${successes} Quest thành công · ${failures} Quest thất bại`}
         </p>
         {myRole && (
-          <p className="mt-3 text-xs text-slate-400">
+          <p className="mt-3 text-xs text-slate-300">
             Vai của bạn:{' '}
             <span className="inline-flex items-center gap-1 align-middle font-bold text-white">
               <RoleEmblem role={myRole} size="xs" /> {myRole}
             </span>
           </p>
         )}
-      </div>
+      </GlassPanel>
 
-      <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
+      <GlassPanel className="overflow-hidden">
         <div className="px-4 py-3 border-b border-white/10">
           <h3 className="av-display text-xl text-white"><AvIcon name="roles" /> Lộ tất cả vai trò</h3>
         </div>
@@ -94,7 +91,7 @@ export function EndSection({
                   <p className="text-sm font-black text-white">{p.name}</p>
                   {role && (
                     <p
-                      className={`text-xs font-bold ${isPlayerGood ? 'text-blue-300' : 'text-red-300'
+                      className={`text-xs font-bold ${isPlayerGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
                         }`}
                     >
                       {role} · {ROLE_NAMES_VI[role]}
@@ -104,8 +101,8 @@ export function EndSection({
                 {team && (
                   <span
                     className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] uppercase font-black ${isPlayerGood
-                      ? 'bg-blue-500/20 text-blue-300'
-                      : 'bg-red-500/20 text-red-300'
+                      ? 'bg-(--av-good)/20 text-(--av-good-light)'
+                      : 'bg-(--av-evil)/20 text-(--av-evil-light)'
                       }`}
                   >
                     {TEAM_NAME_VI[team]}
@@ -115,7 +112,7 @@ export function EndSection({
             );
           })}
         </div>
-      </div>
+      </GlassPanel>
 
       {(onPlayAgain || onLeaveRoom) && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
@@ -123,7 +120,7 @@ export function EndSection({
             <button
               onClick={onPlayAgain}
               disabled={isHost === false}
-              className="rounded-2xl bg-gradient-to-r from-emerald-600 to-teal-600 py-3.5 text-sm font-black text-white hover:from-emerald-500 hover:to-teal-500 active:scale-[0.98] shadow-lg shadow-emerald-500/30 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none disabled:opacity-60 disabled:cursor-not-allowed"
+              className="rounded-2xl bg-gradient-to-r from-emerald-700 to-teal-700 py-3.5 text-sm font-black text-white hover:from-emerald-600 hover:to-teal-600 active:scale-[0.98] shadow-lg shadow-emerald-500/30 disabled:from-slate-700 disabled:to-slate-700 disabled:shadow-none disabled:opacity-60 disabled:cursor-not-allowed"
               title={isHost === false ? 'Chỉ chủ phòng mới có thể bắt đầu ván mới' : undefined}
             >
               <AvIcon name="new-game" /> Chơi tiếp ván mới
@@ -137,7 +134,7 @@ export function EndSection({
           {onLeaveRoom && (
             <button
               onClick={onLeaveRoom}
-              className="rounded-2xl border border-white/15 bg-white/5 py-3.5 text-sm font-black text-slate-200 hover:bg-white/10 active:scale-[0.98]"
+              className="rounded-2xl border border-white/15 bg-(color:--av-glass-bg) py-3.5 text-sm font-black text-slate-200 hover:bg-white/10 active:scale-[0.98]"
             >
               <AvIcon name="leave" /> Thoát phòng
             </button>
