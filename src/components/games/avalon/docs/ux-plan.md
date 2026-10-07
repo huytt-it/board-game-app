@@ -416,7 +416,7 @@ Branch: `dev-avalon-uxui`.
 |---|---|---|---|---|
 | 0 Nền móng | **Đã review — đạt** (2026-10-06) | `3e76509d` → `cba374f3` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3e76509d..HEAD` | Claude Sonnet 5.5 | Mọi lỗi B1–B8 đã xử lý, giao diện giữ nguyên. Chi tiết lệch kế hoạch + kết quả kiểm thử ở mục "Ghi chú của người thực thi GĐ0" bên dưới. |
 | 1 Bộ nhận diện | **Đã review — đạt** (2026-10-06) | `928c1afa` → `f92d548d` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 928c1afa..HEAD` | Claude Opus 5.5 | 47 icon game-icons.net (người dùng đã duyệt bảng) + 1 icon chỉnh sửa, registry + `AvIcon`, token màu, font Cormorant Garamond, `PlayerAvatar`, `RoleEmblem`; 0 emoji. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ1" bên dưới. |
-| 2a Hệ thống cảnh + quét lộ phe | Chưa bắt đầu | | | |
+| 2a Hệ thống cảnh + quét lộ phe | **Xong — chờ review** (2026-10-07) | `d6e27ed7` → `ccfb2005` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log d6e27ed7..HEAD` | Claude Opus 5.5 | `scenes/` (types, journey, getScene, SceneBackdrop, paper), 4 cảnh mẫu `hall`/`night`/`camp`/`forest` + 10 placeholder, `SCENES` trong registry, `ui/GlassPanel`, quét lộ phe, token màu phe (regex màu = 0). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2a" bên dưới. |
 | 2b Vẽ đủ cảnh + tiêu đề + hành trình | Chưa bắt đầu | | | |
 | 3 Vòng Quest | Chưa bắt đầu | | | |
 | 4 Mở đầu | Chưa bắt đầu | | | |
@@ -538,6 +538,86 @@ Lưu ý cho các GĐ sau:
 **Gợi ý cho GĐ sau:**
 - Ảnh chụp tự động qua DevTools Protocol (Chrome headless `--remote-debugging-port`, `Emulation.setDeviceMetricsOverride` cho 375px, đổi `<select>` của Preview bằng native setter + sự kiện `change`) ổn định hơn chụp trong pane trình duyệt của app (pane hay treo khi cửa sổ bị che).
 - Icon đứng riêng một dòng phía trên chữ (huy hiệu lớn, icon kết quả) nên bọc trong `<div className="flex justify-center">`: `AvIcon` và `RoleEmblem` là phần tử inline, đứng cạnh một `<span>` thì sẽ nằm cùng dòng.
+
+### Ghi chú của người thực thi GĐ2a
+
+**Đã làm:** 2.1–2.5, 2.8, 2.9, 2.10 và 4 cảnh mẫu. Không sửa logic-core: `useAvalon.ts`, `types.ts`, `constants.ts` không có trong diff; ở `AvalonBoard.tsx` chỉ đổi JSX (mọi nhánh `return` bọc qua `withScene`, thẻ QR thành `GlassPanel`, màu chữ màn chờ, nút Xoá/Rời bỏ blur), khối auto-progression và các handler giữ nguyên. Không thêm dependency, không sửa `globals.css`, không đụng game khác.
+
+**Cấu trúc mới:** `scenes/types.ts` (id cảnh, `SCENE_NAMES_VI`, kiểu palette/hạt), `scenes/journey.ts` (`getJourney`, FNV-1a + mulberry32, memo 1 mục), `scenes/getScene.ts`, `scenes/SceneBackdrop.tsx`, `scenes/paper.tsx` (hình cắt giấy có seed), `scenes/layers/{hall,night,camp,forest}.tsx`, `ui/GlassPanel.tsx`; `SCENES` thêm vào `assets/registry.ts`; `assets/README.md` có mục "Cảnh nền" (khung hình, cách thay lớp bằng ảnh, cách vẽ thêm cảnh).
+
+**Lệch / quyết định nhỏ so với kế hoạch (nhạc trưởng nên liếc qua):**
+1. **Cảnh vẽ bằng hàm dựng hình có seed** (`paper.tsx`: `ridge`, `pineRow`, `blobs`, `archPath`, `scatter`) chạy một lần lúc nạp module, thay vì dán path tĩnh: mỗi file cảnh 3,6–5,1 KB, dễ chỉnh, server và client vẽ giống hệt (không lệch hydration). Mỗi lớp vẫn là một component SVG trong `SCENES`, nên thay bằng ảnh được.
+2. **Khung hình:** mỗi lớp là một bức 1600×900 đặt trên một "sân khấu" CSS phủ kín màn hình, neo đáy-giữa (= `xMidYMax slice`), tính bằng container query units (`cqw`/`cqh`). Lớp SVG, lớp ảnh và hạt hiệu ứng dùng chung toạ độ đó. Điện thoại dọc thấy đủ chiều cao nhưng chỉ x ≈ 590–1010, nên chi tiết chính đặt giữa.
+3. **`SceneBackdrop` do container render** (`AvalonBoard` cho cả lobby, màn chờ và trong ván; `AvalonPreview` tự render), không nằm trong `PlayerPanel`: nhờ vậy backdrop giữ mount khi chuyển lobby → ván. Nó là `fixed inset-0 -z-10`, nằm trong stacking context `main.relative.z-10` của trang phòng.
+4. **Crossfade 700 ms**, nhưng **không fade trong 1,5 s đầu sau khi mount**: khi reload, màn "Đang tải" (cảnh `hall`) đổi sang cảnh thật ngay, không fade. Tab ở nền: trình duyệt không chạy CSS animation, nên cảnh cũ nằm dưới cho tới khi tab hiện lại rồi mới fade (thấy rõ trong ván thật chạy headless); thuộc tính `data-scene` luôn là cảnh mới.
+5. **Storm** chưa vẽ (GĐ2b): `getScene` trả `storm`, và `SceneBackdrop` hiện một lớp tạm (phủ tối + vệt mưa tĩnh, `.av-storm-placeholder`). `getScene` trả thêm `location`: địa điểm đang chơi, hoặc địa điểm kế khi đang ở `camp` (cho tiêu đề "Dựng trại trước…" của GĐ2b).
+6. **Token:** `--av-glass-bg` 0,72 → 0,8; thêm `--av-bar-bg` (thanh trên, gần đặc), `--av-good-light` / `--av-evil-light` (chữ màu phe trên nền tối), `--av-reject-light`. Thanh trên cùng và nút Xoá/Rời bỏ `backdrop-filter: blur`; modal giữ blur (mỗi lúc chỉ có một modal).
+7. **Quét lộ phe, thêm ngoài danh sách:** `RolePreviewPopup` (khung và nút tô theo phe người xem), `RoleIntroCard` (thẻ "Bạn là…" ở đêm tô theo phe), thẻ "Phiếu của bạn" sau khi bầu (tô theo phiếu; nay là "Đã bỏ phiếu" trung tính, lựa chọn chỉ còn một dòng nhỏ), và các hàng `PlayerRoster` bị tô đỏ/chàm theo hiểu biết riêng (Merlin/Quỷ/Percival; nay chỉ còn chip nhỏ). `RoleCard`/`RoleReveal`: ô mô tả có `min-h` bằng mô tả dài nhất (4 dòng), nên thẻ của mọi vai cao bằng nhau.
+8. **QuestPlay:** câu luật chung cho mọi người trong đội ("Phe Người bắt buộc… · Phe Quỷ…") thay cho hai câu khác nhau theo phe. Hai nút vẫn xanh/đỏ (mỗi nút giống nhau với mọi người xem; tôi hiểu "giống hệt nhau với mọi người chơi" theo nghĩa đó). Vòng chọn màu vàng như nhau; nút xác nhận vàng cố định, ghi "Xác nhận đặt lá" + icon cỡ chữ; toast thay cho `alert()`.
+9. **Lady:** "PHE THIỆN / PHE ÁC" đổi thành "Phe Người / Phe Quỷ" (`TEAM_NAME_VI`) cho thống nhất. Nút Hoàn tất / Xác nhận soi dùng `--av-lady` + chữ mực.
+10. **Tương phản:** chữ trắng trên nút màu token (Đồng ý, Từ chối, nút "Đã xem" ở đêm, Xác nhận đâm) chỉ đạt ~2,8–3,6:1, nên đổi sang chữ mực `--av-ink`. Gradient emerald 600 → 700. Vài nhãn `slate-500`/`stone-500` (ví dụ "Quest n/5", "N người" ở ô Quest) đổi thành `-400`. Chip phase đêm/ám sát dùng bản `-light`. Nút bị vô hiệu ở QuestPlay/TeamBuild/Assassin không dùng `opacity` nữa (cảnh nhìn xuyên qua), thay bằng nền tối đặc.
+11. **Preview:** thêm cảnh mock `role-reveal-evil`, `team-vote-voted-reject`, `quest-play-on-team-evil`, `quest-play-played-good|evil` để chụp theo cặp. Các cảnh quest-play đổi Leader thành Charlie (người ngoài cặp), để so cặp không bị lệch bởi dải "Bạn là Leader" (thông tin công khai). Nút "Các vai" nay mở `RolePreviewPopup`. Header của Preview cao thêm 2 dòng (ô Cảnh + Bão, dòng hành trình + "Ván khác").
+12. `rg "(blue|red|rose|cyan)-[0-9]" src/components/games/avalon` = **0**, nên không còn chỗ nào cần ghi lý do. Ngoài regex còn `indigo-*` (Percival: "Merlin hay Morgana", lượt đêm Percival) và `fuchsia-*`/`purple-*` (lineup, nút "Các vai"); các màu này không mang nghĩa phe.
+
+**Còn lộ (theo 2.9, để GĐ4):**
+- **Các section đêm** khác nhau theo vai: Quỷ thấy danh sách đồng đội + nút, Merlin thấy danh sách + nút, người khác thấy thẻ chờ. Cặp "Đêm Phe Quỷ: Người | Quỷ" lệch TB 19,4 (375px), ngang 2 phase khác nhau. GĐ4 xử lý bằng lớp phủ "nhắm mắt".
+- Huy hiệu gợi ý nhỏ trên bàn/danh sách (mặt quỷ cho Merlin/Quỷ, dấu hỏi cho Percival) vẫn hiện; đây là chi tiết cỡ icon, có từ trước. `RoleEmblem` giữ viền + lòng khiên tô nhẹ màu phe (2.9 cho phép).
+- `AssassinSection` khác nhau theo phe, nhưng lúc đó cả Phe Quỷ đã lộ công khai.
+
+**Kết quả kiểm thử:**
+- `npx tsc --noEmit` sạch; `npm run build` thành công (build lại sạch sau khi xoá harness).
+- `npx eslint src/components/games/avalon`: 2 lỗi `react-hooks/set-state-in-effect` có sẵn (`AvalonBoard.tsx:145`, trước là 127, lệch do thêm import và `withScene`; `QuestPlaySection.tsx:28`) + 2 cảnh báo có sẵn trong `useAvalon.ts`. Không có vấn đề mới.
+- Đếm emoji = 0; regex màu = 0.
+- **getJourney / getScene:** biên dịch bằng `tsc` rồi chạy bằng Node, 13 kiểm tra đạt. Cùng `seatOrder` (khác instance, xen kẽ ván khác) cho cùng hành trình. 300 `seatOrder` ngẫu nhiên cho 281 hành trình khác nhau, và cả 7 địa điểm đều có lúc mở màn. `seatOrder` rỗng thì seed theo `roomId`. Ánh xạ phase đúng bảng 2.3; `storm` chỉ bật ở Quest 4 khi ≥ 7 người và chỉ ở cảnh địa điểm; `currentQuest` ngoài 0..4 không vỡ. Preview hiện hành trình, nút "Ván khác" đổi `seatOrder` để xem hành trình đổi.
+- **Ảnh** ở `.claude/gd2a-shots/` (mở `index.html`), chụp bằng Chrome headless qua DevTools Protocol trên harness tạm:
+  - 8 cảnh trần (ẩn UI: 4 cảnh mẫu + 4 placeholder) ở 1440 và 375;
+  - 46 cảnh Preview × (375 phần trên + phần dưới khi cuộn, 1440), kèm khung lộ vai của overlay ám sát;
+  - vòng Quest trên cảnh rừng + lớp bão tạm;
+  - kết quả: 0 lỗi JS, `[data-phase-section]` = 1 ở mọi cảnh, placeholder không vỡ bố cục.
+- **Đổi lớp sang ảnh:** tạm đặt lớp gần của `forest` = `{ kind: 'image', src }` với một PNG 1600×900 tự tạo; ảnh nạp đủ 1600 px và nằm đúng khung ở 1440 và 375. Đã trả lại registry và xoá file.
+- **Không lộ phe từ xa** (cặp ảnh thu còn 10%, độ lệch điểm ảnh trung bình 0–255; composite ở `pairs/`):
+
+  | Cặp | 375 | 1440 |
+  |---|---|---|
+  | Lộ vai: Merlin \| Sát Thủ | 0,13 | 0,06 |
+  | Đặt lá, chưa chọn: Người \| Quỷ | 0,31 | 0,45 |
+  | Đặt lá, đã chọn: Người chọn lá Người \| Quỷ chọn lá Quỷ | 1,98 | 0,73 |
+  | Đã đặt lá: Người \| Quỷ | 0,31 | 0,45 |
+  | Đã bầu: Đồng ý \| Từ chối | 0 | 0,02 |
+  | Lady thấy: Người \| Quỷ | 1,28 | 1,09 (GĐ1: 3,13) |
+  | Bị soi: Người \| Quỷ | 1,60 | 1,37 (GĐ1: 5,83) |
+  | Modal "Vai của tôi": Merlin \| Mordred | 3,37 | 0,85 |
+  | Popup "Các vai": Merlin \| Mordred | 1,94 | 0,52 |
+  | *Đối chứng: 2 phase khác nhau* | *14,87* | *11,12* |
+  | *Đêm Phe Quỷ: Người \| Quỷ (GĐ4)* | *19,37* | *10,25* |
+
+  Phần lệch còn lại là chi tiết cỡ icon: viền/lòng huy hiệu, icon kết quả soi, vòng chọn, huy hiệu gợi ý trên bàn.
+- **Ván thật** (bản production; 5 origin `localhost`, `127.0.0.1`, `a.localhost`, `b.localhost`, `c.localhost`; không dùng IP LAN):
+  - Ván chạy lobby → lineup → thư lộ vai → đêm → Quest 1 (chọn đội, bầu, kết quả phiếu, chơi, kết quả) → thảo luận → Quest 2.
+  - **11 checkpoint, 5 tab cùng cảnh ở mọi checkpoint** (`hall` → `night` → `sea` → `camp` → `mountain`).
+  - Reload tab `a.localhost` giữa Quest 2: vào thẳng `mountain`, khớp 4 tab còn lại.
+  - 0 lỗi JS ở cả 5 tab. Ảnh ở `game/`.
+  - Phòng test đã xoá (link báo "Room Not Found"). Lần chạy thứ 2 bị `timeout` cắt trước bước dọn dẹp, nên tôi xoá tay phòng đó bằng danh tính chủ phòng; cả 3 phòng đều đã xác nhận "Room Not Found".
+- **CPU chậm 4×** (Chrome headless, có hạt hiệu ứng, bước hình không giới hạn vsync): trong lúc crossfade và 4 s đứng yên, ở 375 và 1440 với `forest` (16 hạt), `camp` (10), `hall` (12), `night` (12):
+  - không khung nào > 50 ms;
+  - p95 = 7 ms; khung dài nhất 28 ms (lúc crossfade).
+  - Animation của cảnh chỉ đụng `opacity` và `transform`.
+- **Reduced motion** (giả lập): 0 hạt hiện, 0 animation đang chạy trong `.avalon-root`, đổi cảnh thay ngay (không giữ 2 lớp).
+- **Tương phản chữ:** đo trên điểm ảnh thật. Với mỗi chữ ≤ 18,5 px trong UI ván, chụp lại màn hình với chữ trong suốt để có đúng nền dưới chữ, rồi so màu chữ với trung vị nền. Đo 19 cảnh × 2 cỡ, ở cả phần trên và phần dưới khi cuộn, gồm `forest`, `hall`, `camp`, `night` và placeholder.
+  - Chữ thân ≥ 11 px: **1866/1866 đạt ≥ 4,5:1**, thấp nhất 4,56. Theo phân vị 75 (mảng nền sáng hơn): 1852/1866.
+  - Chữ < 11 px: 512/512 đạt.
+
+**Quan sát ngoài phạm vi (không sửa):**
+- Ở ván thật 375px, nút Xoá/Rời `absolute right-4 top-4` của `AvalonBoard` đè lên chip thanh từ chối ở top bar. Lỗi này có từ trước (Preview không render nút này nên ảnh GĐ0/GĐ1 không thấy). Đề nghị xử lý ở GĐ3 cùng `ActionDock`.
+- Trang phòng bọc game trong `px-4 py-6`, nên top bar của ván không tràn mép. GĐ4 có thể xử lý khi rẽ nhánh `page.tsx`.
+
+**Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch, file ảnh thử đã xoá, 3 phòng test đã xoá.
+
+**Gợi ý cho GĐ2b:**
+- Vẽ cảnh mới theo mẫu `scenes/layers/forest.tsx`: xuất các lớp `sceneLayer(...)` + `PALETTE` + `PARTICLES`, đăng ký trong `SCENES` và bỏ `placeholder`.
+- Mọi hình trong cùng một `<path>` phải cùng chiều kim đồng hồ; hình lật gương để ở `<path>` riêng, nếu không chỗ chồng nhau bị thủng (luật `nonzero`).
+- Lớp bão: thay `.av-storm-placeholder` trong `SceneBackdrop` bằng `weather/Storm.tsx`; cờ `storm` đã có sẵn.
+- `SceneTitle` dò đổi cảnh theo `data-scene` / `getScene(...).id`, và dùng `location` cho câu "Dựng trại trước <địa điểm kế>".
 
 ---
 
