@@ -80,11 +80,110 @@
     linear-gradient(rgba(0, 0, 0, 0.22), rgba(0, 0, 0, 0.22));
 }
 
-/* Bão (GĐ2b vẽ thật trong weather/Storm.tsx) — tạm thời: phủ tối + vệt mưa tĩnh. */
-.av-storm-placeholder {
-  background:
-    repeating-linear-gradient(105deg, transparent 0 22px, rgba(200, 205, 230, 0.05) 22px 24px),
-    rgba(18, 20, 36, 0.38);
+/* Tiêu đề cảnh (scenes/SceneTitle.tsx): dải kính tối có viền vàng mảnh trên
+   và dưới, hiện ~2,6 s. animation-delay âm (= thời gian đã trôi từ
+   phaseStartedAt) để mọi máy cùng một khung. */
+.av-scene-title {
+  background: radial-gradient(ellipse 60% 85% at 50% 50%, rgba(14, 10, 8, 0.94) 60%, rgba(14, 10, 8, 0.84) 100%);
+  border-block: 1px solid;
+  border-image: linear-gradient(90deg, transparent, rgba(212, 166, 74, 0.6) 20%, rgba(212, 166, 74, 0.6) 80%, transparent) 1;
+  animation: av-scene-title 2.6s ease both;
+}
+@keyframes av-scene-title {
+  0% {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  14% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Phủ tối thêm theo số Quest thất bại (getScene → gloom). */
+.av-scene-gloom {
+  background: #000;
+  transition: opacity 1.2s ease;
+}
+
+/* ─── Bão (scenes/weather/Storm.tsx) ─────────────────────────────── */
+/* Quest 4 khi cần 2 lá thất bại. Mưa: mỗi lớp là một ô ảnh lặp, trượt đúng
+   một ô (xuống + sang trái) mỗi vòng nên lặp liền mạch; lớp dư một ô ở phía
+   trên và bên phải để luôn phủ kín màn hình. Chớp: một lớp sáng chỉ đổi
+   opacity, chu kỳ 22 s (2 lần chớp, cách 9 s và 13 s), lệch pha theo giờ
+   server (Storm.tsx) nên mọi máy chớp cùng lúc. Reduced motion: mưa đứng
+   yên, không chớp (opacity nghỉ = 0). */
+.av-storm-dim {
+  background: rgba(16, 18, 32, 0.4);
+}
+.av-rain {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  background-repeat: repeat;
+  will-change: transform;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+.av-rain-near {
+  top: -480px;
+  right: -128px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='480'%3E%3Cpath d='M33 24l-12.3 46M24 104l-12.3 46M56 158l-12.3 46M71 190l-12.3 46M63 250l-12.3 46M26 313l-12.3 46M105 395l-12.3 46' stroke='%23cdd3ee' stroke-opacity='0.28' stroke-width='2.2' stroke-linecap='round'/%3E%3C/svg%3E");
+  animation-name: av-rain-near;
+  animation-duration: 0.9s;
+}
+.av-rain-far {
+  top: -360px;
+  right: -96px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='96' height='360'%3E%3Cpath d='M30 8l-8.0 30M88 62l-8.0 30M44 96l-8.0 30M16 146l-8.0 30M35 178l-8.0 30M21 188l-8.0 30M77 230l-8.0 30M59 261l-8.0 30M42 313l-8.0 30' stroke='%23cdd3ee' stroke-opacity='0.18' stroke-width='1.4' stroke-linecap='round'/%3E%3C/svg%3E");
+  animation-name: av-rain-far;
+  animation-duration: 1.2s;
+}
+@keyframes av-rain-near {
+  to {
+    transform: translate(-128px, 480px);
+  }
+}
+@keyframes av-rain-far {
+  to {
+    transform: translate(-96px, 360px);
+  }
+}
+.av-lightning {
+  background: #e6e0ff;
+  opacity: 0;
+  animation: av-lightning 22s linear infinite;
+}
+@keyframes av-lightning {
+  0%,
+  8.6%,
+  10.4%,
+  49.6%,
+  51.2%,
+  100% {
+    opacity: 0;
+  }
+  8.9% {
+    opacity: 0.32;
+  }
+  9.3% {
+    opacity: 0.06;
+  }
+  9.7% {
+    opacity: 0.24;
+  }
+  49.9% {
+    opacity: 0.28;
+  }
+  50.3% {
+    opacity: 0.04;
+  }
 }
 
 /* Hạt hiệu ứng: chỉ animate transform + opacity; màu lấy từ `color`. */
@@ -167,6 +266,26 @@
   to {
     transform: translate(var(--dx), var(--dy));
     opacity: 0.5;
+  }
+}
+.av-particle-snow {
+  animation-name: av-snow;
+  animation-timing-function: linear;
+}
+@keyframes av-snow {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.85;
+  }
+  80% {
+    opacity: 0.6;
+  }
+  100% {
+    transform: translate(var(--dx), 300px);
+    opacity: 0;
   }
 }
 .av-particle-flicker {

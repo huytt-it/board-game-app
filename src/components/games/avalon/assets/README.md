@@ -69,8 +69,15 @@ forest: {
   palette: FOREST_PALETTE,      // màu nền (base) + màu sáng nhất (accent)
   particles: FOREST_PARTICLES,  // đom đóm, tia lửa… (≤ 20 hạt / cảnh)
 },
-mountain: placeholder('#1f2833', '#e8eef4'), // chưa vẽ: chỉ một nền phẳng màu base
 ```
+
+Đủ 14 cảnh: 7 cảnh cố định (`hall`, `night`, `camp`, `lake`, `blood-moon`, `end-good`,
+`end-evil`) và 7 địa điểm Quest (`forest`, `mountain`, `sea`, `ruins`, `chapel`, `marsh`,
+`cave`; mỗi ván xáo lấy 5). Thêm vào đó: lớp bão `../scenes/weather/Storm.tsx` (Quest 4 khi
+cần 2 lá thất bại), lớp phủ tối theo số Quest thất bại, tiêu đề cảnh `../scenes/SceneTitle.tsx`
+(câu dẫn trong `../scenes/narration.ts`) và dải hành trình `../scenes/JourneyStrip.tsx` (hình
+thu nhỏ `../scenes/SceneThumb.tsx` lấy từ chính các lớp trong `SCENES`, nên thay lớp bằng ảnh
+thì hình thu nhỏ cũng đổi theo).
 
 ### Khung hình (mọi lớp, SVG hay ảnh, đều theo khung này)
 - Mỗi lớp là một bức **1600×900**, phủ kín màn hình và **neo đáy-giữa** (giống SVG
@@ -100,12 +107,20 @@ mountain: placeholder('#1f2833', '#e8eef4'), // chưa vẽ: chỉ một nền ph
 16:9 vẫn phủ kín (bị cắt hai bên / phía trên). Hạt hiệu ứng (`particles`) giữ nguyên, toạ độ của
 chúng tính theo khung 1600×900 nên vẫn khớp với tranh mới; muốn bỏ thì xoá dòng `particles`.
 
-### Vẽ thêm cảnh SVG (GĐ2b)
+### Vẽ / sửa cảnh SVG
 - Mỗi cảnh một file `../scenes/layers/<id>.tsx`, xuất 3–5 lớp bằng `sceneLayer(tên, <>…</>)`
-  và `PALETTE`, `PARTICLES`. Màu theo Phụ lục C của `docs/ux-plan.md`.
-- Hình dựng sẵn trong `../scenes/paper.tsx`: `ridge` (đồi / mặt đất), `pineRow` / `pine` (hàng
-  thông), `blobs` (tán cây, mây), `archPath` (vòm Gothic), `scatter` (sao). Tất cả có seed nên
-  máy chủ và trình duyệt vẽ giống hệt nhau.
-- **Mọi hình vẽ theo chiều kim đồng hồ** trong cùng một `<path>`; hình lật gương (ngược chiều)
-  thì để ở `<path>` riêng, nếu không chỗ chồng nhau sẽ bị thủng (luật tô `nonzero`).
-- Đăng ký trong `SCENES` (bỏ `placeholder`) — tên trong `../scenes/types.ts`.
+  và `PALETTE`, `PARTICLES`. Màu theo Phụ lục C của `docs/ux-plan.md`. Lâu đài Camelot của hai
+  cảnh kết thúc dùng chung `../scenes/layers/camelot.ts`.
+- Hình dựng sẵn trong `../scenes/paper.tsx`: `ridge` (đồi / mặt đất), `peaks` / `mountainPath`
+  (dãy núi nhọn, có mũ tuyết), `pineRow` / `pine` (hàng thông), `deadTree` (cây chết phân
+  nhánh), `reeds` (lau sậy, cỏ, kèm bông), `blobs` (tán cây, đá, khói), `pill` / `box` (dải
+  sương, mây, ván), `taper` (cành, giáo, tia nắng), `archPath` (vòm Gothic), `bird` (chim bay),
+  `scatter` (sao). Tất cả có seed nên máy chủ và trình duyệt vẽ giống hệt nhau.
+- **Các hình trong cùng một `<path>` phải cùng chiều** (luật tô `nonzero`), nếu không chỗ chồng
+  nhau sẽ bị thủng. `ridge`, `mountainPath`, `pine` / `pineRow` đi theo chiều kim đồng hồ;
+  `blobs`, `taper`, `box`, `pill`, `deadTree`, `reeds` đi ngược chiều. Hình lật gương thì đổi
+  chiều: để ở `<path>` riêng.
+- Hạt hiệu ứng: `firefly`, `ember`, `twinkle`, `mote`, `snow`, `flicker` (CSS trong
+  `../avalon.css`), tối đa 20 mỗi cảnh.
+- Đăng ký trong `SCENES` — tên trong `../scenes/types.ts`, tên tiếng Việt trong
+  `SCENE_NAMES_VI`, câu dẫn trong `../scenes/narration.ts`.

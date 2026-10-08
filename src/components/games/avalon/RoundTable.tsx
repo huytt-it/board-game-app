@@ -348,10 +348,12 @@ export default function RoundTable({
                 )}
               </PlayerAvatar>
 
+              {/* Near-opaque label: the seats sit over the scene, which can be
+                  bright (the dawn of end-good) — the name must stay readable. */}
               <div
                 className={`max-w-[80px] truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${isMe
-                  ? 'bg-(--av-parchment)/20 text-(--av-parchment) ring-1 ring-(--av-parchment)/40'
-                  : 'bg-black/50 text-white'
+                  ? 'bg-black/75 text-(--av-parchment) ring-1 ring-(--av-parchment)/50'
+                  : 'bg-black/75 text-white'
                   }`}
                 title={p.name}
               >

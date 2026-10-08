@@ -95,8 +95,8 @@ export function RoleLineChip({
 // Card "Bạn là <Role>" + mô tả ngắn — hiển thị đầu mỗi night phase để
 // người chơi không phải mở RoleCard. variant="self" cho người đang lộ vai,
 // variant="other" để giải thích role nào đang lộ diện cho người chờ.
-// Khung trung tính với mọi vai (ux-plan 2.9): phe chỉ hiện ở dòng chữ nhỏ và
-// viền của huy hiệu — thẻ "self" không được tô màu theo phe của người xem.
+// Khung và huy hiệu trung tính với mọi vai (ux-plan 2.9, 2.11): phe chỉ hiện ở
+// dòng chữ nhỏ — thẻ "self" không được tô màu theo phe của người xem.
 export function RoleIntroCard({
   role,
   variant,
@@ -118,7 +118,7 @@ export function RoleIntroCard({
         {heading}
       </p>
       <div className="mt-1 flex items-center gap-3">
-        <RoleEmblem role={role} size="md" />
+        <RoleEmblem role={role} size="md" tone="neutral" />
         <div className="flex-1 min-w-0">
           <p className="av-display text-xl leading-tight text-white truncate">{role}</p>
           <p

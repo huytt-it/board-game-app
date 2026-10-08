@@ -11,11 +11,11 @@ import RolePreviewPopup from './RolePreviewPopup';
 import LobbyRoundTable from './LobbyRoundTable';
 import { QUEST_TEAM_SIZES } from './constants';
 import AvIcon from './assets/AvIcon';
-import { SCENES } from './assets/registry';
 import SceneBackdrop from './scenes/SceneBackdrop';
+import SceneTitle from './scenes/SceneTitle';
 import { getScene } from './scenes/getScene';
-import { getJourney, mulberry32 } from './scenes/journey';
-import { SCENE_IDS, SCENE_NAMES_VI, type SceneId } from './scenes/types';
+import { getJourney, journeyKey, mulberry32 } from './scenes/journey';
+import { LOCATION_IDS, SCENE_IDS, SCENE_NAMES_VI, type LocationId, type SceneId } from './scenes/types';
 
 type PreviewPhase =
   | 'lobby'
@@ -954,13 +954,30 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   const sceneId = sceneChoice === 'auto' ? autoScene.id : sceneChoice;
   const storm = forceStorm || (sceneChoice === 'auto' && autoScene.storm);
   const journey = getJourney(state, 'preview');
+  // What the title announces: the phase's scene, or the forced one.
+  const shownScene =
+    sceneChoice === 'auto'
+      ? autoScene
+      : {
+          ...autoScene,
+          id: sceneChoice,
+          location: (LOCATION_IDS as readonly string[]).includes(sceneChoice) ? (sceneChoice as LocationId) : autoScene.location,
+        };
 
   const noop = () => undefined;
   const stub = () => undefined;
 
   return (
     <div className="avalon-root fixed inset-0 z-50 bg-slate-950 animate-fade-in flex flex-col">
-      <SceneBackdrop sceneId={sceneId} storm={storm} />
+      <SceneBackdrop sceneId={sceneId} storm={storm} gloom={sceneChoice === 'auto' ? autoScene.gloom : 0} />
+      {/* Remounted by "Phát lại", so the title of the current scene plays again. */}
+      <SceneTitle
+        key={replayNonce}
+        scene={shownScene}
+        startedAt={phase === 'lobby' ? null : state.phaseStartedAt}
+        quest={state.currentQuest}
+        seedKey={journeyKey(state, 'preview')}
+      />
       <header className="shrink-0 border-b border-white/10 bg-(color:--av-bar-bg)">
         <div className="flex items-center gap-2 px-4 py-3 flex-wrap">
           <button
@@ -1036,7 +1053,6 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
                 {SCENE_IDS.map((id) => (
                   <option key={id} value={id} style={{ background: '#0f172a', color: '#ffffff' }}>
                     {SCENE_NAMES_VI[id]}
-                    {SCENES[id].placeholder ? ' (chưa vẽ)' : ''}
                   </option>
                 ))}
               </select>
@@ -1116,6 +1132,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             onPlayAgain={stub}
             onLeaveRoom={onClose}
             isHost={true}
+            roomId="preview"
           />
         )}
       </div>

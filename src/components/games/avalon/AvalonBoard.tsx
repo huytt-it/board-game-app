@@ -23,7 +23,9 @@ import { PLAYER_COUNTS } from './constants';
 import AvIcon, { type IconName } from './assets/AvIcon';
 import { avalonDisplayFont } from './assets/fonts';
 import SceneBackdrop from './scenes/SceneBackdrop';
+import SceneTitle from './scenes/SceneTitle';
 import { getScene } from './scenes/getScene';
+import { journeyKey } from './scenes/journey';
 import type { SceneResult } from './scenes/types';
 import GlassPanel from './ui/GlassPanel';
 import './avalon.css';
@@ -33,14 +35,22 @@ import './avalon.css';
 const AVALON_ROOT = `avalon-root ${avalonDisplayFont.variable}`;
 
 // Lobby and the waiting screens play in the great hall.
-const HALL: SceneResult = { id: 'hall', storm: false, location: null };
+const HALL: SceneResult = { id: 'hall', storm: false, location: null, gloom: 0 };
 
-// Every branch below returns the backdrop at the same position, so it stays
-// mounted (and crossfades) when the screen switches from lobby to game.
-function withScene(scene: SceneResult, body: React.ReactNode) {
+// Every branch below returns the backdrop (and the scene title) at the same
+// position, so they stay mounted — the backdrop crossfades, the title notices
+// the change — when the screen switches from lobby to game. `game` is passed
+// once there is a game state: the title needs its phaseStartedAt and seed.
+function withScene(scene: SceneResult, body: React.ReactNode, game?: { state: AvalonGameState; roomId: string }) {
   return (
     <>
-      <SceneBackdrop sceneId={scene.id} storm={scene.storm} />
+      <SceneBackdrop sceneId={scene.id} storm={scene.storm} gloom={scene.gloom} />
+      <SceneTitle
+        scene={scene}
+        startedAt={game?.state.phaseStartedAt ?? null}
+        quest={game?.state.currentQuest ?? 0}
+        seedKey={game ? journeyKey(game.state, game.roomId) : ''}
+      />
       {body}
     </>
   );
@@ -503,6 +513,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   // The scene every device shows for this moment of the game (hall, night,
   // the quest's location…): a pure function of the shared state.
   const scene = getScene(state, room.id, playerCount);
+  const game = { state, roomId: room.id };
 
   if (state.phase === 'role-reveal' && !localRoleSeen && !myAcked) {
     return withScene(
@@ -515,7 +526,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           players={players}
           onDone={handleRoleRevealDone}
         />
-      </div>
+      </div>,
+      game
     );
   }
 
@@ -553,6 +565,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         onPlayAgain={handleNewGame}
         onLeaveRoom={isHost ? handleDelete : handleLeave}
         isHost={isHost}
+        roomId={room.id}
       />
       {showMyRoleCard && (
         <RoleCard role={myRole} onClose={() => setShowMyRoleCard(false)} />
@@ -565,7 +578,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           onClose={() => setShowRolePreview(false)}
         />
       )}
-    </div>
+    </div>,
+    game
   );
 }
 

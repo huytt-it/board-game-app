@@ -15,14 +15,22 @@ export type RoleEmblemSize = keyof typeof WIDTH;
 interface RoleEmblemProps {
   role: AvalonRole;
   size?: RoleEmblemSize;
+  /** `team` (default): the rim and a faint wash carry the team colour — for
+   *  places where roles are public (lineup, the Evil list at the
+   *  assassination, the end, the guide). `neutral`: gold rim on an ink
+   *  shield, the same for every role — for places only the viewer sees their
+   *  own role (role reveal, "my role", the night card): from a distance the
+   *  shield must not give the team away (ux-plan 2.11). */
+  tone?: 'team' | 'neutral';
   className?: string;
   /** Accessible label. Leave empty when the role name is already written next to it. */
   title?: string;
 }
 
-// The role's icon on a shield whose rim carries the team colour.
-export default function RoleEmblem({ role, size = 'md', className = '', title }: RoleEmblemProps) {
-  const color = ROLE_TEAM[role] === 'good' ? 'var(--av-good)' : 'var(--av-evil)';
+// The role's icon on a shield whose rim carries the team colour (or gold).
+export default function RoleEmblem({ role, size = 'md', tone = 'team', className = '', title }: RoleEmblemProps) {
+  const neutral = tone === 'neutral';
+  const color = neutral ? 'var(--av-gold)' : ROLE_TEAM[role] === 'good' ? 'var(--av-good)' : 'var(--av-evil)';
   const w = WIDTH[size];
   const small = size === 'xs' || size === 'sm';
   const a11y = title
@@ -40,7 +48,7 @@ export default function RoleEmblem({ role, size = 'md', className = '', title }:
           d={SHIELD}
           strokeWidth={small ? 8 : 5}
           strokeLinejoin="round"
-          style={{ fill: `color-mix(in srgb, ${color} 22%, var(--av-ink))`, stroke: color }}
+          style={{ fill: `color-mix(in srgb, ${color} ${neutral ? 8 : 22}%, var(--av-ink))`, stroke: color }}
         />
         {!small && (
           <path

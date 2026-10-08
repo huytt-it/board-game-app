@@ -7,6 +7,16 @@ import { HallArcade, HallBack, HallFloor, HallTable, HALL_PALETTE, HALL_PARTICLE
 import { NightCastle, NightFront, NightHills, NightSky, NIGHT_PALETTE, NIGHT_PARTICLES } from '../scenes/layers/night';
 import { CampFire, CampSky, CampTents, CampTreeline, CAMP_PALETTE, CAMP_PARTICLES } from '../scenes/layers/camp';
 import { ForestFar, ForestMist, ForestNear, ForestSky, FOREST_PALETTE, FOREST_PARTICLES } from '../scenes/layers/forest';
+import { MountainFar, MountainNear, MountainPass, MountainSky, MOUNTAIN_PALETTE, MOUNTAIN_PARTICLES } from '../scenes/layers/mountain';
+import { SeaCliff, SeaFront, SeaSky, SeaWater, SEA_PALETTE, SEA_PARTICLES } from '../scenes/layers/sea';
+import { RuinsFar, RuinsMid, RuinsNear, RuinsSky, RUINS_PALETTE, RUINS_PARTICLES } from '../scenes/layers/ruins';
+import { ChapelAltar, ChapelApse, ChapelNave, ChapelVault, CHAPEL_PALETTE, CHAPEL_PARTICLES } from '../scenes/layers/chapel';
+import { MarshFar, MarshReeds, MarshSky, MarshWater, MARSH_PALETTE, MARSH_PARTICLES } from '../scenes/layers/marsh';
+import { CaveDeep, CaveFront, CaveRock, CAVE_PALETTE, CAVE_PARTICLES } from '../scenes/layers/cave';
+import { LakeFar, LakeShore, LakeSky, LakeWater, LAKE_PALETTE, LAKE_PARTICLES } from '../scenes/layers/lake';
+import { BloodFront, BloodHills, BloodSky, BloodTree, BLOOD_MOON_PALETTE, BLOOD_MOON_PARTICLES } from '../scenes/layers/blood-moon';
+import { DawnCastle, DawnHills, DawnMeadow, DawnSky, END_GOOD_PALETTE, END_GOOD_PARTICLES } from '../scenes/layers/end-good';
+import { BurnCastle, BurnFront, BurnHills, BurnSky, END_EVIL_PALETTE, END_EVIL_PARTICLES } from '../scenes/layers/end-evil';
 import PointyHat from './icons/pointy-hat';
 import TemplarShield from './icons/templar-shield';
 import VisoredHelm from './icons/visored-helm';
@@ -132,7 +142,6 @@ export type IconName = keyof typeof ICONS;
 // way (a 1600×900 picture that covers the screen, anchored bottom-centre; see
 // scenes/SceneBackdrop.tsx). Any layer can be an SVG component or an image:
 //   layers: [image('/avalon/scenes/forest-sky.webp'), svg(ForestFar), …]
-// A scene not drawn yet is a `placeholder`: a flat field of its base colour.
 
 export interface SceneDef {
   /** Far → near. */
@@ -140,16 +149,10 @@ export interface SceneDef {
   palette: ScenePalette;
   /** Ambient particles drawn over the layers (≤ 20 per scene). */
   particles?: readonly ParticleGroup[];
-  placeholder?: true;
 }
 
-const placeholder = (base: string, accent: string): SceneDef => ({
-  layers: [],
-  palette: { base, accent },
-  placeholder: true,
-});
-
 export const SCENES: Record<SceneId, SceneDef> = {
+  // Fixed moments of the game
   hall: {
     layers: [svg(HallBack), svg(HallArcade), svg(HallFloor), svg(HallTable)],
     palette: HALL_PALETTE,
@@ -165,21 +168,61 @@ export const SCENES: Record<SceneId, SceneDef> = {
     palette: CAMP_PALETTE,
     particles: CAMP_PARTICLES,
   },
+  lake: {
+    layers: [svg(LakeSky), svg(LakeFar), svg(LakeWater), svg(LakeShore)],
+    palette: LAKE_PALETTE,
+    particles: LAKE_PARTICLES,
+  },
+  'blood-moon': {
+    layers: [svg(BloodSky), svg(BloodHills), svg(BloodTree), svg(BloodFront)],
+    palette: BLOOD_MOON_PALETTE,
+    particles: BLOOD_MOON_PARTICLES,
+  },
+  'end-good': {
+    layers: [svg(DawnSky), svg(DawnHills), svg(DawnCastle), svg(DawnMeadow)],
+    palette: END_GOOD_PALETTE,
+    particles: END_GOOD_PARTICLES,
+  },
+  'end-evil': {
+    layers: [svg(BurnSky), svg(BurnHills), svg(BurnCastle), svg(BurnFront)],
+    palette: END_EVIL_PALETTE,
+    particles: END_EVIL_PARTICLES,
+  },
+
+  // Quest locations (journey.ts picks 5 of them per game)
   forest: {
     layers: [svg(ForestSky), svg(ForestFar), svg(ForestMist), svg(ForestNear)],
     palette: FOREST_PALETTE,
     particles: FOREST_PARTICLES,
   },
-
-  // Not drawn yet (GĐ2b): base colours from ux-plan Phụ lục C.
-  lake: placeholder('#132a33', '#d6dee3'),
-  'blood-moon': placeholder('#1a0d10', '#8f2a2a'),
-  'end-good': placeholder('#5d6a8c', '#ffd98a'),
-  'end-evil': placeholder('#140a0a', '#e0663a'),
-  mountain: placeholder('#1f2833', '#e8eef4'),
-  sea: placeholder('#2b2140', '#e0913a'),
-  ruins: placeholder('#1c1a26', '#e6e0ff'),
-  chapel: placeholder('#2a2210', '#e3b341'),
-  marsh: placeholder('#1a2420', '#9fe3c8'),
-  cave: placeholder('#120d0b', '#e3b341'),
+  mountain: {
+    layers: [svg(MountainSky), svg(MountainFar), svg(MountainPass), svg(MountainNear)],
+    palette: MOUNTAIN_PALETTE,
+    particles: MOUNTAIN_PARTICLES,
+  },
+  sea: {
+    layers: [svg(SeaSky), svg(SeaWater), svg(SeaCliff), svg(SeaFront)],
+    palette: SEA_PALETTE,
+    particles: SEA_PARTICLES,
+  },
+  ruins: {
+    layers: [svg(RuinsSky), svg(RuinsFar), svg(RuinsMid), svg(RuinsNear)],
+    palette: RUINS_PALETTE,
+    particles: RUINS_PARTICLES,
+  },
+  chapel: {
+    layers: [svg(ChapelApse), svg(ChapelNave), svg(ChapelAltar), svg(ChapelVault)],
+    palette: CHAPEL_PALETTE,
+    particles: CHAPEL_PARTICLES,
+  },
+  marsh: {
+    layers: [svg(MarshSky), svg(MarshFar), svg(MarshWater), svg(MarshReeds)],
+    palette: MARSH_PALETTE,
+    particles: MARSH_PARTICLES,
+  },
+  cave: {
+    layers: [svg(CaveDeep), svg(CaveRock), svg(CaveFront)],
+    palette: CAVE_PALETTE,
+    particles: CAVE_PARTICLES,
+  },
 };

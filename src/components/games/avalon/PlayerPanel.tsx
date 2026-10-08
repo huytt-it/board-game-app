@@ -43,6 +43,8 @@ interface PlayerPanelProps {
   onPlayAgain?: () => void;
   onLeaveRoom?: () => void;
   isHost?: boolean;
+  /** Seeds the journey when the seat order is empty (getJourney). */
+  roomId?: string;
 }
 
 export default function PlayerPanel(props: PlayerPanelProps) {
@@ -272,6 +274,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           state={state}
           myPlayer={myPlayer}
           gamePlayers={gamePlayers}
+          roomId={props.roomId ?? ''}
           onAckDiscussion={props.onAckDiscussion}
         />
       )}

@@ -57,7 +57,7 @@ export default function RolePreviewPopup({
       className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in"
       onClick={onClose}
     >
-      {/* Neutral frame whatever the viewer's team (ux-plan 2.9). */}
+      {/* Neutral frame and emblem whatever the viewer's team (ux-plan 2.9, 2.11). */}
       <GlassPanel
         tone="gold"
         emphasis
@@ -78,7 +78,7 @@ export default function RolePreviewPopup({
               Vai của bạn
             </p>
             <div className="my-2 flex justify-center">
-              <RoleEmblem role={myRole} size="lg" />
+              <RoleEmblem role={myRole} size="lg" tone="neutral" />
             </div>
             <span
               className={`inline-flex items-center gap-1 rounded-full border border-(--av-parchment)/20 bg-black/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest ${

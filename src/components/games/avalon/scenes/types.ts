@@ -41,8 +41,8 @@ export const SCENE_NAMES_VI: Record<SceneId, string> = {
 };
 
 export interface ScenePalette {
-  /** Dominant colour: fills the screen behind the layers, and is the whole
-   *  look of a placeholder scene. */
+  /** Dominant colour: fills the screen behind the layers (and shows while an
+   *  image layer loads). */
   base: string;
   /** Brightest colour of the scene (torches, moon, fire…), for reference. */
   accent: string;
@@ -56,6 +56,7 @@ export type ParticleKind =
   | 'ember' // rises and fades
   | 'twinkle' // stays put, blinks
   | 'mote' // slow drifting dust
+  | 'snow' // falls and drifts sideways
   | 'flicker'; // a soft glow that wavers (torch, fire)
 
 export interface ParticleGroup {
@@ -70,8 +71,10 @@ export interface ParticleGroup {
 
 export interface SceneResult {
   id: SceneId;
-  /** Quest locations only: the dangerous 4th quest (2 fails needed) gets a storm (drawn in GĐ2b). */
+  /** Quest locations only: the dangerous 4th quest (2 fails needed) gets a storm. */
   storm: boolean;
+  /** Extra darkness over the scene, 0–1: 0.08 per failed quest (none at the end). */
+  gloom: number;
   /** The quest location being played — or, during discussion, the next one. */
   location: LocationId | null;
 }

@@ -28,7 +28,8 @@ export default function RoleReveal({ myRole, onDone }: RoleRevealProps) {
 
   // Neutral on purpose: the full screen, the frame and the button look the same
   // for every role, so a neighbour learns nothing from colour or brightness.
-  // The team shows only in a small label and the emblem's rim (ux-plan 2.9).
+  // The team shows only in a small label; the emblem is the neutral gold one
+  // (ux-plan 2.9, 2.11).
   // The scene behind is the hall (SceneBackdrop in the container).
   if (step === 'flip') {
     return (
@@ -54,9 +55,11 @@ export default function RoleReveal({ myRole, onDone }: RoleRevealProps) {
           <AvIcon name={TEAM_ICON_NAME[team]} /> {TEAM_NAME_VI[team]}
         </span>
         <div className="my-5 flex justify-center">
-          <RoleEmblem role={myRole} size="xl" />
+          <RoleEmblem role={myRole} size="xl" tone="neutral" />
         </div>
-        <h2 className="av-display text-4xl text-white">{myRole}</h2>
+        {/* One line for every role (the longest, "Minion of Mordred", too): a card
+            that grows a line would give that role away from a distance. */}
+        <h2 className="av-display whitespace-nowrap text-[min(2.25rem,8.2vw)] leading-tight text-white">{myRole}</h2>
         <p className="mt-1 text-sm font-bold text-(--av-parchment)">{ROLE_NAMES_VI[myRole]}</p>
         {/* min-h = the longest description (4 lines): the card keeps one size for every role */}
         <p className="mt-4 min-h-[5.75rem] text-sm leading-relaxed text-slate-200">{ROLE_DESC_VI[myRole]}</p>

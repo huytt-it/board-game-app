@@ -3,16 +3,19 @@ import type { AvalonGameState } from '../types';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
 import AvIcon from '../assets/AvIcon';
 import GlassPanel from '../ui/GlassPanel';
+import JourneyStrip from '../scenes/JourneyStrip';
 
 export function DiscussionSection({
   state,
   myPlayer,
   gamePlayers,
+  roomId,
   onAckDiscussion,
 }: {
   state: AvalonGameState;
   myPlayer: Player;
   gamePlayers: Player[];
+  roomId: string;
   onAckDiscussion: () => void;
 }) {
   const { remaining } = usePhaseClock(state);
@@ -55,6 +58,13 @@ export function DiscussionSection({
           ✓ Bạn đã sẵn sàng — Chờ những người còn lại
         </button>
       )}
+
+      <GlassPanel className="p-3" data-journey="">
+        <p className="mb-2 px-1 text-[10px] uppercase font-bold text-slate-400 tracking-widest">
+          Hành trình
+        </p>
+        <JourneyStrip state={state} roomId={roomId} />
+      </GlassPanel>
 
       <GlassPanel className="p-3">
         <div className="flex items-center justify-between mb-2 px-1">

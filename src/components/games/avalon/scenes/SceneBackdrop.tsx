@@ -5,13 +5,14 @@ import { SCENES, type AssetSource } from '../assets/registry';
 import { useReducedMotion } from '../hooks/useReducedMotion';
 import { between, H, rng, W } from './paper';
 import { hashString } from './journey';
+import Storm from './weather/Storm';
 import type { ParticleGroup, SceneId } from './types';
 
 // Full-screen paper-cut scene behind the Avalon UI. The scene id comes from
 // getScene(state) so every device shows the same one; this component only
 // draws it. Stack, far → near: the scene's layers, its particles, the storm
-// (GĐ2b; a flat placeholder for now), then a vignette + dim layer that keeps
-// the text on top readable.
+// (weather/Storm.tsx), the gloom that deepens with every failed quest, then a
+// vignette + dim layer that keeps the text on top readable.
 //
 // Framing: every layer is a 1600×900 picture laid out on a "stage" that covers
 // the screen and is anchored bottom-centre (= SVG `xMidYMax slice`). A phone in
@@ -25,7 +26,16 @@ import type { ParticleGroup, SceneId } from './types';
 // way to the game's real scene once the state arrives).
 const SETTLE_MS = 1500;
 
-export default function SceneBackdrop({ sceneId, storm = false }: { sceneId: SceneId; storm?: boolean }) {
+export default function SceneBackdrop({
+  sceneId,
+  storm = false,
+  gloom = 0,
+}: {
+  sceneId: SceneId;
+  storm?: boolean;
+  /** Extra darkness, 0–1 (getScene: 0.08 per failed quest). */
+  gloom?: number;
+}) {
   const reduced = useReducedMotion();
   const [settled, setSettled] = useState(false);
   useEffect(() => {
@@ -58,7 +68,8 @@ export default function SceneBackdrop({ sceneId, storm = false }: { sceneId: Sce
           onShown={() => setStack((list) => list.filter((x) => x.key >= s.key))}
         />
       ))}
-      {storm && <div className="av-storm-placeholder absolute inset-0" data-storm="placeholder" />}
+      {storm && <Storm />}
+      <div className="av-scene-gloom absolute inset-0" style={{ opacity: gloom }} data-gloom={gloom || undefined} />
       <div className="av-scene-shade absolute inset-0" />
     </div>
   );
@@ -71,7 +82,6 @@ function SceneView({ id, fadeIn, onShown }: { id: SceneId; fadeIn: boolean; onSh
       className={`absolute inset-0 ${fadeIn ? 'av-scene-enter' : ''}`}
       style={{ backgroundColor: def.palette.base }}
       data-scene-view={id}
-      data-placeholder={def.placeholder ? '' : undefined}
       onAnimationEnd={(e) => {
         if (e.target === e.currentTarget) onShown();
       }}
@@ -109,6 +119,7 @@ const KIND: Record<ParticleGroup['kind'], { size: number; dur: [number, number] 
   ember: { size: 3, dur: [2.6, 4.4] },
   twinkle: { size: 3, dur: [2.4, 5] },
   mote: { size: 3, dur: [12, 18] },
+  snow: { size: 3, dur: [7, 11] },
   flicker: { size: 120, dur: [0.9, 1.6] },
 };
 

@@ -31,9 +31,15 @@ export type Journey = readonly [LocationId, LocationId, LocationId, LocationId, 
 let memoKey: string | null = null;
 let memoJourney: Journey | null = null;
 
-export function getJourney(state: { seatOrder?: string[] } | null | undefined, roomId: string): Journey {
+/** The game's seed: its seat order, or the room id while that is empty. Also
+ *  picks the narration lines (narration.ts). */
+export function journeyKey(state: { seatOrder?: string[] } | null | undefined, roomId: string): string {
   const seatOrder = state?.seatOrder ?? [];
-  const key = seatOrder.length > 0 ? seatOrder.join('|') : `room:${roomId}`;
+  return seatOrder.length > 0 ? seatOrder.join('|') : `room:${roomId}`;
+}
+
+export function getJourney(state: { seatOrder?: string[] } | null | undefined, roomId: string): Journey {
+  const key = journeyKey(state, roomId);
   if (key === memoKey && memoJourney) return memoJourney;
 
   const rand = mulberry32(hashString(key));

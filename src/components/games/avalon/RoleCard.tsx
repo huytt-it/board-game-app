@@ -16,8 +16,8 @@ export default function RoleCard({ role, onClose }: RoleCardProps) {
   const team = ROLE_TEAM[role];
   const isGood = team === 'good';
 
-  // Neutral frame and button for every role (ux-plan 2.9): the team shows only
-  // in the small label and the emblem's rim.
+  // Neutral frame, emblem and button for every role (ux-plan 2.9, 2.11): the
+  // team shows only in the small label.
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in">
       <GlassPanel tone="gold" emphasis className="relative w-full max-w-md overflow-hidden rounded-3xl p-6">
@@ -31,7 +31,7 @@ export default function RoleCard({ role, onClose }: RoleCardProps) {
 
         <div className="text-center">
           <div className="mb-3 flex justify-center">
-            <RoleEmblem role={role} size="xl" />
+            <RoleEmblem role={role} size="xl" tone="neutral" />
           </div>
           <span
             className={`inline-flex items-center gap-1.5 rounded-full border border-(--av-parchment)/20 bg-black/30 px-3 py-1 text-xs font-black uppercase tracking-widest ${
@@ -40,7 +40,8 @@ export default function RoleCard({ role, onClose }: RoleCardProps) {
           >
             <AvIcon name={TEAM_ICON_NAME[team]} /> {TEAM_NAME_VI[team]}
           </span>
-          <h2 className="av-display mt-3 text-4xl text-white">{role}</h2>
+          {/* One line for every role, so the card keeps one height (see RoleReveal). */}
+          <h2 className="av-display mt-3 whitespace-nowrap text-[min(2.25rem,8.2vw)] leading-tight text-white">{role}</h2>
           <p className="mt-1 text-sm font-semibold text-(--av-parchment)">{ROLE_NAMES_VI[role]}</p>
         </div>
 
