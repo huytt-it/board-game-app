@@ -381,6 +381,26 @@ Mọi animation đi qua `usePhaseTimeline`, tuân thủ mục 2 và ngân sách 
   - Xong trước khoảng 5,5s.
 - **`discussion`**: dấu tích sẵn sàng có hiệu ứng nảy, đồng hồ dạng vòng, `JourneyStrip`.
 
+#### Bổ sung cho GĐ3 (nhạc trưởng, 2026-10-08)
+- **Việc tồn từ các GĐ trước, phải làm trong GĐ3:**
+  - Nút Xoá / Rời của `AvalonBoard` (`absolute right-4 top-4`) đang đè lên chip nến ở top bar, ở cả 375 lẫn 1440. Đưa nút này vào top bar (hoặc menu nhỏ trong top bar). Chỉ đổi JSX, handler giữ nguyên.
+  - `animate-pulse` trên ô Quest hiện tại (`RoundTable`) và trên avatar đang được đề cử làm mờ **cả chữ**. Chỉ cho **viền hoặc ánh sáng** nhấp nháy; chữ luôn đậm đủ (≥ 4.5:1).
+  - Kiểm lại vị trí `SceneTitle` khi có `ActionDock`: tiêu đề không được che nút hành động; nếu chồng nhau thì dời tiêu đề.
+- **Nền tảng có sẵn để dùng:**
+  - `usePhaseTimeline` (các mốc stage) cho các chuỗi animation;
+  - với hiệu ứng chạy liên tục (đếm số, xáo bài): dùng CSS animation kèm `animation-delay: -<elapsed>ms` (xem `SceneTitle` và `Storm`), không setState mỗi khung hình;
+  - `seatPosition` cho toạ độ ghế; `PlayerAvatar`, `GlassPanel`, `AvIcon` và token màu `--av-*`.
+  - Không dùng lại lớp `blue-*` / `red-*`; regex màu phe phải vẫn = 0.
+- **Riêng tư trong animation (mục 2.4):**
+  - Lá bài bay vào chồng bài ở `quest-play` phải **giống hệt nhau** dù là lá Người hay lá Quỷ (luôn úp, cùng màu, cùng đường bay).
+  - Lá phiếu úp sau khi bầu trông như nhau dù Đồng ý hay Từ chối.
+  - Kết quả lật bài ở `quest-result` dựng từ số đếm, xáo bằng seed `phaseStartedAt`.
+- **`ActionDock` (mobile):** `fixed` ở đáy, có safe-area. Dùng giá trị tuỳ biến như `pb-[max(1rem,env(safe-area-inset-bottom))]`, **không** dùng `pb-safe` của `globals.css` (ghi chú review GĐ0, mục 3). Thêm khoảng đệm đáy cho cột nội dung để dock không che chữ. Desktop giữ nút ở cột phải như cũ.
+- **Kiểm thử thêm:**
+  - Mỗi chuỗi animation: reload ở giữa chuỗi phải nhảy đúng khung; với reduced motion thì hiện ngay trạng thái cuối.
+  - Đo ngân sách thời gian (Phụ lục D) trong ván thật 5 tab: `team-vote-result` và `quest-result` xong trước 5–5,5 giây, cả 5 tab cùng khung (lệch ≤ 1 nhịp lấy mẫu).
+  - Cặp ảnh riêng tư cho `quest-play` lúc lá đang bay và lúc đã đặt, và cho `team-vote` sau khi bầu.
+
 ### GĐ4 — Vào phòng, lobby, mở đầu ván
 - **Trang vào phòng:** rẽ nhánh `gameType === 'avalon'` trong `page.tsx`, render `AvalonJoinScreen` (cảnh `hall`, tiếng Việt). Game khác giữ nguyên.
 - **Lobby:** khi có người vào thì hiệu ứng "ngồi xuống" (scale và fade), khi rời thì fade out, kèm thông báo nhỏ "<Tên> đã vào phòng" (so danh sách người chơi phía client, bỏ qua lần tải đầu).
@@ -438,7 +458,7 @@ Branch: `dev-avalon-uxui`.
 | 0 Nền móng | **Đã review — đạt** (2026-10-06) | `3e76509d` → `cba374f3` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3e76509d..HEAD` | Claude Sonnet 5.5 | Mọi lỗi B1–B8 đã xử lý, giao diện giữ nguyên. Chi tiết lệch kế hoạch + kết quả kiểm thử ở mục "Ghi chú của người thực thi GĐ0" bên dưới. |
 | 1 Bộ nhận diện | **Đã review — đạt** (2026-10-06) | `928c1afa` → `f92d548d` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 928c1afa..HEAD` | Claude Opus 5.5 | 47 icon game-icons.net (người dùng đã duyệt bảng) + 1 icon chỉnh sửa, registry + `AvIcon`, token màu, font Cormorant Garamond, `PlayerAvatar`, `RoleEmblem`; 0 emoji. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ1" bên dưới. |
 | 2a Hệ thống cảnh + quét lộ phe | **Đã review — đạt** (2026-10-07) | `d6e27ed7` → `ccfb2005` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log d6e27ed7..HEAD` | Claude Opus 5.5 | `scenes/` (types, journey, getScene, SceneBackdrop, paper), 4 cảnh mẫu `hall`/`night`/`camp`/`forest` + 10 placeholder, `SCENES` trong registry, `ui/GlassPanel`, quét lộ phe, token màu phe (regex màu = 0). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2a" bên dưới. |
-| 2b Vẽ đủ cảnh + tiêu đề + hành trình | **Xong — chờ review** (2026-10-08) | `0f6cb1c5` → `059830b6` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 0f6cb1c5..HEAD` | Claude Opus 5.5 | 10 cảnh mới (đủ 14, hết placeholder), `weather/Storm`, phủ tối theo Quest thất bại, `SceneTitle` + câu dẫn, `JourneyStrip` (hình thu nhỏ lấy từ chính cảnh, không cần icon mới), `RoleEmblem tone="neutral"` ở chỗ riêng tư. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2b" bên dưới. |
+| 2b Vẽ đủ cảnh + tiêu đề + hành trình | **Đã review — đạt** (2026-10-08) | `0f6cb1c5` → `059830b6` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 0f6cb1c5..HEAD` | Claude Opus 5.5 | 10 cảnh mới (đủ 14, hết placeholder), `weather/Storm`, phủ tối theo Quest thất bại, `SceneTitle` + câu dẫn, `JourneyStrip` (hình thu nhỏ lấy từ chính cảnh, không cần icon mới), `RoleEmblem tone="neutral"` ở chỗ riêng tư. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2b" bên dưới. |
 | 3 Vòng Quest | Chưa bắt đầu | | | |
 | 4 Mở đầu | Chưa bắt đầu | | | |
 | 5 Kết thúc | Chưa bắt đầu | | | |
@@ -532,6 +552,24 @@ Ghi nhận:
 4. Nút "PHE NGƯỜI" / "PHE QUỶ" ở QuestPlay vẫn xanh / đỏ nhưng giống hệt nhau với mọi người xem: chấp nhận.
 5. Nút Xoá / Rời đè lên chip nến ở top bar (thấy rõ ở ván thật 375 và 1440): giao GĐ3 (gom vào top bar khi làm `ActionDock`). Padding `px-4 py-6` của trang phòng: giao GĐ4.
 6. Các section đêm vẫn khác nhau theo vai (nút "Đã xem" đỏ của Phe Quỷ…): đã nằm trong kế hoạch GĐ4.
+
+**GĐ2b (2026-10-08): đạt, đã push.** Nhạc trưởng tự kiểm lại:
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: vẫn 2 lỗi có sẵn từ trước.
+- Logic-core và các file ngoài thư mục Avalon không có trong diff.
+- Đếm emoji = 0; regex màu phe = 0; không còn `placeholder`.
+- Đã đọc `Storm` (chớp theo giờ server, gán qua ref, không setState), `SceneTitle` (chỉ hiện trong 3 giây đầu của phase, khung hình theo `phaseStartedAt`), `gloom` trong `getScene`, `RoleEmblem tone="neutral"`.
+- Đã xem cảnh `lake`, `sea`, `end-evil` (1440), `cave`, `mountain`, `end-good` (375), tiêu đề cảnh trại và `JourneyStrip`: đẹp, đúng phong cách, chi tiết chính nằm giữa khung dọc.
+- Gói JS của Avalon (UI, icon và 14 cảnh): khoảng 265 KB thô, 78 KB gzip. Được tải riêng qua `dynamic()`. Chấp nhận được; nếu GĐ sau làm gói tăng nhiều thì lazy-load từng cảnh (GĐ6).
+
+Ghi nhận:
+1. **Thẻ vai ở 375 còn lệch 1,5–2,5** sau khi thu nhỏ, do chữ của từng vai khác nhau (độ rộng tên, số dòng mô tả, icon). Phần lệch này **không phụ thuộc phe**: cặp cùng phe lệch ngang cặp khác phe. Chấp nhận; GĐ4 làm "nhấn giữ để xem" thì hết hẳn.
+2. Sửa thêm ngoài kế hoạch, được chấp nhận:
+   - tên "Minion of Mordred" xuống 2 dòng làm thẻ Tay sai cao hơn (một chỗ lộ phe thật), nay tên luôn một dòng;
+   - `RoleIntroCard` biến thể `other` cũng trung tính;
+   - nhãn tên dưới ghế đổi sang nền `black/75` để đủ tương phản trên cảnh bình minh.
+3. **`animate-pulse` làm mờ cả chữ** (ô Quest hiện tại, avatar trong đội), có chỗ chỉ còn tương phản 2,9:1: giao GĐ3.
+4. Tiêu đề cảnh ở 375 đè lên bàn tròn khoảng 2,6 giây (không chặn bấm): GĐ3 kiểm lại cùng `ActionDock`.
 
 ### Ghi chú của người thực thi GĐ1
 
