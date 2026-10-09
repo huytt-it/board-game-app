@@ -10,6 +10,8 @@ import { useShownRejectStreak } from './hooks/useTableReveal';
 import { useHold } from './hooks/useHold';
 import { useEndReveal } from './hooks/useEndReveal';
 import { PhaseChip } from './panel/shared';
+import { needsMyAction } from './panel/myTurn';
+import { MyTurnContext, useTurnTitle } from './ui/MyTurn';
 import { PlayerRoster } from './panel/PlayerRoster';
 import { LineupPreviewSection } from './panel/LineupPreviewSection';
 import { RoleRevealWaitingSection } from './panel/RoleRevealWaitingSection';
@@ -135,6 +137,11 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   // tells who won — after the assassination overlay, if there is one.
   const endReveal = useEndReveal(state);
 
+  // "Đến lượt bạn": a gold edge around the dock and a "● " in the tab title
+  // while the table waits for the viewer. Never at night (panel/myTurn.ts).
+  const myTurn = needsMyAction(state, myPlayer);
+  useTurnTitle(myTurn);
+
   const handleAssassinTablePick = (id: string) => {
     if (!isAssassin || state.phase !== 'assassinate') return;
     if (props.onSetAssassinChoice) {
@@ -159,7 +166,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
             {props.onShowRolePreview && (
               <button
                 onClick={props.onShowRolePreview}
-                className="flex items-center gap-1 whitespace-nowrap rounded-full border border-fuchsia-500/30 bg-fuchsia-950/40 text-fuchsia-200 px-2 py-1 text-[11px] font-bold active:opacity-75 hover:bg-fuchsia-900/40 sm:px-2.5"
+                className="av-hit flex items-center gap-1 whitespace-nowrap rounded-full border border-fuchsia-500/30 bg-fuchsia-950/40 text-fuchsia-200 px-2 py-1 text-[11px] font-bold active:opacity-75 hover:bg-fuchsia-900/40 sm:px-2.5"
                 title="Xem lại các vai trong ván"
                 aria-label="Các vai trong ván"
               >
@@ -169,7 +176,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
             )}
             <button
               onClick={onShowMyRole}
-              className="flex items-center gap-1 whitespace-nowrap rounded-full border border-(--av-parchment)/25 bg-white/5 px-2 py-1 text-[11px] font-bold text-(--av-parchment) active:opacity-75 hover:bg-white/10 sm:gap-1.5 sm:px-2.5"
+              className="av-hit flex items-center gap-1 whitespace-nowrap rounded-full border border-(--av-parchment)/25 bg-white/5 px-2 py-1 text-[11px] font-bold text-(--av-parchment) active:opacity-75 hover:bg-white/10 sm:gap-1.5 sm:px-2.5"
               title="Xem vai của tôi"
             >
               <AvIcon name="eye" size={15} />
@@ -182,7 +189,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
         {props.onLeaveRoom && (
           <button
             onClick={props.onLeaveRoom}
-            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-1.5 py-1 text-[11px] font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300 sm:px-2.5"
+            className="av-hit flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-1.5 py-1 text-[11px] font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300 sm:px-2.5"
             title={props.isHost ? 'Xoá phòng' : 'Rời phòng'}
             aria-label={props.isHost ? 'Xoá phòng' : 'Rời phòng'}
             data-room-exit=""
@@ -310,7 +317,6 @@ export default function PlayerPanel(props: PlayerPanelProps) {
         <LadySection
           state={state}
           myPlayer={myPlayer}
-          myTeam={myTeam}
           gamePlayers={gamePlayers}
           onLadyInspect={props.onLadyInspect}
           onLadyConfirm={props.onLadyConfirm}
@@ -350,6 +356,9 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   // blue/red gradient told a neighbour the viewer's team (B10).
   return (
     <div className="min-h-dvh" data-phase={state.phase} data-phase-started-at={state.phaseStartedAt}>
+      <p className="sr-only" role="status" aria-live="polite" data-turn-announce="">
+        {myTurn ? 'Đến lượt bạn' : ''}
+      </p>
       <div className="sticky top-0 z-20">{topBar}</div>
 
       {/* ONE DOM for every breakpoint.
@@ -392,7 +401,8 @@ export default function PlayerPanel(props: PlayerPanelProps) {
         </div>
 
         <div data-phase-section className="lg:overflow-y-auto lg:py-4 lg:pl-1">
-          {phaseSection}
+          {/* The dock sits in the section: it blinks when the table waits for you. */}
+          <MyTurnContext.Provider value={myTurn}>{phaseSection}</MyTurnContext.Provider>
         </div>
       </div>
     </div>

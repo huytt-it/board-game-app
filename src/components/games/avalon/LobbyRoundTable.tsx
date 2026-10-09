@@ -124,7 +124,7 @@ export default function LobbyRoundTable({
                       }}
                       title={`Mời ${p.name} ra khỏi phòng`}
                       aria-label={`Mời ${p.name} ra khỏi phòng`}
-                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-stone-800 border border-stone-400 text-[11px] text-stone-100 shadow shadow-black/50 hover:bg-orange-700 active:scale-90 cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
+                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-stone-800 border border-stone-400 text-[11px] text-stone-100 shadow shadow-black/50 hover:bg-orange-700 active:scale-90 cursor-pointer before:absolute before:-inset-3 before:content-['']"
                     >
                       <AvIcon name="close" />
                     </button>

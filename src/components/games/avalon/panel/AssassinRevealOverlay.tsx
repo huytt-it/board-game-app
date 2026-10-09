@@ -187,7 +187,7 @@ export function AssassinRevealOverlay({
             e.stopPropagation();
             onSkip();
           }}
-          className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/20 bg-black/70 px-4 py-2 text-xs font-bold text-slate-200 hover:bg-black/85"
+          className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 min-h-11 rounded-full border border-white/20 bg-black/70 px-4 py-2 text-xs font-bold text-slate-200 hover:bg-black/85"
         >
           Chạm để bỏ qua
         </button>

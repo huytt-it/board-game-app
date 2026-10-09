@@ -82,6 +82,36 @@ function OrbitToken({
   );
 }
 
+// A token that sits on a seat and, when it has just ARRIVED, flies in from
+// another seat (offsets in % of the table = cqw, avalon.css `av-token-hand`).
+function FlyingToken({
+  to,
+  from,
+  flying,
+  children,
+}: {
+  to: { x: number; y: number };
+  from: { x: number; y: number } | null;
+  flying: boolean;
+  children: ReactNode;
+}) {
+  const start = from ?? to;
+  const style = {
+    left: `${to.x}%`,
+    top: `${to.y}%`,
+    '--dx': start.x - to.x,
+    '--dy': start.y - to.y,
+  } as CSSProperties;
+  return (
+    <div
+      className={`absolute -translate-x-1/2 -translate-y-1/2 ${TABLE_AVATAR_BOX} ${flying ? 'av-token-hand' : ''}`}
+      style={style}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function TableTokens({ players, state }: { players: Player[]; state: AvalonGameState }) {
   const n = players.length;
   const seatOf = (id: string | null) => (id ? players.findIndex((p) => p.id === id) : -1);
@@ -98,8 +128,23 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
   const nominated = useArrivals(team);
   const from = leaderIdx >= 0 ? seatPosition(leaderIdx, n) : null;
 
+  // lady-of-lake: the Lady's gaze (a dark disc with her mark) flies from the
+  // holder to whoever she is aiming at, and again whenever she changes her
+  // mind. The real token stays on the holder until "Hoàn tất", when it takes
+  // its own way round to the new seat (above). A re-aim on another screen is
+  // an arrival like any other; a reload just shows the gaze where it rests.
+  const aimIdx = state.phase === 'lady-of-lake' ? seatOf(state.ladyTargetId) : -1;
+  const aimedId = aimIdx >= 0 ? (state.ladyTargetId as string) : null;
+  const aiming = useArrivals(aimedId ? [aimedId] : []);
+  const ladyFrom = seatOf(state.ladyHolderId) >= 0 ? seatPosition(seatOf(state.ladyHolderId), n) : null;
+
   return (
-    <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
+    // `overflow: clip` (+ a 12px margin, room for the badges at the table's
+    // edge): the crown and the Lady ride a chain of rotations, and the browser
+    // grows the page's scrollable area by the bounding boxes of that chain
+    // — at 320px with 10 players and a token on a far-right seat that made
+    // the phone scroll sideways (+3px) although nothing is drawn out there.
+    <div className="pointer-events-none absolute inset-0 z-10 overflow-clip [overflow-clip-margin:12px]" aria-hidden>
       {crown !== null && (
         <OrbitToken
           angle={crown}
@@ -127,33 +172,28 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
         </OrbitToken>
       )}
 
-      {team.map((id) => {
-        const to = seatPosition(seatOf(id), n);
-        const start = from ?? to;
-        const flying = nominated.has(id);
-        // A new nomination flies in from the Leader's seat (offset in % of
-        // the table, i.e. cqw — see avalon.css `av-token-hand`).
-        const style = {
-          left: `${to.x}%`,
-          top: `${to.y}%`,
-          '--dx': start.x - to.x,
-          '--dy': start.y - to.y,
-        } as CSSProperties;
-        return (
-          <div
-            key={id}
-            className={`absolute -translate-x-1/2 -translate-y-1/2 ${TABLE_AVATAR_BOX} ${flying ? 'av-token-hand' : ''}`}
-            style={style}
+      {aimedId && (
+        <FlyingToken key={aimedId} to={seatPosition(aimIdx, n)} from={ladyFrom} flying={aiming.has(aimedId)}>
+          <span
+            data-token="lady-aim"
+            className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-(--av-lady) bg-(--av-ink) text-[12px] text-(--av-lady) shadow shadow-black/50"
           >
-            <span
-              data-token="team"
-              className="absolute -top-3 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-orange-100 bg-(--av-team) text-[11px] text-(--av-ink) shadow shadow-black/50"
-            >
-              <AvIcon name="team" />
-            </span>
-          </div>
-        );
-      })}
+            <AvIcon name="lady" />
+          </span>
+        </FlyingToken>
+      )}
+
+      {/* A new nomination flies in from the Leader's seat. */}
+      {team.map((id) => (
+        <FlyingToken key={id} to={seatPosition(seatOf(id), n)} from={from} flying={nominated.has(id)}>
+          <span
+            data-token="team"
+            className="absolute -top-3 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-orange-100 bg-(--av-team) text-[11px] text-(--av-ink) shadow shadow-black/50"
+          >
+            <AvIcon name="team" />
+          </span>
+        </FlyingToken>
+      ))}
     </div>
   );
 }

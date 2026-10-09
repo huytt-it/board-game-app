@@ -1,11 +1,12 @@
 import type { ReactNode } from 'react';
 
 // Identity colours. Each player keeps one colour everywhere (hash of the id).
-// None is a pure blue or red, so an avatar never reads as a team colour.
+// None is a pure blue or red, so an avatar never reads as a team colour. Each
+// is dark enough for the white initial to reach 4.5:1 (all ≥ 4.8).
 const AVATAR_COLORS = [
-  '#a8642a', // đồng
-  '#8f7414', // vàng đất
-  '#6b7d24', // ô liu
+  '#a4602a', // đồng
+  '#877011', // vàng đất
+  '#677922', // ô liu
   '#2f7d4f', // xanh rừng
   '#23736e', // xanh mòng két
   '#6a4bb0', // tím
@@ -36,7 +37,7 @@ export function avatarInitial(name: string): string {
 
 // The seat size on the round table — table/TableTokens.tsx draws its tokens on
 // boxes of exactly this size, centred on the same seat points.
-export const TABLE_AVATAR_BOX = 'h-12 w-12 sm:h-14 sm:w-14';
+export const TABLE_AVATAR_BOX = 'av-seat-box h-12 w-12 sm:h-14 sm:w-14';
 
 const SIZE_CLS = {
   xs: 'h-5 w-5 text-[10px]',

@@ -1059,6 +1059,14 @@ interface Sim {
   /** Lobby: players who walked in / out since the scene was built. */
   lobbyIn: number;
   lobbyOut: string[];
+  /** Lady of the Lake: what the holder did since the scene was built (aim,
+   *  look, hand the token on). `undefined` = as the scene was built. */
+  ladyHolder?: string;
+  ladyTarget?: string | null;
+  ladyShown?: 'good' | 'evil' | null;
+  ladyHistory?: string[];
+  /** Assassination: whom the Assassin is aiming at now. */
+  assassinChoice?: string | null;
 }
 const freshSim = (key: string): Sim => ({ key, votes: {}, cards: {}, acks: {}, leaderSteps: 0, lobbyIn: 0, lobbyOut: [] });
 
@@ -1121,9 +1129,35 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
         proposedTeam: sim.proposedTeam ?? built.state.proposedTeam,
         teamVotes: { ...built.state.teamVotes, ...sim.votes },
         roleAcks: { ...built.state.roleAcks, ...sim.acks },
+        ladyHolderId: sim.ladyHolder ?? built.state.ladyHolderId,
+        ladyTargetId: sim.ladyTarget !== undefined ? sim.ladyTarget : built.state.ladyTargetId,
+        ladyShownCard: sim.ladyShown !== undefined ? sim.ladyShown : built.state.ladyShownCard,
+        ladyHistory: sim.ladyHistory ?? built.state.ladyHistory,
+        assassinChoiceId: sim.assassinChoice !== undefined ? sim.assassinChoice : built.state.assassinChoiceId,
       },
     };
   }, [built, sim]);
+
+  // The Lady's three steps, as the real game does them (useAvalon): aim, look
+  // (the TRUE team of the target), hand the token on.
+  const teamOf = (id: string | null) =>
+    id && (players.find((p) => p.id === id)?.gameData as Partial<AvalonGameData> | undefined)?.team === 'evil' ? 'evil' : 'good';
+  const ladyAim = (id: string) => updateSim((s) => ({ ...s, ladyTarget: id, ladyShown: null }));
+  const ladyLook = () => updateSim((s) => ({ ...s, ladyShown: teamOf(s.ladyTarget ?? built.state.ladyTargetId) }));
+  const ladyHandOn = () =>
+    updateSim((s) => {
+      const holder = s.ladyHolder ?? built.state.ladyHolderId;
+      const target = s.ladyTarget ?? built.state.ladyTargetId;
+      if (!holder || !target) return s;
+      return {
+        ...s,
+        ladyHolder: target,
+        ladyTarget: null,
+        ladyShown: null,
+        ladyHistory: [...(s.ladyHistory ?? built.state.ladyHistory), holder],
+      };
+    });
+  const assassinAim = (id: string | null) => updateSim((s) => ({ ...s, assassinChoice: id }));
 
   // "Someone else acts": the next player who has not done this phase's thing.
   const others = players.filter((p) => p.id !== viewerId);
@@ -1154,6 +1188,23 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
       const next = others.find((p) => !state.roleAcks[p.id]);
       if (!next) return null;
       return () => updateSim((s) => ({ ...s, acks: { ...s.acks, [next.id]: true } }));
+    }
+    if (state.phase === 'lady-of-lake') {
+      // The holder, step by step: aim at the next candidate, look, hand on.
+      if (state.ladyHolderId === viewerId) return null;
+      if (!state.ladyTargetId) {
+        const next = players.find((p) => p.id !== state.ladyHolderId && !state.ladyHistory.includes(p.id));
+        return next ? () => ladyAim(next.id) : null;
+      }
+      return state.ladyShownCard === null ? ladyLook : ladyHandOn;
+    }
+    if (state.phase === 'assassinate') {
+      // The Assassin changes their mind: the next Good player.
+      const good = players.filter((p) => (p.gameData as Partial<AvalonGameData>).team === 'good');
+      const at = good.findIndex((p) => p.id === state.assassinChoiceId);
+      const next = good[(at + 1) % good.length];
+      if (!next || (state.assassinChoiceId === next.id && good.length === 1)) return null;
+      return () => assassinAim(next.id);
     }
     return null;
   })();
@@ -1344,7 +1395,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             <button
               onClick={simulate ?? undefined}
               disabled={!simulate}
-              title="Một người chơi khác hành động: được đề cử, bỏ phiếu, đặt lá, sẵn sàng"
+              title="Một người chơi khác hành động: được đề cử, bỏ phiếu, đặt lá, sẵn sàng; Lady ngắm / soi / chuyển token; Sát Thủ đổi mục tiêu"
               className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-bold text-slate-200 active:bg-white/10 disabled:opacity-40"
             >
               Người khác làm
@@ -1405,12 +1456,12 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             onSubmitTeam={stub}
             onCastVote={onCastVote}
             onPlayQuestCard={onPlayQuestCard}
-            onLadyInspect={noop}
-            onLadyConfirm={stub}
+            onLadyInspect={ladyAim}
+            onLadyConfirm={ladyLook}
             onLadyShow={noop}
-            onLadyFinish={stub}
+            onLadyFinish={ladyHandOn}
             onAssassinate={noop}
-            onSetAssassinChoice={noop}
+            onSetAssassinChoice={assassinAim}
             onShowMyRole={() => setShowRoleCard(true)}
             onShowRolePreview={() => setShowRolePreview(true)}
             onAckRole={stub}

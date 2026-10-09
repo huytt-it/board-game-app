@@ -12,6 +12,7 @@ import AvIcon from './assets/AvIcon';
 import { TEAM_ICON_NAME } from './presentation';
 import GlassPanel from './ui/GlassPanel';
 import RoleEmblem from './ui/RoleEmblem';
+import { useDialog } from './hooks/useDialog';
 
 interface RolePreviewPopupProps {
   state: AvalonGameState;
@@ -52,9 +53,16 @@ export default function RolePreviewPopup({
   const firstLadyId = state.ladyHistory?.[0] ?? state.ladyHolderId;
   const firstLady = firstLadyId ? players.find((p) => p.id === firstLadyId) : null;
 
+  const dialog = useDialog<HTMLDivElement>(onClose);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in"
+      ref={dialog}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Các vai trong ván"
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in outline-none"
       onClick={onClose}
     >
       {/* Neutral frame and emblem whatever the viewer's team (ux-plan 2.9, 2.11). */}
@@ -66,7 +74,7 @@ export default function RolePreviewPopup({
       >
         <button
           onClick={onClose}
-          className="sticky top-0 float-right z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          className="sticky top-0 float-right z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           aria-label="Đóng"
         >
           <AvIcon name="close" size={20} />

@@ -144,7 +144,7 @@ export default function AvalonJoinScreen({
             </div>
           </GlassPanel>
 
-          <Link href="/" className="mt-5 text-sm font-bold text-slate-400 transition-colors hover:text-slate-200">
+          <Link href="/" className="mt-5 inline-flex min-h-11 items-center px-3 text-sm font-bold text-slate-400 transition-colors hover:text-slate-200">
             ← Về trang chủ
           </Link>
         </div>

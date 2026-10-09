@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { Player } from '@/types/player';
 import type { AvalonGameData, AvalonGameState } from '../types';
 import { TEAM_NAME_VI } from '../constants';
@@ -10,9 +11,8 @@ import ActionDock from '../ui/ActionDock';
 import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 
-// The inspected team, shown the same way to the Lady and to the target. The
-// card around it stays neutral (ux-plan 2.9): only the words and a mid-size
-// icon carry the team colour.
+// The inspected team, shown ONLY to the Lady. The card around it stays neutral
+// (ux-plan 2.9): only the words and a mid-size icon carry the team colour.
 function InspectedTeam({ team }: { team: 'good' | 'evil' }) {
   const color = team === 'good' ? 'text-(--av-good-light)' : 'text-(--av-evil-light)';
   return (
@@ -23,10 +23,40 @@ function InspectedTeam({ team }: { team: 'good' | 'evil' }) {
   );
 }
 
+// The Lady's result card, turned over from its face-down back. It is on the
+// Lady's screen only (nobody else is ever shown the team), so the flip is a
+// local, decorative transition: it plays when the result ARRIVES while the
+// screen is open, and a reload shows the card face up straight away (ux-plan
+// 2.2). Face up is the static style; the keyframes only describe the turn.
+function LadyResultCard({ target, team, live }: { target: Player; team: 'good' | 'evil'; live: boolean }) {
+  return (
+    <div style={{ perspective: '800px' }} data-lady-result={team} data-lady-flip={live ? 'live' : 'static'}>
+      <div className={`relative [transform-style:preserve-3d] ${live ? 'av-lady-flip' : ''}`}>
+        <GlassPanel tone="lady" emphasis className="av-flip-face p-6 text-center">
+          <p className="text-[11px] uppercase font-bold text-slate-300 mb-1 tracking-widest">
+            <AvIcon name="lady" /> Kết quả soi
+          </p>
+          <p className="text-base font-black text-white">{target.name} là</p>
+          <InspectedTeam team={team} />
+          <p className="text-[11px] text-slate-400 italic">
+            Bạn có thể chia sẻ thật / nói xạo với nhóm tuỳ ý.
+          </p>
+        </GlassPanel>
+        {/* The back: one design for every result. */}
+        <div
+          className="av-flip-back flex items-center justify-center rounded-2xl border-2 border-(--av-lady)/60 bg-(--av-ink)"
+          aria-hidden
+        >
+          <AvIcon name="lady" size={56} className="text-(--av-lady)" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function LadySection({
   state,
   myPlayer,
-  myTeam,
   gamePlayers,
   onLadyInspect,
   onLadyConfirm,
@@ -34,7 +64,6 @@ export function LadySection({
 }: {
   state: AvalonGameState;
   myPlayer: Player;
-  myTeam: 'good' | 'evil' | undefined;
   gamePlayers: Player[];
   onLadyInspect: (id: string) => void;
   onLadyConfirm: () => void;
@@ -48,20 +77,40 @@ export function LadySection({
   const shown = state.ladyShownCard;
   const inspected = shown !== null;
 
+  // Did this screen open before the result came in? Then the card turns over
+  // when it does; if the result is already there (a reload) it just shows.
+  const [liveReveal] = useState(() => !inspected);
+
   // Đếm ngược 45s — hiển thị cho cả Lady, target và bystander.
   const { remaining } = usePhaseClock(state);
   const timeStr = formatSecs(remaining);
 
+  // What the screen reader hears when the Lady looks: the holder hears the
+  // team, nobody else ever does (the same words for the target and the rest).
+  const announce =
+    !inspected || !target
+      ? ''
+      : isHolder
+        ? `${target.name} thuộc ${TEAM_NAME_VI[shown === 'good' ? 'good' : 'evil']}.`
+        : `${holder?.name ?? 'Lady'} đã soi ${isTarget ? 'bạn' : target.name}.`;
+  const live = (
+    <p className="sr-only" role="status" aria-live="polite" data-lady-announce="">
+      {announce}
+    </p>
+  );
+
   if (isTarget) {
-    const isEvil = myTeam === 'evil';
+    // The screen is the same whichever team the viewer is on: the card is
+    // neutral and says nothing about what the Lady saw (ux-plan 2.4).
     if (!inspected) {
       return (
         <GlassPanel tone="lady" emphasis className="p-5 text-center">
+          {live}
           <p className="text-[11px] uppercase font-black text-teal-100 mb-2 tracking-widest">
             <AvIcon name="lady" /> {holder?.name} đang ngắm bạn
           </p>
           <p className="text-sm text-slate-300 mb-3">
-            Chờ Lady bấm <strong className="text-white">Xác nhận soi vai trò</strong> để xem phe của bạn.
+            Chờ Lady bấm <strong className="text-white">Xác nhận soi</strong> để nhìn thấy phe thật của bạn.
           </p>
           <AvIcon name="eye" size={30} className="mb-1 animate-pulse text-(--av-lady)" />
           <p className="text-[11px] text-slate-400">Còn lại {timeStr}</p>
@@ -70,13 +119,14 @@ export function LadySection({
     }
     return (
       <GlassPanel tone="lady" emphasis className="p-6 text-center">
+        {live}
         <p className="text-[11px] uppercase font-black text-slate-300 mb-2 tracking-widest">
-          <AvIcon name="lady" /> {holder?.name} đã soi vai trò của bạn
+          <AvIcon name="lady" /> {holder?.name} đã soi bạn
         </p>
-        <p className="text-sm text-slate-300">Lady thấy bạn thuộc</p>
-        <InspectedTeam team={isEvil ? 'evil' : 'good'} />
-        <p className="text-[11px] text-slate-400">
-          Lady đã thấy phe thật của bạn — không thể nói xạo.
+        <AvIcon name="eye" size={40} className="text-(--av-lady)" />
+        <p className="av-display mt-1 text-2xl text-white">Đã soi</p>
+        <p className="mt-2 text-[11px] text-slate-400">
+          Lady đã thấy phe thật của bạn — không thể nói xạo với Lady.
         </p>
         <p className="mt-3 text-xs text-slate-300">
           Chờ {holder?.name} hoàn tất để chuyển token...
@@ -88,27 +138,17 @@ export function LadySection({
 
   if (isHolder) {
     // Bước 3: đã confirm → reveal + Hoàn tất.
-    if (state.ladyTargetId && inspected) {
+    if (target && inspected) {
       return (
         <div className="space-y-3">
-          <GlassPanel tone="lady" emphasis className="p-6 text-center">
-            <p className="text-[11px] uppercase font-bold text-slate-300 mb-1 tracking-widest">
-              <AvIcon name="lady" /> Kết quả soi
-            </p>
-            <p className="text-base font-black text-white">
-              {target?.name} là
-            </p>
-            <InspectedTeam team={shown === 'good' ? 'good' : 'evil'} />
-            <p className="text-[11px] text-slate-400 italic">
-              Bạn có thể chia sẻ thật / nói xạo với nhóm tuỳ ý.
-            </p>
-          </GlassPanel>
+          {live}
+          <LadyResultCard target={target} team={shown === 'good' ? 'good' : 'evil'} live={liveReveal} />
           <ActionDock>
             <button
               onClick={onLadyFinish}
               className="w-full rounded-2xl bg-(--av-lady) py-4 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95"
             >
-              ✓ Hoàn tất — Chuyển token cho {target?.name}
+              ✓ Hoàn tất — Chuyển token cho {target.name}
             </button>
           </ActionDock>
         </div>
@@ -127,6 +167,7 @@ export function LadySection({
 
     return (
       <div className="space-y-3">
+        {live}
         <GlassPanel tone="lady" className="p-4">
           <div className="flex items-center justify-between mb-1">
             <p className="text-[11px] uppercase font-black text-(--av-lady)"><AvIcon name="lady" /> Lady of the Lake</p>
@@ -147,7 +188,8 @@ export function LadySection({
                 <button
                   key={p.id}
                   onClick={() => onLadyInspect(p.id)}
-                  className={`rounded-xl border p-3 text-left transition-all active:scale-95 ${picked
+                  aria-pressed={picked}
+                  className={`min-h-14 rounded-xl border p-3 text-left transition-all active:scale-95 ${picked
                     ? 'border-(--av-lady) bg-(--av-lady)/20 ring-2 ring-(--av-lady)/60 shadow-lg shadow-black/40'
                     : 'border-white/10 bg-white/5 hover:bg-white/10'
                     }`}
@@ -187,6 +229,7 @@ export function LadySection({
   // Bystander view — thấy ai đang được Lady ngắm/đã soi.
   return (
     <div className="space-y-3">
+      {live}
       <GlassPanel tone="lady" className="p-5 text-center">
         <p className="text-[11px] uppercase font-bold text-(--av-lady) mb-2"><AvIcon name="lady" /> Lady of the Lake</p>
         {!target && (

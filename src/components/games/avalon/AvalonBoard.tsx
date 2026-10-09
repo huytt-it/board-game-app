@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom, ACTIVE_ROOM_KEY } from '@/hooks/useRoom';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -32,6 +32,7 @@ import DealingCards from './ui/DealingCards';
 import LobbyNotices from './ui/LobbyNotices';
 import { useRosterNotices } from './hooks/useRosterChanges';
 import { useConfirm } from './hooks/useConfirm';
+import { useDialog } from './hooks/useDialog';
 import './avalon.css';
 
 // Class for every Avalon root element: scopes avalon.css (tokens, reduced
@@ -316,7 +317,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       await assignRoles();
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Không thể bắt đầu ván';
-      alert(msg);
+      setNotice(msg);
     }
   }, [assignRoles]);
 
@@ -343,11 +344,35 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         await gameStorage.removePlayer(room.id, targetId);
       } catch (err) {
         const msg = err instanceof Error ? err.message : 'Không thể kick người chơi';
-        alert(msg);
+        setNotice(msg);
       }
     },
     [ask, room.id]
   );
+
+  // Errors of the player's own actions ("cannot start", "cannot kick"…) and the
+  // lost-connection warning, in the room's look instead of the browser's alert().
+  // `role="alert"` / `status`: a screen reader says it when it appears.
+  const banner =
+    offline || notice ? (
+      <div className="fixed inset-x-0 top-0 z-40 px-4 pt-2" role={offline ? 'status' : 'alert'} data-banner="">
+        <div
+          className={`mx-auto max-w-md rounded-xl border px-4 py-2 text-center text-sm font-bold shadow-lg ${
+            offline
+              ? 'border-orange-500/40 bg-orange-950/90 text-orange-200'
+              : 'border-amber-500/40 bg-amber-950/90 text-amber-200'
+          }`}
+        >
+          {offline ? (
+            <>
+              <AvIcon name="offline" /> Mất kết nối — đang thử kết nối lại. Thao tác của bạn chưa được gửi.
+            </>
+          ) : (
+            notice
+          )}
+        </div>
+      </div>
+    ) : null;
 
   if (room.status === 'lobby') {
     const enoughPlayers = (PLAYER_COUNTS as readonly number[]).includes(playerCount);
@@ -358,6 +383,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       <div className={`${AVALON_ROOT} mx-auto max-w-5xl animate-fade-in px-4 pt-6 pb-32 sm:px-6 lg:px-8`}>
         {showPreview && <AvalonPreview onClose={() => setShowPreview(false)} />}
         <LobbyNotices notices={rosterNotices} players={players} />
+        {banner}
         {confirmDialog}
 
         <Modal open={showSettings} onClose={() => setShowSettings(false)} icon="settings" title="Cài đặt Avalon">
@@ -378,14 +404,14 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           </h1>
           <button
             onClick={() => setShowRoleGuide(true)}
-            className="rounded-lg border border-(--av-parchment)/25 bg-(--av-parchment)/10 px-3 py-1.5 text-sm font-bold text-(--av-parchment) hover:bg-(--av-parchment)/20"
+            className="min-h-11 rounded-lg border border-(--av-parchment)/25 bg-(--av-parchment)/10 px-3 py-1.5 text-sm font-bold text-(--av-parchment) hover:bg-(--av-parchment)/20"
           >
             <AvIcon name="guide" /> Vai trò
           </button>
           {isHost && (
             <button
               onClick={() => setShowSettings(true)}
-              className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-sm font-bold text-amber-300 hover:bg-amber-500/20"
+              className="min-h-11 rounded-lg border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 text-sm font-bold text-amber-300 hover:bg-amber-500/20"
             >
               <AvIcon name="settings" /> Cài đặt
               <span className="ml-1 rounded-full bg-amber-500/30 px-1.5 py-0.5 text-[10px]">
@@ -395,13 +421,13 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           )}
           <button
             onClick={() => setShowPreview(true)}
-            className="rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
+            className="min-h-11 rounded-lg border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-sm font-bold text-purple-300 hover:bg-purple-500/20"
           >
             <AvIcon name="preview" /> Xem trước
           </button>
           <button
             onClick={isHost ? handleDelete : handleLeave}
-            className="rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 hover:bg-orange-500/10 hover:text-orange-300"
+            className="min-h-11 rounded-lg px-3 py-1.5 text-sm font-medium text-slate-400 hover:bg-orange-500/10 hover:text-orange-300"
           >
             <AvIcon name={isHost ? 'delete' : 'leave'} /> {isHost ? 'Xoá' : 'Rời'}
           </button>
@@ -457,27 +483,6 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     );
   }
 
-  const banner =
-    offline || notice ? (
-      <div className="fixed inset-x-0 top-0 z-40 px-4 pt-2">
-        <div
-          className={`mx-auto max-w-md rounded-xl border px-4 py-2 text-center text-sm font-bold shadow-lg ${
-            offline
-              ? 'border-orange-500/40 bg-orange-950/90 text-orange-200'
-              : 'border-amber-500/40 bg-amber-950/90 text-amber-200'
-          }`}
-        >
-          {offline ? (
-            <>
-              <AvIcon name="offline" /> Mất kết nối — đang thử kết nối lại. Thao tác của bạn chưa được gửi.
-            </>
-          ) : (
-            notice
-          )}
-        </div>
-      </div>
-    ) : null;
-
   if (!state) {
     return withScene(
       HALL,
@@ -508,7 +513,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           <p className="text-sm">Số người chơi không hợp lệ ({playerCount}). Avalon cần 5–10 người.</p>
           <button
             onClick={isHost ? handleDelete : handleLeave}
-            className="mt-4 rounded-lg border border-white/10 bg-(color:--av-bar-bg) px-4 py-2 text-xs font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300"
+            className="mt-4 min-h-11 rounded-lg border border-white/10 bg-(color:--av-bar-bg) px-4 py-2 text-xs font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300"
           >
             <AvIcon name={isHost ? 'delete' : 'leave'} /> {isHost ? 'Xoá phòng' : 'Rời'}
           </button>
@@ -602,6 +607,24 @@ function Modal({
   children: React.ReactNode;
 }) {
   if (!open) return null;
+  return <ModalBody onClose={onClose} icon={icon} title={title}>{children}</ModalBody>;
+}
+
+// The open modal: a labelled dialog that keeps the keyboard focus inside and
+// closes on Escape (hooks/useDialog).
+function ModalBody({
+  onClose,
+  icon,
+  title,
+  children,
+}: {
+  onClose: () => void;
+  icon?: IconName;
+  title: string;
+  children: React.ReactNode;
+}) {
+  const dialog = useDialog<HTMLDivElement>(onClose);
+  const titleId = useId();
   return (
     <div className="fixed inset-0 z-50 flex items-end md:items-center justify-center animate-fade-in">
       <div
@@ -609,15 +632,22 @@ function Modal({
         onClick={onClose}
         aria-hidden="true"
       />
-      <div className="relative w-full md:max-w-2xl max-h-[92vh] md:max-h-[85vh] flex flex-col rounded-t-3xl md:rounded-2xl border border-white/10 bg-slate-950 shadow-2xl overflow-hidden">
+      <div
+        ref={dialog}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        tabIndex={-1}
+        className="relative w-full md:max-w-2xl max-h-[92vh] md:max-h-[85vh] flex flex-col rounded-t-3xl md:rounded-2xl border border-white/10 bg-slate-950 shadow-2xl overflow-hidden outline-none"
+      >
         <div className="flex items-center gap-2 px-4 py-3 border-b border-white/10 bg-slate-900/60">
-          <h2 className="av-display flex min-w-0 items-center gap-2 text-xl text-white">
+          <h2 id={titleId} className="av-display flex min-w-0 items-center gap-2 text-xl text-white">
             {icon && <AvIcon name={icon} className="text-(--av-gold)" />}
             <span className="truncate">{title}</span>
           </h2>
           <button
             onClick={onClose}
-            className="ml-auto rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-bold text-slate-300 hover:bg-white/10"
+            className="ml-auto min-h-11 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm font-bold text-slate-300 hover:bg-white/10"
           >
             <AvIcon name="close" /> Đóng
           </button>

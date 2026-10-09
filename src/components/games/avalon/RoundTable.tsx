@@ -11,8 +11,10 @@ import { END, NIGHT, VOTE_RESULT, questResultTimeline } from './table/timelines'
 import { NIGHT_CALL, type NightPhase } from './panel/NightSections';
 import { useArrivals } from './hooks/useArrivals';
 import { useCue } from './hooks/useCue';
+import { useDialog } from './hooks/useDialog';
 import { useHiddenQuest, useShownRejectStreak } from './hooks/useTableReveal';
 import AvIcon, { type IconName } from './assets/AvIcon';
+import AimHeartbeat from './ui/AimHeartbeat';
 import Cued from './ui/Cued';
 import GlassPanel from './ui/GlassPanel';
 import PlayerAvatar from './ui/PlayerAvatar';
@@ -163,14 +165,14 @@ export default function RoundTable({
 
   return (
     // A size container: the tokens and flying cards measure in cqw (% of the table).
-    <div className="@container relative mx-auto w-full max-w-[640px] sm:max-w-[680px] lg:max-w-[760px] aspect-square select-none">
+    <div className={`@container relative mx-auto w-full max-w-[640px] sm:max-w-[680px] lg:max-w-[760px] aspect-square select-none ${n >= 8 ? "av-table-dense" : ""}`}>
       {/* The round table itself — wood/dark gradient with concentric rings */}
       <div className="absolute inset-[12%] rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(180,120,60,0.25),transparent_55%),linear-gradient(135deg,#3b2a1a_0%,#2a1c0f_50%,#15100a_100%)] border-[3px] border-amber-800/60 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_2px_8px_rgba(255,200,140,0.1)]">
         <div className="absolute inset-2 rounded-full border border-amber-700/30" />
         <div className="absolute inset-5 rounded-full border border-amber-600/15" />
 
         {/* Center: quest row + vote-track stacked vertically */}
-        <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 sm:px-6">
+        <div className="av-table-core absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 sm:px-6">
           {/* Quest badges (M1..M5) — bigger, simpler when done. Click for popup. */}
           <div className="flex items-stretch justify-center gap-2 sm:gap-3 w-full max-w-[94%]">
             {state.quests.map((q, idx) => {
@@ -262,7 +264,7 @@ export default function RoundTable({
                   <button
                     key={idx}
                     onClick={() => setOpenQuestIdx(idx)}
-                    className={`${baseCls} hover:brightness-110 active:scale-95 transition`}
+                    className={`${baseCls} av-hit [--av-hit-x:-6px] [--av-hit-y:0px] hover:brightness-110 active:scale-95 transition`}
                     title={`Xem chi tiết Quest ${idx + 1}`}
                     aria-label={`Quest ${idx + 1}: ${success ? 'thành công' : 'thất bại'} — xem chi tiết`}
                     data-quest-tile={success ? 'success' : 'fail'}
@@ -372,16 +374,20 @@ export default function RoundTable({
             selected={isOnTeam}
             aim={isAssassinTarget ? 'assassin' : isLadyTarget ? 'lady' : null}
             isMe={isMe}
-            pulse={isOnTeam || isAssassinTarget}
+            pulse={isOnTeam}
             glow={glowing}
           >
             {isAssassinTarget && (
-              <span
-                className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-2xl text-(--av-evil) drop-shadow-[0_2px_3px_rgba(0,0,0,0.7)] animate-bounce"
-                title="Sát Thủ đang ngắm"
-              >
-                <AvIcon name="target" />
-              </span>
+              <>
+                {/* The target's heartbeat: it quickens as the Assassin's time runs out. */}
+                <AimHeartbeat state={state} />
+                <span
+                  className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-2xl text-(--av-evil) drop-shadow-[0_2px_3px_rgba(0,0,0,0.7)] animate-bounce"
+                  title="Sát Thủ đang ngắm"
+                >
+                  <AvIcon name="target" />
+                </span>
+              </>
             )}
 
             {/* Hint icon (visible-evil / Percival uncertainty) */}
@@ -479,7 +485,7 @@ export default function RoundTable({
               {/* Near-opaque label: the seats sit over the scene, which can be
                   bright (the dawn of end-good) — the name must stay readable. */}
               <div
-                className={`absolute left-1/2 top-full mt-1 w-max max-w-[80px] -translate-x-1/2 truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${isMe
+                className={`av-seat-name absolute left-1/2 top-full mt-1 w-max max-w-[80px] -translate-x-1/2 truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${isMe
                   ? 'bg-black/75 text-(--av-parchment) ring-1 ring-(--av-parchment)/50'
                   : 'bg-black/75 text-white'
                   }`}
@@ -561,9 +567,16 @@ function QuestDetailPopup({
   const reject = quest.rejectCount;
   const needsTwo = questNeedsTwoFails(playerCount, questIndex);
 
+  const dialog = useDialog<HTMLDivElement>(onClose);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in"
+      ref={dialog}
+      role="dialog"
+      aria-modal="true"
+      aria-label={`Chi tiết Quest ${questIndex + 1}`}
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in outline-none"
       onClick={onClose}
     >
       {/* A quest's result is public: tinted by it, the same on every screen. */}
@@ -575,7 +588,7 @@ function QuestDetailPopup({
       >
         <button
           onClick={onClose}
-          className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           aria-label="Đóng"
         >
           <AvIcon name="close" size={20} />
@@ -665,7 +678,7 @@ function QuestDetailPopup({
 
         <button
           onClick={onClose}
-          className="mt-4 w-full rounded-xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-2.5 text-sm font-black text-(--av-parchment) hover:bg-(--av-gold)/30"
+          className="mt-4 min-h-11 w-full rounded-xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-2.5 text-sm font-black text-(--av-parchment) hover:bg-(--av-gold)/30"
         >
           ✓ Đóng
         </button>

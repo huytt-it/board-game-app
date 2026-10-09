@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useId, useRef, type KeyboardEvent, type ReactNode } from 'react';
+import { useId, useRef, type ReactNode } from 'react';
+import { useDialog } from '../hooks/useDialog';
 import AvIcon, { type IconName } from '../assets/AvIcon';
 
 export interface ConfirmOptions {
@@ -43,24 +44,9 @@ export default function ConfirmDialog({
   const titleId = useId();
   const messageId = useId();
   const cancelRef = useRef<HTMLButtonElement>(null);
-  const okRef = useRef<HTMLButtonElement>(null);
-
-  useEffect(() => {
-    const previous = document.activeElement as HTMLElement | null;
-    cancelRef.current?.focus();
-    return () => previous?.focus?.();
-  }, []);
-
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === 'Escape') {
-      e.preventDefault();
-      onAnswer(false);
-    } else if (e.key === 'Tab') {
-      // Two buttons: Tab and Shift+Tab just go back and forth.
-      e.preventDefault();
-      (document.activeElement === okRef.current ? cancelRef : okRef).current?.focus();
-    }
-  };
+  // Focus starts on the safe button; Tab stays inside, Escape cancels, focus
+  // goes back when it closes (a stack-aware dialog: it sits above any modal).
+  const panel = useDialog<HTMLDivElement>(() => onAnswer(false), cancelRef);
 
   return (
     <div
@@ -70,13 +56,14 @@ export default function ConfirmDialog({
     >
       <div className="av-dialog-backdrop absolute inset-0 bg-black/70" aria-hidden />
       <div
+        ref={panel}
         role="alertdialog"
         aria-modal="true"
+        tabIndex={-1}
         aria-labelledby={titleId}
         aria-describedby={options.message ? messageId : undefined}
-        className="av-dialog-panel relative w-full max-w-sm rounded-2xl border-2 border-(--av-gold)/45 bg-(color:--av-bar-bg) p-5 shadow-2xl shadow-black/60"
+        className="av-dialog-panel relative w-full max-w-sm outline-none rounded-2xl border-2 border-(--av-gold)/45 bg-(color:--av-bar-bg) p-5 shadow-2xl shadow-black/60"
         onClick={(e) => e.stopPropagation()}
-        onKeyDown={onKeyDown}
       >
         <div className="flex items-start gap-3">
           {options.icon && <AvIcon name={options.icon} size={28} className={`mt-0.5 ${ICON_CLS[tone]}`} />}
@@ -102,7 +89,6 @@ export default function ConfirmDialog({
             {options.cancelLabel ?? 'Huỷ'}
           </button>
           <button
-            ref={okRef}
             type="button"
             onClick={() => onAnswer(true)}
             className={`rounded-xl py-3 text-sm font-black shadow-lg shadow-black/40 active:scale-[0.98] ${CONFIRM_CLS[tone]}`}

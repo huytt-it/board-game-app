@@ -6,6 +6,7 @@ import { useConfirm } from '../hooks/useConfirm';
 import { LOW_TIME_GLOW } from './shared';
 import AvIcon from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
+import AimHeartbeat from '../ui/AimHeartbeat';
 import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 import RoleEmblem from '../ui/RoleEmblem';
@@ -58,6 +59,7 @@ export function AssassinSection({
       </p>
       <div className="flex items-center gap-3">
         <PlayerAvatar player={picked} size="lg" aim="assassin" className="av-stab">
+          <AimHeartbeat state={state} />
           <span className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-2xl text-(--av-evil) drop-shadow-[0_2px_3px_rgba(0,0,0,0.7)] animate-bounce">
             <AvIcon name="target" />
           </span>
