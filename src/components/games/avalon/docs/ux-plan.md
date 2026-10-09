@@ -417,6 +417,22 @@ Mọi animation đi qua `usePhaseTimeline`, tuân thủ mục 2 và ngân sách 
   - Người có vai trong lượt đó nhấn giữ thì mới thấy thông tin. Trong lúc giữ, ghế liên quan trên bàn mới phát sáng.
   - Không rung.
 
+#### Bổ sung cho GĐ4 (nhạc trưởng, 2026-10-09)
+- **Việc tồn phải làm trong GĐ4:**
+  - **Top bar:** chip phase **không được** hiện dấu "…". Ở bề rộng không đủ cho nhãn ngắn thì chỉ hiện icon (nhãn đầy đủ vẫn có trong `title` / `aria-label`). Kiểm ở 320, 360, 375, 390px **trong ván thật**: trang phòng hiện bọc `px-4`, nên bề rộng thật nhỏ hơn màn hình 32px.
+  - **Trang phòng:** khi rẽ nhánh `gameType === 'avalon'` trong `page.tsx`, bỏ `px-4 py-6` cho Avalon (Avalon tự lo khoảng đệm). Các game khác giữ nguyên.
+  - **Dock:** đưa nút "Đã đọc" ở lineup và các nút "Đã xem" ban đêm vào `ActionDock`, cùng lúc với lớp phủ "nhắm mắt". **Mọi người** đều thấy dock với cùng một nút ("Tôi đã mở mắt / Tiếp tục", hoặc "Nhấn giữ để xem"), nên dock không lộ ai có vai trong lượt đó.
+  - **Riêng tư:**
+    - `PlayerRoster` bản mobile không được cao khác nhau theo vai. Ví dụ: gợi ý chỉ là icon cạnh tên, hoặc mọi hàng giữ chỗ chip như nhau.
+    - `RoleCard` ("Vai của tôi") cũng dùng **nhấn giữ để xem**, giống `RoleReveal`. Đây là phần còn lệch 1,5–2,5 ở 375 (ghi chú GĐ2b).
+  - **Lobby 375px khi đủ 10 ghế:** nút kick đè ghế bên cạnh (ghi chú GĐ1). Làm nút kick nhỏ hơn hoặc gom vào menu của ghế.
+- **Nền tảng có sẵn:**
+  - Vương miện quay quanh bàn: dùng lại `TableTokens` / `useOrbit`. Hiệu ứng "vòng quay" ở lineup có thể đặt số vòng và điểm dừng tính từ `seatOrder` + `currentLeaderId`, để mọi máy giống nhau.
+  - Thời gian dùng `useCue` / `<Cued>` + `usePhaseTimeline`, theo quy ước "style tĩnh = khung cuối".
+  - **Xáo ghế:** **không** dịch chuyển hay xoay một lớp to bằng cả bàn, vì hộp đã biến đổi sẽ thò ra ngoài trang (bài học GĐ3, ghi chú trong `TableTokens`). Mỗi ghế tự `transform` từ vị trí cũ (thứ tự `joinedAt`) tới vị trí mới (`seatOrder`), tính bằng `cqw` trên neo kích thước 0.
+- **Riêng tư ở đêm (mục 2.4):** lớp phủ đêm và dock phải **giống hệt nhau trên mọi máy** khi không ai nhấn giữ. Nhấn giữ thì chỉ máy đó hiện thông tin. Không rung máy. Đo bằng cặp ảnh như GĐ2a, cho cả 3 lượt đêm (người có vai và người không).
+- **Gợi ý model:** Opus 5.5 (nhiều phần hình ảnh: trang vào phòng, thư niêm phong, màn đêm).
+
 ### GĐ5 — Kết thúc ván
 - Cảnh `end-good` / `end-evil`. Banner cá nhân "Bạn thắng!" / "Bạn thua…" (so phe của người xem với `winner`).
 - Tàn lửa hoặc hạt lấp lánh trong 3 giây, tối đa 30 hạt.
@@ -459,7 +475,7 @@ Branch: `dev-avalon-uxui`.
 | 1 Bộ nhận diện | **Đã review — đạt** (2026-10-06) | `928c1afa` → `f92d548d` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 928c1afa..HEAD` | Claude Opus 5.5 | 47 icon game-icons.net (người dùng đã duyệt bảng) + 1 icon chỉnh sửa, registry + `AvIcon`, token màu, font Cormorant Garamond, `PlayerAvatar`, `RoleEmblem`; 0 emoji. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ1" bên dưới. |
 | 2a Hệ thống cảnh + quét lộ phe | **Đã review — đạt** (2026-10-07) | `d6e27ed7` → `ccfb2005` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log d6e27ed7..HEAD` | Claude Opus 5.5 | `scenes/` (types, journey, getScene, SceneBackdrop, paper), 4 cảnh mẫu `hall`/`night`/`camp`/`forest` + 10 placeholder, `SCENES` trong registry, `ui/GlassPanel`, quét lộ phe, token màu phe (regex màu = 0). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2a" bên dưới. |
 | 2b Vẽ đủ cảnh + tiêu đề + hành trình | **Đã review — đạt** (2026-10-08) | `0f6cb1c5` → `059830b6` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 0f6cb1c5..HEAD` | Claude Opus 5.5 | 10 cảnh mới (đủ 14, hết placeholder), `weather/Storm`, phủ tối theo Quest thất bại, `SceneTitle` + câu dẫn, `JourneyStrip` (hình thu nhỏ lấy từ chính cảnh, không cần icon mới), `RoleEmblem tone="neutral"` ở chỗ riêng tư. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2b" bên dưới. |
-| 3 Vòng Quest | **Đã làm — chờ review** (2026-10-09) | `95fdbcfa` → `8a33c2c5` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 95fdbcfa..HEAD` | Claude Opus 5.5 | `TableTokens` (vương miện / Lady trượt theo vành bàn, token đề cử bay từ Leader), chồng bài úp + lá bay, chuỗi `team-vote-result` và `quest-result` theo giờ server, lá phiếu úp, đồng hồ vòng, `ActionDock`, nút Xoá/Rời vào top bar, `animate-pulse` chỉ còn ở viền. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ3" bên dưới. |
+| 3 Vòng Quest | **Đã review — đạt** (2026-10-09) | `95fdbcfa` → `8a33c2c5` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 95fdbcfa..HEAD` | Claude Opus 5.5 | `TableTokens` (vương miện / Lady trượt theo vành bàn, token đề cử bay từ Leader), chồng bài úp + lá bay, chuỗi `team-vote-result` và `quest-result` theo giờ server, lá phiếu úp, đồng hồ vòng, `ActionDock`, nút Xoá/Rời vào top bar, `animate-pulse` chỉ còn ở viền. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ3" bên dưới. |
 | 4 Mở đầu | Chưa bắt đầu | | | |
 | 5 Kết thúc | Chưa bắt đầu | | | |
 | 6 Hoàn thiện | Chưa bắt đầu | | | |
@@ -570,6 +586,34 @@ Ghi nhận:
    - nhãn tên dưới ghế đổi sang nền `black/75` để đủ tương phản trên cảnh bình minh.
 3. **`animate-pulse` làm mờ cả chữ** (ô Quest hiện tại, avatar trong đội), có chỗ chỉ còn tương phản 2,9:1: giao GĐ3.
 4. Tiêu đề cảnh ở 375 đè lên bàn tròn khoảng 2,6 giây (không chặn bấm): GĐ3 kiểm lại cùng `ActionDock`.
+
+**GĐ3 (2026-10-09): đạt, đã push.** Nhạc trưởng tự kiểm lại:
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: vẫn 2 lỗi có sẵn từ trước.
+- Logic-core và các file ngoài thư mục Avalon không có trong diff. `AvalonBoard.tsx` chỉ bỏ khối nút Xoá/Rời (handler giữ nguyên, truyền qua `onLeaveRoom`).
+- Đếm emoji = 0; regex màu phe = 0.
+- Đã đọc code:
+  - `table/timelines.ts`: mọi mốc ở một chỗ; thứ tự lật dựng từ `failCount` và xáo bằng seed `phaseStartedAt`;
+  - `useCue` / `Cued` (delay cố định từ lúc mount, quy ước "style tĩnh = khung cuối");
+  - `useTableReveal` (nến và ô Quest chờ đúng mốc);
+  - `TableTokens` (chỉ `transform`, neo kích thước 0 để không tràn ngang);
+  - `ActionDock` (spacer đo bằng `ResizeObserver`, không dùng `pb-safe`).
+- Đã xem chuỗi lật 5 lá ở 375 (giữa chừng và lúc đóng dấu) và ảnh ván thật `quest-result` / `team-vote-result` ở 375: các tab khớp nhau, dấu và ô niêm phong đúng lúc.
+- Gói JS của Avalon: 84,5 KB gzip.
+
+Ghi nhận:
+1. **Chip phase ở top bar vẫn bị cắt** thành "Kết …" trong ván thật ở 375px (ảnh `game/sheet-*-375.png`), trái với báo cáo "không còn nhãn bị cắt". Lỗi thẩm mỹ: giao GĐ4, làm cùng lúc bỏ `px-4` của trang phòng.
+2. Độ trễ dựng ≤ 0,2 s khi reload (thấy đuôi hiệu ứng vừa xong): chấp nhận.
+3. Sửa thêm ngoài kế hoạch, được chấp nhận:
+   - kết quả không lộ trước con dấu (ô Quest, chip Quest trong danh sách, `gloom`);
+   - icon kết quả ở đầu panel phiếu chuyển vào con dấu;
+   - tiêu đề panel lật bài là "Lật bài" (trung tính).
+4. Lá bay từ ghế người đặt (lộ **ai** đã đặt và lúc nào, không lộ lá gì): chấp nhận, giống chơi trực tiếp.
+5. Việc chuyển sang GĐ sau (người thực thi đã liệt kê):
+   - nút "Đã đọc" ở lineup và các nút đêm vào dock, cùng lớp phủ "nhắm mắt" (GĐ4);
+   - chip gợi ý trong `PlayerRoster` bản mobile làm danh sách cao khác nhau theo vai, lệch 25px (GĐ4, riêng tư);
+   - nút cuối ván vào dock (GĐ5);
+   - token Lady bay tới người bị ngắm (GĐ6).
 
 ### Ghi chú của người thực thi GĐ1
 
