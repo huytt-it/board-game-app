@@ -493,7 +493,7 @@ Branch: `dev-avalon-uxui`.
 | 2b Vẽ đủ cảnh + tiêu đề + hành trình | **Đã review — đạt** (2026-10-08) | `0f6cb1c5` → `059830b6` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 0f6cb1c5..HEAD` | Claude Opus 5.5 | 10 cảnh mới (đủ 14, hết placeholder), `weather/Storm`, phủ tối theo Quest thất bại, `SceneTitle` + câu dẫn, `JourneyStrip` (hình thu nhỏ lấy từ chính cảnh, không cần icon mới), `RoleEmblem tone="neutral"` ở chỗ riêng tư. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2b" bên dưới. |
 | 3 Vòng Quest | **Đã review — đạt** (2026-10-09) | `95fdbcfa` → `8a33c2c5` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 95fdbcfa..HEAD` | Claude Opus 5.5 | `TableTokens` (vương miện / Lady trượt theo vành bàn, token đề cử bay từ Leader), chồng bài úp + lá bay, chuỗi `team-vote-result` và `quest-result` theo giờ server, lá phiếu úp, đồng hồ vòng, `ActionDock`, nút Xoá/Rời vào top bar, `animate-pulse` chỉ còn ở viền. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ3" bên dưới. |
 | 4 Mở đầu | **Đã review — đạt** (2026-10-09) | `beb7a58f` → `782e560c` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log beb7a58f..HEAD` | Claude Opus 5.5 | Trang vào phòng riêng (`AvalonJoinScreen`), lobby ngồi xuống / rời + thông báo, bộ bài xoè, lineup (bàn tròn, xáo ghế, vương miện quay, Lady, cuộn giấy da), thư niêm phong nhấn giữ (lộ vai + "Vai của tôi"), đêm "nhắm mắt" giống nhau trên mọi máy, chip phase không còn "…", danh sách mobile cao như nhau. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ4" bên dưới. |
-| 5 Kết thúc | Chưa bắt đầu | | | |
+| 5 Kết thúc | Xong — chờ review | `3de2e6e2` → `8740affc` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3de2e6e2..HEAD` | Claude Opus 5.5 | Màn kết thúc theo đồng hồ phase (overlay ám sát → banner "Bạn thắng!" / "Bạn thua…" + lý do, tàn lửa / lấp lánh, ghế lật sang vai, thẻ "Sát Thủ đâm", tổng kết hành trình, danh sách vai), chạm để bỏ qua overlay, ô Quest chưa chơi trung tính, nút cuối ván vào dock, `ConfirmDialog` thay mọi `confirm()` gốc. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ5" bên dưới. |
 | 6 Hoàn thiện | Chưa bắt đầu | | | |
 
 ### Ghi chú của người thực thi GĐ0
@@ -1112,6 +1112,77 @@ Ghi nhận:
 - Đang nhấn giữ ban đêm, máy của người được gọi có ghế sáng (theo đúng yêu cầu). Ai nhìn thẳng vào màn hình người đang giữ thì vẫn thấy; màn hình **không** giữ thì giống hệt nhau.
 - Thông báo vào / rời ở lobby nằm đè lên dòng tiêu đề khoảng 3 s (không chặn bấm).
 - **GĐ5:** nút cuối ván vào dock (GĐ3 chuyển sang). Token `--av-good-ink` / `--av-evil-ink` và `RoleLetter` dùng lại được nếu màn tổng kết cần giấy da.
+
+**Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch, phòng test đã xoá. Các script kiểm thử (CDP) nằm ở scratchpad của session, không có trong repo.
+
+### Ghi chú của người thực thi GĐ5
+
+**Đã làm:** toàn bộ mục GĐ5 và "Bổ sung cho GĐ5". Không sửa logic-core: `useAvalon.ts`, `types.ts`, `constants.ts` không có trong diff. Ở `AvalonBoard.tsx` chỉ đổi phần hỏi xác nhận: `confirm(...)` → `await ask({...})` trong `handleLeave`, `handleDelete`, `handleNewGame`, `handleKickPlayer` (thêm `ask` vào mảng phụ thuộc), và render `{confirmDialog}`; thân handler, khối auto-progression giữ nguyên. Không thêm dependency, không tải icon mới, không sửa `globals.css`, không đụng file ngoài thư mục Avalon, không đụng game khác.
+
+**Cấu trúc mới:**
+- `hooks/useEndReveal.ts` (mốc lộ R dùng chung cho bàn và panel, kèm "bỏ qua" cục bộ), `hooks/useConfirm.tsx` (hỏi xác nhận dạng promise).
+- `ui/ConfirmDialog.tsx`, `ui/EndSparks.tsx` (hạt mừng).
+- `panel/endGame.ts` (`endReason`, `endReasonText`: 5 kiểu kết thúc).
+- `table/timelines.ts` thêm `END` và `endTimeline(R)`.
+- `avalon.css`: khối "Kết thúc ván (GĐ5)" (`av-seat-flip`, `av-banner-in`, `av-spark-*`, `av-dialog-*`).
+
+**Lệch / quyết định nhỏ so với kế hoạch (nhạc trưởng nên liếc qua):**
+1. **Mốc thời gian** (`END` trong `timelines.ts`, theo `phaseStartedAt`):
+   - mốc lộ R = 7,95 s nếu có ám sát (hết overlay), ngược lại R = 0 (3 Quest thất bại, 5 lần bị bác, Sát Thủ hết giờ: banner hiện ngay);
+   - từ R: banner trồi lên (0,6 s), tiêu đề "Bạn thắng!" đập vào (R+0,1 s); hạt mừng R … R+3 s; ghế lật từ R+0,3 s, mỗi ghế cách 150 ms theo thứ tự ghế (mỗi lần lật 0,5 s; 10 ghế xong ở R+2,15 s); thẻ "Sát Thủ đâm" R+0,5 s; hành trình R+0,7 s, mỗi chặng cách 120 ms; danh sách vai R+1,5 s; xong hẳn R+3 s;
+   - cùng quy ước GĐ3: `useCue` / `<Cued>`, style tĩnh = khung cuối, `usePhaseTimeline` chỉ cho phần DOM phải đổi (overlay, hạt, `aria-live`, `data-anim-stage`).
+2. **Chạm để bỏ qua overlay** (Phụ lục D, mục 2.3): chạm vào overlay hoặc nút "Chạm để bỏ qua" thì **chỉ máy đó** dời R về lúc chạm; banner, hạt, lật ghế chạy ngay từ đó (các phần tử được key theo R nên mount lại với mốc mới). Reload thì quay về đồng hồ chung.
+3. **Thẻ kết quả tĩnh** "Sát Thủ đâm" (người bị đâm, vai thật, dấu "Trúng" / "Trật") nằm luôn trong màn kết thúc, không chỉ khi giảm chuyển động: nó là bản ghi của overlay. Giảm chuyển động thì overlay không hiện và thẻ này kể cùng nội dung.
+4. **Câu dẫn truyện của cảnh `end-good` / `end-evil` chuyển vào banner**, `SceneTitle` bỏ qua hai cảnh này. Lý do: khi không có ám sát, dải tiêu đề (0–2,6 s) đè đúng các ghế phía trên đang lật ở 375; khi có ám sát thì tiêu đề chạy hết dưới overlay, không ai thấy.
+5. **Lật vai trên bàn** (`RoundTable` prop `revealAll` = R): mỗi ghế lật như lá bài, mặt sau là avatar, mặt trước là `RoleEmblem` cỡ `md` (màu phe, vì đã công khai); nhãn tên vẫn ở dưới. Người bị đâm có dấu dao găm đỏ ở góc dưới. Ở màn kết thúc: gợi ý riêng của người xem không còn, vòng ngắm / nảy của Sát Thủ trên avatar tắt (trước đây còn 2 animation chạy mãi ở mặt sau đã úp).
+6. **Ô Quest ở màn kết thúc:** không ô nào là "Quest hiện tại"; ô chưa chơi nền tối hơn, số La Mã `stone-500`, bỏ huy hiệu "≥2", `title` "không được chơi", `data-quest-tile="unplayed"`. Không dùng `opacity` cho cả ô, để số La Mã vẫn đủ tương phản của chữ lớn.
+7. **Tổng kết:** `JourneyStrip` thêm `final` (không có chặng kế tiếp, chặng chưa đi mờ, bỏ dòng "Chặng kế tiếp"); bên dưới là từng Quest: địa điểm, Leader, tên người trong đội, số Đồng ý / Từ chối của đề xuất được duyệt, kết quả, số lá Quỷ. Chặng chưa chơi ghi "Chưa đi tới". Riêng ván thua vì 5 lần bị bác, Quest đang dở ghi "Đội bị bác 5 lần liên tiếp — không đi được" (lấy từ `voteRejectStreak`, không bịa đề xuất nào).
+8. **Lý do thắng** (`endGame.ts`): 3 Quest thất bại / 5 lần bị bác / Sát Thủ đâm trúng Merlin (tên) / Sát Thủ đâm trật (tên không phải Merlin) / đủ 3 Quest và Sát Thủ hết giờ. Banner tô theo phe thắng (công khai); "Bạn thắng!" màu vàng, "Bạn thua…" màu sáng trung tính; có "Vai của bạn".
+9. **Hạt mừng:** 26 lấp lánh vàng (Người thắng) hoặc 24 tàn lửa bay từ đáy (Quỷ thắng), vị trí xáo theo seed `phaseStartedAt` nên mọi máy giống nhau, chỉ mount trong 3 s, style tĩnh = vô hình.
+10. **Dock cuối ván** (mỗi nút một dòng, dock cao 71 px): chủ phòng "Chơi ván mới" + "Xoá phòng" (trước ghi "Thoát phòng" nhưng thật ra là xoá phòng); người khác "Chờ chủ phòng" (không bấm được) + "Thoát phòng". Desktop: dock nằm ngay dưới banner. Màn hình thấp (< 700 px): banner bỏ icon to, tiêu đề nhỏ một cỡ, để dòng "Bạn thắng!" luôn nằm trên dock (đo ở 320×568, 360×640, 375×667, 375×812: đều thấy).
+11. **`ConfirmDialog`** (`useConfirm` trả `ask()` dạng promise): bottom sheet trên điện thoại, giữa màn hình từ `sm`; focus vào "Huỷ"; Esc hoặc chạm ra ngoài là huỷ; Tab chỉ đi giữa 2 nút; `role="alertdialog"`. Màu nút: cam (rời / xoá / kick), đỏ phe Quỷ (đâm), vàng (ván mới). Câu hỏi đang mở mà component bị gỡ thì coi như "Huỷ". `alert()` báo lỗi (bắt đầu ván, kick lỗi) **chưa** đổi: ngoài phạm vi GĐ5.
+12. **Lỗi tìm ra khi đo, đã sửa:** con dấu "Trúng / Trật" của thẻ "Sát Thủ đâm" nằm sát mép phải; trước khi đóng dấu nó ở khung đầu `scale(2.4)` (vô hình nhưng hộp to) nên thò ra ngoài trang 43 px. Điện thoại nở layout lên 418×906, dock `fixed` rơi khỏi màn hình suốt 0–11 s; lớp hạt `fixed inset-0` còn giữ bề rộng đã nở. Sửa: thẻ `overflow-hidden` (có ghi chú trong code).
+13. **Preview:** cảnh `end-good-quests` đổi tên thành `end-good-timeout` (state đó đúng là "Sát Thủ hết giờ"); 5 cảnh kết thúc có hồ sơ Quest đầy đủ (Leader, đội, phiếu, lá Quỷ), mỗi cảnh một góc nhìn: Người thắng (Trung thần), Sát Thủ đâm trật, Merlin bị đâm trúng, Quỷ thắng 3 Quest (Mordred), Người thua vì 5 lần bác.
+14. **Thuộc tính cho kiểm thử:** `data-anim-stage`, `data-end-reveal-at`, `data-end-banner`, `data-end-reason`, `data-end-stab`, `data-end-journey`, `data-end-roles`, `data-end-sparks`, `data-quest-log`, `data-seat-role`, `data-assassin-overlay`, `data-confirm-dialog`, `data-confirm`.
+
+**Kết quả kiểm thử:**
+- `npx tsc --noEmit` sạch; `npm run build` thành công (build lại sạch sau khi xoá harness).
+- ESLint: `npx eslint src/components/games/avalon` vẫn 2 lỗi `react-hooks/set-state-in-effect` có sẵn (`AvalonBoard.tsx:163` — trước là 160, lệch do thêm import và `useConfirm`; `QuestPlaySection.tsx:43`) cùng 2 cảnh báo có sẵn trong `useAvalon.ts`. `npx eslint src`: 42 lỗi / 34 cảnh báo, không có cái nào từ GĐ5.
+- Đếm emoji = 0; regex màu phe = 0.
+- Gói JS của Avalon: **314,2 KB thô, 94,6 KB gzip** (GĐ4 ghi 293,9 / 88,1).
+- **Ảnh** ở `.claude/gd5-shots/` (mở `index.html`; ảnh tổng hợp trong `sheets/`), chụp bằng Chrome headless qua DevTools Protocol trên harness tạm:
+  - `screens/`: 5 kiểu kết thúc × (375 cả trang + màn đầu, 1440 + cột phải cuộn xuống); hộp xác nhận "Xoá phòng" và "Đâm" ở 375 / 1440; bàn 10 ghế ở 320 / 375 (0 huy hiệu đè nhau); máy thấp 320×568 … 375×812 (chủ phòng và người khác);
+  - `seq/`: chuỗi khung hình đóng băng tại T ms — có ám sát (0,5 / 1,4 / 2,5 / 3,9 / 5,6 / 8,1 / 8,4 / 8,8 / 9,3 / 9,9 / 10,6 / 12 s) và không ám sát (0 / 0,15 / 0,4 / 0,7 / 1 / 1,4 / 2 / 2,6 / 3,5 s), ở 375 và 1440. Khung 3,9 s ("chớp trắng") trông tối là do cách đóng băng các animation gắn theo stage của overlay cũ; chụp thời gian thực thì trắng đúng;
+  - `checks/` (giảm chuyển động, tương phản, CPU), `game/` (ván thật). Ảnh `checks/reduced-*` chụp trước khi đổi nhãn nút dock (còn "Chơi tiếp ván mới").
+- **Khung cuối** (5 kiểu × 375 / 1440, mount sau 30 s): đúng 1 `[data-phase-section]`, `data-anim-stage="done"`, 0 overlay, 7/7 ghế đã lật, ô Quest `success,fail,…,unplayed` đúng dữ liệu, 0 animation còn chạy, không tràn ngang, đáy dock = đáy màn hình.
+- **Bố cục trong cả chuỗi** (375×812, lấy mẫu ~40 ms trong 12,5 s, có ám sát và không): bề rộng layout luôn 375, đáy dock luôn 812 (trước khi sửa mục 12: 418×906 suốt 0–11 s).
+- **Reload / mount muộn** (harness): mount ở 12 s (có ám sát) và 4 s (không) → vào thẳng khung cuối, không overlay, 0 hạt, 0 animation chạy. Mount ở 3 s → overlay đúng stage `split`; ở 9 s → 2 ghế đã lật, các ghế sau lật tiếp đúng nhịp, 1,5 s sau 7/7.
+- **Bỏ qua overlay** (harness, chạm ở 2,2 s): overlay biến mất, R = 2227 ms, banner trồi lên ngay, 24 hạt, 2,6 s sau 7/7 ghế đã lật.
+- **Giảm chuyển động** (giả lập; 5 kiểu kết thúc mount ở giây 0): `stage = done`, 0 overlay, thẻ "Sát Thủ đâm" có mặt ở 2 kiểu ám sát, 7/7 ghế hiện vai, 0 hạt, **0 animation**.
+- **Tương phản chữ** (đo trên điểm ảnh thật như GĐ2a; 5 kiểu kết thúc + bản người không phải chủ phòng + 2 hộp xác nhận; 375 ở đầu / giữa / cuối trang, 1440 ở đầu / cuối cột phải): chữ ≥ 11 px **1704/1704 đạt ≥ 4,5:1** (thấp nhất 4,64), chữ < 11 px **408/408 đạt**. Lần đo đầu trượt 1 chỗ: nút "Xoá phòng" ở desktop nằm thẳng trên trời bình minh (3,58), đã đổi nền sang kính tối.
+- **CPU chậm 4×** (bản production, đo 4,6 s, 375 và 1440): màn kết không ám sát, quanh mốc R sau overlay, và overlay: p95 = 17 ms, khung dài nhất 17–33 ms, **0 khung > 50 ms**. (Bản dev có 1–2 khung 67–83 ms đúng lúc gỡ overlay và mount hạt.)
+- **Ván thật** (bản production; 5 origin `localhost`, `127.0.0.1`, `a/b/c.localhost`; mỗi tab một cửa sổ CDP; cỡ 1440 / 375 / 375 / 320 / 360; bot tự chơi; Sát Thủ đâm qua `ConfirmDialog`). Chạy 2 ván, **0 lỗi JS ở cả 5 tab** mỗi ván:
+  - ván 1: P2 là Sát Thủ, đâm trúng Merlin → Phe Quỷ thắng; ván 2: chủ phòng là Sát Thủ, đâm trật → Phe Người thắng. Banner đúng thắng / thua theo từng tab, lý do `merlin-found` / `merlin-missed`, cả 5 tab cùng chuỗi cảnh tới `end-evil` / `end-good`.
+  - Mốc lần đầu thấy (giây, tính từ `phaseStartedAt`; "lần cuối chưa → lần đầu thấy", mỗi tab lấy mẫu ~19 ms một lần), ván 2:
+
+    | Tab | Hết overlay (mô hình 7,95) | Banner hiện đủ (8,55) | 5 ghế lật xong (9,35) | Xong chuỗi (10,95) |
+    |---|---|---|---|---|
+    | 0 (1440) | 7,941 → 7,963 | 8,555 → 8,570 | 9,385 → 9,401 | 10,948 → 10,967 |
+    | 1 (375) | 7,942 → 7,965 | 8,557 → 8,572 | 9,402 → 9,417 | 10,950 → 10,969 |
+    | 2 (375) | 7,943 → 7,970 | 8,558 → 8,573 | 9,388 → 9,404 | 10,951 → 10,970 |
+    | 3 (320, reload lúc 3,0 s) | 7,944 → 7,974 | 8,590 → 8,872 | 9,703 → 9,717 | 10,952 → 10,971 |
+    | 4 (360) | 7,945 → 7,976 | 8,544 → 8,560 | 9,390 → 9,406 | 10,953 → 10,972 |
+
+    Bốn tab không reload lệch nhau ≤ 16 ms (khoảng 1 nhịp lấy mẫu); ván 1 cho kết quả như vậy (≤ 18 ms). Ghế lật xong muộn hơn mô hình ~50 ms (độ trễ dựng đã biết từ GĐ3).
+  - **Reload giữa overlay** (tab 3, lúc 3,0 s): dựng lại ở 4,28 s, vào đúng khung (đang "chớp trắng", 4,31 s sang "lộ vai"), không phát lại từ đầu; ghế lật xong muộn ~0,3 s (độ trễ dựng sau khi tải lại, như GĐ4).
+  - **Reload sau khi chuỗi xong** (tab 4, lúc 14,0 s): 51 mẫu trong 3 s, chỉ một stage `done`, overlay không hiện lần nào, banner hiện đủ ngay mẫu đầu, 0 animation chạy, 0 hạt, 5/5 ghế đã lật. Chủ phòng mở lại link sau ván 2 cũng vào thẳng khung cuối.
+  - **ConfirmDialog trong ván thật:** "Đâm" (bot bấm qua hộp); chủ phòng "Chơi ván mới" → hộp "Bắt đầu ván mới?" → cả 5 tab về lobby; kick P5 → hộp "Mời P5 ra khỏi phòng?" → còn 4 người; "Xoá" → hộp "Xoá phòng?" → chủ phòng về trang chủ, mở lại link báo "Room Not Found". Phòng test của cả hai ván đã xoá.
+
+**Còn tồn / gợi ý cho GĐ sau:**
+- `alert()` gốc còn ở `handleStartGame` và lỗi kick (`AvalonBoard`): có thể đổi sang thông báo trong app ở GĐ6 (trợ năng).
+- Ở 320 px với 10 ghế, huy hiệu vai (cũng như avatar trước đó) chạm mép ô Quest I và V — có từ trước, do vị trí ghế; GĐ6 có thể thu nhỏ ghế khi bàn hẹp.
+- Gói Avalon tăng ~6,5 KB gzip; nếu GĐ6 tăng tiếp thì lazy-load từng cảnh như kế hoạch.
+- Độ trễ dựng khi reload (≤ 0,3 s) vẫn như GĐ3 / GĐ4; có thể bù bằng `currentTime` trong layout effect ở GĐ6.
 
 **Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch, phòng test đã xoá. Các script kiểm thử (CDP) nằm ở scratchpad của session, không có trong repo.
 
