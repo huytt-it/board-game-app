@@ -2,6 +2,7 @@ import type { Player } from '@/types/player';
 import { AvalonRole } from '../types';
 import { ROLE_TEAM } from '../constants';
 import { usePhaseTimeline } from '../hooks/usePhaseTimeline';
+import { END } from '../table/timelines';
 import AvIcon from '../assets/AvIcon';
 import PlayerAvatar from '../ui/PlayerAvatar';
 import RoleEmblem from '../ui/RoleEmblem';
@@ -14,29 +15,34 @@ import RoleEmblem from '../ui/RoleEmblem';
 //                            cho mọi người thấy rõ vết cắt (1.75s, +1s)
 //   white    : 3550-4250ms — flash trắng xoá
 //   reveal   : 4250-7950ms — card lộ vai thật + tuyên bố thắng/thua (3.7s)
-//   done     : ≥7950ms
+//   done     : ≥7950ms (END.overlayMs) — màn kết thúc bắt đầu (EndSection)
 const OVERLAY_STAGES = [
   { id: 'fly-in', at: 0 },
   { id: 'blackout', at: 1000 },
   { id: 'split', at: 1800 },
   { id: 'white', at: 3550 },
   { id: 'reveal', at: 4250 },
-  { id: 'done', at: 7950 },
+  { id: 'done', at: END.overlayMs },
 ] as const;
 
 // Overlay full-screen: card bay vào giữa → kiếm chém → card tách đôi và lộ
 // role thật. Mọi người đều thấy được vì target được đọc từ state.merlinTargetId
 // — broadcast qua DB. Mốc hiện tại tính từ `startedAt` theo giờ server (không
 // theo lúc mount), nên reload sau ~8s thì không phát lại, còn vào lại giữa chừng
-// thì nhảy thẳng tới đúng khung.
+// thì nhảy thẳng tới đúng khung. Chạm vào overlay (hoặc nút "Bỏ qua") thì
+// `onSkip`: chỉ máy này bỏ qua, màn kết thúc hiện ngay (hooks/useEndReveal).
+// Giảm chuyển động: overlay không hiện; thẻ "Sát Thủ đâm" tĩnh của
+// EndSection kể cùng nội dung.
 export function AssassinRevealOverlay({
   target,
   targetRole,
   startedAt,
+  onSkip,
 }: {
   target: Player;
   targetRole: AvalonRole | null;
   startedAt: number;
+  onSkip?: () => void;
 }) {
   const { stage } = usePhaseTimeline(startedAt, OVERLAY_STAGES);
 
@@ -60,7 +66,11 @@ export function AssassinRevealOverlay({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm animate-fade-in">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-sm animate-fade-in"
+      onClick={onSkip}
+      data-assassin-overlay={stage}
+    >
       <div className="relative w-[280px] h-[380px] sm:w-[320px] sm:h-[440px]">
         {(stage === 'fly-in' || stage === 'blackout') && (
           <div className="absolute inset-0 flex items-center justify-center">
@@ -170,6 +180,18 @@ export function AssassinRevealOverlay({
           </div>
         )}
       </div>
+      {onSkip && (
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onSkip();
+          }}
+          className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 rounded-full border border-white/20 bg-black/70 px-4 py-2 text-xs font-bold text-slate-200 hover:bg-black/85"
+        >
+          Chạm để bỏ qua
+        </button>
+      )}
     </div>
   );
 }

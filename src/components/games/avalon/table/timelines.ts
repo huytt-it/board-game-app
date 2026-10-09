@@ -147,3 +147,50 @@ export function questSealStages(cards: number): readonly TimelineStage<'hidden' 
 
 // Phases without a timeline of their own on the table.
 export const IDLE_STAGES: readonly TimelineStage<'idle'>[] = [{ id: 'idle', at: 0 }];
+
+// ─── end (no time limit) — GĐ5 ─────────────────────────────────────
+// When the Assassin struck, the assassination overlay plays first
+// (panel/AssassinRevealOverlay, 0–7.95 s); the end itself starts at the
+// "reveal" moment R = the end of the overlay — or 0 when the game ended any
+// other way (three failed quests, five rejected teams, the Assassin's time
+// ran out). A player who taps the overlay away moves R to that moment on
+// their own screen only (decorative, local).
+export const END = {
+  /** The assassination overlay (its last stage, "done"). */
+  overlayMs: 7950,
+  /** R: the personal banner ("Bạn thắng!" / "Bạn thua…") rises. */
+  bannerMs: 600,
+  /** R … R+3 s: gold sparks (Good won) or embers (Evil won), ≤ 30. */
+  sparksMs: 3000,
+  /** R+0.3 s: the seats turn over to their roles, in seat order, 150 ms
+   *  apart (10 seats: the last one lands at R+2.15 s). */
+  flipAt: 300,
+  flipGapMs: 150,
+  flipMs: 500,
+  /** R+0.5 s: the assassination card; R+0.7 s: the journey, one leg every
+   *  120 ms; then the list of roles. */
+  stabAt: 500,
+  summaryAt: 700,
+  legGapMs: 120,
+  rolesAt: 1500,
+  /** Everything has settled (the sparks are the last to go). */
+  doneMs: 3000,
+} as const;
+
+export type EndStage = 'overlay' | 'reveal' | 'done';
+
+const endStages = new Map<number, readonly TimelineStage<EndStage>[]>();
+/** The end's stages for a reveal moment `revealAt` (memoised: stable per R). */
+export function endTimeline(revealAt: number): readonly TimelineStage<EndStage>[] {
+  const r = Math.max(0, Math.round(revealAt));
+  let st = endStages.get(r);
+  if (!st) {
+    st = [
+      ...(r > 0 ? [{ id: 'overlay' as const, at: 0 }] : []),
+      { id: 'reveal', at: r },
+      { id: 'done', at: r + END.doneMs },
+    ];
+    endStages.set(r, st);
+  }
+  return st;
+}

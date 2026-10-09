@@ -2,6 +2,7 @@ import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState } from '../types';
 import { ROLE_NAMES_VI } from '../constants';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
+import { useConfirm } from '../hooks/useConfirm';
 import { LOW_TIME_GLOW } from './shared';
 import AvIcon from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
@@ -40,6 +41,7 @@ export function AssassinSection({
   const picked = pickedId ? gamePlayers.find((p) => p.id === pickedId) : null;
 
   const { remaining } = usePhaseClock(state);
+  const { ask, dialog: confirmDialog } = useConfirm();
   // Rounded UP to whole seconds before formatting as m:ss (unlike formatClock
   // alone, which rounds down), so the label hits 0:00 only when time is up.
   const timeLabel = formatClock(Math.ceil(remaining / 1000) * 1000);
@@ -208,11 +210,19 @@ export function AssassinSection({
 
       <ActionDock>
         <button
-          onClick={() => {
+          onClick={async () => {
             if (!pickedId) return;
             const p = gamePlayers.find((pp) => pp.id === pickedId);
             if (!p) return;
-            if (confirm(`Đâm ${p.name} làm Merlin? Không thể đổi sau khi xác nhận.`)) {
+            if (
+              await ask({
+                title: `Đâm ${p.name}?`,
+                message: `Bạn chốt ${p.name} là Merlin. Không thể đổi sau khi xác nhận.`,
+                confirmLabel: 'Đâm',
+                tone: 'evil',
+                icon: 'assassinate',
+              })
+            ) {
               onAssassinate(pickedId, myPlayer.id);
             }
           }}
@@ -228,6 +238,7 @@ export function AssassinSection({
           )}
         </button>
       </ActionDock>
+      {confirmDialog}
     </div>
   );
 }

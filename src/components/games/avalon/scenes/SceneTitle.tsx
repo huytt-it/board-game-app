@@ -12,6 +12,10 @@ const SHOW_MS = 2600;
 // A title only appears in the first 3 s of a phase, so a device that reloads
 // (or whose state arrives late) does not replay it.
 const FRESH_MS = 3000;
+// The end scenes tell their line inside the end banner instead (EndSection):
+// a floating title would sit on the seats turning over (or, after an
+// assassination, play unseen under its overlay).
+const NO_TITLE: ReadonlySet<SceneId> = new Set(['end-good', 'end-evil']);
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'] as const;
 
@@ -68,7 +72,7 @@ export default function SceneTitle({
     setSeen(scene.id);
     const late = startedAt === null ? Infinity : serverNow() - startedAt;
     setTitle(
-      startedAt !== null && late < FRESH_MS
+      startedAt !== null && late < FRESH_MS && !NO_TITLE.has(scene.id)
         ? { id: scene.id, at: startedAt, late: Math.max(0, late), ...titleFor(scene, quest, seedKey) }
         : null
     );

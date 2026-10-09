@@ -77,7 +77,7 @@ type PreviewPhase =
   | 'assassinate-as-assassin'
   | 'assassinate-good-bystander'
   | 'assassinate-evil-bystander'
-  | 'end-good-quests'
+  | 'end-good-timeout'
   | 'end-good-missed-merlin'
   | 'end-evil-quests'
   | 'end-evil-merlin'
@@ -131,11 +131,11 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
   'assassinate-as-assassin': 'Ám sát (bạn là Sát Thủ)',
   'assassinate-good-bystander': 'Ám sát (Người — im lặng)',
   'assassinate-evil-bystander': 'Ám sát (Quỷ — hội ý)',
-  'end-good-quests': 'Kết thúc — Người thắng (3 Quest)',
-  'end-good-missed-merlin': 'Kết thúc — Người thắng (Sát Thủ trật)',
-  'end-evil-quests': 'Kết thúc — Quỷ thắng (3 Quest fail)',
-  'end-evil-merlin': 'Kết thúc — Quỷ thắng (đoán trúng Merlin)',
-  'end-evil-rejects': 'Kết thúc — Quỷ thắng (5 lần từ chối)',
+  'end-good-timeout': 'Kết thúc — Người thắng (Sát Thủ hết giờ) · xem: Người',
+  'end-good-missed-merlin': 'Kết thúc — Người thắng (Sát Thủ trật) · xem: Sát Thủ',
+  'end-evil-quests': 'Kết thúc — Quỷ thắng (3 Quest thất bại) · xem: Quỷ',
+  'end-evil-merlin': 'Kết thúc — Quỷ thắng (đâm trúng Merlin) · xem: Merlin',
+  'end-evil-rejects': 'Kết thúc — Quỷ thắng (5 lần bị bác) · xem: Người',
 };
 
 const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
@@ -206,7 +206,7 @@ const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
   {
     label: 'Kết thúc',
     items: [
-      'end-good-quests',
+      'end-good-timeout',
       'end-good-missed-merlin',
       'end-evil-quests',
       'end-evil-merlin',
@@ -253,6 +253,37 @@ function basePlayers(): Player[] {
 function emptyQuests(): AvalonQuestRecord[] {
   const sizes = QUEST_TEAM_SIZES[7];
   return sizes.map((s) => ({ result: null, failCount: 0, teamSize: s, leaderId: null, teamIds: [] }));
+}
+
+// A quest that was played: its approved team (Leader, members, the vote on
+// it), result and fail cards — what the end summary reads.
+function played(
+  q: AvalonQuestRecord,
+  leaderId: string,
+  teamIds: string[],
+  votes: [approve: number, reject: number],
+  failCount: number,
+  result: 'success' | 'fail' = failCount > 0 ? 'fail' : 'success'
+): AvalonQuestRecord {
+  return { ...q, leaderId, teamIds, approveCount: votes[0], rejectCount: votes[1], failCount, result };
+}
+
+// The end scenes' journeys (7 players; quest IV needs two fail cards).
+function goodJourney(): AvalonQuestRecord[] {
+  const q = emptyQuests();
+  q[0] = played(q[0], 'p1', ['p1', 'p3'], [5, 2], 0);
+  q[1] = played(q[1], 'p2', ['p2', 'p5', 'p7'], [4, 3], 1);
+  q[2] = played(q[2], 'p3', ['p1', 'p3', 'p4'], [6, 1], 0);
+  q[3] = played(q[3], 'p4', ['p1', 'p2', 'p4', 'p6'], [5, 2], 1, 'success');
+  return q;
+}
+function evilJourney(): AvalonQuestRecord[] {
+  const q = emptyQuests();
+  q[0] = played(q[0], 'p1', ['p1', 'p5'], [4, 3], 1);
+  q[1] = played(q[1], 'p2', ['p2', 'p3', 'p4'], [5, 2], 0);
+  q[2] = played(q[2], 'p3', ['p3', 'p5', 'p6'], [4, 3], 2);
+  q[3] = played(q[3], 'p4', ['p4', 'p5', 'p6', 'p7'], [4, 3], 2);
+  return q;
 }
 
 // `replay` rebuilds the scene as if the phase had JUST started (phaseStartedAt =
@@ -911,108 +942,93 @@ function buildScene(
       };
     }
 
-    case 'end-good-quests': {
-      const quests = emptyQuests();
-      quests[0].result = 'success';
-      quests[1].result = 'fail';
-      quests[1].failCount = 1;
-      quests[2].result = 'success';
-      quests[3].result = 'fail';
-      quests[3].failCount = 2;
-      quests[4].result = 'success';
+    // The five ways a game ends, each seen by someone else: a Good player
+    // who won, the Assassin who missed, Merlin who was found, an Evil player
+    // whose side failed three quests, a Good player out-voted five times.
+    case 'end-good-timeout':
       return {
         players,
         state: {
           ...base,
           phase: 'end',
           phaseStartedAt: serverNow(),
-          quests,
-          currentQuest: 4,
-          winner: 'good',
-        },
-        viewerId: 'p1',
-      };
-    }
-
-    case 'end-good-missed-merlin': {
-      const quests = emptyQuests();
-      quests[0].result = 'success';
-      quests[1].result = 'success';
-      quests[2].result = 'fail';
-      quests[2].failCount = 1;
-      quests[3].result = 'success';
-      return {
-        players,
-        state: {
-          ...base,
-          phase: 'end',
-          phaseStartedAt: serverNow(),
-          quests,
-          currentQuest: 4,
-          winner: 'good',
-          merlinTargetId: 'p3',
-        },
-        viewerId: 'p1',
-      };
-    }
-
-    case 'end-evil-quests': {
-      const quests = emptyQuests();
-      quests[0].result = 'fail';
-      quests[0].failCount = 1;
-      quests[1].result = 'success';
-      quests[2].result = 'fail';
-      quests[2].failCount = 2;
-      quests[3].result = 'fail';
-      quests[3].failCount = 2;
-      return {
-        players,
-        state: {
-          ...base,
-          phase: 'end',
-          phaseStartedAt: serverNow(),
-          quests,
+          quests: goodJourney(),
           currentQuest: 3,
-          winner: 'evil',
+          currentLeaderId: 'p4',
+          winner: 'good',
         },
-        viewerId: 'p1',
+        viewerId: 'p3',
       };
-    }
 
-    case 'end-evil-merlin': {
-      const quests = emptyQuests();
-      quests[0].result = 'success';
-      quests[1].result = 'success';
-      quests[2].result = 'fail';
-      quests[2].failCount = 1;
-      quests[3].result = 'success';
+    case 'end-good-missed-merlin':
       return {
         players,
         state: {
           ...base,
           phase: 'end',
           phaseStartedAt: serverNow(),
-          quests,
-          currentQuest: 4,
+          quests: goodJourney(),
+          currentQuest: 3,
+          currentLeaderId: 'p4',
+          winner: 'good',
+          assassinChoiceId: 'p2',
+          merlinTargetId: 'p2',
+        },
+        viewerId: 'p6',
+      };
+
+    case 'end-evil-quests':
+      return {
+        players,
+        state: {
+          ...base,
+          phase: 'end',
+          phaseStartedAt: serverNow(),
+          quests: evilJourney(),
+          currentQuest: 3,
+          currentLeaderId: 'p4',
           winner: 'evil',
+        },
+        viewerId: 'p5',
+      };
+
+    case 'end-evil-merlin':
+      return {
+        players,
+        state: {
+          ...base,
+          phase: 'end',
+          phaseStartedAt: serverNow(),
+          quests: goodJourney(),
+          currentQuest: 3,
+          currentLeaderId: 'p4',
+          winner: 'evil',
+          assassinChoiceId: 'p1',
           merlinTargetId: 'p1',
         },
         viewerId: 'p1',
       };
-    }
 
-    case 'end-evil-rejects':
+    case 'end-evil-rejects': {
+      // Quest II never left: five teams in a row were turned down.
+      const quests = emptyQuests();
+      quests[0] = played(quests[0], 'p1', ['p1', 'p3'], [5, 2], 0);
       return {
         players,
         state: {
           ...base,
           phase: 'end',
           phaseStartedAt: serverNow(),
+          quests,
+          currentQuest: 1,
+          currentLeaderId: 'p7',
           winner: 'evil',
           voteRejectStreak: 5,
+          lastTeamVoteResult: 'rejected',
         },
-        viewerId: 'p1',
+        viewerId: 'p4',
       };
+    }
   }
 }
 

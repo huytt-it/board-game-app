@@ -796,6 +796,110 @@
   }
 }
 
+/* ─── Kết thúc ván (GĐ5) ─────────────────────────────────────────── */
+/* Cùng quy ước: style tĩnh = khung cuối; mốc tính từ mốc lộ R của màn kết
+   thúc (table/timelines.ts END, hooks/useEndReveal.ts). */
+
+/* Lật vai trên bàn: mỗi ghế lật như một lá bài — mặt sau là avatar, mặt
+   trước là huy hiệu vai (màu phe). Tĩnh = đã lật (mặt vai). */
+.av-seat-flip {
+  transform-style: preserve-3d;
+  transform: perspective(500px) rotateY(0deg);
+  animation: av-seat-flip 500ms cubic-bezier(0.4, 0, 0.2, 1) both;
+}
+@keyframes av-seat-flip {
+  from {
+    transform: perspective(500px) rotateY(-180deg);
+  }
+}
+.av-seat-back {
+  transform: rotateY(180deg);
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+.av-seat-face {
+  -webkit-backface-visibility: hidden;
+  backface-visibility: hidden;
+}
+
+/* Banner "Bạn thắng!" / "Bạn thua…": chữ đập vào rồi đứng yên. */
+.av-banner-in {
+  animation: av-banner-in 700ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes av-banner-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  60% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+/* Hạt mừng (ui/EndSparks.tsx), ≤ 30, trong 3 s: lấp lánh vàng (Người thắng)
+   loé lên rồi trôi xuống; tàn lửa (Quỷ thắng) bay lên từ đáy màn hình. Độ
+   dài và delay đặt inline. Tĩnh = đã tắt (opacity 0). */
+.av-spark {
+  position: absolute;
+  border-radius: 9999px;
+  background: currentColor;
+  opacity: 0;
+  will-change: transform, opacity;
+  animation-fill-mode: both;
+}
+.av-spark-glint {
+  box-shadow: 0 0 8px 2px currentColor;
+  animation-name: av-spark-glint;
+  animation-timing-function: ease-out;
+}
+@keyframes av-spark-glint {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) scale(0.2);
+  }
+  18% {
+    opacity: 1;
+    transform: translate(0, 0) scale(1.6);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy)) scale(0.5);
+  }
+}
+.av-spark-ember {
+  box-shadow: 0 0 6px 1px currentColor;
+  animation-name: av-spark-ember;
+  animation-timing-function: linear;
+}
+@keyframes av-spark-ember {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), var(--dy));
+  }
+}
+
+/* Hộp xác nhận (ui/ConfirmDialog.tsx): nền tối mờ dần, khung trồi lên. */
+.av-dialog-backdrop {
+  animation: av-appear 200ms ease-out both;
+}
+.av-dialog-panel {
+  animation: av-dialog-in 260ms cubic-bezier(0.2, 0.9, 0.3, 1.1) both;
+}
+@keyframes av-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.97);
+  }
+}
+
 /* ─── Sword stab (Assassin click target) ─────────────────────────── */
 @keyframes avalon-stab {
   0% {

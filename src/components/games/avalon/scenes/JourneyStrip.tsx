@@ -9,9 +9,18 @@ const ROMAN = ['I', 'II', 'III', 'IV', 'V'] as const;
 // The game's five legs in journey order, each a thumbnail of its location.
 // A finished leg shows its result (public information: the team colour and
 // the success / fail icon), the leg the knights head for next is marked in
-// gold, later ones are dimmed. Shown during discussion; GĐ5 reuses it for the
-// end-of-game summary.
-export default function JourneyStrip({ state, roomId }: { state: AvalonGameState; roomId: string }) {
+// gold, later ones are dimmed. Shown during discussion; the end-of-game
+// summary (EndSection) shows it `final`: no leg is next any more, the legs
+// never played stay dimmed.
+export default function JourneyStrip({
+  state,
+  roomId,
+  final = false,
+}: {
+  state: AvalonGameState;
+  roomId: string;
+  final?: boolean;
+}) {
   const journey = getJourney(state, roomId);
   const next = journey[Math.min(Math.max(state.currentQuest, 0), 4)];
 
@@ -20,8 +29,8 @@ export default function JourneyStrip({ state, roomId }: { state: AvalonGameState
       <ol className="grid grid-cols-5 gap-1.5 sm:gap-2" aria-label="Hành trình 5 Quest">
         {journey.map((loc, i) => {
           const result = state.quests[i]?.result ?? null;
-          const isNext = !result && i === state.currentQuest;
-          const status = result === 'success' ? 'thành công' : result === 'fail' ? 'thất bại' : isNext ? 'chặng kế tiếp' : 'chưa tới';
+          const isNext = !final && !result && i === state.currentQuest;
+          const status = result === 'success' ? 'thành công' : result === 'fail' ? 'thất bại' : isNext ? 'chặng kế tiếp' : final ? 'chưa đi tới' : 'chưa tới';
           const frame =
             result === 'success'
               ? 'border-(--av-good)/80'
@@ -58,9 +67,11 @@ export default function JourneyStrip({ state, roomId }: { state: AvalonGameState
           );
         })}
       </ol>
-      <p className="mt-2 text-center text-[11px] text-slate-300">
-        Chặng kế tiếp: <span className="font-bold text-(--av-parchment)">{SCENE_NAMES_VI[next]}</span>
-      </p>
+      {!final && (
+        <p className="mt-2 text-center text-[11px] text-slate-300">
+          Chặng kế tiếp: <span className="font-bold text-(--av-parchment)">{SCENE_NAMES_VI[next]}</span>
+        </p>
+      )}
     </div>
   );
 }

@@ -8,6 +8,7 @@ import AvIcon from './assets/AvIcon';
 import GlassPanel from './ui/GlassPanel';
 import { useShownRejectStreak } from './hooks/useTableReveal';
 import { useHold } from './hooks/useHold';
+import { useEndReveal } from './hooks/useEndReveal';
 import { PhaseChip } from './panel/shared';
 import { PlayerRoster } from './panel/PlayerRoster';
 import { LineupPreviewSection } from './panel/LineupPreviewSection';
@@ -129,6 +130,10 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   const nightHold = useHold(state.phase);
   const sight = night ? nightSight(night, myPlayer, gamePlayers) : null;
   const glowIds = sight && sight.active && nightHold.held ? sight.seen.map((p) => p.id) : undefined;
+
+  // End: the moment the roles turn over on the table and the end screen
+  // tells who won — after the assassination overlay, if there is one.
+  const endReveal = useEndReveal(state);
 
   const handleAssassinTablePick = (id: string) => {
     if (!isAssassin || state.phase !== 'assassinate') return;
@@ -328,8 +333,10 @@ export default function PlayerPanel(props: PlayerPanelProps) {
       {state.phase === 'end' && (
         <EndSection
           state={state}
-          myRole={myRole}
+          myPlayer={myPlayer}
           gamePlayers={gamePlayers}
+          roomId={props.roomId ?? ''}
+          reveal={endReveal}
           onPlayAgain={props.onPlayAgain}
           onLeaveRoom={props.onLeaveRoom}
           isHost={props.isHost}
@@ -379,6 +386,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
               canAssassinPick={isAssassin && state.phase === 'assassinate'}
               joinOrder={props.joinOrder}
               glowIds={glowIds}
+              revealAll={state.phase === 'end' ? endReveal.revealAt : undefined}
             />
           </div>
         </div>

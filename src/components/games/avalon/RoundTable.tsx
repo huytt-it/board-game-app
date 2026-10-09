@@ -3,11 +3,11 @@
 import { useState, type CSSProperties } from 'react';
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, type AvalonQuestRecord } from './types';
-import { ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
+import { ROLE_NAMES_VI, ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
 import { seatPosition } from './table/seatPosition';
 import TableTokens from './table/TableTokens';
 import CardPile from './table/CardPile';
-import { NIGHT, VOTE_RESULT, questResultTimeline } from './table/timelines';
+import { END, NIGHT, VOTE_RESULT, questResultTimeline } from './table/timelines';
 import { NIGHT_CALL, type NightPhase } from './panel/NightSections';
 import { useArrivals } from './hooks/useArrivals';
 import { useCue } from './hooks/useCue';
@@ -16,6 +16,7 @@ import AvIcon, { type IconName } from './assets/AvIcon';
 import Cued from './ui/Cued';
 import GlassPanel from './ui/GlassPanel';
 import PlayerAvatar from './ui/PlayerAvatar';
+import RoleEmblem from './ui/RoleEmblem';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 
@@ -39,6 +40,10 @@ interface RoundTableProps {
   /** Night: the seats the viewer's night card shows them, lit while they hold
    *  it (PlayerPanel / NightSection). */
   glowIds?: readonly string[];
+  /** End of the game: every seat turns over to its role, in seat order, from
+   *  this moment (ms after phaseStartedAt — hooks/useEndReveal). Public
+   *  information by then, so the shields carry the team colours. */
+  revealAll?: number;
 }
 
 type VisibleTag =
@@ -92,6 +97,7 @@ export default function RoundTable({
   canAssassinPick,
   joinOrder,
   glowIds,
+  revealAll,
 }: RoundTableProps) {
   const n = players.length;
   const [openQuestIdx, setOpenQuestIdx] = useState<number | null>(null);
@@ -99,6 +105,8 @@ export default function RoundTable({
   const cue = useCue(startedAt);
   const lineup = state.phase === 'lineup-preview';
   const night = state.phase.startsWith('night-') ? (state.phase as NightPhase) : null;
+  // The game is over: no quest is "being played" any more.
+  const ended = state.phase === 'end';
 
   // While a result screen plays its sequence, the table holds back what the
   // panel has not revealed yet: the quest tile seals at the stamp, the candle
@@ -166,7 +174,7 @@ export default function RoundTable({
           {/* Quest badges (M1..M5) — bigger, simpler when done. Click for popup. */}
           <div className="flex items-stretch justify-center gap-2 sm:gap-3 w-full max-w-[94%]">
             {state.quests.map((q, idx) => {
-              const isCurrent = idx === state.currentQuest;
+              const isCurrent = !ended && idx === state.currentQuest;
               // A result still being revealed in quest-result is not shown yet.
               const isDone = q.result !== null && hiddenQuest !== idx;
               const success = isDone && q.result === 'success';
@@ -182,14 +190,18 @@ export default function RoundTable({
                   ? 'border-(--av-evil)/80 bg-(--av-evil)/25 shadow-black/40'
                   : isCurrent
                     ? 'border-amber-300/90 bg-amber-500/15 shadow-amber-400/40 ring-2 ring-amber-300/60 av-pulse-ring'
-                    : 'border-stone-600/70 bg-stone-900/60';
+                    : ended
+                      ? 'border-stone-700/60 bg-stone-950/50'
+                      : 'border-stone-600/70 bg-stone-900/60';
               const numberColor = success
                 ? 'text-(--av-good-light)'
                 : fail
                   ? 'text-(--av-evil-light)'
                   : isCurrent
                     ? 'text-amber-200'
-                    : 'text-stone-400';
+                    : ended
+                      ? 'text-stone-500'
+                      : 'text-stone-400';
 
               const baseCls = `relative flex flex-1 min-w-0 flex-col items-center justify-center rounded-2xl border-2 px-1 py-2 sm:px-1.5 sm:py-3 text-center shadow ${ringColor}`;
 
@@ -226,7 +238,7 @@ export default function RoundTable({
                         {q.teamSize}
                         <span className="hidden sm:inline"> người</span>
                       </div>
-                      {needsTwo && (
+                      {needsTwo && !ended && (
                         <div className="mt-1 inline-flex items-center gap-0.5 whitespace-nowrap rounded-full bg-(--av-evil)/30 border border-(--av-evil)/55 px-1.5 py-px text-[9px] font-black text-(--av-evil-light)">
                           ≥2<span className="hidden sm:inline"> lá Quỷ</span>
                           <span className="sm:hidden"><AvIcon name="quest-fail" /></span>
@@ -263,13 +275,15 @@ export default function RoundTable({
                 <div
                   key={idx}
                   title={
-                    needsTwo
-                      ? `Quest ${idx + 1} — ${q.teamSize} người — Cần ≥ 2 lá Phe Quỷ để Quest fail`
-                      : `Quest ${idx + 1} — ${q.teamSize} người`
+                    ended
+                      ? `Quest ${idx + 1} — không được chơi`
+                      : needsTwo
+                        ? `Quest ${idx + 1} — ${q.teamSize} người — Cần ≥ 2 lá Phe Quỷ để Quest fail`
+                        : `Quest ${idx + 1} — ${q.teamSize} người`
                   }
                   className={baseCls}
                   style={isCurrent ? CURRENT_QUEST_GLOW : undefined}
-                  data-quest-tile={isCurrent ? 'current' : 'pending'}
+                  data-quest-tile={isCurrent ? 'current' : ended ? 'unplayed' : 'pending'}
                 >
                   {badgeBody}
                 </div>
@@ -315,9 +329,14 @@ export default function RoundTable({
         const isLady = state.ladyHolderId === p.id;
         const isLadyTarget = state.ladyTargetId === p.id;
         const isMe = p.id === myPlayerId;
-        const isAssassinTarget = state.assassinChoiceId === p.id;
+        // (At the end the stab is marked on the turned seat instead.)
+        const isAssassinTarget = !ended && state.assassinChoiceId === p.id;
         const data = p.gameData as Partial<AvalonGameData>;
-        const hint = getViewerHint(p, myPlayerId, viewerRole);
+        // End: the seat turns over to its role (everything is public now, so
+        // the viewer's private hints are not needed any more).
+        const role = revealAll !== undefined ? data.role : undefined;
+        const hint = role ? null : getViewerHint(p, myPlayerId, viewerRole);
+        const stabbed = !!role && state.merlinTargetId === p.id;
 
         const voted = state.teamVotes && state.teamVotes[p.id];
         const showVoteDot = state.phase === 'team-vote';
@@ -344,7 +363,82 @@ export default function RoundTable({
             ? `cursor-pointer active:scale-95 hover:ring-2 hover:ring-(--av-evil)/70 ${isAssassinTarget ? 'av-stab' : ''}`
             : '';
         // The tokens are drawn by TableTokens; say them in the seat's title.
-        const tokens = `${isLeader ? ' · Leader' : ''}${isLady ? ' · Lady of the Lake' : ''}`;
+        const tokens = `${isLeader ? ' · Leader' : ''}${isLady ? ' · Lady of the Lake' : ''}${role ? ` · ${ROLE_NAMES_VI[role]}` : ''}`;
+
+        const avatar = (
+          <PlayerAvatar
+            player={p}
+            size="table"
+            selected={isOnTeam}
+            aim={isAssassinTarget ? 'assassin' : isLadyTarget ? 'lady' : null}
+            isMe={isMe}
+            pulse={isOnTeam || isAssassinTarget}
+            glow={glowing}
+          >
+            {isAssassinTarget && (
+              <span
+                className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-2xl text-(--av-evil) drop-shadow-[0_2px_3px_rgba(0,0,0,0.7)] animate-bounce"
+                title="Sát Thủ đang ngắm"
+              >
+                <AvIcon name="target" />
+              </span>
+            )}
+
+            {/* Hint icon (visible-evil / Percival uncertainty) */}
+            {hint && (
+              <span
+                title={hint.label}
+                className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[12px] text-white border ${hint.kind === 'percival-sees'
+                  ? 'bg-indigo-500 border-indigo-200'
+                  : 'bg-(--av-evil) border-(--av-evil-light)'
+                  }`}
+              >
+                <AvIcon name={hint.icon} />
+              </span>
+            )}
+            {/* Vote status dot (only during team-vote); pops when the vote lands. */}
+            {showVoteDot && (
+              <span
+                key={voted ? 'voted' : 'waiting'}
+                title={voted ? 'Đã bầu' : 'Chưa bầu'}
+                data-vote-dot={voted ? 'voted' : 'waiting'}
+                className={`absolute -bottom-1 -left-1 h-3 w-3 rounded-full border ${voted
+                  ? `bg-emerald-400 border-emerald-200 ${freshVotes.has(p.id) ? 'av-pop' : ''}`
+                  : 'bg-slate-500 border-slate-300 animate-pulse'
+                  }`}
+              />
+            )}
+          </PlayerAvatar>
+        );
+        // End: the seat turns over like a card — the avatar on the back, the
+        // role's shield (team colours) on the face. One seat every 150 ms in
+        // seat order from the reveal moment; keyed by it, so skipping the
+        // overlay restarts the turn (useEndReveal).
+        const seatBody =
+          role && revealAll !== undefined ? (
+            <Cued
+              key={revealAll}
+              startedAt={startedAt}
+              at={revealAll + END.flipAt + END.flipGapMs * i}
+              className="av-seat-flip relative"
+              data-seat-role={role}
+            >
+              <div className="av-seat-back">{avatar}</div>
+              <div className="av-seat-face absolute inset-0 flex items-center justify-center">
+                <RoleEmblem role={role} size="md" />
+                {stabbed && (
+                  <span
+                    className="absolute -bottom-1 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-(--av-evil-light) bg-(--av-evil) text-[12px] text-(--av-ink) shadow shadow-black/50"
+                    title="Bị Sát Thủ đâm"
+                  >
+                    <AvIcon name="assassinate" />
+                  </span>
+                )}
+              </div>
+            </Cued>
+          ) : (
+            avatar
+          );
 
         return (
           <div
@@ -380,49 +474,7 @@ export default function RoundTable({
                     : `${p.name}${tokens}`
               }
             >
-              <PlayerAvatar
-                player={p}
-                size="table"
-                selected={isOnTeam}
-                aim={isAssassinTarget ? 'assassin' : isLadyTarget ? 'lady' : null}
-                isMe={isMe}
-                pulse={isOnTeam || isAssassinTarget}
-                glow={glowing}
-              >
-                {isAssassinTarget && (
-                  <span
-                    className="pointer-events-none absolute -top-4 left-1/2 -translate-x-1/2 text-2xl text-(--av-evil) drop-shadow-[0_2px_3px_rgba(0,0,0,0.7)] animate-bounce"
-                    title="Sát Thủ đang ngắm"
-                  >
-                    <AvIcon name="target" />
-                  </span>
-                )}
-
-                {/* Hint icon (visible-evil / Percival uncertainty) */}
-                {hint && (
-                  <span
-                    title={hint.label}
-                    className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[12px] text-white border ${hint.kind === 'percival-sees'
-                      ? 'bg-indigo-500 border-indigo-200'
-                      : 'bg-(--av-evil) border-(--av-evil-light)'
-                      }`}
-                  >
-                    <AvIcon name={hint.icon} />
-                  </span>
-                )}
-                {/* Vote status dot (only during team-vote); pops when the vote lands. */}
-                {showVoteDot && (
-                  <span
-                    key={voted ? 'voted' : 'waiting'}
-                    title={voted ? 'Đã bầu' : 'Chưa bầu'}
-                    data-vote-dot={voted ? 'voted' : 'waiting'}
-                    className={`absolute -bottom-1 -left-1 h-3 w-3 rounded-full border ${voted
-                      ? `bg-emerald-400 border-emerald-200 ${freshVotes.has(p.id) ? 'av-pop' : ''}`
-                      : 'bg-slate-500 border-slate-300 animate-pulse'
-                      }`}
-                  />
-                )}
-              </PlayerAvatar>
+              {seatBody}
 
               {/* Near-opaque label: the seats sit over the scene, which can be
                   bright (the dawn of end-good) — the name must stay readable. */}

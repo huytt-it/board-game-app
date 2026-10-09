@@ -31,6 +31,7 @@ import GlassPanel from './ui/GlassPanel';
 import DealingCards from './ui/DealingCards';
 import LobbyNotices from './ui/LobbyNotices';
 import { useRosterNotices } from './hooks/useRosterChanges';
+import { useConfirm } from './hooks/useConfirm';
 import './avalon.css';
 
 // Class for every Avalon root element: scopes avalon.css (tokens, reduced
@@ -118,6 +119,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   const [showRoleGuide, setShowRoleGuide] = useState(false);
   const [offline, setOffline] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  // "Are you sure?" in the Avalon look, instead of the browser's confirm().
+  const { ask, dialog: confirmDialog } = useConfirm();
 
   const inGame = room.status !== 'lobby' && room.status !== 'end';
   // "<Tên> đã vào phòng / đã rời phòng" in the lobby (compared on this client).
@@ -289,24 +292,24 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       // Leaving mid-game must NOT delete the player: their role lives on that
       // record and the rest of the table is counting on it. It works like closing
       // the tab — they can come back through the room link.
-      if (confirm('Thoát khỏi ván? Bạn vẫn là người chơi — mở lại link phòng để vào lại.')) {
+      if (await ask({ title: 'Thoát khỏi ván?', message: 'Bạn vẫn là người chơi — mở lại link phòng để vào lại.', confirmLabel: 'Thoát', icon: 'leave' })) {
         localStorage.removeItem(ACTIVE_ROOM_KEY);
         router.push('/');
       }
       return;
     }
-    if (confirm('Rời phòng?')) {
+    if (await ask({ title: 'Rời phòng?', confirmLabel: 'Rời phòng', icon: 'leave' })) {
       await leaveRoom(playerId);
       router.push('/');
     }
-  }, [inGame, leaveRoom, playerId, router]);
+  }, [inGame, ask, leaveRoom, playerId, router]);
 
   const handleDelete = useCallback(async () => {
-    if (confirm('Xoá phòng? Thao tác không thể hoàn tác.')) {
+    if (await ask({ title: 'Xoá phòng?', message: 'Thao tác không thể hoàn tác.', confirmLabel: 'Xoá phòng', icon: 'delete' })) {
       await deleteRoom();
       router.push('/');
     }
-  }, [deleteRoom, router]);
+  }, [ask, deleteRoom, router]);
 
   const handleStartGame = useCallback(async () => {
     try {
@@ -318,10 +321,10 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   }, [assignRoles]);
 
   const handleNewGame = useCallback(async () => {
-    if (!confirm('Bắt đầu ván mới? Toàn bộ vai và lịch sử sẽ bị xoá.')) return;
+    if (!(await ask({ title: 'Bắt đầu ván mới?', message: 'Toàn bộ vai và lịch sử sẽ bị xoá.', confirmLabel: 'Ván mới', tone: 'gold', icon: 'new-game' }))) return;
     await gameStorage.clearGameData(room.id);
     await resetRoom();
-  }, [room.id, resetRoom]);
+  }, [ask, room.id, resetRoom]);
 
   const handleRoleRevealDone = useCallback(async () => {
     setLocalRoleSeen(true);
@@ -335,7 +338,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
 
   const handleKickPlayer = useCallback(
     async (targetId: string, targetName: string) => {
-      if (!confirm(`Kick "${targetName}" khỏi phòng?`)) return;
+      if (!(await ask({ title: `Mời ${targetName} ra khỏi phòng?`, confirmLabel: 'Mời ra', icon: 'close' }))) return;
       try {
         await gameStorage.removePlayer(room.id, targetId);
       } catch (err) {
@@ -343,7 +346,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         alert(msg);
       }
     },
-    [room.id]
+    [ask, room.id]
   );
 
   if (room.status === 'lobby') {
@@ -355,6 +358,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       <div className={`${AVALON_ROOT} mx-auto max-w-5xl animate-fade-in px-4 pt-6 pb-32 sm:px-6 lg:px-8`}>
         {showPreview && <AvalonPreview onClose={() => setShowPreview(false)} />}
         <LobbyNotices notices={rosterNotices} players={players} />
+        {confirmDialog}
 
         <Modal open={showSettings} onClose={() => setShowSettings(false)} icon="settings" title="Cài đặt Avalon">
           <RoomSettings
@@ -509,6 +513,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
             <AvIcon name={isHost ? 'delete' : 'leave'} /> {isHost ? 'Xoá phòng' : 'Rời'}
           </button>
         </div>
+        {confirmDialog}
       </div>
     );
   }
@@ -530,6 +535,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           startedAt={state.phaseStartedAt}
           onDone={handleRoleRevealDone}
         />
+        {confirmDialog}
       </div>,
       game
     );
@@ -576,6 +582,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           onClose={() => setShowRolePreview(false)}
         />
       )}
+      {confirmDialog}
     </div>,
     game
   );
