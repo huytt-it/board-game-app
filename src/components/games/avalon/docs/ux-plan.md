@@ -463,6 +463,38 @@ Mọi animation đi qua `usePhaseTimeline`, tuân thủ mục 2 và ngân sách 
 - **Trợ năng:** focus ring rõ, vùng chạm ≥ 44px, `aria-live` cho banner.
 - **Hiệu năng:** đo lại trên máy yếu; nếu bundle lớn thì lazy-load từng cảnh.
 
+#### Bổ sung cho GĐ6 (nhạc trưởng, 2026-10-09)
+Đây là GĐ cuối, chủ yếu đánh bóng và dọn dẹp. **Không** thêm tính năng lớn.
+
+- **Đã có sẵn, không làm lại:**
+  - cảnh `lake` và `blood-moon` (GĐ2b);
+  - token Lady trượt khi đổi người cầm (GĐ3);
+  - hồng tâm / vòng ngắm của Sát Thủ trên avatar (GĐ3 `.av-pulse-ring`);
+  - overlay ám sát + "Chạm để bỏ qua" và thẻ "Sát Thủ đâm" (GĐ5);
+  - `ConfirmDialog` cho xác nhận đâm (GĐ5).
+- **Việc của GĐ6:**
+  1. **Lady:**
+     - token Lady bay từ người cầm tới người đang bị ngắm khi chọn (`TableTokens`, chỉ `transform`); khi bấm "Hoàn tất" thì token chuyển ghế (đã có);
+     - lật thẻ kết quả soi **chỉ ở máy người cầm Lady**, theo `useCue` / `<Cued>`;
+     - người bị soi và người ngoài cuộc chỉ thấy "đã soi" trung tính (mục 2.4).
+  2. **Ám sát:** nhịp tim (viền / ánh sáng nhấp nháy nhanh dần) trên mục tiêu đang ngắm, **chỉ** `opacity` / `transform`, không làm mờ chữ.
+  3. **"Đến lượt bạn"** (chỉ hình ảnh; người dùng đã chọn không âm thanh; **không rung** trừ khi người dùng đồng ý):
+     - viền vàng nhấp nháy quanh dock và tiền tố "● " trên tiêu đề tab khi người xem phải hành động (Leader chọn đội, bỏ phiếu, người trong đội đặt lá, người cầm Lady, Sát Thủ);
+     - **Không bao giờ bật ở lượt đêm và lộ vai** (mục 2.4): ở đó ai cũng có cùng một nút.
+  4. **Thay 2 `alert()`** (`handleStartGame` lỗi, kick lỗi) bằng banner `notice` có sẵn của `AvalonBoard` hoặc một toast. Chỉ đổi cách hiện lỗi.
+  5. **Bàn hẹp:** ở bề rộng bàn < 340px với ≥ 9 người, thu nhỏ ghế / huy hiệu để không chạm ô Quest I và V.
+  6. **Hiệu năng:**
+     - nếu gói JS Avalon vượt 100 KB gzip, lazy-load lớp cảnh (mỗi cảnh một chunk, tải trước cảnh kế tiếp theo `getJourney`);
+     - (tuỳ chọn) bù độ trễ dựng khi reload: đặt `currentTime` của animation trong layout effect.
+  7. **Trợ năng:**
+     - focus ring rõ trên mọi nút; vùng chạm ≥ 44px;
+     - `aria-live` cho banner / tiêu đề cảnh / kết quả;
+     - modal và dialog giữ focus bên trong.
+     Kiểm bằng bàn phím (Tab / Enter / Space / Esc) qua một ván Preview.
+  8. **Hồi quy toàn ván** (đây là GĐ cuối): một ván thật 5 tab từ trang vào phòng tới "Chơi ván mới", có Lady (cần ≥ 7 người: dùng 7 origin, hoặc kiểm phần Lady bằng Preview và ghi rõ trong nhật ký). 0 lỗi JS; cả 5 tab cùng chuỗi cảnh. Chạy lại các cặp ảnh riêng tư chính (lộ vai, đêm, đặt lá, phiếu, Lady).
+- **Sau GĐ6:** nhạc trưởng review, rồi hướng dẫn người dùng merge `dev-avalon-uxui` → `dev` và mở PR `dev` → `main`.
+- **Gợi ý model:** Opus 5.5, hoặc Sonnet 5.5 (ít phần vẽ).
+
 ---
 
 ## 9. Kiểm thử (mọi GĐ)
@@ -493,7 +525,7 @@ Branch: `dev-avalon-uxui`.
 | 2b Vẽ đủ cảnh + tiêu đề + hành trình | **Đã review — đạt** (2026-10-08) | `0f6cb1c5` → `059830b6` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 0f6cb1c5..HEAD` | Claude Opus 5.5 | 10 cảnh mới (đủ 14, hết placeholder), `weather/Storm`, phủ tối theo Quest thất bại, `SceneTitle` + câu dẫn, `JourneyStrip` (hình thu nhỏ lấy từ chính cảnh, không cần icon mới), `RoleEmblem tone="neutral"` ở chỗ riêng tư. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2b" bên dưới. |
 | 3 Vòng Quest | **Đã review — đạt** (2026-10-09) | `95fdbcfa` → `8a33c2c5` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 95fdbcfa..HEAD` | Claude Opus 5.5 | `TableTokens` (vương miện / Lady trượt theo vành bàn, token đề cử bay từ Leader), chồng bài úp + lá bay, chuỗi `team-vote-result` và `quest-result` theo giờ server, lá phiếu úp, đồng hồ vòng, `ActionDock`, nút Xoá/Rời vào top bar, `animate-pulse` chỉ còn ở viền. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ3" bên dưới. |
 | 4 Mở đầu | **Đã review — đạt** (2026-10-09) | `beb7a58f` → `782e560c` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log beb7a58f..HEAD` | Claude Opus 5.5 | Trang vào phòng riêng (`AvalonJoinScreen`), lobby ngồi xuống / rời + thông báo, bộ bài xoè, lineup (bàn tròn, xáo ghế, vương miện quay, Lady, cuộn giấy da), thư niêm phong nhấn giữ (lộ vai + "Vai của tôi"), đêm "nhắm mắt" giống nhau trên mọi máy, chip phase không còn "…", danh sách mobile cao như nhau. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ4" bên dưới. |
-| 5 Kết thúc | Xong — chờ review | `3de2e6e2` → `8740affc` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3de2e6e2..HEAD` | Claude Opus 5.5 | Màn kết thúc theo đồng hồ phase (overlay ám sát → banner "Bạn thắng!" / "Bạn thua…" + lý do, tàn lửa / lấp lánh, ghế lật sang vai, thẻ "Sát Thủ đâm", tổng kết hành trình, danh sách vai), chạm để bỏ qua overlay, ô Quest chưa chơi trung tính, nút cuối ván vào dock, `ConfirmDialog` thay mọi `confirm()` gốc. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ5" bên dưới. |
+| 5 Kết thúc | **Đã review — đạt** (2026-10-09) | `3de2e6e2` → `8740affc` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3de2e6e2..HEAD` | Claude Opus 5.5 | Màn kết thúc theo đồng hồ phase (overlay ám sát → banner "Bạn thắng!" / "Bạn thua…" + lý do, tàn lửa / lấp lánh, ghế lật sang vai, thẻ "Sát Thủ đâm", tổng kết hành trình, danh sách vai), chạm để bỏ qua overlay, ô Quest chưa chơi trung tính, nút cuối ván vào dock, `ConfirmDialog` thay mọi `confirm()` gốc. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ5" bên dưới. |
 | 6 Hoàn thiện | Chưa bắt đầu | | | |
 
 ### Ghi chú của người thực thi GĐ0
@@ -652,6 +684,32 @@ Ghi nhận:
    - lobby không bao giờ ẩn người vượt `maxPlayers`.
 3. Khi đang nhấn giữ ban đêm, màn hình người được gọi có ghế sáng vàng: đúng yêu cầu. Ai nhìn thẳng vào màn hình người đang giữ thì vẫn thấy, giống như liếc bài của người khác khi chơi trực tiếp.
 4. Thông báo vào / rời ở lobby đè lên dòng tiêu đề khoảng 3 s (không chặn bấm): chấp nhận.
+
+**GĐ5 (2026-10-09): đạt, đã push.** Nhạc trưởng tự kiểm lại:
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: vẫn 2 lỗi có sẵn từ trước.
+- Logic-core, các file ngoài thư mục Avalon và các game khác không có trong diff. `AvalonBoard.tsx` chỉ đổi `confirm(...)` → `await ask(...)` (thân handler giữ nguyên, có cập nhật mảng phụ thuộc) và render `{confirmDialog}` ở mỗi nhánh.
+- Không còn `confirm()` gốc; còn 2 `alert()` báo lỗi (ghi nhận bên dưới).
+- Đếm emoji = 0; regex màu phe = 0.
+- Đã đọc:
+  - `endGame.ts`: lý do thắng đúng thứ tự luật (ám sát → hết giờ → 5 lần bác → 3 Quest thất bại);
+  - `useConfirm`: tự trả "Huỷ" khi bị gỡ hoặc khi hỏi câu mới;
+  - `useEndReveal`: mốc R chung; "bỏ qua" chỉ có tác dụng ở máy đó.
+- Đã xem ảnh tổng hợp 5 kiểu kết thúc ở 375 và chuỗi khung hình có ám sát: banner, lý do, thẻ "Sát Thủ đâm", hành trình, danh sách vai, ô Quest chưa chơi đều đúng.
+- Gói JS của Avalon: 94,6 KB gzip.
+
+Ghi nhận:
+1. Sửa thêm ngoài kế hoạch, được chấp nhận:
+   - thẻ "Sát Thủ đâm" luôn có ở màn kết thúc (không chỉ khi giảm chuyển động);
+   - câu dẫn của cảnh kết thúc chuyển vào banner;
+   - nút của chủ phòng ghi đúng "Xoá phòng";
+   - con dấu tràn ra ngoài trang được chặn bằng `overflow-hidden` (cùng loại lỗi với GĐ3: hộp biến đổi thò ra ngoài làm điện thoại thu nhỏ trang).
+2. Việc chuyển sang GĐ6:
+   - 2 `alert()` báo lỗi (`handleStartGame`, kick lỗi);
+   - ghế chạm ô Quest ở 320px khi đủ 10 người;
+   - gói JS gần 95 KB gzip (cân nhắc lazy-load cảnh);
+   - bù độ trễ dựng khi reload (tuỳ chọn);
+   - token Lady bay tới người bị ngắm.
 
 ### Ghi chú của người thực thi GĐ1
 
