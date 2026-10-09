@@ -1,11 +1,17 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, type CSSProperties } from 'react';
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, type AvalonQuestRecord } from './types';
 import { ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
 import { seatPosition } from './table/seatPosition';
+import TableTokens from './table/TableTokens';
+import CardPile from './table/CardPile';
+import { VOTE_RESULT, questResultTimeline } from './table/timelines';
+import { useArrivals } from './hooks/useArrivals';
+import { useHiddenQuest, useShownRejectStreak } from './hooks/useTableReveal';
 import AvIcon, { type IconName } from './assets/AvIcon';
+import Cued from './ui/Cued';
 import GlassPanel from './ui/GlassPanel';
 import PlayerAvatar from './ui/PlayerAvatar';
 
@@ -60,6 +66,10 @@ function getViewerHint(
   return null;
 }
 
+// Colour of the throbbing glow around the quest being played (amber-300).
+const CURRENT_QUEST_GLOW = { '--av-pulse': 'rgb(252 211 77)' } as CSSProperties;
+const LAST_CANDLE_GLOW = { '--av-pulse': 'var(--av-evil)' } as CSSProperties;
+
 export default function RoundTable({
   players,
   state,
@@ -75,9 +85,64 @@ export default function RoundTable({
 }: RoundTableProps) {
   const n = players.length;
   const [openQuestIdx, setOpenQuestIdx] = useState<number | null>(null);
+  const startedAt = state.phaseStartedAt ?? 0;
+
+  // While a result screen plays its sequence, the table holds back what the
+  // panel has not revealed yet: the quest tile seals at the stamp, the candle
+  // goes out 3.5 s into a rejected vote (table/timelines.ts).
+  const { rejectStreak } = useShownRejectStreak(state);
+  const hiddenQuest = useHiddenQuest(state);
+  const questResult = state.phase === 'quest-result';
+  const rejectedResult = state.phase === 'team-vote-result' && state.lastTeamVoteResult === 'rejected';
+  const lastChance = rejectedResult && state.voteRejectStreak >= VOTE_TRACK_LIMIT - 1;
+
+  // "Voted" dots pop when a vote comes in (not on reload).
+  const votedIds = state.phase === 'team-vote' ? Object.keys(state.teamVotes ?? {}).sort() : [];
+  const freshVotes = useArrivals(votedIds);
+
+  const showPile = state.phase === 'quest-play' || questResult;
+
+  const candles = Array.from({ length: VOTE_TRACK_LIMIT }).map((_, i) => {
+    const out = i < rejectStreak;
+    const isNext = i === rejectStreak;
+    const isLast = i === VOTE_TRACK_LIMIT - 1;
+    const snuffing = rejectedResult && i === state.voteRejectStreak - 1;
+    const candleCls = out
+      ? 'text-stone-400/70'
+      : isLast
+        ? 'text-(--av-evil) drop-shadow-[0_0_6px_var(--av-evil)]'
+        : 'text-(--av-leader) drop-shadow-[0_0_5px_var(--av-leader)]';
+    // One candle left: the last one throbs red until a team is approved.
+    const warn = isLast && !out && rejectStreak >= VOTE_TRACK_LIMIT - 1;
+    const icon = (
+      <AvIcon name={out ? 'candle-out' : 'candle-lit'} className={`h-6 w-6 sm:h-7 sm:w-7 ${candleCls}`} />
+    );
+    return (
+      <span
+        key={i}
+        title={isLast ? 'Lần từ chối thứ 5 — Phe Quỷ thắng ngay!' : `Đã từ chối ${i + 1} lần`}
+        className={`relative flex rounded-full transition-transform ${isNext ? 'scale-125' : ''} ${warn ? 'av-pulse-ring' : ''}`}
+        style={warn ? LAST_CANDLE_GLOW : undefined}
+        data-candle={out ? 'out' : 'lit'}
+      >
+        {snuffing && out ? (
+          // Mounted when the candle goes out: a short flicker into smoke.
+          <Cued key="snuffed" startedAt={startedAt} at={VOTE_RESULT.candleAt} className="av-snuff flex">
+            {icon}
+          </Cued>
+        ) : (
+          icon
+        )}
+        {snuffing && (
+          <Cued startedAt={startedAt} at={VOTE_RESULT.candleAt} className="av-smoke pointer-events-none absolute -top-3 left-1/2 h-3 w-1.5 -translate-x-1/2 rounded-full bg-stone-300/60" />
+        )}
+      </span>
+    );
+  });
 
   return (
-    <div className="relative mx-auto w-full max-w-[640px] sm:max-w-[680px] lg:max-w-[760px] aspect-square select-none">
+    // A size container: the tokens and flying cards measure in cqw (% of the table).
+    <div className="@container relative mx-auto w-full max-w-[640px] sm:max-w-[680px] lg:max-w-[760px] aspect-square select-none">
       {/* The round table itself — wood/dark gradient with concentric rings */}
       <div className="absolute inset-[12%] rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(180,120,60,0.25),transparent_55%),linear-gradient(135deg,#3b2a1a_0%,#2a1c0f_50%,#15100a_100%)] border-[3px] border-amber-800/60 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_2px_8px_rgba(255,200,140,0.1)]">
         <div className="absolute inset-2 rounded-full border border-amber-700/30" />
@@ -89,17 +154,21 @@ export default function RoundTable({
           <div className="flex items-stretch justify-center gap-2 sm:gap-3 w-full max-w-[94%]">
             {state.quests.map((q, idx) => {
               const isCurrent = idx === state.currentQuest;
-              const isDone = q.result !== null;
-              const success = q.result === 'success';
-              const fail = q.result === 'fail';
+              // A result still being revealed in quest-result is not shown yet.
+              const isDone = q.result !== null && hiddenQuest !== idx;
+              const success = isDone && q.result === 'success';
+              const fail = isDone && q.result === 'fail';
               const needsTwo = questNeedsTwoFails(playerCount, idx);
+              const sealing = questResult && isCurrent && isDone;
 
+              // The current quest's tile throbs through its glow only — the
+              // numeral and the team size inside keep full contrast.
               const ringColor = success
                 ? 'border-(--av-good)/80 bg-(--av-good)/25 shadow-black/40'
                 : fail
                   ? 'border-(--av-evil)/80 bg-(--av-evil)/25 shadow-black/40'
                   : isCurrent
-                    ? 'border-amber-300/90 bg-amber-500/15 shadow-amber-400/40 ring-2 ring-amber-300/60 animate-pulse'
+                    ? 'border-amber-300/90 bg-amber-500/15 shadow-amber-400/40 ring-2 ring-amber-300/60 av-pulse-ring'
                     : 'border-stone-600/70 bg-stone-900/60';
               const numberColor = success
                 ? 'text-(--av-good-light)'
@@ -109,7 +178,7 @@ export default function RoundTable({
                     ? 'text-amber-200'
                     : 'text-stone-400';
 
-              const baseCls = `flex flex-1 min-w-0 flex-col items-center justify-center rounded-2xl border-2 px-1 py-2 sm:px-1.5 sm:py-3 text-center shadow ${ringColor}`;
+              const baseCls = `relative flex flex-1 min-w-0 flex-col items-center justify-center rounded-2xl border-2 px-1 py-2 sm:px-1.5 sm:py-3 text-center shadow ${ringColor}`;
 
               // Roman numeral instead of "QUEST n": it never wraps, even at 375px.
               const badgeBody = (
@@ -137,7 +206,7 @@ export default function RoundTable({
                   ) : (
                     <>
                       <div
-                        className={`mt-1 inline-flex items-center gap-0.5 whitespace-nowrap text-[11px] font-bold ${isCurrent ? 'text-amber-300/90' : 'text-stone-400'
+                        className={`mt-1 inline-flex items-center gap-0.5 whitespace-nowrap text-[11px] font-bold ${isCurrent ? 'text-amber-300' : 'text-stone-400'
                           }`}
                       >
                         <span className="sm:hidden"><AvIcon name="team" /></span>
@@ -152,6 +221,14 @@ export default function RoundTable({
                       )}
                     </>
                   )}
+                  {/* The result was just stamped: the tile is sealed in its colour. */}
+                  {sealing && (
+                    <Cued
+                      startedAt={startedAt}
+                      at={questResultTimeline(q.teamSize).stampAt}
+                      className={`av-seal pointer-events-none absolute -inset-1 rounded-2xl border-2 ${success ? 'border-(--av-good-light)' : 'border-(--av-evil-light)'}`}
+                    />
+                  )}
                 </>
               );
 
@@ -163,6 +240,7 @@ export default function RoundTable({
                     className={`${baseCls} hover:brightness-110 active:scale-95 transition`}
                     title={`Xem chi tiết Quest ${idx + 1}`}
                     aria-label={`Quest ${idx + 1}: ${success ? 'thành công' : 'thất bại'} — xem chi tiết`}
+                    data-quest-tile={success ? 'success' : 'fail'}
                   >
                     {badgeBody}
                   </button>
@@ -177,6 +255,8 @@ export default function RoundTable({
                       : `Quest ${idx + 1} — ${q.teamSize} người`
                   }
                   className={baseCls}
+                  style={isCurrent ? CURRENT_QUEST_GLOW : undefined}
+                  data-quest-tile={isCurrent ? 'current' : 'pending'}
                 >
                   {badgeBody}
                 </div>
@@ -185,43 +265,27 @@ export default function RoundTable({
           </div>
 
           {/* Reject track: 5 candles, one goes out each time a team is rejected.
-              The 5th burns in the evil colour — if it goes out, evil wins. */}
+              The 5th burns in the evil colour — if it goes out, evil wins. With
+              one candle left after a rejection, the row shakes once. */}
           <div
-            className="flex items-end gap-1 sm:gap-1.5"
             role="img"
-            aria-label={`Đội bị từ chối liên tiếp ${state.voteRejectStreak}/${VOTE_TRACK_LIMIT} lần`}
+            aria-label={`Đội bị từ chối liên tiếp ${rejectStreak}/${VOTE_TRACK_LIMIT} lần`}
+            data-reject-track={rejectStreak}
           >
-            {Array.from({ length: VOTE_TRACK_LIMIT }).map((_, i) => {
-              const out = i < state.voteRejectStreak;
-              const isNext = i === state.voteRejectStreak;
-              const isLast = i === VOTE_TRACK_LIMIT - 1;
-              const candleCls = out
-                ? 'text-stone-400/70'
-                : isLast
-                  ? 'text-(--av-evil) drop-shadow-[0_0_6px_var(--av-evil)]'
-                  : 'text-(--av-leader) drop-shadow-[0_0_5px_var(--av-leader)]';
-              return (
-                <span
-                  key={i}
-                  title={
-                    isLast
-                      ? 'Lần từ chối thứ 5 — Phe Quỷ thắng ngay!'
-                      : `Đã từ chối ${i + 1} lần`
-                  }
-                  className={`flex transition-transform ${isNext ? 'scale-125' : ''}`}
-                >
-                  <AvIcon
-                    name={out ? 'candle-out' : 'candle-lit'}
-                    className={`h-6 w-6 sm:h-7 sm:w-7 ${candleCls}`}
-                  />
-                </span>
-              );
-            })}
+            {lastChance ? (
+              <Cued startedAt={startedAt} at={VOTE_RESULT.candleAt} className="av-shake flex items-end gap-1 sm:gap-1.5">
+                {candles}
+              </Cued>
+            ) : (
+              <div className="flex items-end gap-1 sm:gap-1.5">{candles}</div>
+            )}
           </div>
         </div>
       </div>
 
-      {/* Player avatars arranged around the table (see table/seatPosition.ts). */}
+      {/* Player avatars arranged around the table (see table/seatPosition.ts).
+          Each seat is centred on the AVATAR (the name hangs below it), so the
+          tokens of TableTokens land on the same points. */}
       {players.map((p, i) => {
         // Start the first player at the top (12 o'clock) and go clockwise.
         const { x, y } = seatPosition(i, n);
@@ -258,6 +322,8 @@ export default function RoundTable({
           : isAssassinPickable
             ? `cursor-pointer active:scale-95 hover:ring-2 hover:ring-(--av-evil)/70 ${isAssassinTarget ? 'av-stab' : ''}`
             : '';
+        // The tokens are drawn by TableTokens; say them in the seat's title.
+        const tokens = `${isLeader ? ' · Leader' : ''}${isLady ? ' · Lady of the Lake' : ''}`;
 
         return (
           <div
@@ -272,7 +338,7 @@ export default function RoundTable({
             <Wrapper
               type={Wrapper === 'button' ? 'button' : undefined}
               onClick={Wrapper === 'button' ? handleClick : undefined}
-              className={`flex flex-col items-center gap-1 ${wrapperExtra} ${
+              className={`relative block rounded-full ${wrapperExtra} ${
                 Wrapper === 'button' ? 'bg-transparent border-0 p-0' : ''
               }`}
               title={
@@ -286,7 +352,7 @@ export default function RoundTable({
                       }`
                   : isAssassinPickable
                     ? `Chọn ${p.name} là Merlin`
-                    : p.name
+                    : `${p.name}${tokens}`
               }
             >
               <PlayerAvatar
@@ -295,7 +361,7 @@ export default function RoundTable({
                 selected={isOnTeam}
                 aim={isAssassinTarget ? 'assassin' : isLadyTarget ? 'lady' : null}
                 isMe={isMe}
-                className={isOnTeam || isAssassinTarget ? 'animate-pulse' : ''}
+                pulse={isOnTeam || isAssassinTarget}
               >
                 {isAssassinTarget && (
                   <span
@@ -306,24 +372,6 @@ export default function RoundTable({
                   </span>
                 )}
 
-                {/* Leader crown badge */}
-                {isLeader && (
-                  <span
-                    title="Leader"
-                    className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full bg-(--av-leader) border border-amber-100 text-[12px] text-(--av-ink) shadow shadow-black/40"
-                  >
-                    <AvIcon name="leader" />
-                  </span>
-                )}
-                {/* Lady token */}
-                {isLady && (
-                  <span
-                    title="Lady of the Lake"
-                    className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full bg-(--av-lady) border border-teal-100 text-[12px] text-(--av-ink) shadow shadow-black/40"
-                  >
-                    <AvIcon name="lady" />
-                  </span>
-                )}
                 {/* Hint icon (visible-evil / Percival uncertainty) */}
                 {hint && (
                   <span
@@ -336,12 +384,14 @@ export default function RoundTable({
                     <AvIcon name={hint.icon} />
                   </span>
                 )}
-                {/* Vote status dot (only during team-vote) */}
+                {/* Vote status dot (only during team-vote); pops when the vote lands. */}
                 {showVoteDot && (
                   <span
+                    key={voted ? 'voted' : 'waiting'}
                     title={voted ? 'Đã bầu' : 'Chưa bầu'}
+                    data-vote-dot={voted ? 'voted' : 'waiting'}
                     className={`absolute -bottom-1 -left-1 h-3 w-3 rounded-full border ${voted
-                      ? 'bg-emerald-400 border-emerald-200'
+                      ? `bg-emerald-400 border-emerald-200 ${freshVotes.has(p.id) ? 'av-pop' : ''}`
                       : 'bg-slate-500 border-slate-300 animate-pulse'
                       }`}
                   />
@@ -351,7 +401,7 @@ export default function RoundTable({
               {/* Near-opaque label: the seats sit over the scene, which can be
                   bright (the dawn of end-good) — the name must stay readable. */}
               <div
-                className={`max-w-[80px] truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${isMe
+                className={`absolute left-1/2 top-full mt-1 w-max max-w-[80px] -translate-x-1/2 truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${isMe
                   ? 'bg-black/75 text-(--av-parchment) ring-1 ring-(--av-parchment)/50'
                   : 'bg-black/75 text-white'
                   }`}
@@ -364,6 +414,12 @@ export default function RoundTable({
           </div>
         );
       })}
+
+      {/* Crown, Lady and nomination tokens; they travel between seats. */}
+      <TableTokens players={players} state={state} />
+
+      {/* The quest's face-down pile (quest-play → quest-result). */}
+      {showPile && <CardPile players={players} state={state} />}
 
       {openQuestIdx !== null && state.quests[openQuestIdx] && (
         <QuestDetailPopup
@@ -459,7 +515,7 @@ function QuestDetailPopup({
         {(approve !== undefined || reject !== undefined) && (
           <div className="mt-3 grid grid-cols-2 gap-2">
             <div className="rounded-xl border border-(--av-approve)/30 bg-(--av-approve)/10 p-2.5 text-center">
-              <p className="text-[10px] uppercase font-bold text-(--av-approve)">
+              <p className="text-[10px] uppercase font-bold text-(--av-approve-light)">
                 <AvIcon name="vote-approve" /> Đồng ý
               </p>
               <p className="text-lg font-black text-white leading-tight">

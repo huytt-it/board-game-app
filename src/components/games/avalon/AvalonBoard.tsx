@@ -535,14 +535,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     scene,
     <div className={AVALON_ROOT}>
       {banner}
-      <div className="absolute right-4 top-4 z-30 flex gap-2">
-        <button
-          onClick={isHost ? handleDelete : handleLeave}
-          className="rounded-lg border border-white/10 bg-(color:--av-bar-bg) px-3 py-1.5 text-xs font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300"
-        >
-          <AvIcon name={isHost ? 'delete' : 'leave'} /> {isHost ? 'Xoá' : 'Rời'}
-        </button>
-      </div>
+      {/* The Delete / Leave button lives in PlayerPanel's top bar (onLeaveRoom). */}
       <PlayerPanel
         state={state}
         myPlayer={myPlayer}

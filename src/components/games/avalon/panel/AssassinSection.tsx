@@ -2,7 +2,9 @@ import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState } from '../types';
 import { ROLE_NAMES_VI } from '../constants';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
+import { LOW_TIME_GLOW } from './shared';
 import AvIcon from '../assets/AvIcon';
+import ActionDock from '../ui/ActionDock';
 import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 import RoleEmblem from '../ui/RoleEmblem';
@@ -113,10 +115,11 @@ export function AssassinSection({
         Trúng → Phe Quỷ thắng ngược · Trật hoặc hết giờ → Phe Người thắng.
       </p>
       <div
-        className={`mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 font-mono text-lg font-black tabular-nums ${lowTime
-          ? 'border-orange-500/60 bg-orange-500/15 text-orange-200 animate-pulse'
+        className={`relative mt-3 inline-flex items-center gap-2 rounded-full border px-4 py-1.5 font-mono text-lg font-black tabular-nums ${lowTime
+          ? 'border-orange-500/60 bg-orange-500/15 text-orange-200 av-pulse-ring'
           : 'border-amber-500/40 bg-amber-500/10 text-amber-200'
           }`}
+        style={lowTime ? LOW_TIME_GLOW : undefined}
       >
         <AvIcon name="clock" /> {timeLabel}
       </div>
@@ -201,6 +204,9 @@ export function AssassinSection({
             );
           })}
         </div>
+      </GlassPanel>
+
+      <ActionDock>
         <button
           onClick={() => {
             if (!pickedId) return;
@@ -211,7 +217,7 @@ export function AssassinSection({
             }
           }}
           disabled={!pickedId}
-          className="mt-4 w-full rounded-2xl bg-(--av-evil) py-3.5 text-base font-black text-(--av-ink) hover:brightness-110 active:scale-95 disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed shadow-lg shadow-black/40"
+          className="w-full rounded-2xl bg-(--av-evil) py-3.5 text-base font-black text-(--av-ink) hover:brightness-110 active:scale-95 disabled:bg-slate-800 disabled:text-slate-400 disabled:cursor-not-allowed shadow-lg shadow-black/40"
         >
           {pickedId ? (
             <>
@@ -221,7 +227,7 @@ export function AssassinSection({
             'Chọn 1 người trước'
           )}
         </button>
-      </GlassPanel>
+      </ActionDock>
     </div>
   );
 }

@@ -6,6 +6,7 @@ import { VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
 import RoundTable from './RoundTable';
 import AvIcon from './assets/AvIcon';
 import GlassPanel from './ui/GlassPanel';
+import { useShownRejectStreak } from './hooks/useTableReveal';
 import { PhaseChip } from './panel/shared';
 import { PlayerRoster } from './panel/PlayerRoster';
 import { LineupPreviewSection } from './panel/LineupPreviewSection';
@@ -47,6 +48,28 @@ interface PlayerPanelProps {
   roomId?: string;
 }
 
+// The reject counter of the top bar. Its own component: it follows the table
+// (a rejected team's candle only goes out 3.5 s into its result), and that
+// moment must re-render this chip, not the whole panel.
+function RejectChip({ state, pushRight }: { state: AvalonGameState; pushRight: boolean }) {
+  const { rejectStreak } = useShownRejectStreak(state);
+  return (
+    <span
+      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-black sm:px-2 ${pushRight ? 'ml-auto' : ''
+        } ${rejectStreak >= 4
+          ? 'bg-(--av-evil)/20 text-(--av-evil-light) border border-(--av-evil)/45'
+          : rejectStreak >= 3
+            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
+            : 'bg-white/5 text-slate-400 border border-white/10'
+        }`}
+      title="Số lần đội bị từ chối liên tiếp (5 lần → Phe Quỷ thắng)"
+      data-reject-chip={rejectStreak}
+    >
+      <AvIcon name="candle-out" size={12} /> {rejectStreak}/{VOTE_TRACK_LIMIT}
+    </span>
+  );
+}
+
 export default function PlayerPanel(props: PlayerPanelProps) {
   const {
     state,
@@ -66,6 +89,9 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   const teamSize = state.quests[state.currentQuest]?.teamSize ?? 0;
 
   const showRoundTable = state.phase !== 'lineup-preview' && state.phase !== 'role-reveal';
+  // "Các vai" / "Vai của tôi" sit in the top bar from the night on.
+  const hasRoleButtons = !!(myRole && myTeam) && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal';
+
   const isAssassin = myRole === AvalonRole.Assassin;
 
   // Hint trong PlayerRoster / RoundTable (Đồng đội Quỷ, Quỷ bạn thấy, Merlin/
@@ -107,13 +133,13 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   // without blur: the scene behind it moves.
   const topBar = (
     <div className="bg-(color:--av-bar-bg) border-b border-white/10">
-      <div className="flex items-center gap-2 px-4 py-2">
-        <PhaseChip phase={state.phase} />
+      <div className="@container flex items-center gap-1.5 px-4 py-2 sm:gap-2">
+        <PhaseChip phase={state.phase} compact={hasRoleButtons} />
         <span className="text-xs text-slate-400 hidden sm:inline">
           Quest {state.currentQuest + 1}/5
         </span>
-        {myRole && myTeam && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal' && (
-          <div className="ml-auto flex items-center gap-1.5">
+        {hasRoleButtons && (
+          <div className="ml-auto flex shrink-0 items-center gap-1.5">
             {props.onShowRolePreview && (
               <button
                 onClick={props.onShowRolePreview}
@@ -127,7 +153,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
             )}
             <button
               onClick={onShowMyRole}
-              className="flex items-center gap-1.5 whitespace-nowrap rounded-full border border-(--av-parchment)/25 bg-white/5 px-2.5 py-1 text-[11px] font-bold text-(--av-parchment) active:opacity-75 hover:bg-white/10"
+              className="flex items-center gap-1 whitespace-nowrap rounded-full border border-(--av-parchment)/25 bg-white/5 px-2 py-1 text-[11px] font-bold text-(--av-parchment) active:opacity-75 hover:bg-white/10 sm:gap-1.5 sm:px-2.5"
               title="Xem vai của tôi"
             >
               <AvIcon name="eye" size={15} />
@@ -135,18 +161,20 @@ export default function PlayerPanel(props: PlayerPanelProps) {
             </button>
           </div>
         )}
-        <span
-          className={`inline-flex items-center gap-1 whitespace-nowrap rounded-full px-2 py-0.5 text-[10px] font-black ${!(myRole && myTeam) ? 'ml-auto' : ''
-            } ${state.voteRejectStreak >= 4
-              ? 'bg-(--av-evil)/20 text-(--av-evil-light) border border-(--av-evil)/45'
-              : state.voteRejectStreak >= 3
-                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-                : 'bg-white/5 text-slate-400 border border-white/10'
-            }`}
-          title="Số lần đội bị từ chối liên tiếp (5 lần → Phe Quỷ thắng)"
-        >
-          <AvIcon name="candle-out" size={12} /> {state.voteRejectStreak}/{VOTE_TRACK_LIMIT}
-        </span>
+        <RejectChip state={state} pushRight={!hasRoleButtons} />
+        {/* Leave / delete the room — in the bar, so nothing floats over it. */}
+        {props.onLeaveRoom && (
+          <button
+            onClick={props.onLeaveRoom}
+            className="flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-1.5 py-1 text-[11px] font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300 sm:px-2.5"
+            title={props.isHost ? 'Xoá phòng' : 'Rời phòng'}
+            aria-label={props.isHost ? 'Xoá phòng' : 'Rời phòng'}
+            data-room-exit=""
+          >
+            <AvIcon name={props.isHost ? 'delete' : 'leave'} size={14} />
+            <span className="hidden sm:inline">{props.isHost ? 'Xoá' : 'Rời'}</span>
+          </button>
+        )}
       </div>
       {isLeader && state.phase !== 'role-reveal' && state.phase !== 'end' && (
         <div className="bg-amber-500/10 border-t border-amber-500/30 px-4 py-1 text-center">
@@ -320,7 +348,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   // container from getScene) shows through, the same on every screen. The old
   // blue/red gradient told a neighbour the viewer's team (B10).
   return (
-    <div className="min-h-dvh">
+    <div className="min-h-dvh" data-phase={state.phase} data-phase-started-at={state.phaseStartedAt}>
       <div className="sticky top-0 z-20">{topBar}</div>
 
       {/* ONE DOM for every breakpoint.

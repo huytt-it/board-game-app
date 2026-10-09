@@ -1,30 +1,64 @@
+import type { CSSProperties, ReactNode } from 'react';
 import type { AvalonGameState, AvalonRole } from '../types';
 import { ROLE_DESC_VI, ROLE_NAMES_VI, ROLE_TEAM } from '../constants';
 import AvIcon, { type IconName } from '../assets/AvIcon';
 import GlassPanel from '../ui/GlassPanel';
 import RoleEmblem from '../ui/RoleEmblem';
 
-export function PhaseChip({ phase }: { phase: AvalonGameState['phase'] }) {
-  const map: Record<string, { icon: IconName; text: string; cls: string }> = {
+// The phase chip of PlayerPanel's top bar, which is a size container
+// (`@container`). The bar also carries the role, reject and leave buttons, so
+// with `compact` the words adapt to the bar's content width: none below
+// 19.25rem (a 360px phone while the room page still pads the game — the
+// section's own heading names the phase), a short label up to 40rem (a 375px
+// phone fits every one), the full one beyond. The full label is always in the
+// tooltip / for screen readers.
+export function PhaseChip({ phase, compact = false }: { phase: AvalonGameState['phase']; compact?: boolean }) {
+  // `short`: the label below `sm`, where the top bar also carries the role,
+  // reject and leave buttons (the full one stays in the tooltip).
+  const map: Record<string, { icon: IconName; text: string; short?: string; cls: string }> = {
     'lineup-preview': { icon: 'roles', text: 'Vai trong ván', cls: 'bg-fuchsia-500/20 text-fuchsia-300' },
     'role-reveal': { icon: 'seal', text: 'Lộ vai', cls: 'bg-purple-500/20 text-purple-300' },
-    'night-evils': { icon: 'night', text: 'Đêm — Phe Quỷ', cls: 'bg-(--av-evil)/20 text-(--av-evil-light)' },
-    'night-merlin': { icon: 'night', text: 'Đêm — Merlin', cls: 'bg-(--av-good)/20 text-(--av-good-light)' },
-    'night-percival': { icon: 'night', text: 'Đêm — Percival', cls: 'bg-indigo-500/20 text-indigo-300' },
+    'night-evils': { icon: 'night', text: 'Đêm — Phe Quỷ', short: 'Đêm', cls: 'bg-(--av-evil)/20 text-(--av-evil-light)' },
+    'night-merlin': { icon: 'night', text: 'Đêm — Merlin', short: 'Đêm', cls: 'bg-(--av-good)/20 text-(--av-good-light)' },
+    'night-percival': { icon: 'night', text: 'Đêm — Percival', short: 'Đêm', cls: 'bg-indigo-500/20 text-indigo-300' },
     'team-build': { icon: 'team', text: 'Chọn đội', cls: 'bg-amber-500/20 text-amber-300' },
     'team-vote': { icon: 'vote', text: 'Bỏ phiếu', cls: 'bg-(--av-parchment)/15 text-(--av-parchment)' },
-    'team-vote-result': { icon: 'vote', text: 'Kết quả phiếu', cls: 'bg-(--av-parchment)/15 text-(--av-parchment)' },
-    'quest-play': { icon: 'card-play', text: 'Chơi Quest', cls: 'bg-purple-500/20 text-purple-300' },
-    'quest-result': { icon: 'quest', text: 'Kết quả Quest', cls: 'bg-purple-500/20 text-purple-300' },
+    'team-vote-result': { icon: 'vote', text: 'Kết quả phiếu', short: 'Kết quả', cls: 'bg-(--av-parchment)/15 text-(--av-parchment)' },
+    'quest-play': { icon: 'card-play', text: 'Chơi Quest', short: 'Quest', cls: 'bg-purple-500/20 text-purple-300' },
+    'quest-result': { icon: 'quest', text: 'Kết quả Quest', short: 'Kết quả', cls: 'bg-purple-500/20 text-purple-300' },
     'discussion': { icon: 'discussion', text: 'Thảo luận', cls: 'bg-emerald-500/20 text-emerald-300' },
     'lady-of-lake': { icon: 'lady', text: 'Lady', cls: 'bg-(--av-lady)/20 text-(--av-lady)' },
     assassinate: { icon: 'assassinate', text: 'Ám sát', cls: 'bg-(--av-evil)/20 text-(--av-evil-light)' },
     end: { icon: 'end', text: 'Kết thúc', cls: 'bg-slate-500/20 text-slate-300' },
   };
   const cfg = map[phase] ?? map.end;
+  const full = !compact ? 'truncate' : cfg.short ? 'hidden truncate @[40rem]:inline' : 'hidden truncate @[19.25rem]:inline';
   return (
-    <span className={`flex items-center gap-1 whitespace-nowrap rounded-full px-2.5 py-1 text-[11px] font-black ${cfg.cls}`}>
-      <AvIcon name={cfg.icon} size={14} /> {cfg.text}
+    <span
+      className={`flex min-w-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-black sm:px-2.5 ${cfg.cls}`}
+      title={cfg.text}
+      aria-label={cfg.text}
+    >
+      <AvIcon name={cfg.icon} size={14} />
+      {compact && cfg.short && <span className="hidden truncate @[19.25rem]:inline @[40rem]:hidden">{cfg.short}</span>}
+      <span className={full}>{cfg.text}</span>
+    </span>
+  );
+}
+
+// Glow colour of "time is running out" (orange-400), for `av-pulse-ring`.
+export const LOW_TIME_GLOW = { '--av-pulse': 'rgb(251 146 60)' } as CSSProperties;
+
+// A phase countdown. When time is short it throbs through a glow around it —
+// not by fading the digits (animate-pulse would drop them below 4.5:1).
+export function LowTimeClock({ low, className = '', children }: { low: boolean; className?: string; children: ReactNode }) {
+  return (
+    <span
+      className={`relative inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 text-xs font-black tabular-nums ${low ? 'av-pulse-ring' : ''} ${className}`}
+      style={low ? LOW_TIME_GLOW : undefined}
+      data-low-time={low ? '' : undefined}
+    >
+      <AvIcon name="clock" /> {children}
     </span>
   );
 }

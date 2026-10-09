@@ -2,8 +2,23 @@ import { useEffect, useState } from 'react';
 import type { Player } from '@/types/player';
 import type { AvalonGameData, AvalonGameState, QuestCard } from '../types';
 import { PlayerRoster } from './PlayerRoster';
+import { playedIds } from '../table/CardPile';
 import AvIcon from '../assets/AvIcon';
+import ActionDock from '../ui/ActionDock';
 import GlassPanel from '../ui/GlassPanel';
+
+// "x/y lá đã đặt": how many members' cards are in — a count, never whose or which.
+function PlayedCount({ played, total }: { played: number; total: number }) {
+  return (
+    <p className="text-xs font-bold text-slate-300" data-played-count={`${played}/${total}`}>
+      <AvIcon name="card-play" className="text-(--av-gold)" />{' '}
+      <span className="tabular-nums text-white">
+        {played}/{total}
+      </span>{' '}
+      lá đã đặt
+    </p>
+  );
+}
 
 export function QuestPlaySection({
   state,
@@ -36,6 +51,7 @@ export function QuestPlaySection({
     return () => clearTimeout(t);
   }, [toast]);
   const showToast = (text: string) => setToast((prev) => ({ text, id: (prev?.id ?? 0) + 1 }));
+  const played = playedIds(state, gamePlayers).length;
 
   if (!onTeam) {
     return (
@@ -52,7 +68,8 @@ export function QuestPlaySection({
               </span>
             ))}
           </div>
-          <p className="text-xs text-slate-300">
+          <PlayedCount played={played} total={team.length} />
+          <p className="mt-2 text-xs text-slate-300">
             Bạn không trong đội — chờ kết quả...
           </p>
           <AvIcon name="waiting" size={30} className="mt-3 animate-pulse text-slate-300" />
@@ -83,7 +100,11 @@ export function QuestPlaySection({
         <p className="text-xs uppercase font-bold text-slate-300 mb-2">Quest {state.currentQuest + 1}</p>
         <AvIcon name="card-play" size={40} className="mb-1 text-(--av-parchment)" />
         <p className="av-display text-3xl text-white">Đã đặt lá</p>
-        <p className="mt-3 text-xs text-slate-300">Chờ các thành viên còn lại đặt bài...</p>
+        <p className="mt-1 text-xs text-slate-300">Lá của bạn đã úp vào chồng bài giữa bàn.</p>
+        <div className="mt-3">
+          <PlayedCount played={played} total={team.length} />
+        </div>
+        <p className="mt-1 text-xs text-slate-300">Chờ các thành viên còn lại đặt bài...</p>
       </GlassPanel>
     );
   }
@@ -103,6 +124,9 @@ export function QuestPlaySection({
           <AvIcon name="warning" className="text-amber-300" /> Phe Người bắt buộc đặt lá Phe Người · Phe Quỷ được
           chọn lá tuỳ chiến thuật.
         </p>
+        <div className="mt-2">
+          <PlayedCount played={played} total={team.length} />
+        </div>
       </GlassPanel>
 
       <div className="grid grid-cols-2 gap-3">
@@ -128,35 +152,37 @@ export function QuestPlaySection({
         </button>
       </div>
 
-      <button
-        onClick={() => {
-          if (!pendingCard) return;
-          onPlayQuestCard(pendingCard);
-        }}
-        disabled={!pendingCard}
-        className="w-full rounded-2xl border border-(--av-gold)/60 bg-(color:--av-glass-bg) bg-linear-to-b from-(--av-gold)/40 to-(--av-gold)/20 py-4 font-black text-(--av-parchment) text-base hover:from-(--av-gold)/55 active:scale-95 disabled:cursor-not-allowed disabled:border-white/15 disabled:from-transparent disabled:to-transparent disabled:text-slate-400"
-      >
-        {pendingCard ? (
-          <>
-            Xác nhận đặt lá <AvIcon name={pendingCard === 'success' ? 'quest-success' : 'quest-fail'} />
-          </>
-        ) : (
-          'Chọn 1 lá bài ở trên'
-        )}
-      </button>
-
-      {toast && (
-        <div
-          key={toast.id}
-          role="status"
-          aria-live="polite"
-          className="fixed inset-x-0 bottom-6 z-40 flex justify-center px-4 pointer-events-none"
+      <ActionDock>
+        <button
+          onClick={() => {
+            if (!pendingCard) return;
+            onPlayQuestCard(pendingCard);
+          }}
+          disabled={!pendingCard}
+          className="w-full rounded-2xl border border-(--av-gold)/60 bg-(color:--av-glass-bg) bg-linear-to-b from-(--av-gold)/40 to-(--av-gold)/20 py-4 font-black text-(--av-parchment) text-base hover:from-(--av-gold)/55 active:scale-95 disabled:cursor-not-allowed disabled:border-white/15 disabled:from-transparent disabled:to-transparent disabled:text-slate-400"
         >
-          <p className="max-w-xs rounded-xl border border-(--av-parchment)/25 bg-(color:--av-bar-bg) px-4 py-2 text-center text-xs font-bold text-(--av-parchment) shadow-lg shadow-black/50 animate-fade-in">
-            {toast.text}
-          </p>
-        </div>
-      )}
+          {pendingCard ? (
+            <>
+              Xác nhận đặt lá <AvIcon name={pendingCard === 'success' ? 'quest-success' : 'quest-fail'} />
+            </>
+          ) : (
+            'Chọn 1 lá bài ở trên'
+          )}
+        </button>
+
+        {toast && (
+          <div
+            key={toast.id}
+            role="status"
+            aria-live="polite"
+            className="absolute inset-x-0 bottom-full mb-3 flex justify-center pointer-events-none"
+          >
+            <p className="max-w-xs rounded-xl border border-(--av-parchment)/25 bg-(color:--av-bar-bg) px-4 py-2 text-center text-xs font-bold text-(--av-parchment) shadow-lg shadow-black/50 animate-fade-in">
+              {toast.text}
+            </p>
+          </div>
+        )}
+      </ActionDock>
     </div>
   );
 }

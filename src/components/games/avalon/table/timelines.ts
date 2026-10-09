@@ -1,0 +1,122 @@
+// Animation timelines of the quest loop (ux-plan GĐ3, budgets in Phụ lục D).
+// Every moment is in ms after state.phaseStartedAt, so all devices play the
+// same frame and a reload lands on the right one (usePhaseTimeline / useCue).
+// The stage arrays are module-level constants: usePhaseTimeline needs them
+// referentially stable.
+import type { TimelineStage } from '../hooks/usePhaseTimeline';
+import { mulberry32 } from '../scenes/journey';
+
+// ─── team-vote-result (8 s on screen, animation ≤ 5 s) ─────────────
+export const VOTE_RESULT = {
+  /** 0–0.6 s: the title comes in. */
+  titleMs: 600,
+  /** 0.6–2.6 s: the two tallies roll up. */
+  countAt: 600,
+  countMs: 2000,
+  /** 2.8 s: the APPROVED / REJECTED stamp. */
+  stampAt: 2800,
+  /** 3.5 s: a rejected team snuffs out one candle of the reject track. */
+  candleAt: 3500,
+  /** Everything has settled — a second and a half before the 5 s budget. */
+  doneAt: 4200,
+} as const;
+
+export type VoteResultStage = 'count' | 'stamp' | 'candle' | 'done';
+export const VOTE_RESULT_STAGES: readonly TimelineStage<VoteResultStage>[] = [
+  { id: 'count', at: 0 },
+  { id: 'stamp', at: VOTE_RESULT.stampAt },
+  { id: 'candle', at: VOTE_RESULT.candleAt },
+  { id: 'done', at: VOTE_RESULT.doneAt },
+];
+
+// ─── quest-result (8 s on screen, animation ≤ 5.5 s) ───────────────
+// 0–0.8 s the pile is shuffled and dealt into a row; then the cards are turned
+// one by one, 0.6 s apart (0.4 s per flip); 0.4 s after the last one the
+// SUCCESS / FAILED stamp lands and the quest's tile on the table is sealed.
+export const QUEST_RESULT = {
+  shuffleMs: 800,
+  flipGapMs: 600,
+  flipMs: 400,
+  stampGapMs: 400,
+  stampMs: 450,
+} as const;
+
+export type QuestResultStage = 'reveal' | 'stamp' | 'done';
+
+export interface QuestResultTimeline {
+  /** When card `i` (0-based, in reveal order) starts turning over. */
+  flipAt: (i: number) => number;
+  stampAt: number;
+  doneAt: number;
+  stages: readonly TimelineStage<QuestResultStage>[];
+}
+
+const questTimelines = new Map<number, QuestResultTimeline>();
+
+/** The timeline for a team of `cards` (2–5). Memoised: stable per size. */
+export function questResultTimeline(cards: number): QuestResultTimeline {
+  const n = Math.max(1, Math.min(5, Math.round(cards) || 1));
+  let tl = questTimelines.get(n);
+  if (!tl) {
+    const flipAt = (i: number) => QUEST_RESULT.shuffleMs + QUEST_RESULT.flipGapMs * i;
+    const stampAt = flipAt(n - 1) + QUEST_RESULT.flipMs + QUEST_RESULT.stampGapMs;
+    const doneAt = stampAt + 600;
+    tl = {
+      flipAt,
+      stampAt,
+      doneAt,
+      stages: [
+        { id: 'reveal', at: 0 },
+        { id: 'stamp', at: stampAt },
+        { id: 'done', at: doneAt },
+      ],
+    };
+    questTimelines.set(n, tl);
+  }
+  return tl;
+}
+
+/**
+ * The order the quest's cards are turned over in. The database only keeps the
+ * NUMBER of fail cards (failCount), never who played what — so the row is
+ * rebuilt from the counts and shuffled with the phase's start time as the seed
+ * (ux-plan 2.4): the same on every device, unrelated to the players.
+ */
+export function questRevealOrder(teamSize: number, failCount: number, seed: number): ('success' | 'fail')[] {
+  const fails = Math.max(0, Math.min(teamSize, failCount));
+  const cards: ('success' | 'fail')[] = [
+    ...Array<'success'>(Math.max(0, teamSize - fails)).fill('success'),
+    ...Array<'fail'>(fails).fill('fail'),
+  ];
+  const rand = mulberry32(seed % 4294967296);
+  for (let i = cards.length - 1; i > 0; i--) {
+    const j = Math.floor(rand() * (i + 1));
+    [cards[i], cards[j]] = [cards[j], cards[i]];
+  }
+  return cards;
+}
+
+// ─── The two moments the table / roster / top bar wait for ─────────
+/** team-vote-result (rejected): the new candle goes out. */
+export const CANDLE_STAGES: readonly TimelineStage<'lit' | 'out'>[] = [
+  { id: 'lit', at: 0 },
+  { id: 'out', at: VOTE_RESULT.candleAt },
+];
+
+const sealStages = new Map<number, readonly TimelineStage<'hidden' | 'sealed'>[]>();
+/** quest-result: the quest's result is shown (sealed) at the stamp. */
+export function questSealStages(cards: number): readonly TimelineStage<'hidden' | 'sealed'>[] {
+  const tl = questResultTimeline(cards);
+  let st = sealStages.get(tl.stampAt);
+  if (!st) {
+    st = [
+      { id: 'hidden', at: 0 },
+      { id: 'sealed', at: tl.stampAt },
+    ];
+    sealStages.set(tl.stampAt, st);
+  }
+  return st;
+}
+
+// Phases without a timeline of their own on the table.
+export const IDLE_STAGES: readonly TimelineStage<'idle'>[] = [{ id: 'idle', at: 0 }];

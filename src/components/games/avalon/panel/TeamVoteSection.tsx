@@ -1,9 +1,12 @@
 import type { Player } from '@/types/player';
 import type { AvalonGameData, AvalonGameState, TeamVote } from '../types';
 import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
+import { useArrivals } from '../hooks/useArrivals';
 import { PlayerRoster } from './PlayerRoster';
 import AvIcon from '../assets/AvIcon';
+import ActionDock from '../ui/ActionDock';
 import GlassPanel from '../ui/GlassPanel';
+import { LOW_TIME_GLOW, LowTimeClock } from './shared';
 
 export function TeamVoteSection({
   state,
@@ -24,16 +27,23 @@ export function TeamVoteSection({
   // Đếm ngược 30s — hết giờ player chưa bầu = REJECT mặc định.
   const { remaining } = usePhaseClock(state);
   const timeStr = formatSecs(remaining);
+  // The last ten seconds: the clock (and the ballot box, if you have not
+  // voted) throb — through their glow, the digits keep full contrast.
   const lowTime = remaining < 10_000;
+
+  // Votes that came in while watching: their tick pops. My own ballot turns
+  // face down — the same card whether I approved or rejected.
+  const freshVotes = useArrivals(Object.keys(state.teamVotes ?? {}).sort());
+  const ballotDropped = freshVotes.has(myPlayer.id);
 
   return (
     <div className="space-y-3">
       <GlassPanel tone="gold" className="p-4">
         <div className="flex items-center justify-between mb-1">
           <p className="text-[11px] uppercase font-black text-(--av-parchment)"><AvIcon name="vote" /> Bỏ phiếu đội</p>
-          <span className={`text-xs font-black tabular-nums ${lowTime ? 'text-orange-300 animate-pulse' : 'text-(--av-parchment)'}`}>
-            <AvIcon name="clock" /> {timeStr}
-          </span>
+          <LowTimeClock low={lowTime} className={lowTime ? 'text-orange-300' : 'text-(--av-parchment)'}>
+            {timeStr}
+          </LowTimeClock>
         </div>
         <p className="text-sm text-slate-300 mb-3">
           Leader <span className="font-black text-white">{leader?.name ?? '?'}</span> đề xuất đội cho Quest{' '}
@@ -72,12 +82,14 @@ export function TeamVoteSection({
                   : 'border-amber-500/30 bg-amber-500/5'
                   }`}
               >
-                <AvIcon
-                  name={voted ? 'check' : 'waiting'}
-                  size={16}
-                  className={voted ? 'text-emerald-300' : 'text-amber-300/80'}
-                  title={voted ? 'Đã bầu' : 'Chưa bầu'}
-                />
+                <span key={voted ? 'voted' : 'waiting'} className={`flex ${voted && freshVotes.has(p.id) ? 'av-pop' : ''}`}>
+                  <AvIcon
+                    name={voted ? 'check' : 'waiting'}
+                    size={16}
+                    className={voted ? 'text-emerald-300' : 'text-amber-300/80'}
+                    title={voted ? 'Đã bầu' : 'Chưa bầu'}
+                  />
+                </span>
                 <span className="text-xs font-bold text-white truncate flex-1">
                   {p.name}
                   {p.id === myPlayer.id && <span className="text-(--av-parchment)"> (bạn)</span>}
@@ -87,40 +99,6 @@ export function TeamVoteSection({
           })}
         </div>
       </GlassPanel>
-
-      {!myVote ? (
-        <div className="grid grid-cols-2 gap-3">
-          <button
-            onClick={() => onCastVote('approve')}
-            className="flex flex-col items-center rounded-2xl bg-(--av-approve) py-5 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30"
-          >
-            <AvIcon name="vote-approve" size={34} className="mb-1" />
-            ĐỒNG Ý
-          </button>
-          <button
-            onClick={() => onCastVote('reject')}
-            className="flex flex-col items-center rounded-2xl bg-(--av-reject) py-5 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30"
-          >
-            <AvIcon name="vote-reject" size={34} className="mb-1" />
-            TỪ CHỐI
-          </button>
-        </div>
-      ) : (
-        // Votes are secret: once cast, the card looks the same whatever the
-        // vote; the viewer's own choice is only a small line (ux-plan 2.9).
-        <GlassPanel tone="gold" className="p-4 text-center">
-          <AvIcon name="vote" size={30} className="mb-1 text-(--av-parchment)" />
-          <p className="av-display text-2xl text-white">Đã bỏ phiếu</p>
-          <p className="mt-1 text-xs font-bold text-slate-300">
-            Phiếu của bạn:{' '}
-            <span className={myVote === 'approve' ? 'text-(--av-approve)' : 'text-(--av-reject-light)'}>
-              <AvIcon name={myVote === 'approve' ? 'vote-approve' : 'vote-reject'} />{' '}
-              {myVote === 'approve' ? 'Đồng ý' : 'Từ chối'}
-            </span>
-          </p>
-          <p className="mt-2 text-xs text-slate-300">Đang chờ những người còn lại...</p>
-        </GlassPanel>
-      )}
 
       <div className="lg:hidden">
         <PlayerRoster
@@ -134,6 +112,56 @@ export function TeamVoteSection({
           viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
         />
       </div>
+
+      <ActionDock>
+        {!myVote ? (
+          <div
+            className={`relative grid grid-cols-2 gap-3 rounded-2xl ${lowTime ? 'av-pulse-ring' : ''}`}
+            style={lowTime ? LOW_TIME_GLOW : undefined}
+          >
+            <button
+              onClick={() => onCastVote('approve')}
+              className="flex flex-col items-center rounded-2xl bg-(--av-approve) py-4 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30 lg:py-5"
+            >
+              <AvIcon name="vote-approve" size={30} className="mb-1" />
+              ĐỒNG Ý
+            </button>
+            <button
+              onClick={() => onCastVote('reject')}
+              className="flex flex-col items-center rounded-2xl bg-(--av-reject) py-4 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95 shadow-lg shadow-black/30 lg:py-5"
+            >
+              <AvIcon name="vote-reject" size={30} className="mb-1" />
+              TỪ CHỐI
+            </button>
+          </div>
+        ) : (
+          // Votes are secret: once cast, the ballot lies face down and looks
+          // the same whatever the vote; the viewer's own choice is only a small
+          // line (ux-plan 2.9). It flips down when the vote is cast live, the
+          // same movement for both votes.
+          <div
+            className={`flex items-center gap-3 rounded-2xl border border-(--av-gold)/45 bg-(--av-ink) bg-[radial-gradient(circle_at_20%_50%,rgba(212,166,74,0.16),transparent_60%)] px-4 py-3 shadow-lg shadow-black/40 ${
+              ballotDropped ? 'av-ballot-in' : ''
+            }`}
+            data-ballot="down"
+          >
+            <span className="flex h-12 w-10 shrink-0 items-center justify-center rounded-md border-2 border-(--av-gold)/60 bg-black/40">
+              <AvIcon name="vote" size={22} className="text-(--av-gold)" />
+            </span>
+            <div className="min-w-0 flex-1 text-left">
+              <p className="av-display text-xl leading-tight text-white">Đã bỏ phiếu</p>
+              <p className="text-xs font-bold text-slate-300">
+                Phiếu của bạn:{' '}
+                <span className={myVote === 'approve' ? 'text-(--av-approve-light)' : 'text-(--av-reject-light)'}>
+                  <AvIcon name={myVote === 'approve' ? 'vote-approve' : 'vote-reject'} />{' '}
+                  {myVote === 'approve' ? 'Đồng ý' : 'Từ chối'}
+                </span>
+              </p>
+              <p className="text-[11px] text-slate-400">Đang chờ những người còn lại...</p>
+            </div>
+          </div>
+        )}
+      </ActionDock>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { ROLE_TEAM } from '../constants';
 import AvIcon, { type IconName } from '../assets/AvIcon';
 import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
+import { useHiddenQuest } from '../hooks/useTableReveal';
 
 interface RosterMark {
   type:
@@ -120,13 +121,14 @@ function buildRosterMarks(
   return marks;
 }
 
-function buildHistoryMarks(playerId: string, state: AvalonGameState): RosterMark[] {
+function buildHistoryMarks(playerId: string, state: AvalonGameState, hiddenQuest: number | null): RosterMark[] {
   const marks: RosterMark[] = [];
 
   // Quest participation history with outcome — chỉ hiển thị "Quest N" + màu
   // (xanh = success, đỏ = fail). Bỏ ✓/✕ vì màu đã đủ ngữ nghĩa.
   state.quests.forEach((q, idx) => {
-    if (q.result !== null && q.teamIds.includes(playerId)) {
+    // A quest still being revealed (quest-result, before its stamp) waits.
+    if (q.result !== null && idx !== hiddenQuest && q.teamIds.includes(playerId)) {
       const success = q.result === 'success';
       marks.push({
         type: 'quest-history',
@@ -190,6 +192,7 @@ export function PlayerRoster({
   compact?: boolean;
   viewerRole?: AvalonRole;
 }) {
+  const hiddenQuest = useHiddenQuest(state);
   const auto = deriveAutoHighlight(state);
   const finalIds = highlightedIds ?? auto.ids;
   const finalEmphasis = emphasis ?? auto.emphasis;
@@ -262,7 +265,7 @@ export function PlayerRoster({
               });
             }
           }
-          const historyMarks = showHistory ? buildHistoryMarks(p.id, state) : [];
+          const historyMarks = showHistory ? buildHistoryMarks(p.id, state, hiddenQuest) : [];
           // A row is only ever tinted by PUBLIC state (team pick, Lady's aim).
           // What the viewer privately knows (Merlin's / the evils' view,
           // Percival's) shows only in the small chips — a row tinted red or

@@ -21,6 +21,7 @@
   --av-approve: #4fae74; /* phiếu Đồng ý */
   --av-reject: #9a6bb4; /* phiếu Từ chối */
   --av-reject-light: #c9a8dc; /* chữ nhỏ "Từ chối" trên nền tối */
+  --av-approve-light: #93d6ab; /* chữ nhỏ "Đồng ý" trên nền tối */
   /* Bản sáng của màu phe, cho CHỮ nhỏ trên nền tối (đủ tương phản). */
   --av-good-light: #a9c3f7;
   --av-evil-light: #f2a7a7;
@@ -303,6 +304,265 @@
     transform: scale(1.06);
     opacity: 0.42;
   }
+}
+
+/* ─── Vòng Quest (GĐ3) ───────────────────────────────────────────── */
+/* Quy ước: style TĨNH của phần tử là khung CUỐI, keyframes chỉ tả đoạn trước
+   đó (`from` …) và dùng fill `both`. Nhờ vậy khi giảm chuyển động (mọi
+   animation bị tắt) phần tử hiện ngay trạng thái cuối. Animation gắn với
+   đồng hồ phase nhận animation-delay từ useCue / <Cued> (hooks/useCue.ts). */
+
+/* Viền / ánh sáng nhấp nháy (thay animate-pulse: chữ bên trong không bị mờ).
+   Màu lấy từ biến --av-pulse của phần tử. */
+.av-pulse-ring::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    0 0 0 2px var(--av-pulse, var(--av-gold)),
+    0 0 16px 3px var(--av-pulse, var(--av-gold));
+  opacity: 0.3;
+  animation: av-glow 1.4s ease-in-out infinite alternate;
+}
+@keyframes av-glow {
+  to {
+    opacity: 0.95;
+  }
+}
+
+/* Token trên bàn (table/TableTokens.tsx): vương miện / Lady trượt theo vành
+   bàn (neo kích thước 0 ở tâm bàn quay quanh); token đề cử bay từ ghế Leader.
+   Độ lệch --dx/--dy tính bằng % của bàn = cqw (RoundTable là size container).
+   KHÔNG dịch/quay một lớp to bằng cả bàn: hộp của nó sẽ thò ra ngoài trang
+   và làm điện thoại cuộn ngang. */
+.av-orbit {
+  transition: transform 700ms cubic-bezier(0.45, 0, 0.25, 1);
+}
+.av-token-hand {
+  animation: av-token-hand 650ms cubic-bezier(0.3, 0.7, 0.4, 1) both;
+}
+@keyframes av-token-hand {
+  0% {
+    transform: translate(calc(var(--dx) * 1cqw), calc(var(--dy) * 1cqw)) scale(0.4);
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  55% {
+    transform: translate(calc(var(--dx) * 0.45cqw), calc(var(--dy) * 0.45cqw)) scale(1.5);
+  }
+}
+
+/* Lá bài bay từ ghế vào chồng bài úp ở tâm bàn (table/CardPile.tsx). Mọi lá
+   giống hệt nhau: cùng mặt lưng, cùng đường bay. */
+.av-card-fly {
+  animation: av-card-fly 700ms cubic-bezier(0.25, 0.8, 0.35, 1) both;
+}
+@keyframes av-card-fly {
+  0% {
+    transform: translate(calc(var(--dx) * 1cqw), calc(var(--dy) * 1cqw)) rotate(-30deg) scale(0.7);
+    opacity: 0;
+  }
+  12% {
+    opacity: 1;
+  }
+  70% {
+    transform: translate(0, -1.5cqw) rotate(8deg) scale(1.15);
+  }
+}
+/* Chồng bài mờ đi khi kết quả được đóng dấu (ô Quest niêm phong). */
+.av-pile-out {
+  opacity: 0;
+  animation: av-pile-out 350ms ease-in both;
+}
+@keyframes av-pile-out {
+  from {
+    opacity: 1;
+  }
+}
+
+/* Nảy: chấm "đã bầu", dấu tích "sẵn sàng". */
+.av-pop {
+  animation: av-pop 450ms cubic-bezier(0.3, 1.6, 0.5, 1) both;
+}
+@keyframes av-pop {
+  from {
+    transform: scale(0);
+  }
+  60% {
+    transform: scale(1.45);
+  }
+}
+
+/* Nến tắt (team-vote-result, 3,5 s): lửa giật rồi tắt, một làn khói bay lên. */
+.av-snuff {
+  animation: av-snuff 600ms ease-out both;
+}
+@keyframes av-snuff {
+  from {
+    transform: scale(1.35) translateY(-2px);
+    opacity: 0.45;
+  }
+}
+.av-smoke {
+  opacity: 0;
+  animation: av-smoke 1100ms ease-out both;
+}
+@keyframes av-smoke {
+  0% {
+    opacity: 0;
+    transform: translateY(4px) scaleY(0.6);
+  }
+  25% {
+    opacity: 0.9;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-16px) scaleY(1.6);
+  }
+}
+/* Chỉ còn 1 ngọn nến: hàng nến rung một lần. */
+.av-shake {
+  animation: av-shake 600ms ease-in-out both;
+}
+@keyframes av-shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(3px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-5px);
+  }
+  40%,
+  60% {
+    transform: translateX(5px);
+  }
+}
+
+/* Ô Quest được niêm phong: một vòng màu kết quả đập xuống rồi tan. */
+.av-seal {
+  opacity: 0;
+  animation: av-seal 700ms ease-out both;
+}
+@keyframes av-seal {
+  0% {
+    opacity: 1;
+    transform: scale(1.4);
+  }
+  40% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.06);
+  }
+}
+
+/* Hiện ra (tiêu đề, dòng chú thích, khung tô màu kết quả). */
+.av-rise {
+  animation: av-rise 600ms ease-out both;
+}
+@keyframes av-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+.av-appear {
+  animation: av-appear 400ms ease-out both;
+}
+@keyframes av-appear {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Bộ đếm phiếu: một cột số 0…N trượt lên như mặt đồng hồ cơ; transform
+   tĩnh (đặt inline) là con số cuối. */
+.av-roll {
+  animation: av-roll 2000ms cubic-bezier(0.15, 0.7, 0.25, 1) both;
+}
+@keyframes av-roll {
+  from {
+    transform: translateY(0);
+  }
+}
+
+/* Con dấu ĐƯỢC DUYỆT / BỊ BÁC, THÀNH CÔNG / THẤT BẠI. */
+.av-stamp {
+  transform: rotate(-9deg);
+  animation: av-stamp 450ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes av-stamp {
+  0% {
+    opacity: 0;
+    transform: rotate(-9deg) scale(2.4);
+  }
+  70% {
+    opacity: 1;
+    transform: rotate(-9deg) scale(0.94);
+  }
+}
+
+/* Lá phiếu úp xuống sau khi bầu (giống hệt nhau dù Đồng ý hay Từ chối). */
+.av-ballot-in {
+  animation: av-ballot-in 500ms cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+@keyframes av-ballot-in {
+  from {
+    opacity: 0;
+    transform: perspective(600px) rotateX(-95deg);
+  }
+  40% {
+    opacity: 1;
+  }
+}
+
+/* Lật bài ở quest-result: xáo + chia (lớp ngoài), rồi lật (lớp trong, 3D). */
+.av-deal {
+  animation: av-deal 800ms ease-in-out both;
+}
+@keyframes av-deal {
+  0%,
+  62% {
+    transform: translate(var(--sx), var(--sy)) rotate(var(--sr));
+  }
+  15%,
+  46% {
+    transform: translate(calc(var(--sx) + var(--jx)), var(--sy)) rotate(calc(var(--sr) * -1));
+  }
+  31% {
+    transform: translate(calc(var(--sx) - var(--jx)), var(--sy)) rotate(var(--sr));
+  }
+}
+.av-flip {
+  position: relative;
+  transform-style: preserve-3d;
+  animation: av-flip 400ms ease-in-out both;
+}
+@keyframes av-flip {
+  from {
+    transform: rotateY(180deg);
+  }
+}
+.av-flip-face {
+  backface-visibility: hidden;
+}
+.av-flip-back {
+  position: absolute;
+  inset: 0;
+  transform: rotateY(180deg);
+  backface-visibility: hidden;
 }
 
 /* ─── Sword stab (Assassin click target) ─────────────────────────── */

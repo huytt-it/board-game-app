@@ -4,8 +4,9 @@ import { TEAM_NAME_VI } from '../constants';
 import { TEAM_ICON_NAME } from '../presentation';
 import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
 import { PlayerRoster } from './PlayerRoster';
-import { TokenBadges } from './shared';
+import { LowTimeClock, TokenBadges } from './shared';
 import AvIcon from '../assets/AvIcon';
+import ActionDock from '../ui/ActionDock';
 import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 
@@ -102,12 +103,14 @@ export function LadySection({
               Bạn có thể chia sẻ thật / nói xạo với nhóm tuỳ ý.
             </p>
           </GlassPanel>
-          <button
-            onClick={onLadyFinish}
-            className="w-full rounded-2xl bg-(--av-lady) py-4 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95"
-          >
-            ✓ Hoàn tất — Chuyển token cho {target?.name}
-          </button>
+          <ActionDock>
+            <button
+              onClick={onLadyFinish}
+              className="w-full rounded-2xl bg-(--av-lady) py-4 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95"
+            >
+              ✓ Hoàn tất — Chuyển token cho {target?.name}
+            </button>
+          </ActionDock>
         </div>
       );
     }
@@ -127,9 +130,9 @@ export function LadySection({
         <GlassPanel tone="lady" className="p-4">
           <div className="flex items-center justify-between mb-1">
             <p className="text-[11px] uppercase font-black text-(--av-lady)"><AvIcon name="lady" /> Lady of the Lake</p>
-            <span className={`text-xs font-black tabular-nums ${remaining < 10_000 ? 'text-orange-300 animate-pulse' : 'text-teal-100'}`}>
-              <AvIcon name="clock" /> {timeStr}
-            </span>
+            <LowTimeClock low={remaining < 10_000} className={remaining < 10_000 ? 'text-orange-300' : 'text-teal-100'}>
+              {timeStr}
+            </LowTimeClock>
           </div>
           <h3 className="av-display text-xl text-white mb-1">
             {hasPick ? `Đã chọn ${target?.name} — bấm Xác nhận soi` : 'Chọn 1 người để soi'}
@@ -165,16 +168,18 @@ export function LadySection({
           </div>
         </GlassPanel>
 
-        <button
-          onClick={onLadyConfirm}
-          disabled={!hasPick}
-          className={`w-full rounded-2xl py-3.5 text-base font-black transition-all active:scale-95 ${hasPick
-            ? 'bg-(--av-lady) text-(--av-ink) hover:brightness-110 shadow-lg shadow-black/40'
-            : 'bg-slate-800 text-slate-400 cursor-not-allowed'
-            }`}
-        >
-          <AvIcon name="eye" /> Xác nhận soi {hasPick ? target?.name : '(chọn 1 người)'}
-        </button>
+        <ActionDock>
+          <button
+            onClick={onLadyConfirm}
+            disabled={!hasPick}
+            className={`w-full rounded-2xl py-3.5 text-base font-black transition-all active:scale-95 ${hasPick
+              ? 'bg-(--av-lady) text-(--av-ink) hover:brightness-110 shadow-lg shadow-black/40'
+              : 'bg-slate-800 text-slate-400 cursor-not-allowed'
+              }`}
+          >
+            <AvIcon name="eye" /> Xác nhận soi {hasPick ? target?.name : '(chọn 1 người)'}
+          </button>
+        </ActionDock>
       </div>
     );
   }

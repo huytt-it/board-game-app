@@ -3,7 +3,14 @@
 import { useState, useMemo } from 'react';
 import { serverNow } from '@/lib/serverClock';
 import type { Player } from '@/types/player';
-import { AvalonRole, type AvalonGameState, type AvalonGameData, type AvalonQuestRecord } from './types';
+import {
+  AvalonRole,
+  type AvalonGameState,
+  type AvalonGameData,
+  type AvalonQuestRecord,
+  type QuestCard,
+  type TeamVote,
+} from './types';
 import PlayerPanel from './PlayerPanel';
 import RoleReveal from './RoleReveal';
 import RoleCard from './RoleCard';
@@ -37,6 +44,7 @@ type PreviewPhase =
   | 'team-vote-result-approved'
   | 'team-vote-result-rejected'
   | 'team-vote-result-rejected-novote'
+  | 'team-vote-result-rejected-last'
   | 'quest-play-on-team'
   | 'quest-play-on-team-evil'
   | 'quest-play-played-good'
@@ -44,6 +52,8 @@ type PreviewPhase =
   | 'quest-play-not-on-team'
   | 'quest-result-success'
   | 'quest-result-fail'
+  | 'quest-result-q4-one-fail'
+  | 'quest-result-five'
   | 'discussion-pending'
   | 'discussion-mostly-ready'
   | 'discussion-i-acked'
@@ -85,6 +95,7 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
   'team-vote-result-approved': 'KQ phiếu — Đội duyệt',
   'team-vote-result-rejected': 'KQ phiếu — Đội từ chối',
   'team-vote-result-rejected-novote': 'KQ phiếu — Từ chối (có người không bầu)',
+  'team-vote-result-rejected-last': 'KQ phiếu — Từ chối lần 4 (còn 1 ngọn nến)',
   'quest-play-on-team': 'Chơi Quest (trong đội, Phe Người)',
   'quest-play-on-team-evil': 'Chơi Quest (trong đội, Phe Quỷ)',
   'quest-play-played-good': 'Chơi Quest (đã đặt lá Phe Người)',
@@ -92,6 +103,8 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
   'quest-play-not-on-team': 'Chơi Quest (ngoài đội)',
   'quest-result-success': 'KQ Quest — Người thành công',
   'quest-result-fail': 'KQ Quest — Quỷ phá hoại',
+  'quest-result-q4-one-fail': 'KQ Quest IV — 1 lá Quỷ (cần 2, vẫn thành công)',
+  'quest-result-five': 'KQ Quest — lật 5 lá (bàn 8+ người)',
   'discussion-pending': 'Thảo luận — bạn chưa sẵn sàng',
   'discussion-mostly-ready': 'Thảo luận — đa số đã sẵn sàng',
   'discussion-i-acked': 'Thảo luận — bạn đã sẵn sàng (chờ người khác)',
@@ -132,7 +145,15 @@ const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
   },
   { label: 'Chọn đội', items: ['team-build-leader', 'team-build-follower'] },
   { label: 'Bỏ phiếu đội', items: ['team-vote-not-voted', 'team-vote-voted', 'team-vote-voted-reject'] },
-  { label: 'KQ phiếu đội', items: ['team-vote-result-approved', 'team-vote-result-rejected', 'team-vote-result-rejected-novote'] },
+  {
+    label: 'KQ phiếu đội',
+    items: [
+      'team-vote-result-approved',
+      'team-vote-result-rejected',
+      'team-vote-result-rejected-novote',
+      'team-vote-result-rejected-last',
+    ],
+  },
   {
     label: 'Chơi Quest',
     items: [
@@ -143,7 +164,7 @@ const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
       'quest-play-not-on-team',
     ],
   },
-  { label: 'KQ Quest', items: ['quest-result-success', 'quest-result-fail'] },
+  { label: 'KQ Quest', items: ['quest-result-success', 'quest-result-fail', 'quest-result-q4-one-fail', 'quest-result-five'] },
   {
     label: 'Thảo luận sau Quest',
     items: ['discussion-pending', 'discussion-mostly-ready', 'discussion-i-acked'],
@@ -484,7 +505,7 @@ function buildScene(
 
     case 'quest-play-not-on-team':
       return {
-        players,
+        players: players.map((p) => (p.id === 'p1' ? makePlayer('p1', 'Alice', AvalonRole.Merlin, 'success') : p)),
         state: {
           ...base,
           phase: 'quest-play',
@@ -631,6 +652,7 @@ function buildScene(
           teamVotes: { p1: 'approve', p2: 'approve', p3: 'approve', p4: 'reject', p5: 'reject', p6: 'approve', p7: 'reject' },
           lastTeamVoteResult: 'approved',
           voteRejectStreak: 0,
+          phaseStartedAt: serverNow(),
         },
         viewerId: 'p3',
       };
@@ -645,6 +667,7 @@ function buildScene(
           teamVotes: { p1: 'reject', p2: 'approve', p3: 'reject', p4: 'reject', p5: 'approve', p6: 'reject', p7: 'approve' },
           lastTeamVoteResult: 'rejected',
           voteRejectStreak: 2,
+          phaseStartedAt: serverNow(),
         },
         viewerId: 'p3',
       };
@@ -660,6 +683,23 @@ function buildScene(
           teamVotes: { p1: 'approve', p2: 'approve', p3: 'approve', p4: 'reject', p5: 'reject' },
           lastTeamVoteResult: 'rejected',
           voteRejectStreak: 2,
+          phaseStartedAt: serverNow(),
+        },
+        viewerId: 'p3',
+      };
+
+    case 'team-vote-result-rejected-last':
+      // The 4th rejection in a row: one candle left — the track shakes.
+      return {
+        players,
+        state: {
+          ...base,
+          phase: 'team-vote-result',
+          proposedTeam: ['p1', 'p5'],
+          teamVotes: { p1: 'reject', p2: 'approve', p3: 'reject', p4: 'reject', p5: 'approve', p6: 'reject', p7: 'reject' },
+          lastTeamVoteResult: 'rejected',
+          voteRejectStreak: 4,
+          phaseStartedAt: serverNow(),
         },
         viewerId: 'p3',
       };
@@ -674,6 +714,8 @@ function buildScene(
           phase: 'quest-result',
           currentQuest: 0,
           quests,
+          proposedTeam: ['p1', 'p3'],
+          phaseStartedAt: serverNow(),
         },
         viewerId: 'p3',
       };
@@ -689,6 +731,49 @@ function buildScene(
           phase: 'quest-result',
           currentQuest: 2,
           quests,
+          proposedTeam: ['p1', 'p5', 'p7'],
+          phaseStartedAt: serverNow(),
+        },
+        viewerId: 'p3',
+      };
+    }
+
+    case 'quest-result-q4-one-fail': {
+      // 7 players: the 4th quest needs two fail cards — one is not enough (storm).
+      const quests = emptyQuests();
+      quests[0] = { ...quests[0], result: 'success', failCount: 0, teamIds: ['p1', 'p3'] };
+      quests[1] = { ...quests[1], result: 'fail', failCount: 1, teamIds: ['p2', 'p5', 'p7'] };
+      quests[2] = { ...quests[2], result: 'success', failCount: 0, teamIds: ['p1', 'p2', 'p4'] };
+      quests[3] = { ...quests[3], result: 'success', failCount: 1, leaderId: 'p4', teamIds: ['p1', 'p2', 'p4', 'p6'] };
+      return {
+        players,
+        state: {
+          ...base,
+          phase: 'quest-result',
+          currentQuest: 3,
+          quests,
+          currentLeaderId: 'p4',
+          proposedTeam: ['p1', 'p2', 'p4', 'p6'],
+          phaseStartedAt: serverNow(),
+        },
+        viewerId: 'p3',
+      };
+    }
+
+    case 'quest-result-five': {
+      // The longest reveal (5 cards — tables of 8+). Mock: 7 seats, team of 5.
+      const quests = emptyQuests();
+      quests[4] = { ...quests[4], teamSize: 5, result: 'fail', failCount: 2, leaderId: 'p2', teamIds: ['p1', 'p2', 'p4', 'p5', 'p6'] };
+      return {
+        players,
+        state: {
+          ...base,
+          phase: 'quest-result',
+          currentQuest: 4,
+          quests,
+          currentLeaderId: 'p2',
+          proposedTeam: ['p1', 'p2', 'p4', 'p5', 'p6'],
+          phaseStartedAt: serverNow(),
         },
         viewerId: 'p3',
       };
@@ -929,6 +1014,20 @@ function mockSeatOrder(ids: string[], gameNo: number): string[] {
   return out;
 }
 
+// Local "what happened since the scene was built", so the quest-loop
+// transitions can be watched in the Preview: the viewer's own actions (pick,
+// vote, play a card, get ready) and "someone else acts" / "next Leader".
+// Reset whenever the scene is rebuilt.
+interface Sim {
+  key: string;
+  proposedTeam?: string[];
+  votes: Record<string, TeamVote>;
+  cards: Record<string, QuestCard>;
+  acks: Record<string, boolean>;
+  leaderSteps: number;
+}
+const freshSim = (key: string): Sim => ({ key, votes: {}, cards: {}, acks: {}, leaderSteps: 0 });
+
 export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   const [phase, setPhase] = useState<PreviewPhase>('team-build-leader');
   const [showRoleCard, setShowRoleCard] = useState(false);
@@ -941,11 +1040,70 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   const [forceStorm, setForceStorm] = useState(false);
   const [gameNo, setGameNo] = useState(0);
 
-  const { players, state, viewerId } = useMemo(() => {
-    const built = buildScene(phase, replayNonce > 0);
-    const seatOrder = mockSeatOrder(built.state.seatOrder, gameNo);
-    return { ...built, state: { ...built.state, seatOrder } };
+  const built = useMemo(() => {
+    const b = buildScene(phase, replayNonce > 0);
+    const seatOrder = mockSeatOrder(b.state.seatOrder, gameNo);
+    return { ...b, state: { ...b.state, seatOrder } };
   }, [phase, replayNonce, gameNo]);
+  const viewerId = built.viewerId;
+
+  const simKey = `${phase}:${replayNonce}:${gameNo}`;
+  const [simState, setSimState] = useState<Sim>(() => freshSim(simKey));
+  const sim = simState.key === simKey ? simState : freshSim(simKey);
+  const updateSim = (f: (s: Sim) => Sim) => setSimState((cur) => f(cur.key === simKey ? cur : freshSim(simKey)));
+
+  const { players, state } = useMemo(() => {
+    const ps = built.players.map((p) =>
+      sim.cards[p.id] ? { ...p, gameData: { ...p.gameData, questCard: sim.cards[p.id] } as AvalonGameData } : p
+    );
+    // Seats on the Preview's table follow the players array.
+    const leaderAt = ps.findIndex((p) => p.id === built.state.currentLeaderId);
+    const leader =
+      sim.leaderSteps && leaderAt >= 0 ? ps[(leaderAt + sim.leaderSteps) % ps.length].id : built.state.currentLeaderId;
+    return {
+      players: ps,
+      state: {
+        ...built.state,
+        currentLeaderId: leader,
+        proposedTeam: sim.proposedTeam ?? built.state.proposedTeam,
+        teamVotes: { ...built.state.teamVotes, ...sim.votes },
+        roleAcks: { ...built.state.roleAcks, ...sim.acks },
+      },
+    };
+  }, [built, sim]);
+
+  // "Someone else acts": the next player who has not done this phase's thing.
+  const others = players.filter((p) => p.id !== viewerId);
+  const simulate = (() => {
+    if (state.phase === 'team-build') {
+      const next = players.find((p) => !state.proposedTeam.includes(p.id));
+      const size = state.quests[state.currentQuest]?.teamSize ?? 2;
+      if (!next) return null;
+      return () =>
+        updateSim((s) => {
+          const team = s.proposedTeam ?? state.proposedTeam;
+          return { ...s, proposedTeam: team.length < size ? [...team, next.id] : [...team.slice(1), next.id] };
+        });
+    }
+    if (state.phase === 'team-vote') {
+      const next = others.find((p) => !state.teamVotes[p.id]);
+      if (!next) return null;
+      return () => updateSim((s) => ({ ...s, votes: { ...s.votes, [next.id]: Object.keys(s.votes).length % 2 ? 'reject' : 'approve' } }));
+    }
+    if (state.phase === 'quest-play') {
+      const next = others.find(
+        (p) => state.proposedTeam.includes(p.id) && !(p.gameData as Partial<AvalonGameData>).questCard
+      );
+      if (!next) return null;
+      return () => updateSim((s) => ({ ...s, cards: { ...s.cards, [next.id]: 'success' } }));
+    }
+    if (state.phase === 'discussion') {
+      const next = others.find((p) => !state.roleAcks[p.id]);
+      if (!next) return null;
+      return () => updateSim((s) => ({ ...s, acks: { ...s.acks, [next.id]: true } }));
+    }
+    return null;
+  })();
   const myPlayer = players.find((p) => p.id === viewerId)!;
   const myRole = (myPlayer.gameData as Partial<AvalonGameData>).role!;
   const playerCount = players.length;
@@ -966,6 +1124,10 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
 
   const noop = () => undefined;
   const stub = () => undefined;
+  const onProposedTeamChange = (ids: string[]) => updateSim((s) => ({ ...s, proposedTeam: ids }));
+  const onCastVote = (v: TeamVote) => updateSim((s) => ({ ...s, votes: { ...s.votes, [viewerId]: v } }));
+  const onPlayQuestCard = (c: QuestCard) => updateSim((s) => ({ ...s, cards: { ...s.cards, [viewerId]: c } }));
+  const onAckDiscussion = () => updateSim((s) => ({ ...s, acks: { ...s.acks, [viewerId]: true } }));
 
   return (
     <div className="avalon-root fixed inset-0 z-50 bg-slate-950 animate-fade-in flex flex-col">
@@ -1087,9 +1249,26 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
               Ván khác
             </button>
           </div>
-          <p className="text-[11px] text-slate-400">
-            Đang xem dưới góc nhìn của <span className="text-white font-bold">{myPlayer.name}</span>
-          </p>
+          <div className="flex items-center gap-2 text-[11px] text-slate-400">
+            <p className="min-w-0 flex-1">
+              Đang xem dưới góc nhìn của <span className="text-white font-bold">{myPlayer.name}</span>
+            </p>
+            <button
+              onClick={simulate ?? undefined}
+              disabled={!simulate}
+              title="Một người chơi khác hành động: được đề cử, bỏ phiếu, đặt lá, sẵn sàng"
+              className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-bold text-slate-200 active:bg-white/10 disabled:opacity-40"
+            >
+              Người khác làm
+            </button>
+            <button
+              onClick={() => updateSim((s) => ({ ...s, leaderSteps: s.leaderSteps + 1 }))}
+              title="Chuyển Leader sang ghế kế tiếp (vương miện bay)"
+              className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-bold text-slate-200 active:bg-white/10"
+            >
+              Leader kế
+            </button>
+          </div>
         </div>
       </header>
 
@@ -1115,10 +1294,10 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             myPlayer={myPlayer}
             players={players}
             playerCount={playerCount}
-            onProposedTeamChange={noop}
+            onProposedTeamChange={onProposedTeamChange}
             onSubmitTeam={stub}
-            onCastVote={noop}
-            onPlayQuestCard={noop}
+            onCastVote={onCastVote}
+            onPlayQuestCard={onPlayQuestCard}
             onLadyInspect={noop}
             onLadyConfirm={stub}
             onLadyShow={noop}
@@ -1128,7 +1307,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             onShowMyRole={() => setShowRoleCard(true)}
             onShowRolePreview={() => setShowRolePreview(true)}
             onAckRole={stub}
-            onAckDiscussion={stub}
+            onAckDiscussion={onAckDiscussion}
             onPlayAgain={stub}
             onLeaveRoom={onClose}
             isHost={true}

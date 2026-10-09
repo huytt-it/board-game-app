@@ -30,8 +30,12 @@ export function getScene(
 
   const { phase } = state;
   // The realm darkens a little with every failed quest (not at the end: the
-  // dawn of a Good victory stays bright).
-  const fails = (state.quests ?? []).filter((q) => q?.result === 'fail').length;
+  // dawn of a Good victory stays bright). The quest being revealed in
+  // quest-result does not count yet: the scene must not darken before its
+  // cards are turned over — it does when the next phase begins.
+  const fails = (state.quests ?? []).filter(
+    (q, i) => q?.result === 'fail' && !(phase === 'quest-result' && i === state.currentQuest)
+  ).length;
   const gloom = Math.round(GLOOM_PER_FAIL * fails * 100) / 100;
 
   if (phase === 'lineup-preview' || phase === 'role-reveal') return { id: 'hall', ...none };
