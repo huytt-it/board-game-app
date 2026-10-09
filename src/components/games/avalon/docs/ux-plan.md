@@ -459,7 +459,7 @@ Branch: `dev-avalon-uxui`.
 | 1 Bộ nhận diện | **Đã review — đạt** (2026-10-06) | `928c1afa` → `f92d548d` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 928c1afa..HEAD` | Claude Opus 5.5 | 47 icon game-icons.net (người dùng đã duyệt bảng) + 1 icon chỉnh sửa, registry + `AvIcon`, token màu, font Cormorant Garamond, `PlayerAvatar`, `RoleEmblem`; 0 emoji. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ1" bên dưới. |
 | 2a Hệ thống cảnh + quét lộ phe | **Đã review — đạt** (2026-10-07) | `d6e27ed7` → `ccfb2005` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log d6e27ed7..HEAD` | Claude Opus 5.5 | `scenes/` (types, journey, getScene, SceneBackdrop, paper), 4 cảnh mẫu `hall`/`night`/`camp`/`forest` + 10 placeholder, `SCENES` trong registry, `ui/GlassPanel`, quét lộ phe, token màu phe (regex màu = 0). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2a" bên dưới. |
 | 2b Vẽ đủ cảnh + tiêu đề + hành trình | **Đã review — đạt** (2026-10-08) | `0f6cb1c5` → `059830b6` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 0f6cb1c5..HEAD` | Claude Opus 5.5 | 10 cảnh mới (đủ 14, hết placeholder), `weather/Storm`, phủ tối theo Quest thất bại, `SceneTitle` + câu dẫn, `JourneyStrip` (hình thu nhỏ lấy từ chính cảnh, không cần icon mới), `RoleEmblem tone="neutral"` ở chỗ riêng tư. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2b" bên dưới. |
-| 3 Vòng Quest | Chưa bắt đầu | | | |
+| 3 Vòng Quest | **Đã làm — chờ review** (2026-10-09) | `95fdbcfa` → `8a33c2c5` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 95fdbcfa..HEAD` | Claude Opus 5.5 | `TableTokens` (vương miện / Lady trượt theo vành bàn, token đề cử bay từ Leader), chồng bài úp + lá bay, chuỗi `team-vote-result` và `quest-result` theo giờ server, lá phiếu úp, đồng hồ vòng, `ActionDock`, nút Xoá/Rời vào top bar, `animate-pulse` chỉ còn ở viền. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ3" bên dưới. |
 | 4 Mở đầu | Chưa bắt đầu | | | |
 | 5 Kết thúc | Chưa bắt đầu | | | |
 | 6 Hoàn thiện | Chưa bắt đầu | | | |
@@ -798,6 +798,119 @@ Ghi nhận:
 - Nút Xoá/Rời đè top bar ở 375 (đã biết, GĐ3).
 
 **Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch, phòng test ván thật đã xoá. Các script kiểm thử (CDP) nằm ở scratchpad của session, không có trong repo.
+
+### Ghi chú của người thực thi GĐ3
+
+**Đã làm:** toàn bộ mục GĐ3 và "Bổ sung cho GĐ3". Không sửa logic-core: `useAvalon.ts`, `types.ts`, `constants.ts` không có trong diff; ở `AvalonBoard.tsx` chỉ bỏ khối nút Xoá/Rời `absolute right-4 top-4` (handler giữ nguyên, nay truyền qua `onLeaveRoom` có sẵn). Không thêm dependency, không tải icon mới, không sửa `globals.css`, không đụng game khác.
+
+**Cấu trúc mới:**
+- `table/TableTokens.tsx` (vương miện, Lady, token đề cử), `table/CardPile.tsx` (chồng bài úp giữa bàn), `table/timelines.ts` (mọi mốc thời gian của vòng Quest, `questRevealOrder`).
+- `hooks/useCue.ts` + `ui/Cued.tsx` (animation-delay theo giờ server), `hooks/useArrivals.ts` (chuyển tiếp trang trí "vừa xuất hiện"), `hooks/useTableReveal.ts` (`useShownRejectStreak`, `useHiddenQuest`).
+- `ui/ActionDock.tsx`, `ui/QuestCard.tsx` (`CardBack` / `CardFace`).
+- `avalon.css`: khối "Vòng Quest (GĐ3)", token `--av-approve-light`.
+
+**Lệch / quyết định nhỏ so với kế hoạch (nhạc trưởng nên liếc qua):**
+1. **Cách đồng bộ animation:**
+   - `useCue(startedAt)` trả `cue(at)` = `at − (thời gian đã trôi lúc component mount)`. Giá trị cố định cho tới khi `startedAt` đổi, nên render lại không làm lệch animation đang chạy.
+   - Phần tử mount theo stage dùng `<Cued>`, tự lấy mốc lúc chính nó mount.
+   - Quy ước: style tĩnh = khung cuối, keyframes chỉ tả đoạn trước đó (fill `both`). Nhờ vậy reduced motion hiện ngay trạng thái cuối mà không cần nhánh riêng.
+   - `usePhaseTimeline` chỉ dùng cho phần DOM phải đổi: nến, ô Quest, chip nến, `aria-live`, `data-anim-stage`.
+   - **Độ trễ dựng chưa bù:** animation chạy từ lần vẽ đầu, muộn hơn mốc lấy lúc render đúng bằng thời gian render (bản dev: 0,1–0,2 s khi mount nặng). Mỗi máy lệch theo thời gian render của chính nó; đo ở prod, 5 tab lệch nhau ≤ 42 ms. Hệ quả nhỏ: reload sau khi một hiệu ứng vừa xong có thể thấy đuôi ≤ 0,2 s của nó (ví dụ vòng niêm phong mờ đi).
+2. **Token trên bàn** chỉ dùng `transform`:
+   - Vương miện quay quanh tâm bàn, luôn theo chiều kim đồng hồ (góc cộng dồn). Lady đi đường ngắn. Token đề cử bay thẳng từ ghế Leader.
+   - Dùng neo kích thước 0 và đơn vị `cqw` (`RoundTable` thành `@container`).
+   - **Lỗi tìm ra khi đo, đã sửa:** bản đầu xoay/tịnh tiến một lớp `inset-0` to bằng cả bàn. Hộp đã xoay thò ra ngoài trang, nên ở 375px layout viewport thành 423px (điện thoại tự thu nhỏ trang) và dock rơi khỏi màn hình. Đã đổi cách làm; ghi chú cảnh báo trong code và `avalon.css`.
+3. **Ghế trên bàn canh giữa theo avatar** (nhãn tên treo `absolute` bên dưới), để token rơi đúng điểm ghế. Avatar thấp xuống khoảng 11px so với trước. Huy hiệu Leader / Lady không còn là con của `PlayerAvatar` mà do `TableTokens` vẽ; `title` của ghế ghi thêm "· Leader / · Lady of the Lake".
+4. **Token đề cử:** icon `team` (kiếm chéo, vốn là nghĩa "đội"), đặt giữa phía trên avatar; vòng cam của `PlayerAvatar` vẫn giữ.
+5. **Chồng bài** đặt ở (50 %, 73 %), dưới hàng nến. Phía trên hàng ô Quest nó chạm nhãn tên ghế trên cùng ở 375px.
+   - Có ô trống viền đứt kèm chip "x/y". Lá bay từ ghế của người đặt, lá nào cũng giống nhau (mặt lưng, màu, đường bay).
+   - Ở `quest-result`, chồng bài ở lại tới lúc đóng dấu rồi mờ đi. Việc xáo và lật diễn ra trong panel `QuestResultSection`; trên bàn chỉ niêm phong ô Quest.
+6. **Mốc thời gian** (`table/timelines.ts`):
+   - `team-vote-result`: tiêu đề 0–0,6 s; hai bộ đếm 0,6–2,6 s (cột số lăn lên, ease-out, chỉ `transform`); dấu ĐƯỢC DUYỆT / BỊ BÁC lúc 2,8 s; nến tắt lúc 3,5 s (lửa giật kèm làn khói 1,1 s). Xong ≤ 4,6 s. Màu kết quả của panel và chip nến ở top bar đổi cùng mốc. Icon kết quả to ở đầu panel trước đây lộ kết quả ngay giây 0, nay nằm trong con dấu.
+   - `quest-result`: xáo và chia bài 0–0,8 s; lá i lật lúc 0,8 + 0,6·i (mỗi lá 0,4 s); dấu đóng sau lá cuối 0,4 s (2 lá: 2,2 s; 3 lá: 2,8 s; 5 lá: 4,0 s). Xong ≤ 4,6 s với 5 lá. Tiêu đề panel đổi thành "Lật bài" (trung tính) thay cho "Quest thành công" hiện ngay từ đầu.
+7. **Không lộ kết quả trước con dấu** (ngoài kế hoạch, phát hiện khi làm): ô Quest trên bàn, chip "Quest N" tô màu kết quả trong `PlayerRoster`, và lớp phủ tối `gloom` của cảnh đều chờ tới mốc dấu. Riêng `getScene` không tính Quest đang lật vào `gloom`; cảnh tối đi khi phase kế tiếp bắt đầu.
+8. **"Rung" khi còn 1 ngọn nến** là rung hình: hàng nến lắc 0,6 s, không rung máy (mục 1). Ngọn cuối nhấp nháy viền đỏ cho tới khi có đội được duyệt; panel có thêm dòng cảnh báo.
+9. **`team-vote`:**
+   - Lá phiếu úp nằm trong dock, lật xuống bằng `rotateX`. Chuyển động giống nhau cho cả hai phiếu; chỉ còn một dòng nhỏ "Phiếu của bạn".
+   - 10 giây cuối: đồng hồ và cụm hai nút nhấp nháy viền cam.
+   - Dấu tích trong lưới "Tiến độ bầu phiếu" cũng nảy, giống chấm trên bàn.
+10. **`ActionDock`:** `fixed` kèm một spacer đo bằng `ResizeObserver` (spacer `order-last`, luôn ở cuối cột flex). Desktop dùng `lg:relative`, nằm trong cột phải.
+    - Nút trong dock: Trình đội; Đồng ý / Từ chối (bầu xong thì thành lá phiếu úp); Xác nhận đặt lá (hai lá để chọn vẫn ở section); Xác nhận soi và Hoàn tất (Lady); Xác nhận đâm; Tôi sẵn sàng (desktop: ngay dưới đồng hồ).
+    - **Không** đưa vào dock: "Đã đọc" ở lineup; các nút "Đã xem" ban đêm (mỗi vai một kiểu, nên dock chỉ hiện với vài người là lộ vai; để GĐ4 làm cùng lớp phủ "nhắm mắt"); nút cuối ván (GĐ5).
+    - Toast "Phe Người không được đặt lá Phe Quỷ" neo ngay trên dock.
+11. **Nút Xoá / Rời trong top bar** (`data-room-exit`, dưới `sm` chỉ hiện icon). Top bar vì thế chật hơn:
+    - Top bar là `@container`; chip phase đổi theo bề rộng nội dung: dưới 19,25rem chỉ icon; tới 40rem nhãn ngắn ("Kết quả", "Đêm", "Quest"); rộng hơn thì nhãn đầy đủ. Nhãn đầy đủ luôn có trong `title` / `aria-label`. Bớt vài px padding ở chip và nút.
+    - Đo bằng bề rộng thật trong ván (trang phòng còn bọc `px-4`): ở 343px (máy 375) mọi nhãn ngắn hiện đủ; ở 328px (máy 360) chỉ icon; không còn nhãn bị cắt "…". Khi GĐ4 bỏ `px-4` thì top bar có thêm chỗ.
+12. **`animate-pulse`** thay bằng `.av-pulse-ring` (một `::after`, chỉ nhấp nháy `opacity` của viền / ánh sáng) cho: ô Quest hiện tại, avatar trong đội, avatar bị Sát Thủ ngắm, đồng hồ sắp hết giờ (TeamBuild, TeamVote, Lady, Assassin). `animate-pulse` chỉ còn trên icon không có chữ (đồng hồ cát, trăng, chấm "chưa bầu").
+13. **Tương phản:** nút "Trình đội" chữ trắng trên nền cam (~2,1:1) đổi sang chữ mực. Thêm `--av-approve-light` cho nhãn nhỏ "Đồng ý" (từ 4,3 lên ≥ 6).
+14. **Đồng hồ vòng ở thảo luận:** SVG cập nhật mỗi giây theo `usePhaseClock`, không chạy animation liên tục suốt 10 phút.
+15. **Preview:**
+    - Cảnh mới: `team-vote-result-rejected-last`, `quest-result-q4-one-fail`, `quest-result-five` (mock 5 lá).
+    - Các cảnh kết quả phát chuỗi ngay khi chọn. `quest-play-not-on-team` có sẵn 1 lá trong chồng.
+    - Nút "Người khác làm" (đề cử / bầu / đặt lá / sẵn sàng) và "Leader kế". Hành động của người xem (chọn đội, bầu, đặt lá, sẵn sàng) chạy cục bộ để xem các chuyển tiếp.
+16. **Thuộc tính cho kiểm thử:** `data-phase`, `data-phase-started-at` (gốc `PlayerPanel`), `data-anim-stage`, `data-stamp`, `data-candle`, `data-quest-tile`, `data-card-pile`, `data-token`, `data-action-dock`, `data-ballot`, `data-reject-chip`, `data-room-exit`.
+
+**Kết quả kiểm thử:**
+- `npx tsc --noEmit` sạch; `npm run build` thành công (build lại sạch sau khi xoá harness).
+- `npx eslint src/components/games/avalon`: 2 lỗi `react-hooks/set-state-in-effect` có sẵn (`AvalonBoard.tsx:155`, `QuestPlaySection.tsx:43`; trước là dòng 28, lệch do thêm `PlayedCount`) cùng 2 cảnh báo có sẵn trong `useAvalon.ts`. Không có vấn đề mới.
+- Đếm emoji = 0; regex màu phe = 0.
+- Gói JS của Avalon: 285 KB thô, 84,5 KB gzip (GĐ2b: 265 / 78).
+- **Ảnh** ở `.claude/gd3-shots/` (mở `index.html`), chụp bằng Chrome headless qua DevTools Protocol trên harness tạm:
+  - `preview/`: 24 cảnh vòng Quest × (375 phần trên và phần dưới, 1440). Mỗi cảnh đúng 1 `[data-phase-section]`, dock có mặt đúng ở các phase có nút chính, 0 lỗi JS;
+  - `seq/`: 4 chuỗi × 8 khung × 2 cỡ; `flights/`: 6 chuyển tiếp × 5 khung × 2 cỡ;
+  - `pairs/`, `reduced/`, `game/`.
+- **Reload giữa chuỗi:** harness dựng màn kết quả "đã trôi `ago` ms" (như khi reload), so với mount ở 0 rồi chờ. 15 mẫu (quest 5 lá và 2 lá, vote): trạng thái nhìn thấy (stage, lá úp/đang lật/ngửa, con dấu, bộ đếm, nến, ô Quest) khớp mô hình `timelines.ts` trong 1 nhịp lấy mẫu ở mọi mẫu.
+- **Reduced motion** (giả lập): 0 animation ở cả 24 cảnh, kể cả sau khi bấm "Người khác làm" / "Leader kế". Màn kết quả vào thẳng stage `done`: lá ngửa, dấu đã hiện, số cuối, nến đã tắt, ô đã niêm phong.
+- **Không lộ phe từ xa.** Thu còn 10 %, đo trên khung nhìn 375×812 và 1440×900. Cùng ghế p1, chỉ khác Merlin | Morgana; người Phe Người đặt lá Người / bầu Đồng ý, người Phe Quỷ đặt lá Quỷ / bầu Từ chối. Mọi animation bị đóng băng ở cùng thời điểm:
+
+  | Thời điểm | 375 | 1440 |
+  |---|---|---|
+  | `quest-play`, chưa đặt | 0,19 | 0,43 |
+  | `quest-play`, lá đang bay (300 ms) | 0,19 | 0,43 |
+  | `quest-play`, đã đặt | 0,19 | 0,43 |
+  | `team-vote`, chưa bầu | 0,19 | 0,27 |
+  | `team-vote`, lá phiếu đang úp (150 ms) | 0,26 | 0,28 |
+  | `team-vote`, đã bầu | 0,26 | 0,28 |
+  | *Đối chứng: cùng phe chụp 2 lần* | *0* | *0* |
+
+  Phần lệch còn lại là huy hiệu gợi ý cỡ icon (Merlin thấy Quỷ, Quỷ thấy đồng đội), có từ trước. Animation của GĐ3 thêm ≤ 0,07. Ngoài phạm vi: ảnh cả trang `team-vote` ở 375 của hai phe cao chênh nhau 25px, do chip gợi ý trong `PlayerRoster` bản mobile xuống dòng khác nhau (có từ trước).
+- **Tương phản chữ** (đo trên điểm ảnh thật như GĐ2a): 24 cảnh vòng Quest + 5 cảnh sáng (`chapel`, `sea`, `mountain`), 375 (phần trên và dưới) và 1440.
+  - Chữ ≥ 11px: 2247/2247 đạt ≥ 4,5:1, thấp nhất 4,59.
+  - Chữ < 11px: 751/756. Sau khi thêm `--av-approve-light`, đo lại các cảnh bỏ phiếu: 242/242.
+  - Không còn chữ nào nằm trong phần tử `animate-pulse`.
+- **Bố cục:**
+  - Không tràn ngang (trang và khung cuộn của Preview), đáy dock = 812; popup chi tiết Quest vẫn phủ toàn màn hình (`@container` không thành containing block của `fixed`).
+  - `SceneTitle` không chồng lên nút nào của dock: 6 cỡ (375×812, 360×640, 320×568, 812×375, 1024×600, 1440×900) × 4 phase.
+- **CPU chậm 4×** (bản dev):
+  - chuỗi kết quả: p95 = 7 ms; `team-vote-result` 0 khung > 50 ms; `quest-result` 1 khung 56–76 ms đúng lúc đóng dấu (bàn, danh sách và panel cùng render);
+  - chuyển tiếp (lá bay, vương miện, đề cử, phiếu): khung dài nhất 14–32 ms, riêng 1 khung 63 ms khi đề cử ở 1440 (React render lại Preview);
+  - trước khi tách chip nến khỏi `PlayerPanel`, mỗi chuỗi có 2 khung 56–83 ms.
+- **Ván thật** (bản production; 5 origin `localhost`, `127.0.0.1`, `a/b/c.localhost`; **mỗi tab một cửa sổ CDP** để tab nào cũng vẽ; bot tự chơi):
+  - Ván chạy đủ: lobby → … → Quest I (đề xuất đầu bị bác có chủ ý, đề xuất 2 được duyệt) → Quest II → Quest III → ám sát → Phe Người thắng, khoảng 2,5 phút. 0 lỗi JS ở cả 5 tab; mỗi tab lấy mẫu khoảng 31 ms một lần.
+  - Mốc lần đầu thấy (giây, tính từ `phaseStartedAt`; khoảng lệch giữa các tab):
+
+    | Lượt | Thấy con dấu | Xong cả chuỗi | Lệch giữa các tab (dấu / xong) |
+    |---|---|---|---|
+    | `team-vote-result` Q I, bị bác (tab 4 reload) | 2,82–2,85 (4 tab) | ≤ 4,66 (4 tab); tab reload ≤ 4,91 | 32 / 34 ms |
+    | `team-vote-result` Q I, duyệt | 2,82–2,84 | ≤ 4,23 | 29 / 6 ms |
+    | `quest-result` Q I, 2 lá (tab 3 reload) | 2,22–2,26 (4 tab) | ≤ 2,93 (4 tab); tab reload ≤ 3,31 | 42 / 5 ms |
+    | `team-vote-result` Q II | 2,85–2,86 | ≤ 4,25 | 9 / 42 ms |
+    | `quest-result` Q II, 3 lá | 2,82–2,85 | ≤ 3,53 | 35 / 7 ms |
+    | `team-vote-result` Q III | 2,82–2,84 | ≤ 4,23 | 28 / 6 ms |
+    | `quest-result` Q III, 2 lá | 2,22–2,25 | ≤ 2,94 | 33 / 7 ms |
+
+    Ngân sách ≤ 5 s / ≤ 5,5 s đều đạt. Các tab lệch nhau ≤ 42 ms, tức khoảng 1 nhịp lấy mẫu. Chip nến chuyển 0 → 1 cùng lúc với ngọn nến tắt ở cả 5 tab.
+  - **Reload** tab `c.localhost` 1,5 s sau khi vào `team-vote-result`: app dựng lại ở 2,7 s, vào đúng khung (đang đếm, chưa có dấu); dấu và nến tắt cùng lúc với các tab khác.
+  - **Reload** tab `b.localhost` 2,0 s sau khi vào `quest-result`: dựng lại ở 2,96 s, vào thẳng khung đã lật hết và đã có dấu, không phát lại.
+  - Phòng test đã xoá bằng nút Xoá mới trên top bar (mở lại link báo "Room Not Found").
+
+**Còn tồn / gợi ý cho GĐ sau:**
+- **GĐ4:** đưa nút "Đã đọc" ở lineup và các nút ban đêm vào dock, cùng lúc làm lớp phủ "nhắm mắt". Bỏ `px-4` của trang phòng thì top bar ở máy 360 có chỗ hiện nhãn phase. Chip gợi ý trong `PlayerRoster` bản mobile làm danh sách cao khác nhau theo vai (25px, xem mục riêng tư).
+- **GĐ5:** đưa nút cuối ván vào dock. Màn tổng kết có thể dùng lại `useCue` / `<Cued>` và quy ước "style tĩnh = khung cuối".
+- **GĐ6:** token Lady bay tới người bị ngắm (`TableTokens` đã có token Lady trượt khi đổi người cầm).
+- Nếu cần khớp chính xác hơn khi reload, bù độ trễ dựng bằng cách đặt `currentTime` của animation trong layout effect.
+
+**Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch, phòng test đã xoá. Các script kiểm thử (CDP) nằm ở scratchpad của session, không có trong repo.
 
 ---
 
