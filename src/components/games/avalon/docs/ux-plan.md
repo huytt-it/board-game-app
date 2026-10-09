@@ -526,7 +526,7 @@ Branch: `dev-avalon-uxui`.
 | 3 Vòng Quest | **Đã review — đạt** (2026-10-09) | `95fdbcfa` → `8a33c2c5` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 95fdbcfa..HEAD` | Claude Opus 5.5 | `TableTokens` (vương miện / Lady trượt theo vành bàn, token đề cử bay từ Leader), chồng bài úp + lá bay, chuỗi `team-vote-result` và `quest-result` theo giờ server, lá phiếu úp, đồng hồ vòng, `ActionDock`, nút Xoá/Rời vào top bar, `animate-pulse` chỉ còn ở viền. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ3" bên dưới. |
 | 4 Mở đầu | **Đã review — đạt** (2026-10-09) | `beb7a58f` → `782e560c` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log beb7a58f..HEAD` | Claude Opus 5.5 | Trang vào phòng riêng (`AvalonJoinScreen`), lobby ngồi xuống / rời + thông báo, bộ bài xoè, lineup (bàn tròn, xáo ghế, vương miện quay, Lady, cuộn giấy da), thư niêm phong nhấn giữ (lộ vai + "Vai của tôi"), đêm "nhắm mắt" giống nhau trên mọi máy, chip phase không còn "…", danh sách mobile cao như nhau. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ4" bên dưới. |
 | 5 Kết thúc | **Đã review — đạt** (2026-10-09) | `3de2e6e2` → `8740affc` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3de2e6e2..HEAD` | Claude Opus 5.5 | Màn kết thúc theo đồng hồ phase (overlay ám sát → banner "Bạn thắng!" / "Bạn thua…" + lý do, tàn lửa / lấp lánh, ghế lật sang vai, thẻ "Sát Thủ đâm", tổng kết hành trình, danh sách vai), chạm để bỏ qua overlay, ô Quest chưa chơi trung tính, nút cuối ván vào dock, `ConfirmDialog` thay mọi `confirm()` gốc. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ5" bên dưới. |
-| 6 Hoàn thiện | Chưa bắt đầu | | | |
+| 6 Hoàn thiện | **Đã làm — chờ review** (2026-10-09) | `db179bcf` → code commit `feat(avalon-ux): GĐ6` + commit docs ngay sau (cập nhật nhật ký này) — xem `git log db179bcf..HEAD` | Claude Sonnet 5.5 | Token ngắm của Lady bay tới người bị ngắm, thẻ kết quả soi lật chỉ ở máy người cầm Lady, người bị soi / ngoài cuộc chỉ thấy "Đã soi" trung tính; nhịp tim trên mục tiêu Sát Thủ; "Đến lượt bạn" (viền vàng quanh dock + "● " trên tiêu đề tab, không bao giờ ở đêm / lộ vai); 2 `alert()` → banner; bàn hẹp (≥ 8 người, bàn < 350 px); trợ năng (vòng focus, vùng chạm 44 px, `useDialog` giữ focus trong modal, `aria-live`). Hồi quy ván thật 7 tab (có Lady). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ6" bên dưới. |
 
 ### Ghi chú của người thực thi GĐ0
 
@@ -1243,6 +1243,89 @@ Ghi nhận:
 - Độ trễ dựng khi reload (≤ 0,3 s) vẫn như GĐ3 / GĐ4; có thể bù bằng `currentTime` trong layout effect ở GĐ6.
 
 **Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch, phòng test đã xoá. Các script kiểm thử (CDP) nằm ở scratchpad của session, không có trong repo.
+
+### Ghi chú của người thực thi GĐ6
+
+**Đã làm:** toàn bộ mục GĐ6 và "Bổ sung cho GĐ6" (8 việc). Không sửa logic-core: `useAvalon.ts`, `types.ts`, `constants.ts` không có trong diff; ở `AvalonBoard.tsx` chỉ đổi JSX và cách hiện lỗi (`alert(msg)` → `setNotice(msg)`, banner dời lên trước nhánh lobby, `Modal` tách `ModalBody` có `useDialog`, nút lobby `min-h-11`); khối auto-progression và thân các handler giữ nguyên. Không thêm dependency, không tải icon mới, không sửa `globals.css`, không đụng file ngoài thư mục Avalon, không đụng game khác. Không rung máy, không âm thanh.
+
+**Cấu trúc mới:**
+- `hooks/useDialog.ts` (focus vào trong khi mở, Tab / Shift+Tab ở lại trong, Escape đóng, trả focus khi đóng; nhiều hộp chồng nhau thì chỉ hộp trên cùng nhận phím).
+- `ui/AimHeartbeat.tsx` (nhịp tim), `ui/MyTurn.tsx` (`MyTurnContext`, `useTurnTitle`), `panel/myTurn.ts` (`needsMyAction`, hàm thuần của state).
+- `avalon.css`: khối "Lady, ám sát, hoàn thiện (GĐ6)" (`av-lady-flip`, `av-heartbeat`, `av-dock-turn`), "Bàn hẹp" (container query), "Trợ năng" (vòng focus, `.av-hit`).
+
+**Lệch / quyết định nhỏ so với kế hoạch (nhạc trưởng nên liếc qua):**
+1. **Token Lady bay = một "token ngắm"** (đĩa tối viền xanh ngọc, `data-token="lady-aim"`) bay từ ghế người cầm tới người bị ngắm, bay lại mỗi lần đổi mục tiêu (`useArrivals`, tái dùng keyframes `av-token-hand` của token đề cử; `FlyingToken` dùng chung). Token Lady thật vẫn ở ghế người cầm tới "Hoàn tất", rồi đi vòng sang ghế mới (có sẵn từ GĐ3) — nên người xem luôn biết ai đang cầm, ai đang bị ngắm. Reload thì token ngắm nằm sẵn ở ghế, không bay lại.
+2. **Lật thẻ kết quả không theo `useCue` / `<Cued>`**: `updateInPhase` ghi `ladyShownCard` mà **không** đổi `phaseStartedAt` (chỉ `ladyInspect` đổi), nên không có mốc giờ chung của lúc soi. Thẻ này chỉ có ở máy người cầm Lady nên không cần đồng bộ: lật khi kết quả **đến lúc màn hình đang mở** (`useState(() => !inspected)` lúc mount, cùng tinh thần `useArrivals`, mục 2.2), còn reload thì thẻ nằm ngửa ngay (style tĩnh = khung cuối). Reduced motion: ngửa ngay.
+3. **Người bị soi và người ngoài cuộc thấy "Đã soi" trung tính.** Trước GĐ6 người bị soi thấy phe thật của mình bằng icon + chữ màu phe (người ngồi cạnh liếc là biết). Nay: icon con mắt + "Đã soi", giống hệt nhau dù phe nào. Chữ cũ "Chờ Lady bấm Xác nhận để **xem phe của bạn**" cũng sai nghĩa (người bị soi không xem gì) — đã sửa. Thêm vùng đọc cho trình đọc màn hình (`data-lady-announce`): người cầm Lady nghe phe, người khác chỉ nghe "<tên> đã soi <tên>".
+4. **Nhịp tim thay vòng nhấp nháy `av-pulse-ring` ở ghế bị ngắm** (`pulse={isOnTeam}`): vòng đỏ đập hai nhịp rồi tan (`transform` + `opacity`), chu kỳ theo bậc của đồng hồ phase 180 s (1400 / 1100 / 850 / 600 ms khi còn > 90 / 45 / 15 s / ít hơn), và pha nhịp tính theo giờ server nên các vòng trên mọi máy đập cùng lúc. Có ở bàn và ở thẻ "Sát Thủ đang ngắm"; reduced motion còn một vòng đỏ tĩnh.
+5. **"Đến lượt bạn"**: `needsMyAction(state, me)` đúng 5 trường hợp (Leader ở `team-build`; chưa bỏ phiếu ở `team-vote`; thành viên đội chưa đặt lá ở `quest-play`; người cầm Lady; Sát Thủ) và `false` ở mọi phase khác (đêm, lộ vai, lineup…). `PlayerPanel` đưa kết quả qua `MyTurnContext` cho `ActionDock` (viền vàng nhấp nháy, chỉ `opacity` của một lớp phủ nên nút giữ nguyên độ tương phản), đặt "● " trước tiêu đề tab (`useTurnTitle`, gỡ khi hết lượt / rời phòng) và một dòng `sr-only` "Đến lượt bạn". Trên desktop khung viền nằm **bên trong** dock (cột phải cắt phần tràn nên khung ngoài bị cụt).
+6. **`alert()` → banner**: banner (`role="alert"`, offline thì `role="status"`) được dời lên **trước** nhánh lobby, vì cả hai lỗi (`handleStartGame`, kick) xảy ra ở lobby. Hệ quả: banner "Mất kết nối" nay cũng hiện ở lobby (trước chỉ trong ván).
+7. **Bàn hẹp: áp cho ≥ 8 người và bàn < 350 px** (kế hoạch: ≥ 9 người, < 340 px). Lý do đo được: nhãn tên của các ghế phía trên đã đè lên ô Quest I / V ở **8 người** (đè 18 px ở bàn 288 px, 4 px ở bàn 343 px), và ở 9–10 người ở 320 px. Khi bật (`.av-table-dense`, container query): ghế 44 px (vẫn đủ vùng chạm), nhãn tên 10 px, cụm ô Quest + nến thu 0,86× (0,8× khi bàn < 300 px). Không thêm bước nào cho bàn ≥ 350 px.
+8. **Hiệu năng**: gói Avalon (một chunk) **319,8 KB thô / 96,2 KB gzip** (GĐ5: 314,2 / 94,6) — dưới ngưỡng 100 KB, nên **không lazy-load cảnh**. "Bù độ trễ dựng bằng `currentTime`" (tuỳ chọn) **không làm**: độ trễ khi reload vẫn ≤ 0,3 s như GĐ3–5, mà cách bù phải chạm vào mọi `useCue` / `<Cued>` với rủi ro lệch lớn hơn lợi ích.
+9. **Trợ năng**:
+   - vòng focus vàng dày 3 px (kèm viền tối ngoài) cho mọi nút / liên kết / ô nhập trong `.avalon-root` (cả nút đã `outline-none`);
+   - vùng chạm ≥ 44 px: nút lobby, nút đóng modal, "Chạm để bỏ qua", nút "Xem lại vai" và liên kết "Về trang chủ" tăng `min-h-11`; chip ở top bar (Các vai / Vai của tôi / Xoá-Rời), nút kick và ô Quest giữ kích thước nhìn thấy nhưng có lớp phủ trong suốt mở rộng vùng chạm (`.av-hit`, `--av-hit-x/y`);
+   - `useDialog` cho `Modal` (cài đặt, hướng dẫn vai), `RoleCard`, `RolePreviewPopup`, chi tiết Quest và `ConfirmDialog` (viết lại dùng hook này; hành vi cũ giữ nguyên: focus vào "Huỷ", Tab chỉ đi giữa hai nút, Esc huỷ); các hộp có `role="dialog"` / `alertdialog`, `aria-modal`, nhãn;
+   - `aria-live`: banner, "Đến lượt bạn", kết quả soi (đã có sẵn: tiêu đề cảnh, kết quả phiếu / Quest, kết thúc ván, thông báo lobby).
+   - **Còn ngoại lệ**: (a) ô Quest ở bàn 320 px: 5 ô cách nhau 35 px nên vùng chạm tối đa ~37–39 px (ở 375 px: 47 px); (b) hai nút "Copy code" / "Copy invite link" của `QRCodeDisplay` ở lobby cao 36 px — file nằm ở `src/components/core` (ngoài phạm vi Avalon, dùng chung các game), chưa sửa.
+10. **Sửa thêm ngoài kế hoạch, tìm ra khi đo:**
+    - **Màu avatar**: chữ trắng trên `#8f7414` chỉ 4,49:1 (cũng `#6b7d24` 4,58, `#a8642a` 4,64). Các phiên trước chỉ đo ván 7 người nên không thấy; ván 8–10 người băm id ra màu đó là có. Đã làm sẫm 3 màu (tất cả ≥ 4,8:1).
+    - **Tràn ngang 3 px ở 320 px với 10 người** khi token Lady (hoặc vương miện) nằm ở ghế bên phải: chuỗi xoay của `OrbitToken` làm trình duyệt cộng hộp bao của từng bước xoay vào vùng cuộn của trang (layout viewport thành 323 px, điện thoại tự thu nhỏ). Đã thêm `overflow-clip` (kèm `overflow-clip-margin: 12px` cho huy hiệu ở mép bàn) lên lớp `TableTokens`; đo lại 0 px ở mọi tổ hợp (320–390 px, 7–10 người, token Lady ở cả 7 ghế).
+    - `AvalonPreview`: Lady và Sát Thủ chạy cục bộ (ngắm → soi → chuyển token; đổi mục tiêu ám sát), "Người khác làm" cũng điều khiển Lady / Sát Thủ.
+
+**Kết quả kiểm thử:**
+- `npx tsc --noEmit` sạch; `npm run build` thành công (build lại sạch sau khi xoá harness).
+- ESLint: `npx eslint src/components/games/avalon` vẫn 2 lỗi `react-hooks/set-state-in-effect` có sẵn (`AvalonBoard.tsx:164`, `QuestPlaySection.tsx:43`) cùng 2 cảnh báo có sẵn trong `useAvalon.ts`. `npx eslint src`: 47 lỗi / 34 cảnh báo, **giống hệt HEAD `db179bcf` theo từng file** (so bằng `git stash`); không có cái nào từ GĐ6.
+- Đếm emoji = 0; regex màu phe = 0; không còn `alert()` / `confirm()` gốc (chỉ còn trong chú thích).
+- **Ảnh** ở `.claude/gd6-shots/` (git bỏ qua): `lady/` (bay, lật, chuyển token, 375 / 1440), `heart/`, `dock/`, `narrow/` (trước / sau), `pairs/` (ảnh ghép + đối chứng), `banner/`, `game/` (ván thật 7 tab, ảnh tổng hợp `sheet-*.png`).
+- **Bàn hẹp** (harness, `phase=team-build` và `end` với huy hiệu vai đã lật; 320 / 339 / 340 / 360 / 375 px × 8 / 9 / 10 người): trước khi sửa nhãn tên đè ô Quest ở 320–340 px (8 người đè tới 18 px; 10 người 8 px) và ở 8 người cả 375 px (4 px); sau khi sửa **0 chạm** ở mọi tổ hợp (khoảng cách nhỏ nhất 1,1 px — 8 người ở 320 px; 7,4 px với 9 người; 12,7 px với 10 người).
+- **Không lộ thông tin từ xa** (cặp ảnh thu còn 10 %, độ lệch điểm ảnh trung bình 0–255; cùng ghế p1, chỉ đổi vai của p1; mọi animation đóng băng cùng lúc; đối chứng = chụp lại bên A):
+
+  | Cặp | 375 | 1440 |
+  |---|---|---|
+  | Thư lộ vai: Merlin \| Sát Thủ · Trung thần \| Tay sai · Percival \| Morgana | 0 · 0 · 0 | 0 · 0 · 0 |
+  | "Vai của tôi": Merlin \| Mordred | 0 | 0 |
+  | Đêm: Quỷ (được gọi) \| Trung thần · Merlin \| Percival · Percival \| Sát Thủ (chưa giữ) | 0 · 0 · 0 | 0 · 0 · 0 |
+  | Đặt lá, chưa đặt: Người \| Quỷ | 0,19 | 0,10 |
+  | Đã đặt lá: Người đặt Người \| Quỷ đặt Quỷ | 0,19 | 0,10 |
+  | Phiếu, chưa bầu: Người \| Quỷ | 0,19 | 0,10 |
+  | Phiếu, đã bầu: Đồng ý \| Từ chối | 0,25 | 0,11 |
+  | **Lady, bị ngắm**: Người \| Quỷ | 0,19 | 0,10 |
+  | **Lady, ĐÃ BỊ SOI** (người bị soi): Người \| Quỷ | 0,19 | 0,10 |
+  | **Lady, ngoài cuộc** đang ngắm / đã soi: Người \| Quỷ | 0,20 / 0,20 | 0,10 / 0,10 |
+  | Ám sát, đang ngắm (Quỷ đã công khai): Người \| Percival | 0,30 | 0,13 |
+  | *Thư lộ vai, ĐANG GIỮ (khác có chủ ý)* | *1,38* | *0,33* |
+  | *Lady — NGƯỜI CẦM LADY thấy Người \| Quỷ (khác có chủ ý)* | *1,34* | *1,23* |
+  | *Đối chứng (mọi cặp)* | *0* | *0* |
+
+  Trước GĐ6 cặp "Lady, đã bị soi" lệch 1,38 ở 375 và 1,34 ở 1440 (GĐ2b: người bị soi thấy phe của mình); nay bằng đúng cặp trung tính khác.
+- **Tương phản chữ** (điểm ảnh thật; 13 màn Preview của Lady / ám sát / "đến lượt bạn" × 375 phần trên-giữa-dưới + 1440; bàn 8 và 10 người ở 320 và 375): chữ ≥ 11 px **1471/1471 đạt ≥ 4,5:1** (thấp nhất 4,59), chữ < 11 px **476/476**. Lần đo đầu có 4 chỗ trượt: chữ "H" trắng trên màu avatar (4,49) — đã sửa (mục 10).
+- **Giảm chuyển động** (giả lập): 0 animation chạy ở Lady (dock sáng, token ngắm, thẻ kết quả ngửa sẵn) và ở ám sát (còn vòng đỏ tĩnh, opacity 0,6).
+- **CPU chậm 4×** (bản dev, 375 và 1440): p95 = 7 ms ở cả 4 chuỗi (Lady ngắm → soi → chuyển token; đổi mục tiêu 3 lần; nhịp tim + đổi mục tiêu ám sát; viền "đến lượt bạn" đứng yên); trong lúc animation chạy không có khung dài. Mỗi lần **bấm** (ngắm, soi, hoàn tất, đổi mục tiêu) có 1 khung 118–160 ms: đó là React dựng lại cả Preview ở bản dev (cùng loại với ghi chú GĐ2b / GĐ3), không phải animation.
+- **"Đến lượt bạn"** (46 cảnh Preview, 375): đúng ở cả 5 trường hợp, `false` ở đêm / lộ vai / lineup / thảo luận / kết quả / kết thúc; tiêu đề tab có "● " đúng lúc và trả lại khi hết lượt.
+- **Trợ năng**:
+  - kiểm kích thước mọi nút / liên kết / ô nhập ở 46 cảnh Preview (có tính phần mở rộng của `.av-hit`): ở 375 và 1440 **0** mục nhỏ hơn 44 px; ở 320 chỉ còn ô Quest (ngoại lệ ở mục 9);
+  - bàn phím trên Preview: Tab đi tuần tự, vòng focus `solid 3px` vàng, Enter mở "Vai của tôi" và focus vào hộp, Tab ×7 ở lại trong hộp, Space giữ lá thư (mở khi giữ, gấp khi thả), Esc đóng và **trả focus về nút đã mở**; cùng kiểm cho "Các vai" và hộp chi tiết Quest;
+  - **lobby thật** (bản production): "Vai trò" và "Cài đặt" mở thành `role="dialog"` có nhãn, focus vào "Đóng", Tab ×8 ở lại trong, Esc đóng và trả focus; chỉ còn 2 nút `Copy` của `QRCodeDisplay` < 44 px (mục 9).
+- **Banner thay `alert()`** (lobby thật, gọi thẳng `onClick` của nút "Bắt đầu" qua props React vì nút đang `disabled`): hiện "Avalon cần 5-10 người chơi (hiện 1)." với `role="alert"`, 0 lần `alert()`, tự tắt sau ~4 s; phòng đã xoá.
+- **Gói JS**: xem mục 8 (chunk Avalon đo bằng cách tìm chunk chứa `data-phase-section`; GĐ5 build lại từ HEAD cho đúng 314,2 KB / 94,6 KB như đã báo). Lưu ý: nếu build kèm một trang harness riêng, Turbopack tách chunk khác đi nên con số lệch — đo khi đã xoá harness.
+- **Ván thật 7 tab — hồi quy toàn ván** (bản production; 7 origin `localhost`, `127.0.0.1`, `a / b / c / d / e.localhost`; mỗi tab một cửa sổ CDP; cỡ 1440 / 375 / 375 / 320 / 360 / 390 / 1024; bot tự chơi, có Lady: ngắm → soi → hoàn tất; Sát Thủ đâm qua `ConfirmDialog`). Từ trang vào phòng tới "Chơi ván mới" rồi kick và xoá phòng, khoảng 2,5 phút:
+  - **0 lỗi JS ở cả 7 tab**; không tràn ngang ở tab nào.
+  - **Cả 7 tab cùng chuỗi cảnh**: `hall > night > marsh > camp > mountain > lake > camp > forest > blood-moon > end-good`; cả 7 tab đi qua đủ 13 phase.
+  - **"Đến lượt bạn"** (≈ 7.000 mẫu sau khi phase ổn định): 0 sai lệch ở `team-build` (chỉ Leader), `team-vote` (chỉ người chưa bầu), `quest-play` (chỉ thành viên chưa đặt), Lady (chỉ người cầm), ám sát (chỉ Sát Thủ); **0 mẫu có viền / "● " / dòng đọc ở các phase đêm (674 mẫu), lộ vai và lineup**. Có 1 mẫu trong ~21.900 thấy "● " khi dock vừa gỡ (tiêu đề được trả lại ở effect của lần render kế): thoáng qua.
+  - **Lady**: thẻ kết quả (`data-lady-result`) chỉ có ở **một** tab (người cầm), lật `live`; chữ "Phe Người / Phe Quỷ" **không** xuất hiện ở tab nào khác (cả bảng chữ lẫn vùng đọc); token ngắm có ở cả 7 tab và bay ở cả 7; sau "Hoàn tất" token Lady nằm ở cùng một ghế trên cả 7 tab.
+  - **Reload tab 3 (320 px) giữa phase Lady**: vào đúng khung, token ngắm ở đúng ghế, **không bay lại** (`aimEverFlying = false`).
+  - **Nhịp tim** có ở cả 7 tab khi Sát Thủ ngắm (chu kỳ 1400 ms ở đầu phase).
+  - `ConfirmDialog`: "Ván mới" → cả 7 tab về lobby; Esc trên hộp "Xoá phòng" đóng hộp, vẫn ở trong phòng; kick P5 → còn 6 người; "Xoá" → chủ phòng về trang chủ, mở lại link báo "Room Not Found".
+  - Thứ tự lộ vai / hạt / lật ghế ở màn kết thúc không đổi so với GĐ5 (không đụng tới) nên không đo lại chi tiết; banner thắng / thua đúng ở cả 7 tab (4 thắng, 3 thua theo phe).
+
+**Còn tồn / gợi ý sau GĐ6:**
+- Hai nút `Copy` của `QRCodeDisplay` (36 px) và ô Quest ở 320 px (xem mục 9).
+- Tiêu đề cảnh (`SceneTitle`) vẫn phủ phần trên của bàn khoảng 2,6 s đầu mỗi phase mới ở điện thoại (không chặn bấm) — đã biết từ GĐ2b / GĐ3.
+- Độ trễ dựng khi reload ≤ 0,3 s (xem mục 8).
+- Chưa có ván thật 10 người (không đủ origin sạch); bàn 10 người kiểm bằng harness (đo hình học, không đồng bộ).
+
+**Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch. Ba phòng test (ván 7 tab, lobby kiểm banner, lobby kiểm modal) đã xoá bằng nút Xoá. Các script kiểm thử (CDP) nằm ở scratchpad của session, không có trong repo.
 
 ---
 
