@@ -6,6 +6,33 @@
 import type { TimelineStage } from '../hooks/usePhaseTimeline';
 import { mulberry32 } from '../scenes/journey';
 
+// ─── lineup-preview (60 s on screen, animation ~4 s) — GĐ4 ─────────
+export const LINEUP = {
+  /** 0–1.2 s: the seats slide from the order people joined in to the
+   *  game's seat order (seatOrder). */
+  shuffleMs: 1200,
+  /** 1.2–3.2 s: the crown circles the table, slows down and stops on the
+   *  first Leader. It starts on seat 0 and goes `spinTurns` full turns plus
+   *  the Leader's seat index — the same on every device. */
+  spinAt: 1200,
+  spinMs: 2000,
+  spinTurns: 2,
+  /** 3.2 s: the Lady of the Lake is set down (7+ players). */
+  ladyAt: 3200,
+  /** 0–0.6 s: the parchment of roles unrolls; from 0.6 s the role chips
+   *  fly onto it, 80 ms apart (≤ 10 chips: done by ~1.8 s). */
+  unrollMs: 600,
+  chipsAt: 600,
+  chipGapMs: 80,
+} as const;
+
+// ─── night-* (45 s each, animation ~1.5 s) — GĐ4 ──────────────────
+export const NIGHT = {
+  /** The veil settles over the table, then the call ("… mở mắt") rises. */
+  veilMs: 600,
+  callAt: 300,
+} as const;
+
 // ─── team-vote-result (8 s on screen, animation ≤ 5 s) ─────────────
 export const VOTE_RESULT = {
   /** 0–0.6 s: the title comes in. */

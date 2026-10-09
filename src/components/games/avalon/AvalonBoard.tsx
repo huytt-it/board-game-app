@@ -28,6 +28,9 @@ import { getScene } from './scenes/getScene';
 import { journeyKey } from './scenes/journey';
 import type { SceneResult } from './scenes/types';
 import GlassPanel from './ui/GlassPanel';
+import DealingCards from './ui/DealingCards';
+import LobbyNotices from './ui/LobbyNotices';
+import { useRosterNotices } from './hooks/useRosterChanges';
 import './avalon.css';
 
 // Class for every Avalon root element: scopes avalon.css (tokens, reduced
@@ -117,6 +120,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   const [notice, setNotice] = useState<string | null>(null);
 
   const inGame = room.status !== 'lobby' && room.status !== 'end';
+  // "<Tên> đã vào phòng / đã rời phòng" in the lobby (compared on this client).
+  const rosterNotices = useRosterNotices(players, room.status === 'lobby');
   // A sleeping phone stops its timers and drops its connection, which stalls the table.
   useWakeLock(inGame);
 
@@ -347,8 +352,9 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
       ((room.config.optionalRoles as unknown[] | undefined)?.length) ?? 0;
     return withScene(
       HALL,
-      <div className={`${AVALON_ROOT} mx-auto max-w-5xl animate-fade-in pb-32`}>
+      <div className={`${AVALON_ROOT} mx-auto max-w-5xl animate-fade-in px-4 pt-6 pb-32 sm:px-6 lg:px-8`}>
         {showPreview && <AvalonPreview onClose={() => setShowPreview(false)} />}
+        <LobbyNotices notices={rosterNotices} players={players} />
 
         <Modal open={showSettings} onClose={() => setShowSettings(false)} icon="settings" title="Cài đặt Avalon">
           <RoomSettings
@@ -483,11 +489,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   if (!myPlayer || !myRole) {
     return withScene(
       HALL,
-      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center text-slate-300 p-4`}>
-        <div className="text-center">
-          <AvIcon name="waiting" size={36} className="mb-2 animate-pulse" />
-          <p className="text-sm">Đang chia bài...</p>
-        </div>
+      <div className={`${AVALON_ROOT} flex min-h-dvh items-center justify-center p-4`}>
+        <DealingCards />
       </div>
     );
   }
@@ -524,6 +527,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
           myRole={myRole}
           myPlayerId={playerId}
           players={players}
+          startedAt={state.phaseStartedAt}
           onDone={handleRoleRevealDone}
         />
       </div>,
@@ -559,6 +563,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         onLeaveRoom={isHost ? handleDelete : handleLeave}
         isHost={isHost}
         roomId={room.id}
+        joinOrder={players.map((p) => p.id)}
       />
       {showMyRoleCard && (
         <RoleCard role={myRole} onClose={() => setShowMyRoleCard(false)} />
@@ -617,3 +622,7 @@ function Modal({
 }
 
 export { defaultAvalonConfig };
+
+// The invite screen of an Avalon room (page.tsx loads it from this module, so
+// it shares the board's chunk: the player who joins already has the board).
+export { default as AvalonJoinScreen } from './AvalonJoinScreen';

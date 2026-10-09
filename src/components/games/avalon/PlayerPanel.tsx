@@ -7,11 +7,12 @@ import RoundTable from './RoundTable';
 import AvIcon from './assets/AvIcon';
 import GlassPanel from './ui/GlassPanel';
 import { useShownRejectStreak } from './hooks/useTableReveal';
+import { useHold } from './hooks/useHold';
 import { PhaseChip } from './panel/shared';
 import { PlayerRoster } from './panel/PlayerRoster';
 import { LineupPreviewSection } from './panel/LineupPreviewSection';
 import { RoleRevealWaitingSection } from './panel/RoleRevealWaitingSection';
-import { NightEvilsSection, NightMerlinSection, NightPercivalSection } from './panel/NightSections';
+import { NightSection, nightSight, type NightPhase } from './panel/NightSections';
 import { TeamBuildSection } from './panel/TeamBuildSection';
 import { TeamVoteSection } from './panel/TeamVoteSection';
 import { TeamVoteResultSection } from './panel/TeamVoteResultSection';
@@ -46,6 +47,9 @@ interface PlayerPanelProps {
   isHost?: boolean;
   /** Seeds the journey when the seat order is empty (getJourney). */
   roomId?: string;
+  /** Player ids in the order they joined the room (lineup-preview: the seats
+   *  slide from there to the seat order). */
+  joinOrder?: readonly string[];
 }
 
 // The reject counter of the top bar. Its own component: it follows the table
@@ -88,7 +92,6 @@ export default function PlayerPanel(props: PlayerPanelProps) {
 
   const teamSize = state.quests[state.currentQuest]?.teamSize ?? 0;
 
-  const showRoundTable = state.phase !== 'lineup-preview' && state.phase !== 'role-reveal';
   // "Các vai" / "Vai của tôi" sit in the top bar from the night on.
   const hasRoleButtons = !!(myRole && myTeam) && state.phase !== 'lineup-preview' && state.phase !== 'role-reveal';
 
@@ -118,6 +121,14 @@ export default function PlayerPanel(props: PlayerPanelProps) {
       props.onProposedTeamChange([...team.slice(1), id]);
     }
   };
+
+  // Night: every screen shows the same veil and dock; only while the viewer
+  // holds the night card does their own screen show what the call lets them
+  // see, and light those seats on the table (panel/NightSections).
+  const night = state.phase.startsWith('night-') ? (state.phase as NightPhase) : null;
+  const nightHold = useHold(state.phase);
+  const sight = night ? nightSight(night, myPlayer, gamePlayers) : null;
+  const glowIds = sight && sight.active && nightHold.held ? sight.seen.map((p) => p.id) : undefined;
 
   const handleAssassinTablePick = (id: string) => {
     if (!isAssassin || state.phase !== 'assassinate') return;
@@ -226,33 +237,16 @@ export default function PlayerPanel(props: PlayerPanelProps) {
         />
       )}
 
-      {state.phase === 'night-evils' && (
-        <NightEvilsSection
+      {night && (
+        // Keyed by turn: "Tiếp tục" of a player who is not called is local.
+        <NightSection
+          key={night}
           state={state}
+          phase={night}
           myPlayer={myPlayer}
-          myRole={myRole}
-          myTeam={myTeam}
           gamePlayers={gamePlayers}
-          onAckRole={props.onAckRole}
-        />
-      )}
-
-      {state.phase === 'night-merlin' && (
-        <NightMerlinSection
-          state={state}
-          myPlayer={myPlayer}
-          myRole={myRole}
-          gamePlayers={gamePlayers}
-          onAckRole={props.onAckRole}
-        />
-      )}
-
-      {state.phase === 'night-percival' && (
-        <NightPercivalSection
-          state={state}
-          myPlayer={myPlayer}
-          myRole={myRole}
-          gamePlayers={gamePlayers}
+          held={nightHold.held}
+          holdBind={nightHold.bind}
           onAckRole={props.onAckRole}
         />
       )}
@@ -353,9 +347,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
 
       {/* ONE DOM for every breakpoint.
           < lg : a single column — table first, then the phase section.
-          lg+  : fixed-viewport 3 columns — roster | table (no scroll) | section.
-                 With no table yet (lineup-preview / role-reveal) the section
-                 takes the middle column instead. */}
+          lg+  : fixed-viewport 3 columns — roster | table (no scroll) | section. */}
       <div className="mx-auto flex w-full max-w-lg flex-col gap-4 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-xl md:max-w-2xl lg:grid lg:h-[calc(100dvh-44px)] lg:max-w-[1500px] lg:grid-cols-[300px_minmax(0,1fr)_340px] lg:py-0 lg:pb-0 xl:grid-cols-[340px_minmax(0,1fr)_380px]">
         <aside className="hidden overflow-y-auto py-4 pr-1 lg:block">
           <PlayerRoster
@@ -369,37 +361,31 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           />
         </aside>
 
-        {showRoundTable ? (
-          <>
-            <div className="min-w-0 lg:flex lg:items-start lg:justify-center lg:overflow-hidden lg:py-4">
-              <div className="flex w-full items-start justify-center">
-                <RoundTable
-                  players={gamePlayers}
-                  state={state}
-                  myPlayerId={myPlayer.id}
-                  viewerRole={safeViewerRole}
-                  playerCount={playerCount}
-                  onTogglePick={handleTablePick}
-                  canPick={isLeader && state.phase === 'team-build'}
-                  pickedTeamSize={state.proposedTeam.length}
-                  pickedTeamLimit={teamSize}
-                  onAssassinPick={handleAssassinTablePick}
-                  canAssassinPick={isAssassin && state.phase === 'assassinate'}
-                />
-              </div>
-            </div>
-
-            <div data-phase-section className="lg:overflow-y-auto lg:py-4 lg:pl-1">
-              {phaseSection}
-            </div>
-          </>
-        ) : (
-          <div className="min-w-0 lg:flex lg:items-start lg:justify-center lg:overflow-hidden lg:py-4">
-            <div data-phase-section className="w-full lg:max-h-full lg:max-w-xl lg:overflow-y-auto">
-              {phaseSection}
-            </div>
+        {/* The table is there from the line-up on: the seats are shuffled
+            and the crown is spun on it (lineup-preview). */}
+        <div className="min-w-0 lg:flex lg:items-start lg:justify-center lg:overflow-hidden lg:py-4">
+          <div className="flex w-full items-start justify-center">
+            <RoundTable
+              players={gamePlayers}
+              state={state}
+              myPlayerId={myPlayer.id}
+              viewerRole={safeViewerRole}
+              playerCount={playerCount}
+              onTogglePick={handleTablePick}
+              canPick={isLeader && state.phase === 'team-build'}
+              pickedTeamSize={state.proposedTeam.length}
+              pickedTeamLimit={teamSize}
+              onAssassinPick={handleAssassinTablePick}
+              canAssassinPick={isAssassin && state.phase === 'assassinate'}
+              joinOrder={props.joinOrder}
+              glowIds={glowIds}
+            />
           </div>
-        )}
+        </div>
+
+        <div data-phase-section className="lg:overflow-y-auto lg:py-4 lg:pl-1">
+          {phaseSection}
+        </div>
       </div>
     </div>
   );

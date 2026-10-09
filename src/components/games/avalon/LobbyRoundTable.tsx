@@ -3,6 +3,9 @@
 import type { Player } from '@/types/player';
 import AvIcon from './assets/AvIcon';
 import PlayerAvatar from './ui/PlayerAvatar';
+import { seatPosition } from './table/seatPosition';
+import { useArrivals } from './hooks/useArrivals';
+import { useDepartures } from './hooks/useRosterChanges';
 
 interface LobbyRoundTableProps {
   players: Player[];
@@ -16,6 +19,15 @@ interface LobbyRoundTableProps {
   onKick?: (playerId: string, playerName: string) => void;
 }
 
+// The lobby's round table. Someone who joins "sits down" (their seat scales
+// and fades in); someone who leaves fades out where they sat, and the seats
+// after theirs slide round to close the gap. Decorative transitions from the
+// previous list (ux-plan 2.2): a reload just shows who is there.
+//
+// Each seat is a zero-size anchor at the table centre moved out to its seat in
+// `cqw` (the table is a square size container), so a seat changing place is a
+// `transform` transition — never a layer the size of the table (it would stick
+// out of the page and scroll the phone sideways).
 export default function LobbyRoundTable({
   players,
   myPlayerId,
@@ -27,12 +39,19 @@ export default function LobbyRoundTable({
 }: LobbyRoundTableProps) {
   // Số ghế = số người chơi hiện tại (không hiện ghế trống dư).
   // Tối thiểu 1 ghế để bàn không sụp khi phòng vừa mở (chưa ai vào).
-  const ringSize = Math.max(reserveSeats ?? players.length, 1);
+  const ringSize = Math.max(reserveSeats ?? players.length, players.length, 1);
   const seats = Array.from({ length: ringSize }).map((_, i) => players[i] ?? null);
   const enough = minPlayers === undefined || players.length >= minPlayers;
+  const arrived = useArrivals(players.map((p) => p.id));
+  const departed = useDepartures(players);
+
+  const anchor = (i: number) => {
+    const { x, y } = seatPosition(i, ringSize);
+    return { transform: `translate(${(x - 50).toFixed(3)}cqw, ${(y - 50).toFixed(3)}cqw)` };
+  };
 
   return (
-    <div className="relative mx-auto w-full max-w-[640px] sm:max-w-[680px] lg:max-w-[760px] aspect-square select-none">
+    <div className="@container relative mx-auto w-full max-w-[640px] sm:max-w-[680px] lg:max-w-[760px] aspect-square select-none">
       {/* Round table */}
       <div className="absolute inset-[12%] rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(180,120,60,0.25),transparent_55%),linear-gradient(135deg,#3b2a1a_0%,#2a1c0f_50%,#15100a_100%)] border-[3px] border-amber-800/60 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_2px_8px_rgba(255,200,140,0.1)]">
         <div className="absolute inset-2 rounded-full border border-amber-700/30" />
@@ -54,7 +73,7 @@ export default function LobbyRoundTable({
             </div>
           )}
           <div className="flex flex-col items-center gap-1">
-            <div className="text-2xl sm:text-3xl font-black text-white tabular-nums">
+            <div className="text-2xl sm:text-3xl font-black text-white tabular-nums" data-lobby-count={players.length}>
               {players.length}
               {maxPlayers !== undefined && (
                 <span className="text-stone-400 text-base font-bold"> / {maxPlayers}</span>
@@ -74,25 +93,15 @@ export default function LobbyRoundTable({
 
       {/* Seats around the table */}
       {seats.map((p, i) => {
-        const angleDeg = (360 / ringSize) * i - 90;
-        const rad = (angleDeg * Math.PI) / 180;
-        const radiusPct = 43;
-        const x = 50 + radiusPct * Math.cos(rad);
-        const y = 50 + radiusPct * Math.sin(rad);
         const isMe = p?.id === myPlayerId;
         const isHost = p?.isHost;
 
         return (
-          <div
-            key={p?.id ?? `empty-${i}`}
-            className="absolute"
-            style={{
-              left: `${x}%`,
-              top: `${y}%`,
-              transform: 'translate(-50%, -50%)',
-            }}
-          >
-            <div className="flex flex-col items-center gap-1">
+          <div key={p?.id ?? `empty-${i}`} className="av-lobby-seat absolute left-1/2 top-1/2 h-0 w-0" style={anchor(i)}>
+            <div
+              className={`absolute left-0 top-0 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1 ${p && arrived.has(p.id) ? 'av-seat-in' : ''}`}
+              data-lobby-seat={p ? p.id : 'empty'}
+            >
               {p ? (
                 <PlayerAvatar player={p} size="table" isMe={isMe}>
                   {isHost && (
@@ -104,7 +113,8 @@ export default function LobbyRoundTable({
                     </span>
                   )}
                   {/* Nút kick — chỉ hiện khi viewer là host và target không phải
-                      chính mình hoặc host khác (nếu có). */}
+                      chính mình hoặc host khác (nếu có). Nhỏ và sát avatar, để
+                      bàn 10 ghế trên điện thoại không đè sang ghế bên cạnh. */}
                   {onKick && !isMe && !isHost && (
                     <button
                       type="button"
@@ -112,26 +122,26 @@ export default function LobbyRoundTable({
                         e.stopPropagation();
                         onKick(p.id, p.name);
                       }}
-                      title={`Kick ${p.name}`}
-                      aria-label={`Kick ${p.name}`}
-                      className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-stone-800 border border-stone-400 text-[14px] text-stone-100 shadow shadow-black/50 hover:bg-orange-700 active:scale-90 cursor-pointer"
+                      title={`Mời ${p.name} ra khỏi phòng`}
+                      aria-label={`Mời ${p.name} ra khỏi phòng`}
+                      className="absolute -top-1.5 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-stone-800 border border-stone-400 text-[11px] text-stone-100 shadow shadow-black/50 hover:bg-orange-700 active:scale-90 cursor-pointer before:absolute before:-inset-1.5 before:content-['']"
                     >
                       <AvIcon name="close" />
                     </button>
                   )}
                 </PlayerAvatar>
               ) : (
-                <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border-[3px] border-dashed border-white/15 bg-white/5 text-sm font-black text-stone-500">
-                  <span className="text-base opacity-60">+</span>
+                <div className="flex h-12 w-12 sm:h-14 sm:w-14 items-center justify-center rounded-full border-[3px] border-dashed border-white/20 bg-black/30 text-sm font-black text-stone-300" aria-hidden>
+                  <span className="text-base">+</span>
                 </div>
               )}
               <div
-                className={`max-w-[90px] truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${
+                className={`max-w-[80px] truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${
                   p
                     ? isMe
-                      ? 'bg-(--av-parchment)/20 text-(--av-parchment) ring-1 ring-(--av-parchment)/40'
-                      : 'bg-black/50 text-white'
-                    : 'bg-white/5 text-stone-500 italic'
+                      ? 'bg-black/75 text-(--av-parchment) ring-1 ring-(--av-parchment)/50'
+                      : 'bg-black/75 text-white'
+                    : 'bg-black/40 text-stone-400 italic'
                 }`}
                 title={p?.name ?? 'Chỗ trống'}
               >
@@ -148,6 +158,23 @@ export default function LobbyRoundTable({
           </div>
         );
       })}
+
+      {/* Players who just left fade out where they sat. */}
+      {departed.map(({ item, index }) => (
+        <div
+          key={`gone-${item.id}`}
+          className="pointer-events-none absolute left-1/2 top-1/2 h-0 w-0"
+          style={anchor(index)}
+          aria-hidden
+        >
+          <div className="av-seat-out absolute left-0 top-0 flex -translate-x-1/2 -translate-y-1/2 flex-col items-center gap-1">
+            <PlayerAvatar player={item} size="table" />
+            <div className="max-w-[80px] truncate rounded-md bg-black/75 px-1.5 py-0.5 text-[11px] font-bold leading-tight text-white">
+              {item.name}
+            </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 }

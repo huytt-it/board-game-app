@@ -1,17 +1,19 @@
 import type { CSSProperties, ReactNode } from 'react';
 import type { AvalonGameState, AvalonRole } from '../types';
-import { ROLE_DESC_VI, ROLE_NAMES_VI, ROLE_TEAM } from '../constants';
+import { ROLE_NAMES_VI } from '../constants';
 import AvIcon, { type IconName } from '../assets/AvIcon';
-import GlassPanel from '../ui/GlassPanel';
 import RoleEmblem from '../ui/RoleEmblem';
 
 // The phase chip of PlayerPanel's top bar, which is a size container
 // (`@container`). The bar also carries the role, reject and leave buttons, so
 // with `compact` the words adapt to the bar's content width: none below
-// 19.25rem (a 360px phone while the room page still pads the game — the
-// section's own heading names the phase), a short label up to 40rem (a 375px
-// phone fits every one), the full one beyond. The full label is always in the
-// tooltip / for screen readers.
+// 19.25rem (a 320px phone — the section's own heading names the phase), a
+// short label up to 40rem (every one fits from a 360px phone), the full one
+// beyond. The full label is always in the tooltip / for screen readers.
+//
+// Never an ellipsis: the chip is one 24px line that wraps and clips, so a
+// label that does not fit beside the icon drops to the (hidden) second line
+// and the chip shows the icon alone.
 export function PhaseChip({ phase, compact = false }: { phase: AvalonGameState['phase']; compact?: boolean }) {
   // `short`: the label below `sm`, where the top bar also carries the role,
   // reject and leave buttons (the full one stays in the tooltip).
@@ -32,15 +34,16 @@ export function PhaseChip({ phase, compact = false }: { phase: AvalonGameState['
     end: { icon: 'end', text: 'Kết thúc', cls: 'bg-slate-500/20 text-slate-300' },
   };
   const cfg = map[phase] ?? map.end;
-  const full = !compact ? 'truncate' : cfg.short ? 'hidden truncate @[40rem]:inline' : 'hidden truncate @[19.25rem]:inline';
+  const full = !compact ? '' : cfg.short ? 'hidden @[40rem]:inline' : 'hidden @[19.25rem]:inline';
   return (
     <span
-      className={`flex min-w-0 items-center gap-1 whitespace-nowrap rounded-full px-2 py-1 text-[11px] font-black sm:px-2.5 ${cfg.cls}`}
+      className={`flex h-6 min-w-0 flex-wrap items-center justify-center gap-x-1 overflow-hidden whitespace-nowrap rounded-full px-2 text-[11px] font-black leading-6 sm:px-2.5 ${cfg.cls}`}
       title={cfg.text}
       aria-label={cfg.text}
+      data-phase-chip={phase}
     >
       <AvIcon name={cfg.icon} size={14} />
-      {compact && cfg.short && <span className="hidden truncate @[19.25rem]:inline @[40rem]:hidden">{cfg.short}</span>}
+      {compact && cfg.short && <span className="hidden @[19.25rem]:inline @[40rem]:hidden">{cfg.short}</span>}
       <span className={full}>{cfg.text}</span>
     </span>
   );
@@ -91,83 +94,41 @@ export function TokenBadges({
   );
 }
 
+// A role of the line-up (public). `surface="parchment"`: ink on the light
+// scroll of lineup-preview, the team in the darker "-ink" shades.
 export function RoleLineChip({
   role,
   count,
   tone,
+  surface = 'glass',
 }: {
   role: AvalonRole;
   count: number;
   tone: 'good' | 'evil';
+  surface?: 'glass' | 'parchment';
 }) {
+  const paper = surface === 'parchment';
+  const frame = paper
+    ? tone === 'good'
+      ? 'border-(--av-good-ink)/35 bg-(--av-good-ink)/10'
+      : 'border-(--av-evil-ink)/35 bg-(--av-evil-ink)/10'
+    : tone === 'good'
+      ? 'border-(--av-good)/30 bg-(--av-good)/10'
+      : 'border-(--av-evil)/30 bg-(--av-evil)/10';
+  const badge = paper
+    ? tone === 'good'
+      ? 'bg-(--av-good-ink) text-(--av-parchment)'
+      : 'bg-(--av-evil-ink) text-(--av-parchment)'
+    : tone === 'good'
+      ? 'bg-(--av-good)/30 text-(--av-good-light)'
+      : 'bg-(--av-evil)/30 text-(--av-evil-light)';
   return (
-    <div
-      className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 ${tone === 'good'
-        ? 'border-(--av-good)/30 bg-(--av-good)/10'
-        : 'border-(--av-evil)/30 bg-(--av-evil)/10'
-        }`}
-      title={ROLE_NAMES_VI[role]}
-    >
+    <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 ${frame}`} title={ROLE_NAMES_VI[role]}>
       <RoleEmblem role={role} size="xs" />
-      <span className="flex-1 min-w-0 text-[11px] font-black text-white truncate">
+      <span className={`flex-1 min-w-0 text-[11px] font-black truncate ${paper ? 'text-(--av-ink)' : 'text-white'}`}>
         {role}
       </span>
-      {count > 1 && (
-        <span
-          className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-black ${tone === 'good'
-            ? 'bg-(--av-good)/30 text-(--av-good-light)'
-            : 'bg-(--av-evil)/30 text-(--av-evil-light)'
-            }`}
-        >
-          ×{count}
-        </span>
-      )}
+      {count > 1 && <span className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-black ${badge}`}>×{count}</span>}
     </div>
-  );
-}
-
-// Card "Bạn là <Role>" + mô tả ngắn — hiển thị đầu mỗi night phase để
-// người chơi không phải mở RoleCard. variant="self" cho người đang lộ vai,
-// variant="other" để giải thích role nào đang lộ diện cho người chờ.
-// Khung và huy hiệu trung tính với mọi vai (ux-plan 2.9, 2.11): phe chỉ hiện ở
-// dòng chữ nhỏ — thẻ "self" không được tô màu theo phe của người xem.
-export function RoleIntroCard({
-  role,
-  variant,
-  compact,
-}: {
-  role: AvalonRole;
-  variant: 'self' | 'other';
-  compact?: boolean;
-}) {
-  const team = ROLE_TEAM[role];
-  const isGood = team === 'good';
-  const heading =
-    variant === 'self'
-      ? 'Bạn là'
-      : `Vai đang lộ diện: ${ROLE_NAMES_VI[role]}`;
-  return (
-    <GlassPanel tone="gold" className={`p-3 ${compact ? '' : 'sm:p-4'}`}>
-      <p className="text-[10px] uppercase font-black tracking-widest text-slate-400">
-        {heading}
-      </p>
-      <div className="mt-1 flex items-center gap-3">
-        <RoleEmblem role={role} size="md" tone="neutral" />
-        <div className="flex-1 min-w-0">
-          <p className="av-display text-xl leading-tight text-white truncate">{role}</p>
-          <p
-            className={`text-[11px] font-semibold ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
-              }`}
-          >
-            {ROLE_NAMES_VI[role]}
-          </p>
-        </div>
-      </div>
-      {!compact && (
-        <p className="mt-2 text-xs leading-relaxed text-slate-200/90">
-          {ROLE_DESC_VI[role]}
-        </p>
-      )}
-    </GlassPanel>
   );
 }

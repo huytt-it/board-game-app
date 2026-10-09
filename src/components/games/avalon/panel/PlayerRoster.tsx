@@ -17,10 +17,7 @@ interface RosterMark {
   | 'was-lady'
   | 'voted'
   | 'not-voted'
-  | 'quest-history'
-  | 'evil-ally'
-  | 'merlin-sees'
-  | 'percival-sees';
+  | 'quest-history';
   className: string;
   label: string;
   icon?: IconName;
@@ -222,47 +219,22 @@ export function PlayerRoster({
             showLadyTarget: finalShowLadyTarget,
             showVoteStatus,
           });
-          if (viewerIsVisibleEvil && p.id !== myPlayerId) {
+          // What the viewer privately knows about this player is ONE icon
+          // of fixed size beside the name — never a chip that wraps and makes
+          // the row taller: the roster must have the same height whatever the
+          // viewer's role (ux-plan GĐ4).
+          let hint: { icon: IconName; label: string; cls: string } | null = null;
+          if (p.id !== myPlayerId) {
             const targetData = p.gameData as Partial<AvalonGameData>;
-            const targetIsVisibleEvil =
-              targetData.team === 'evil' && targetData.role !== AvalonRole.Oberon;
-            if (targetIsVisibleEvil) {
-              liveMarks.unshift({
-                type: 'evil-ally',
-                className:
-                  'bg-(--av-evil)/30 border border-(--av-evil)/55 text-white',
-                icon: 'team-evil',
-                label: 'Đồng đội Quỷ',
-              });
-            }
-          }
-          if (viewerIsMerlin && p.id !== myPlayerId) {
-            const targetData = p.gameData as Partial<AvalonGameData>;
-            const targetIsSeenByMerlin =
-              targetData.team === 'evil' && targetData.role !== AvalonRole.Mordred;
-            if (targetIsSeenByMerlin) {
-              liveMarks.unshift({
-                type: 'merlin-sees',
-                className:
-                  'bg-(--av-evil)/25 border border-(--av-evil)/45 text-white',
-                icon: 'team-evil',
-                label: 'Quỷ (bạn thấy)',
-              });
-            }
-          }
-          if (viewerIsPercival && p.id !== myPlayerId) {
-            const targetData = p.gameData as Partial<AvalonGameData>;
-            const targetIsSuspect =
-              targetData.role === AvalonRole.Merlin ||
-              targetData.role === AvalonRole.Morgana;
-            if (targetIsSuspect) {
-              liveMarks.unshift({
-                type: 'percival-sees',
-                className:
-                  'bg-indigo-500/25 border border-indigo-400/40 text-indigo-100',
-                icon: 'unknown',
-                label: 'Merlin/Morgana',
-              });
+            if (viewerIsVisibleEvil && targetData.team === 'evil' && targetData.role !== AvalonRole.Oberon) {
+              hint = { icon: 'team-evil', label: 'Đồng đội Phe Quỷ', cls: 'bg-(--av-evil) border-(--av-evil-light)' };
+            } else if (viewerIsMerlin && targetData.team === 'evil' && targetData.role !== AvalonRole.Mordred) {
+              hint = { icon: 'team-evil', label: 'Phe Quỷ (bạn thấy)', cls: 'bg-(--av-evil) border-(--av-evil-light)' };
+            } else if (
+              viewerIsPercival &&
+              (targetData.role === AvalonRole.Merlin || targetData.role === AvalonRole.Morgana)
+            ) {
+              hint = { icon: 'unknown', label: 'Merlin hoặc Morgana', cls: 'bg-indigo-500 border-indigo-200' };
             }
           }
           const historyMarks = showHistory ? buildHistoryMarks(p.id, state, hiddenQuest) : [];
@@ -323,7 +295,19 @@ export function PlayerRoster({
                   isMe={p.id === myPlayerId}
                 />
                 <div className="min-w-0 flex-1 flex flex-col gap-1">
-                  <span className="text-xs font-bold text-white truncate">{p.name}</span>
+                  <span className="flex min-w-0 items-center gap-1">
+                    <span className="text-xs font-bold text-white truncate">{p.name}</span>
+                    {hint && (
+                      <span
+                        title={hint.label}
+                        aria-label={hint.label}
+                        role="img"
+                        className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border text-[10px] text-white ${hint.cls}`}
+                      >
+                        <AvIcon name={hint.icon} />
+                      </span>
+                    )}
+                  </span>
                   {rightTags.length > 0 && (
                     <div className="flex flex-wrap gap-1">
                       {rightTags.map((m) => (

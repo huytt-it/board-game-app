@@ -1,355 +1,223 @@
+'use client';
+
+import { useState, type HTMLAttributes } from 'react';
 import type { Player } from '@/types/player';
 import { AvalonRole, PHASE_TIMEOUTS_MS, type AvalonGameData, type AvalonGameState } from '../types';
+import { ROLE_NAMES_VI } from '../constants';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
-import { RoleIntroCard } from './shared';
-import AvIcon from '../assets/AvIcon';
+import AvIcon, { type IconName } from '../assets/AvIcon';
+import ActionDock from '../ui/ActionDock';
 import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 
-function getActiveNightPlayerIds(
-  phase: AvalonGameState['phase'],
-  players: Player[]
-): string[] {
-  if (phase === 'night-evils') {
-    return players
-      .filter((p) => (p.gameData as Partial<AvalonGameData>).team === 'evil')
-      .map((p) => p.id);
-  }
-  if (phase === 'night-merlin') {
-    return players
-      .filter((p) => (p.gameData as Partial<AvalonGameData>).role === AvalonRole.Merlin)
-      .map((p) => p.id);
-  }
-  if (phase === 'night-percival') {
-    return players
-      .filter((p) => (p.gameData as Partial<AvalonGameData>).role === AvalonRole.Percival)
-      .map((p) => p.id);
-  }
-  return [];
+// The night (ux-plan GĐ4). Everyone gets the SAME screen: the table under a
+// "eyes closed" veil with the public call ("Phe Quỷ mở mắt…", RoundTable's
+// NightVeil), the countdown, and a dock with one sealed card and one button.
+// Only while a player presses and holds the card does THAT device show what
+// the call lets them see — and light the seats concerned on the table. A
+// player who is not called holds it too and reads "not you this time", so
+// from across the table holding gives nothing away. No vibration, ever.
+
+export type NightPhase = 'night-evils' | 'night-merlin' | 'night-percival';
+
+const data = (p: Player) => p.gameData as Partial<AvalonGameData>;
+
+// Who is called this turn (they must confirm before the turn may end early).
+function getActiveNightPlayerIds(phase: NightPhase, players: Player[]): string[] {
+  if (phase === 'night-evils') return players.filter((p) => data(p).team === 'evil').map((p) => p.id);
+  const role = phase === 'night-merlin' ? AvalonRole.Merlin : AvalonRole.Percival;
+  return players.filter((p) => data(p).role === role).map((p) => p.id);
 }
 
-function NightCountdown({
-  state,
-  phase,
-  allActiveAcked,
-  warnAt = 15000,
-}: {
-  state: AvalonGameState;
-  phase: 'night-evils' | 'night-merlin' | 'night-percival';
-  allActiveAcked: boolean;
-  warnAt?: number;
-}) {
-  const { remaining } = usePhaseClock(state, PHASE_TIMEOUTS_MS[phase]);
-  const timeStr = formatClock(remaining);
+/** What the viewer sees when they hold the card: are they called this turn,
+ *  and which players are shown to them (the seats that light up). */
+export function nightSight(phase: NightPhase, me: Player, players: Player[]): { active: boolean; seen: Player[] } {
+  const mine = data(me);
+  if (phase === 'night-evils') {
+    if (mine.team !== 'evil') return { active: false, seen: [] };
+    // Oberon sees nobody, and nobody sees Oberon.
+    if (mine.role === AvalonRole.Oberon) return { active: true, seen: [] };
+    return {
+      active: true,
+      seen: players.filter((p) => p.id !== me.id && data(p).team === 'evil' && data(p).role !== AvalonRole.Oberon),
+    };
+  }
+  if (phase === 'night-merlin') {
+    if (mine.role !== AvalonRole.Merlin) return { active: false, seen: [] };
+    return { active: true, seen: players.filter((p) => data(p).team === 'evil' && data(p).role !== AvalonRole.Mordred) };
+  }
+  if (mine.role !== AvalonRole.Percival) return { active: false, seen: [] };
+  return {
+    active: true,
+    seen: players.filter((p) => data(p).role === AvalonRole.Merlin || data(p).role === AvalonRole.Morgana),
+  };
+}
 
+/** The public call of each night turn — the same words on every screen. */
+export const NIGHT_CALL: Record<NightPhase, { icon: IconName; who: string; line: string }> = {
+  'night-evils': { icon: 'team-evil', who: 'Phe Quỷ', line: 'Tay sai của Mordred mở mắt nhận mặt nhau.' },
+  'night-merlin': { icon: 'merlin', who: 'Merlin', line: 'Merlin nhìn ra Phe Quỷ — trừ Mordred.' },
+  'night-percival': { icon: 'percival', who: 'Percival', line: 'Percival thấy Merlin và Morgana — không rõ ai là ai.' },
+};
+
+function NightCountdown({ state, phase, allActiveAcked }: { state: AvalonGameState; phase: NightPhase; allActiveAcked: boolean }) {
+  const { remaining } = usePhaseClock(state, PHASE_TIMEOUTS_MS[phase]);
+  const low = remaining < 15000;
   return (
-    <GlassPanel
-      tone={allActiveAcked ? 'success' : remaining < warnAt ? 'warning' : 'neutral'}
-      className="p-4 text-center"
-    >
-      <p className="text-[11px] uppercase font-bold text-slate-400 mb-1">
+    <GlassPanel tone={allActiveAcked ? 'success' : low ? 'warning' : 'neutral'} className="p-4 text-center">
+      <p className="mb-1 text-[11px] font-bold uppercase text-slate-400">
         {allActiveAcked ? 'Đang chuyển bước...' : 'Tự động qua bước sau'}
       </p>
-      <p
-        className={`text-2xl font-black ${allActiveAcked
-          ? 'text-emerald-300'
-          : remaining < warnAt
-            ? 'text-amber-300'
-            : 'text-white'
-          }`}
-      >
-        {allActiveAcked ? <AvIcon name="check" title="Đã xong" /> : timeStr}
+      <p className={`text-2xl font-black tabular-nums ${allActiveAcked ? 'text-emerald-300' : low ? 'text-amber-300' : 'text-white'}`}>
+        {allActiveAcked ? <AvIcon name="check" title="Đã xong" /> : formatClock(remaining)}
       </p>
     </GlassPanel>
   );
 }
 
-export function NightEvilsSection({
-  state,
-  myPlayer,
-  myRole,
-  myTeam,
-  gamePlayers,
-  onAckRole,
-}: {
-  state: AvalonGameState;
-  myPlayer: Player;
-  myRole: AvalonRole | undefined;
-  myTeam: 'good' | 'evil' | undefined;
-  gamePlayers: Player[];
-  onAckRole: () => void;
-}) {
-  const activeIds = getActiveNightPlayerIds('night-evils', gamePlayers);
-  const ackedIds = Object.keys(state.roleAcks ?? {});
-  const activeAckedCount = activeIds.filter((id) => ackedIds.includes(id)).length;
-  const allActiveAcked = activeIds.length > 0 && activeAckedCount >= activeIds.length;
-  const myAcked = ackedIds.includes(myPlayer.id);
-
-  const otherEvils = gamePlayers.filter((p) => {
-    if (p.id === myPlayer.id) return false;
-    const data = p.gameData as Partial<AvalonGameData>;
-    return data.team === 'evil' && data.role !== AvalonRole.Oberon;
-  });
-
-  if (myTeam !== 'evil') {
-    return (
-      <div className="space-y-3">
-        <GlassPanel tone="evil" className="p-5 text-center">
-          <p className="text-[11px] uppercase font-black text-(--av-evil-light) mb-2">
-            <AvIcon name="team-evil" /> Đêm — Phe Quỷ đang nhận biết nhau
-          </p>
-          <AvIcon name="night" size={48} className="mb-2 animate-pulse text-slate-200" />
-          <p className="text-sm text-slate-300">
-            Hãy nhắm mắt. Các tay sai của Mordred đang lộ diện với nhau (Oberon thì đơn độc).
-          </p>
-        </GlassPanel>
-        {myRole && (
-          <RoleIntroCard role={myRole} variant="self" />
-        )}
-        <NightCountdown state={state} phase="night-evils" allActiveAcked={allActiveAcked} />
-      </div>
-    );
-  }
-
-  const isOberon = myRole === AvalonRole.Oberon;
-
+function SeenChip({ player, mark }: { player: Player; mark: 'evil' | 'unknown' }) {
   return (
-    <div className="space-y-3">
-      {myRole && <RoleIntroCard role={myRole} variant="self" />}
-      <GlassPanel tone="evil" className="p-5">
-        <p className="text-[11px] uppercase font-black text-(--av-evil-light) mb-1">
-          <AvIcon name="team-evil" /> Đêm — Phe Quỷ lộ diện
-        </p>
-        {isOberon ? (
-          <>
-            <h3 className="av-display text-xl text-white mb-1">Bạn là Oberon — đơn độc</h3>
-            <p className="text-xs text-slate-300 mb-3">
-              Bạn không biết đồng đội Quỷ là ai. Đồng đội Quỷ cũng không biết bạn.
-              Tự xoay xở phá Quest.
-            </p>
-            <div className="rounded-xl border border-(--av-evil)/20 bg-(--av-evil)/10 p-4 text-center">
-              <AvIcon name="oberon" size={40} className="mb-1 text-(--av-evil-light)" />
-              <p className="text-xs text-slate-400">Không có đồng đội nào hiện ra với bạn.</p>
-            </div>
-          </>
-        ) : (
-          <>
-            <h3 className="av-display text-xl text-white mb-1">Đồng đội Phe Quỷ của bạn</h3>
-            <p className="text-xs text-slate-300 mb-3">
-              {otherEvils.length === 0
-                ? 'Bạn là kẻ ác duy nhất hiện ra (Oberon nếu có sẽ ẩn).'
-                : 'Chỉ thấy tên — không biết role cụ thể của nhau. Oberon (nếu có) sẽ KHÔNG hiện ra.'}
-            </p>
-            <div className="space-y-2">
-              {otherEvils.map((p) => (
-                <div
-                  key={p.id}
-                  className="flex items-center gap-3 rounded-xl border border-(--av-evil)/30 bg-(--av-evil)/10 px-3 py-2.5"
-                >
-                  <PlayerAvatar player={p} size="sm" />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-white truncate">{p.name}</p>
-                    <p className="text-[11px] font-bold text-(--av-evil-light)">Phe Quỷ</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </>
-        )}
-      </GlassPanel>
-
-      {!myAcked ? (
-        <button
-          onClick={onAckRole}
-          className="w-full rounded-2xl bg-(--av-evil) py-4 text-base font-black text-(--av-ink) hover:brightness-110 active:scale-[0.98] shadow-lg shadow-black/40"
-        >
-          ✓ Đã xem — Tiếp theo
-        </button>
-      ) : (
-        <GlassPanel tone="success" className="p-3 text-center">
-          <p className="text-sm font-bold text-emerald-300">✓ Bạn đã sẵn sàng</p>
-        </GlassPanel>
-      )}
-
-      <NightCountdown state={state} phase="night-evils" allActiveAcked={allActiveAcked} />
-    </div>
+    <span
+      className={`inline-flex max-w-[9rem] items-center gap-1.5 rounded-full border bg-black/35 py-0.5 pl-0.5 pr-2 text-xs font-bold text-white ${
+        mark === 'evil' ? 'border-(--av-evil)/55' : 'border-indigo-400/55'
+      }`}
+    >
+      <PlayerAvatar player={player} size="xs" />
+      <span className="truncate">{player.name}</span>
+      {mark === 'unknown' && <AvIcon name="unknown" className="shrink-0 text-indigo-300" title="Merlin hay Morgana?" />}
+    </span>
   );
 }
 
-export function NightMerlinSection({
-  state,
-  myPlayer,
-  myRole,
-  gamePlayers,
-  onAckRole,
+// The sealed card in the dock, and what it shows while held. One fixed size
+// for every case, sealed or open, called or not.
+function NightCard({
+  phase,
+  me,
+  sight,
+  held,
+  bind,
 }: {
-  state: AvalonGameState;
-  myPlayer: Player;
-  myRole: AvalonRole | undefined;
-  gamePlayers: Player[];
-  onAckRole: () => void;
+  phase: NightPhase;
+  me: Player;
+  sight: { active: boolean; seen: Player[] };
+  held: boolean;
+  bind: HTMLAttributes<HTMLElement>;
 }) {
-  const activeIds = getActiveNightPlayerIds('night-merlin', gamePlayers);
-  const ackedIds = Object.keys(state.roleAcks ?? {});
-  const activeAckedCount = activeIds.filter((id) => ackedIds.includes(id)).length;
-  const allActiveAcked = activeIds.length > 0 && activeAckedCount >= activeIds.length;
-  const myAcked = ackedIds.includes(myPlayer.id);
-
-  const visibleEvils = gamePlayers.filter((p) => {
-    const data = p.gameData as Partial<AvalonGameData>;
-    return data.team === 'evil' && data.role !== AvalonRole.Mordred;
-  });
-
-  if (myRole !== AvalonRole.Merlin) {
-    return (
-      <div className="space-y-3">
-        <GlassPanel tone="good" className="p-5 text-center">
-          <p className="text-[11px] uppercase font-black text-(--av-good-light) mb-2">
-            <AvIcon name="merlin" /> Đêm — Merlin đang quan sát
-          </p>
-          <AvIcon name="night" size={48} className="mb-2 animate-pulse text-slate-200" />
-          <p className="text-sm text-slate-300">
-            Hãy nhắm mắt. Merlin đang nhìn ra Phe Quỷ (Mordred ẩn).
-          </p>
-        </GlassPanel>
-        <RoleIntroCard role={AvalonRole.Merlin} variant="other" />
-        {myRole && <RoleIntroCard role={myRole} variant="self" compact />}
-        <NightCountdown state={state} phase="night-merlin" allActiveAcked={allActiveAcked} />
-      </div>
+  const role = data(me).role;
+  let body: React.ReactNode;
+  if (!held) {
+    body = (
+      <>
+        <AvIcon name="eye" size={30} className="text-(--av-gold)" />
+        <span className="mt-1 block text-sm font-black text-(--av-parchment)">Nhấn giữ để xem</span>
+        <span className="mt-0.5 block text-[11px] leading-snug text-slate-300">
+          Ai không được gọi cũng nhấn giữ — màn hình của mọi người như nhau.
+        </span>
+      </>
+    );
+  } else if (!sight.active) {
+    body = (
+      <>
+        <AvIcon name="night" size={26} className="text-slate-200" />
+        <span className="mt-1 block text-sm font-black text-white">Lượt này không gọi bạn</span>
+        <span className="mt-0.5 block text-[11px] leading-snug text-slate-300">
+          {role ? <>Bạn là {ROLE_NAMES_VI[role]}. </> : null}Cứ nhắm mắt, chờ lượt sau.
+        </span>
+      </>
+    );
+  } else if (phase === 'night-evils' && role === AvalonRole.Oberon) {
+    body = (
+      <>
+        <AvIcon name="oberon" size={26} className="text-(--av-evil-light)" />
+        <span className="mt-1 block text-sm font-black text-white">Bạn là Oberon — đơn độc</span>
+        <span className="mt-0.5 block text-[11px] leading-snug text-slate-300">
+          Không đồng đội nào hiện ra với bạn, và họ cũng không thấy bạn.
+        </span>
+      </>
+    );
+  } else {
+    const title =
+      phase === 'night-evils' ? 'Đồng đội Phe Quỷ của bạn' : phase === 'night-merlin' ? 'Phe Quỷ lộ diện trước bạn' : 'Merlin & Morgana hiện ra';
+    const note =
+      phase === 'night-evils'
+        ? 'Oberon (nếu có) không hiện ra.'
+        : phase === 'night-merlin'
+          ? 'Mordred ẩn — không hiện ở đây.'
+          : 'Một người là Merlin, người kia là Morgana.';
+    body = (
+      <>
+        <span className="block text-sm font-black text-white">{title}</span>
+        <span className="mt-1.5 flex flex-wrap justify-center gap-1.5">
+          {sight.seen.length === 0 ? (
+            <span className="text-xs text-slate-300">Không ai hiện ra với bạn.</span>
+          ) : (
+            sight.seen.map((p) => <SeenChip key={p.id} player={p} mark={phase === 'night-percival' ? 'unknown' : 'evil'} />)
+          )}
+        </span>
+        <span className="mt-1.5 block text-[11px] leading-snug text-slate-300">{note}</span>
+      </>
     );
   }
 
   return (
-    <div className="space-y-3">
-      <RoleIntroCard role={AvalonRole.Merlin} variant="self" />
-      <GlassPanel tone="good" className="p-5">
-        <p className="text-[11px] uppercase font-black text-(--av-good-light) mb-1">
-          <AvIcon name="merlin" /> Phe Quỷ lộ diện trước bạn
-        </p>
-        <p className="text-xs text-slate-300 mb-3">
-          Bạn nhìn thấy {visibleEvils.length} quỷ. <strong>Mordred</strong> ẩn — không hiện ở đây.
-          Hãy bí mật dẫn dắt Phe Người, đừng để Sát Thủ tìm ra bạn.
-        </p>
-        <div className="space-y-2">
-          {visibleEvils.map((p) => (
-            <div
-              key={p.id}
-              className="flex items-center gap-3 rounded-xl border border-(--av-evil)/30 bg-(--av-evil)/10 px-3 py-2.5"
-            >
-              <PlayerAvatar player={p} size="sm" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-white truncate">{p.name}</p>
-                <p className="text-[11px] font-bold text-(--av-evil-light)">Phe Quỷ</p>
-              </div>
-            </div>
-          ))}
-        </div>
-      </GlassPanel>
-
-      {!myAcked ? (
-        <button
-          onClick={onAckRole}
-          className="w-full rounded-2xl bg-(--av-good) py-4 text-base font-black text-(--av-ink) hover:brightness-110 active:scale-[0.98] shadow-lg shadow-black/40"
-        >
-          ✓ Đã xem — Tiếp theo
-        </button>
-      ) : (
-        <GlassPanel tone="success" className="p-3 text-center">
-          <p className="text-sm font-bold text-emerald-300">✓ Bạn đã sẵn sàng</p>
-        </GlassPanel>
-      )}
-
-      <NightCountdown state={state} phase="night-merlin" allActiveAcked={allActiveAcked} />
-    </div>
+    <button
+      type="button"
+      {...bind}
+      data-night-card={held ? 'open' : 'sealed'}
+      className="av-hold flex h-32 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-(--av-gold)/45 bg-(color:--av-glass-bg) px-3 text-center shadow-lg shadow-black/30 outline-none focus-visible:ring-2 focus-visible:ring-(--av-gold)"
+    >
+      {body}
+    </button>
   );
 }
 
-export function NightPercivalSection({
+export function NightSection({
   state,
+  phase,
   myPlayer,
-  myRole,
   gamePlayers,
+  held,
+  holdBind,
   onAckRole,
 }: {
   state: AvalonGameState;
+  phase: NightPhase;
   myPlayer: Player;
-  myRole: AvalonRole | undefined;
   gamePlayers: Player[];
+  held: boolean;
+  holdBind: HTMLAttributes<HTMLElement>;
   onAckRole: () => void;
 }) {
-  const activeIds = getActiveNightPlayerIds('night-percival', gamePlayers);
+  const sight = nightSight(phase, myPlayer, gamePlayers);
+  const activeIds = getActiveNightPlayerIds(phase, gamePlayers);
   const ackedIds = Object.keys(state.roleAcks ?? {});
-  const activeAckedCount = activeIds.filter((id) => ackedIds.includes(id)).length;
-  const allActiveAcked = activeIds.length > 0 && activeAckedCount >= activeIds.length;
-  const myAcked = ackedIds.includes(myPlayer.id);
-
-  const suspects = gamePlayers.filter((p) => {
-    const data = p.gameData as Partial<AvalonGameData>;
-    return data.role === AvalonRole.Merlin || data.role === AvalonRole.Morgana;
-  });
-
-  if (myRole !== AvalonRole.Percival) {
-    return (
-      <div className="space-y-3">
-        <GlassPanel tone="mystic" className="p-5 text-center">
-          <p className="text-[11px] uppercase font-black text-indigo-300 mb-2">
-            <AvIcon name="percival" /> Đêm — Percival đang quan sát
-          </p>
-          <AvIcon name="night" size={48} className="mb-2 animate-pulse text-slate-200" />
-          <p className="text-sm text-slate-300">
-            Hãy nhắm mắt. Percival đang nhìn ra Merlin & Morgana.
-          </p>
-        </GlassPanel>
-        <RoleIntroCard role={AvalonRole.Percival} variant="other" />
-        {myRole && <RoleIntroCard role={myRole} variant="self" compact />}
-        <NightCountdown state={state} phase="night-percival" allActiveAcked={allActiveAcked} />
-      </div>
-    );
-  }
+  const allActiveAcked = activeIds.length > 0 && activeIds.every((id) => ackedIds.includes(id));
+  // A player who is called confirms on the table (the turn ends once all of
+  // them have). Anyone else gets the same button, which only changes their own
+  // screen — so a neighbour cannot tell who had something to confirm.
+  const [localDone, setLocalDone] = useState(false);
+  const done = sight.active ? ackedIds.includes(myPlayer.id) : localDone;
+  const onContinue = () => {
+    if (sight.active) onAckRole();
+    else setLocalDone(true);
+  };
 
   return (
-    <div className="space-y-3">
-      <RoleIntroCard role={AvalonRole.Percival} variant="self" />
-      <GlassPanel tone="mystic" className="p-5">
-        <p className="text-[11px] uppercase font-black text-indigo-300 mb-1">
-          <AvIcon name="percival" /> Merlin & Morgana hiện ra trước bạn
-        </p>
-        <p className="text-xs text-slate-300 mb-3">
-          1 trong 2 người dưới đây là <strong>Merlin</strong>, người còn lại là{' '}
-          <strong>Morgana</strong>. Bạn KHÔNG biết ai là ai — hãy bảo vệ Merlin
-          và đừng để Sát Thủ đoán trúng.
-        </p>
-        <div className="space-y-2">
-          {suspects.map((p) => (
-            <div
-              key={p.id}
-              className="flex items-center gap-3 rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3 py-2.5"
-            >
-              <PlayerAvatar player={p} size="sm" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-white truncate">{p.name}</p>
-                <p className="text-[11px] font-bold text-indigo-300">Merlin hoặc Morgana</p>
-              </div>
-              <AvIcon name="unknown" size={24} className="text-indigo-300" title="Merlin hay Morgana?" />
-            </div>
-          ))}
+    <div className="flex flex-col gap-3">
+      <NightCountdown state={state} phase={phase} allActiveAcked={allActiveAcked} />
+      <ActionDock>
+        <div className="flex flex-col gap-2">
+          <NightCard phase={phase} me={myPlayer} sight={sight} held={held} bind={holdBind} />
+          <button
+            onClick={onContinue}
+            disabled={done}
+            className="w-full rounded-2xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-3 text-base font-black text-(--av-parchment) transition-all hover:bg-(--av-gold)/30 active:scale-[0.98] disabled:border-white/10 disabled:bg-(color:--av-glass-bg) disabled:text-slate-300"
+          >
+            {done ? '✓ Xong — chờ lượt sau' : '✓ Đã xem — Tiếp tục'}
+          </button>
         </div>
-      </GlassPanel>
-
-      {!myAcked ? (
-        <button
-          onClick={onAckRole}
-          className="w-full rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 py-4 text-base font-black text-white hover:from-indigo-500 hover:to-purple-500 active:scale-[0.98] shadow-lg shadow-indigo-500/30"
-        >
-          ✓ Đã xem — Vào Quest
-        </button>
-      ) : (
-        <GlassPanel tone="success" className="p-3 text-center">
-          <p className="text-sm font-bold text-emerald-300">✓ Bạn đã sẵn sàng</p>
-        </GlassPanel>
-      )}
-
-      <NightCountdown state={state} phase="night-percival" allActiveAcked={allActiveAcked} />
+      </ActionDock>
     </div>
   );
 }

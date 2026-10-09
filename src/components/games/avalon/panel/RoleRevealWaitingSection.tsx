@@ -39,13 +39,13 @@ export function RoleRevealWaitingSection({
           <>
             <AvIcon name="seal" size={48} className="mb-2 animate-pulse text-(--av-gold)" />
             <p className="text-sm font-bold text-amber-300 mb-3">
-              Bạn chưa xác nhận đã đọc role
+              Bạn chưa xác nhận đã đọc vai
             </p>
             <button
               onClick={onShowMyRole}
-              className="rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-sm font-black text-white hover:from-amber-400 hover:to-orange-400"
+              className="rounded-xl bg-gradient-to-r from-amber-500 to-orange-500 px-4 py-2 text-sm font-black text-(--av-ink) hover:from-amber-400 hover:to-orange-400"
             >
-              <AvIcon name="eye" /> Xem lại role
+              <AvIcon name="eye" /> Xem lại vai
             </button>
           </>
         )}

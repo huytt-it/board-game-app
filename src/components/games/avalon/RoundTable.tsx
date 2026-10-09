@@ -7,8 +7,10 @@ import { ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
 import { seatPosition } from './table/seatPosition';
 import TableTokens from './table/TableTokens';
 import CardPile from './table/CardPile';
-import { VOTE_RESULT, questResultTimeline } from './table/timelines';
+import { NIGHT, VOTE_RESULT, questResultTimeline } from './table/timelines';
+import { NIGHT_CALL, type NightPhase } from './panel/NightSections';
 import { useArrivals } from './hooks/useArrivals';
+import { useCue } from './hooks/useCue';
 import { useHiddenQuest, useShownRejectStreak } from './hooks/useTableReveal';
 import AvIcon, { type IconName } from './assets/AvIcon';
 import Cued from './ui/Cued';
@@ -31,6 +33,12 @@ interface RoundTableProps {
   // Sát Thủ đang chọn Merlin → bấm avatar Phe Người để chọn.
   onAssassinPick?: (id: string) => void;
   canAssassinPick?: boolean;
+  /** Player ids in the order they joined the room: in lineup-preview the
+   *  seats slide from that order to the game's seat order. */
+  joinOrder?: readonly string[];
+  /** Night: the seats the viewer's night card shows them, lit while they hold
+   *  it (PlayerPanel / NightSection). */
+  glowIds?: readonly string[];
 }
 
 type VisibleTag =
@@ -82,10 +90,15 @@ export default function RoundTable({
   pickedTeamLimit,
   onAssassinPick,
   canAssassinPick,
+  joinOrder,
+  glowIds,
 }: RoundTableProps) {
   const n = players.length;
   const [openQuestIdx, setOpenQuestIdx] = useState<number | null>(null);
   const startedAt = state.phaseStartedAt ?? 0;
+  const cue = useCue(startedAt);
+  const lineup = state.phase === 'lineup-preview';
+  const night = state.phase.startsWith('night-') ? (state.phase as NightPhase) : null;
 
   // While a result screen plays its sequence, the table holds back what the
   // panel has not revealed yet: the quest tile seals at the stamp, the candle
@@ -281,6 +294,9 @@ export default function RoundTable({
             )}
           </div>
         </div>
+
+        {/* Night: the same "eyes closed" veil and public call on every screen. */}
+        {night && <NightVeil key={night} phase={night} startedAt={startedAt} />}
       </div>
 
       {/* Player avatars arranged around the table (see table/seatPosition.ts).
@@ -289,6 +305,11 @@ export default function RoundTable({
       {players.map((p, i) => {
         // Start the first player at the top (12 o'clock) and go clockwise.
         const { x, y } = seatPosition(i, n);
+        // lineup-preview: the seat slides in from where this player sat in
+        // join order (offset in % of the table = cqw, avalon.css).
+        const joinedAt = lineup && joinOrder ? joinOrder.indexOf(p.id) : -1;
+        const from = joinedAt >= 0 && joinedAt !== i ? seatPosition(joinedAt, n) : null;
+        const glowing = !!night && !!glowIds?.includes(p.id);
         const isOnTeam = state.proposedTeam.includes(p.id);
         const isLeader = state.currentLeaderId === p.id;
         const isLady = state.ladyHolderId === p.id;
@@ -328,12 +349,16 @@ export default function RoundTable({
         return (
           <div
             key={p.id}
-            className="absolute"
+            className={`absolute ${from ? 'av-seat-shuffle' : ''} ${night ? `transition-opacity duration-300 ${glowing ? 'opacity-100' : 'opacity-60'}` : ''}`}
             style={{
               left: `${x}%`,
               top: `${y}%`,
               transform: 'translate(-50%, -50%)',
+              ...(from
+                ? ({ '--dx': from.x - x, '--dy': from.y - y, animationDelay: cue(0) } as CSSProperties)
+                : {}),
             }}
+            data-seat={p.id}
           >
             <Wrapper
               type={Wrapper === 'button' ? 'button' : undefined}
@@ -362,6 +387,7 @@ export default function RoundTable({
                 aim={isAssassinTarget ? 'assassin' : isLadyTarget ? 'lady' : null}
                 isMe={isMe}
                 pulse={isOnTeam || isAssassinTarget}
+                glow={glowing}
               >
                 {isAssassinTarget && (
                   <span
@@ -431,6 +457,31 @@ export default function RoundTable({
         />
       )}
     </div>
+  );
+}
+
+// The night's veil over the table surface: a closed eye and the public call
+// of this turn ("Phe Quỷ mở mắt…"). It settles in on the phase clock (Cued),
+// so every screen shows the same frame and a reload does not replay it.
+function NightVeil({ phase, startedAt }: { phase: NightPhase; startedAt: number }) {
+  const call = NIGHT_CALL[phase];
+  return (
+    <Cued
+      startedAt={startedAt}
+      at={0}
+      className="av-appear absolute -inset-px flex flex-col items-center justify-center rounded-full bg-[radial-gradient(circle_at_50%_40%,#141a33_0%,#0a0d1c_70%)] px-[14%] text-center shadow-[inset_0_0_30px_rgba(0,0,0,0.8)]"
+      data-night-veil={phase}
+    >
+      <Cued startedAt={startedAt} at={NIGHT.callAt} className="av-rise flex flex-col items-center">
+        <AvIcon name="eye" className="h-[clamp(1.5rem,8cqw,2.5rem)] w-[clamp(1.5rem,8cqw,2.5rem)] text-(--av-parchment)/70" />
+        <p className="av-display mt-1 whitespace-nowrap text-[clamp(1.05rem,6cqw,1.6rem)] leading-tight text-(--av-parchment)">
+          <AvIcon name={call.icon} className="mr-1 text-[0.8em]" />
+          {call.who} mở mắt…
+        </p>
+        <p className="mt-1 text-[clamp(10px,3.4cqw,13px)] leading-snug text-slate-300">{call.line}</p>
+        <p className="mt-1.5 text-[clamp(9px,2.8cqw,11px)] font-bold uppercase tracking-wider text-slate-400">Mọi người khác nhắm mắt</p>
+      </Cued>
+    </Cued>
   );
 }
 

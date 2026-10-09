@@ -3,6 +3,7 @@
 import { useState, useMemo } from 'react';
 import { serverNow } from '@/lib/serverClock';
 import type { Player } from '@/types/player';
+import type { Room } from '@/types/room';
 import {
   AvalonRole,
   type AvalonGameState,
@@ -16,6 +17,10 @@ import RoleReveal from './RoleReveal';
 import RoleCard from './RoleCard';
 import RolePreviewPopup from './RolePreviewPopup';
 import LobbyRoundTable from './LobbyRoundTable';
+import AvalonJoinScreen from './AvalonJoinScreen';
+import DealingCards from './ui/DealingCards';
+import LobbyNotices from './ui/LobbyNotices';
+import { useRosterNotices } from './hooks/useRosterChanges';
 import { QUEST_TEAM_SIZES } from './constants';
 import AvIcon from './assets/AvIcon';
 import SceneBackdrop from './scenes/SceneBackdrop';
@@ -25,7 +30,10 @@ import { getJourney, journeyKey, mulberry32 } from './scenes/journey';
 import { LOCATION_IDS, SCENE_IDS, SCENE_NAMES_VI, type LocationId, type SceneId } from './scenes/types';
 
 type PreviewPhase =
+  | 'join'
+  | 'join-closed'
   | 'lobby'
+  | 'dealing'
   | 'lineup-preview'
   | 'role-reveal'
   | 'role-reveal-evil'
@@ -76,7 +84,10 @@ type PreviewPhase =
   | 'end-evil-rejects';
 
 const PHASE_LABELS: Record<PreviewPhase, string> = {
-  lobby: 'Phòng chờ (lobby)',
+  join: 'Trang vào phòng (lời mời)',
+  'join-closed': 'Trang vào phòng (ván đang diễn ra)',
+  lobby: 'Phòng chờ (lobby) — có nút Người vào / rời',
+  dealing: 'Đang chia bài…',
   'lineup-preview': 'Vai trong ván (preview)',
   'role-reveal': 'Lộ vai (Merlin)',
   'role-reveal-evil': 'Lộ vai (Sát Thủ)',
@@ -128,8 +139,9 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
 };
 
 const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
+  { label: 'Vào phòng', items: ['join', 'join-closed'] },
   { label: 'Phòng chờ', items: ['lobby'] },
-  { label: 'Trước ván', items: ['lineup-preview'] },
+  { label: 'Trước ván', items: ['dealing', 'lineup-preview'] },
   { label: 'Lộ vai', items: ['role-reveal', 'role-reveal-evil'] },
   {
     label: 'Đêm (sequenced)',
@@ -286,6 +298,9 @@ function buildScene(
   };
 
   switch (phase) {
+    case 'join':
+    case 'join-closed':
+    case 'dealing':
     case 'lobby':
       // Lobby phase doesn't use AvalonGameState; PlayerPanel is bypassed.
       return {
@@ -1025,8 +1040,30 @@ interface Sim {
   cards: Record<string, QuestCard>;
   acks: Record<string, boolean>;
   leaderSteps: number;
+  /** Lobby: players who walked in / out since the scene was built. */
+  lobbyIn: number;
+  lobbyOut: string[];
 }
-const freshSim = (key: string): Sim => ({ key, votes: {}, cards: {}, acks: {}, leaderSteps: 0 });
+const freshSim = (key: string): Sim => ({ key, votes: {}, cards: {}, acks: {}, leaderSteps: 0, lobbyIn: 0, lobbyOut: [] });
+
+// Lobby guests the Preview can walk in ("Người vào").
+const GUESTS = ['Henry', 'Ivy', 'Jack', 'Kai', 'Liam', 'Mai'];
+
+// A mock room for the invite screen.
+function mockRoom(status: Room['status'], seated: number): Room {
+  return {
+    id: 'preview',
+    roomCode: 'DEMO42',
+    status,
+    gameType: 'avalon',
+    hostId: 'p1',
+    config: { maxPlayers: 10, optionalRoles: [], useLadyOfLake: true },
+    gameState: {},
+    createdAt: new Date(),
+    updatedAt: Date.now(),
+    playerCount: seated,
+  } as unknown as Room;
+}
 
 export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   const [phase, setPhase] = useState<PreviewPhase>('team-build-leader');
@@ -1108,7 +1145,22 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   const myRole = (myPlayer.gameData as Partial<AvalonGameData>).role!;
   const playerCount = players.length;
 
-  const autoScene = getScene(phase === 'lobby' ? null : state, 'preview', playerCount);
+  // Lobby: Alice hosts; "Người vào" seats the next guest, "Người rời" makes
+  // the third player leave (the seats after slide round).
+  const lobbyPlayers = useMemo(() => {
+    const seated = players
+      .map((p) => (p.id === 'p1' ? { ...p, isHost: true } : p))
+      .concat(GUESTS.slice(0, sim.lobbyIn).map((name, i) => makePlayer(`g${i}`, name, AvalonRole.LoyalServant)));
+    return seated.filter((p) => !sim.lobbyOut.includes(p.id));
+  }, [players, sim.lobbyIn, sim.lobbyOut]);
+  const lobbyNotices = useRosterNotices(lobbyPlayers, phase === 'lobby');
+  const canWalkIn = lobbyPlayers.length < 10 && sim.lobbyIn < GUESTS.length;
+  const leaver = lobbyPlayers.filter((p) => p.id !== viewerId && !p.isHost)[1];
+  // The order people joined in, as the line-up's seats slide from it.
+  const joinOrder = useMemo(() => mockSeatOrder(players.map((p) => p.id), gameNo + 101), [players, gameNo]);
+
+  const preGame = phase === 'lobby' || phase === 'join' || phase === 'join-closed' || phase === 'dealing';
+  const autoScene = getScene(preGame ? null : state, 'preview', playerCount);
   const sceneId = sceneChoice === 'auto' ? autoScene.id : sceneChoice;
   const storm = forceStorm || (sceneChoice === 'auto' && autoScene.storm);
   const journey = getJourney(state, 'preview');
@@ -1136,7 +1188,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
       <SceneTitle
         key={replayNonce}
         scene={shownScene}
-        startedAt={phase === 'lobby' ? null : state.phaseStartedAt}
+        startedAt={preGame ? null : state.phaseStartedAt}
         quest={state.currentQuest}
         seedKey={journeyKey(state, 'preview')}
       />
@@ -1253,6 +1305,26 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             <p className="min-w-0 flex-1">
               Đang xem dưới góc nhìn của <span className="text-white font-bold">{myPlayer.name}</span>
             </p>
+            {phase === 'lobby' ? (
+              <>
+                <button
+                  onClick={() => updateSim((s) => ({ ...s, lobbyIn: s.lobbyIn + 1 }))}
+                  disabled={!canWalkIn}
+                  title="Một người vào phòng (ngồi xuống + thông báo)"
+                  className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-bold text-slate-200 active:bg-white/10 disabled:opacity-40"
+                >
+                  Người vào
+                </button>
+                <button
+                  onClick={() => leaver && updateSim((s) => ({ ...s, lobbyOut: [...s.lobbyOut, leaver.id] }))}
+                  disabled={!leaver}
+                  title="Một người rời phòng (mờ đi, các ghế sau trượt lên)"
+                  className="shrink-0 rounded-md border border-white/10 bg-white/5 px-2 py-1 font-bold text-slate-200 active:bg-white/10 disabled:opacity-40"
+                >
+                  Người rời
+                </button>
+              </>
+            ) : (
             <button
               onClick={simulate ?? undefined}
               disabled={!simulate}
@@ -1261,6 +1333,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             >
               Người khác làm
             </button>
+            )}
             <button
               onClick={() => updateSim((s) => ({ ...s, leaderSteps: s.leaderSteps + 1 }))}
               title="Chuyển Leader sang ghế kế tiếp (vương miện bay)"
@@ -1273,20 +1346,38 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
       </header>
 
       <div className="flex-1 overflow-y-auto" data-preview-scene={sceneId}>
-        {phase === 'lobby' ? (
+        {phase === 'join' || phase === 'join-closed' ? (
+          <AvalonJoinScreen
+            room={mockRoom(phase === 'join' ? 'lobby' : 'day', players.length)}
+            players={players.map((p) => (p.id === 'p1' ? { ...p, isHost: true } : p))}
+            onJoin={async () => setPhase('lobby')}
+          />
+        ) : phase === 'lobby' ? (
           <div className="p-4">
+            <LobbyNotices notices={lobbyNotices} players={lobbyPlayers} />
             <LobbyRoundTable
-              players={players}
+              players={lobbyPlayers}
               myPlayerId={viewerId}
               roomCode="DEMO42"
               maxPlayers={10}
               minPlayers={5}
               reserveSeats={10}
-              onKick={(_id, name) => alert(`(Demo) Kick "${name}"?`)}
+              onKick={(id) => updateSim((s) => ({ ...s, lobbyOut: [...s.lobbyOut, id] }))}
             />
           </div>
+        ) : phase === 'dealing' ? (
+          <div className="flex min-h-full items-center justify-center p-4">
+            <DealingCards />
+          </div>
         ) : phase === 'role-reveal' || phase === 'role-reveal-evil' ? (
-          <RoleReveal key={`${phase}:${replayNonce}`} myRole={myRole} myPlayerId={viewerId} players={players} onDone={() => setPhase('team-build-follower')} />
+          <RoleReveal
+            key={`${phase}:${replayNonce}`}
+            myRole={myRole}
+            myPlayerId={viewerId}
+            players={players}
+            startedAt={state.phaseStartedAt}
+            onDone={() => setPhase('team-build-follower')}
+          />
         ) : (
           <PlayerPanel
             key={`${phase}:${replayNonce}`}
@@ -1312,6 +1403,7 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             onLeaveRoom={onClose}
             isHost={true}
             roomId="preview"
+            joinOrder={joinOrder}
           />
         )}
       </div>

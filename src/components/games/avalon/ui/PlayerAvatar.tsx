@@ -60,6 +60,9 @@ interface PlayerAvatarProps {
   /** Make the ring (selection / aim) throb. Only the glow pulses — the letter
    *  keeps full contrast (Tailwind's animate-pulse would dim it too). */
   pulse?: boolean;
+  /** Lit up in gold: a seat the night shows to the viewer while they hold
+   *  the night card (never anything a neighbour could read as a team). */
+  glow?: boolean;
   className?: string;
   /** Badges positioned absolutely around the circle (Leader, Lady, hints…). */
   children?: ReactNode;
@@ -72,6 +75,7 @@ export default function PlayerAvatar({
   aim = null,
   isMe = false,
   pulse = false,
+  glow = false,
   className = '',
   children,
 }: PlayerAvatarProps) {
@@ -83,11 +87,21 @@ export default function PlayerAvatar({
         ? 'ring-[3px] ring-(--av-lady) shadow-[0_0_16px_var(--av-lady)]'
         : selected
           ? 'ring-[3px] ring-(--av-team) shadow-[0_0_14px_var(--av-team)]'
-          : '';
+          : glow
+            ? 'ring-[3px] ring-(--av-gold) shadow-[0_0_18px_var(--av-gold)]'
+            : '';
   const me = isMe ? 'outline-2 outline-dashed outline-offset-4 outline-(--av-parchment)/80' : '';
   const pulseColor =
-    aim === 'assassin' ? 'var(--av-evil)' : aim === 'lady' ? 'var(--av-lady)' : selected ? 'var(--av-team)' : null;
-  const throb = pulse && pulseColor ? 'av-pulse-ring' : '';
+    aim === 'assassin'
+      ? 'var(--av-evil)'
+      : aim === 'lady'
+        ? 'var(--av-lady)'
+        : selected
+          ? 'var(--av-team)'
+          : glow
+            ? 'var(--av-gold)'
+            : null;
+  const throb = (pulse || glow) && pulseColor ? 'av-pulse-ring' : '';
 
   return (
     <div

@@ -5,6 +5,8 @@ import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
 import { SEAT_RADIUS_PCT, seatPosition } from './seatPosition';
 import { useArrivals } from '../hooks/useArrivals';
+import { useCue } from '../hooks/useCue';
+import { LINEUP } from './timelines';
 import AvIcon from '../assets/AvIcon';
 import { TABLE_AVATAR_BOX } from '../ui/PlayerAvatar';
 
@@ -49,11 +51,30 @@ function useOrbit(index: number, n: number, clockwise: boolean): number | null {
 // reaches out to the rim (seat 0 is at 12 o'clock), and the seat box turns
 // back by the same angle, so the badge stays upright at its corner of the
 // avatar all the way round.
-function OrbitToken({ angle, children }: { angle: number; children: ReactNode }) {
+//
+// `spin` (lineup-preview): the token first circles the table from `from`
+// degrees, slowing down, and lands on `angle` — both turning nodes play the
+// same animation (avalon.css `av-crown-spin`), so the badge stays upright.
+function OrbitToken({
+  angle,
+  spin,
+  children,
+}: {
+  angle: number;
+  spin?: { from: number; delay: string };
+  children: ReactNode;
+}) {
+  const spinVars = spin ? ({ '--spin-from': `${spin.from}deg`, animationDelay: spin.delay } as CSSProperties) : undefined;
   return (
-    <div className="av-orbit absolute left-1/2 top-1/2 h-0 w-0" style={{ transform: `rotate(${angle}deg)` }}>
+    <div
+      className={`av-orbit absolute left-1/2 top-1/2 h-0 w-0 ${spin ? 'av-crown-spin' : ''}`}
+      style={{ transform: `rotate(${angle}deg)`, ...spinVars }}
+    >
       <div className="absolute h-0 w-0" style={{ transform: `translateY(-${SEAT_RADIUS_PCT}cqw)` }}>
-        <div className="av-orbit absolute h-0 w-0" style={{ transform: `rotate(${-angle}deg)` }}>
+        <div
+          className={`av-orbit absolute h-0 w-0 ${spin ? 'av-crown-spin-back' : ''}`}
+          style={{ transform: `rotate(${-angle}deg)`, ...spinVars }}
+        >
           <div className={`absolute -translate-x-1/2 -translate-y-1/2 ${TABLE_AVATAR_BOX}`}>{children}</div>
         </div>
       </div>
@@ -67,6 +88,11 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
   const leaderIdx = seatOf(state.currentLeaderId);
   const crown = useOrbit(leaderIdx, n, true);
   const lady = useOrbit(seatOf(state.ladyHolderId), n, false);
+  // lineup-preview: the crown is "spun" round the table and lands on the first
+  // Leader, then the Lady is set down (table/timelines.ts LINEUP). On the
+  // phase clock, so a reload lands on the right frame.
+  const lineup = state.phase === 'lineup-preview';
+  const cue = useCue(state.phaseStartedAt ?? 0);
 
   const team = state.proposedTeam.filter((id) => seatOf(id) >= 0);
   const nominated = useArrivals(team);
@@ -75,10 +101,14 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
   return (
     <div className="pointer-events-none absolute inset-0 z-10" aria-hidden>
       {crown !== null && (
-        <OrbitToken angle={crown}>
+        <OrbitToken
+          angle={crown}
+          spin={lineup ? { from: -LINEUP.spinTurns * 360, delay: cue(LINEUP.spinAt) } : undefined}
+        >
           <span
             data-token="leader"
-            className="absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full border border-amber-100 bg-(--av-leader) text-[12px] text-(--av-ink) shadow shadow-black/40"
+            className={`absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full border border-amber-100 bg-(--av-leader) text-[12px] text-(--av-ink) shadow shadow-black/40 ${lineup ? 'av-appear' : ''}`}
+            style={lineup ? { animationDelay: cue(LINEUP.spinAt) } : undefined}
           >
             <AvIcon name="leader" />
           </span>
@@ -89,7 +119,8 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
         <OrbitToken angle={lady}>
           <span
             data-token="lady"
-            className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border border-teal-100 bg-(--av-lady) text-[12px] text-(--av-ink) shadow shadow-black/40"
+            className={`absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border border-teal-100 bg-(--av-lady) text-[12px] text-(--av-ink) shadow shadow-black/40 ${lineup ? 'av-token-drop' : ''}`}
+            style={lineup ? { animationDelay: cue(LINEUP.ladyAt) } : undefined}
           >
             <AvIcon name="lady" />
           </span>
