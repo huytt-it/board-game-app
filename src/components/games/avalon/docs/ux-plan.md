@@ -476,7 +476,7 @@ Branch: `dev-avalon-uxui`.
 | 2a Hệ thống cảnh + quét lộ phe | **Đã review — đạt** (2026-10-07) | `d6e27ed7` → `ccfb2005` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log d6e27ed7..HEAD` | Claude Opus 5.5 | `scenes/` (types, journey, getScene, SceneBackdrop, paper), 4 cảnh mẫu `hall`/`night`/`camp`/`forest` + 10 placeholder, `SCENES` trong registry, `ui/GlassPanel`, quét lộ phe, token màu phe (regex màu = 0). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2a" bên dưới. |
 | 2b Vẽ đủ cảnh + tiêu đề + hành trình | **Đã review — đạt** (2026-10-08) | `0f6cb1c5` → `059830b6` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 0f6cb1c5..HEAD` | Claude Opus 5.5 | 10 cảnh mới (đủ 14, hết placeholder), `weather/Storm`, phủ tối theo Quest thất bại, `SceneTitle` + câu dẫn, `JourneyStrip` (hình thu nhỏ lấy từ chính cảnh, không cần icon mới), `RoleEmblem tone="neutral"` ở chỗ riêng tư. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ2b" bên dưới. |
 | 3 Vòng Quest | **Đã review — đạt** (2026-10-09) | `95fdbcfa` → `8a33c2c5` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 95fdbcfa..HEAD` | Claude Opus 5.5 | `TableTokens` (vương miện / Lady trượt theo vành bàn, token đề cử bay từ Leader), chồng bài úp + lá bay, chuỗi `team-vote-result` và `quest-result` theo giờ server, lá phiếu úp, đồng hồ vòng, `ActionDock`, nút Xoá/Rời vào top bar, `animate-pulse` chỉ còn ở viền. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ3" bên dưới. |
-| 4 Mở đầu | Chưa bắt đầu | | | |
+| 4 Mở đầu | **Đã làm — chờ review** (2026-10-09) | `beb7a58f` → `782e560c` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log beb7a58f..HEAD` | Claude Opus 5.5 | Trang vào phòng riêng (`AvalonJoinScreen`), lobby ngồi xuống / rời + thông báo, bộ bài xoè, lineup (bàn tròn, xáo ghế, vương miện quay, Lady, cuộn giấy da), thư niêm phong nhấn giữ (lộ vai + "Vai của tôi"), đêm "nhắm mắt" giống nhau trên mọi máy, chip phase không còn "…", danh sách mobile cao như nhau. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ4" bên dưới. |
 | 5 Kết thúc | Chưa bắt đầu | | | |
 | 6 Hoàn thiện | Chưa bắt đầu | | | |
 
@@ -953,6 +953,127 @@ Ghi nhận:
 - **GĐ5:** đưa nút cuối ván vào dock. Màn tổng kết có thể dùng lại `useCue` / `<Cued>` và quy ước "style tĩnh = khung cuối".
 - **GĐ6:** token Lady bay tới người bị ngắm (`TableTokens` đã có token Lady trượt khi đổi người cầm).
 - Nếu cần khớp chính xác hơn khi reload, bù độ trễ dựng bằng cách đặt `currentTime` của animation trong layout effect.
+
+**Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch, phòng test đã xoá. Các script kiểm thử (CDP) nằm ở scratchpad của session, không có trong repo.
+
+### Ghi chú của người thực thi GĐ4
+
+**Đã làm:** toàn bộ mục GĐ4 và "Bổ sung cho GĐ4". Không sửa logic-core: `useAvalon.ts`, `types.ts`, `constants.ts` không có trong diff. Ở `AvalonBoard.tsx` chỉ đổi JSX và props: khoảng đệm của lobby, `LobbyNotices`, màn chia bài, `startedAt` cho `RoleReveal`, `joinOrder` cho `PlayerPanel`, một dòng `export` cho `AvalonJoinScreen`; khối auto-progression và các handler giữ nguyên. Ngoài thư mục Avalon chỉ sửa `page.tsx`: nhánh `gameType === 'avalon'` (trang vào phòng + bỏ `px-4 py-6`). Không thêm dependency, không tải icon mới, không sửa `globals.css`, không đụng game khác.
+
+**Cấu trúc mới:**
+- `AvalonJoinScreen.tsx` (trang vào phòng).
+- `hooks/useHold.ts` (nhấn giữ để xem), `hooks/useRosterChanges.ts` (`useDepartures`, `useRosterNotices`).
+- `ui/RoleLetter.tsx` (thư niêm phong), `ui/DealingCards.tsx` (bộ bài xoè), `ui/LobbyNotices.tsx` (thông báo vào / rời).
+- `table/timelines.ts` thêm `LINEUP` và `NIGHT`.
+- `avalon.css`: khối "Vào phòng, lobby, mở đầu ván (GĐ4)", token `--av-good-ink` / `--av-evil-ink` (màu phe cho chữ trên giấy da).
+
+**Lệch / quyết định nhỏ so với kế hoạch (nhạc trưởng nên liếc qua):**
+1. **Bàn tròn hiện cả ở `role-reveal`**, không chỉ `lineup-preview`. Lý do: từ lineup trở đi bố cục không còn nhảy (nhánh "chưa có bàn" của `PlayerPanel` đã bỏ). Trên desktop, panel lineup nằm ở cột phải.
+2. **Lineup** (`LINEUP` trong `timelines.ts`, theo `phaseStartedAt`):
+   - ghế trượt từ thứ tự vào phòng (`joinOrder` = `players` của `AvalonBoard`, xếp theo `joinedAt`) sang `seatOrder` trong 0–1,2 s. Mỗi ghế tự `transform` (đơn vị `cqw`), không dịch lớp to bằng bàn;
+   - vương miện hiện ở ghế 0 lúc 1,2 s, quay theo chiều kim đồng hồ đúng 2 vòng + số ghế của Leader, chậm dần (ease-out), dừng lúc 3,2 s. Hai nút xoay của `OrbitToken` chạy cùng một animation (`av-crown-spin` / `-back`) nên huy hiệu luôn đứng thẳng;
+   - token Lady rơi xuống lúc 3,2 s (khi có Lady);
+   - cuộn giấy da mở ra bằng `scaleY` (0–0,6 s), chip vai đáp xuống từ 0,6 s, cách nhau 80 ms (10 người: xong khoảng 1,8 s);
+   - tổng cộng ≤ 3,65 s, trong ngân sách ~4 s.
+3. **Cuộn giấy da:** chữ mực trên nền giấy; tên phe dùng bản đậm `--av-good-ink` / `--av-evil-ink`; `RoleLineChip` thêm `surface="parchment"`. Đồng hồ + tiến độ để trong `GlassPanel` riêng; nút "Đã xem — Sẵn sàng nhận vai" vào dock.
+4. **Thư niêm phong** (`RoleLetter`, dùng cho cả `RoleReveal` và `RoleCard`):
+   - Nhấn giữ thì nắp mở, dấu sáp vỡ, trang thư trồi lên; thả tay là gấp lại.
+   - Khi chưa giữ, trang thư `visibility: hidden` nên không vẽ gì: mọi vai giống nhau tới từng điểm ảnh (cặp ảnh = 0).
+   - **Bỏ bước "Đang lật bài…" 1,2 s** (trước đây dùng `setTimeout` tính từ lúc mount, trái mục 2.2). Thay bằng màn thư rơi xuống (0–0,7 s) và dấu sáp ấn xuống (0,6–1,05 s), theo `phaseStartedAt`: reload không phát lại.
+   - Dấu sáp màu vàng hổ phách, **không đỏ** (đỏ là màu Phe Quỷ). Tiêu đề màn: "Thư mật — Chỉ mình bạn được đọc".
+   - Nút "Đã đọc — Sẵn sàng" luôn bấm được (không bắt phải nhấn giữ trước). Ngữ nghĩa `onDone` giữ nguyên.
+5. **Nhấn giữ** (`useHold`):
+   - giữ bằng ngón tay / chuột (có `setPointerCapture`) hoặc phím Space / Enter;
+   - thả tay, mất focus, tab bị ẩn, hoặc sang phase mới là che lại;
+   - chặn menu khi nhấn lâu; class `.av-hold` tắt cuộn, chọn chữ và callout.
+6. **Đêm:**
+   - "Lớp phủ nhắm mắt" là một đĩa tối phủ lên mặt bàn, mang lời gọi công khai ("Phe Quỷ mở mắt…" + một câu + "Mọi người khác nhắm mắt"), hiện theo `phaseStartedAt`. Ghế mờ còn 60 % với mọi người.
+   - Dock giống hệt nhau cho mọi người: một **thẻ nhấn giữ** (cao cố định `h-32`) và nút "✓ Đã xem — Tiếp tục". Thẻ chính là vùng nhấn giữ, không có nút riêng.
+   - Khi giữ: người được gọi thấy đồng đội / Phe Quỷ / Merlin & Morgana (chip cỡ chữ), và các ghế đó **sáng vàng** trên bàn (màu vàng, không phải màu phe). Người không được gọi thấy "Lượt này không gọi bạn" kèm tên vai của mình. Oberon thấy "đơn độc".
+   - "Tiếp tục" của người được gọi ghi `roleAcks` như cũ. Của người **không** được gọi chỉ đổi màn hình của chính họ, không ghi Firestore, nên không thêm dữ liệu và không làm sai điều kiện kết thúc lượt.
+   - Bỏ `RoleIntroCard` ("Bạn là…" hiện công khai ở đêm). Vai xem lại qua nút "Vai của tôi" (cũng là thư nhấn giữ). Không rung máy.
+7. **Trang vào phòng** (`AvalonJoinScreen`):
+   - Gồm cảnh `hall`, người mời, mã phòng, những người đã ngồi (avatar, chìa khoá chủ phòng), ô tên (`#display-name-input` giữ nguyên id), nút "Vào bàn".
+   - Lỗi tiếng Anh của `useRoom.joinRoomById` được dịch sang tiếng Việt. Nếu ván đang diễn ra hoặc phòng đã đủ người thì nói ngay và ẩn ô nhập.
+   - `page.tsx` nạp màn này **từ module `AvalonBoard`** (`import('…/AvalonBoard').then((m) => m.AvalonJoinScreen)`), nên dùng chung chunk với bàn chơi. Bản đầu nạp file riêng: người được mời phải tải một chunk gần trùng (108 KB thô / 44 KB gzip), rồi vào lobby lại tải phần cảnh và icon lần nữa.
+8. **Lobby:**
+   - mỗi ghế là một neo kích thước 0 dịch bằng `cqw`, nên đổi chỗ là `transform` trượt;
+   - người vào: `av-seat-in` (`useArrivals`); người rời: bóng mờ dần tại ghế cũ (`useDepartures`, 700 ms) trong khi các ghế sau trượt lên;
+   - thông báo "<Tên> đã vào / rời phòng": tối đa 3, mỗi cái khoảng 3 s, `aria-live`;
+   - số ghế không bao giờ ít hơn số người (trước đây người vượt quá `maxPlayers` bị ẩn);
+   - nút kick 20 px (vùng chạm nới bằng `::before`), nhãn "Mời X ra khỏi phòng";
+   - tên ghế tối đa 80 px; dấu "+" của ghế trống sáng hơn và `aria-hidden`.
+9. **Top bar:** chip phase là một dòng 24 px có `flex-wrap` + `overflow: hidden`, không còn `truncate`. Nhãn không vừa cạnh icon thì rơi xuống dòng 2 (bị ẩn), **không bao giờ hiện "…"**. Ngưỡng container query giữ nguyên (19,25rem / 40rem). Khi bỏ `px-4` của trang phòng: ở 320 chỉ icon, ở 340–640 nhãn ngắn, từ 768 nhãn đầy đủ. Thêm `data-phase-chip`.
+10. **`PlayerRoster`:** điều người xem biết riêng (Đồng đội Quỷ, Quỷ bạn thấy, Merlin/Morgana) nay là **một icon 16 px cạnh tên**, không còn chip xuống dòng. Danh sách cao như nhau với mọi vai.
+11. **"Đang chia bài…"** (`DealingCards`): 5 lá úp xoè ra rồi gom lại (2,4 s, lặp), giảm chuyển động thì đứng yên ở thế xoè. Trong ván thật màn này hầu như không kịp hiện (vai được ghi trước `gameState`); đã xem trong Preview.
+12. Sửa kèm vì đo tương phản: nút "Xem lại role" (chữ trắng trên cam, 2,5:1) → "Xem lại vai", chữ mực; "Bạn chưa xác nhận đã đọc vai".
+13. **Preview:**
+    - cảnh mới: `join`, `join-closed`, `dealing`;
+    - lobby có nút "Người vào" / "Người rời" (và kick) để xem ghế ngồi xuống / mờ đi cùng thông báo;
+    - lineup dùng thứ tự vào phòng khác `seatOrder`, nên thấy ghế xáo;
+    - thư lộ vai nhận `startedAt`, "Phát lại" phát lại cảnh thư rơi.
+14. **Thuộc tính cho kiểm thử:** `data-letter`, `data-night-card`, `data-night-veil`, `data-seat`, `data-lobby-seat`, `data-lobby-notice`, `data-lobby-count`, `data-lineup-scroll`, `data-phase-chip`.
+
+**Kết quả kiểm thử:**
+- `npx tsc --noEmit` sạch; `npm run build` thành công (build lại sau khi xoá harness).
+- ESLint:
+  - `npx eslint src/components/games/avalon`: vẫn 2 lỗi `react-hooks/set-state-in-effect` có sẵn (`AvalonBoard.tsx:160` — trước là 155, lệch do thêm import và hook; `QuestPlaySection.tsx:43`) cùng 2 cảnh báo có sẵn trong `useAvalon.ts`.
+  - `page.tsx`: 6 lỗi đều có từ trước (5 lỗi `<a>` thay vì `<Link>` ở các màn lỗi, 1 lỗi "Cannot create components during render"); đã lint bản gốc để đối chiếu. `npx eslint src`: 47 lỗi / 34 cảnh báo. Không có vấn đề mới.
+- Đếm emoji = 0; regex màu phe = 0.
+- Gói JS của Avalon: **293,9 KB thô, 88,1 KB gzip** (GĐ3: 285 / 84,5). Trang vào phòng dùng chung chunk này.
+- **Ảnh** ở `.claude/gd4-shots/` (mở `index.html`), chụp bằng Chrome headless qua DevTools Protocol:
+  - `screens/`: 17 màn × 320 / 360 / 375 (cả trang) và 1440: trang vào phòng (mở / đóng), lobby, chia bài, lineup, thư (niêm phong / đang giữ), chờ lộ vai, 3 lượt đêm (chưa giữ / đang giữ: Quỷ, Người, Merlin, Percival, Oberon), "Vai của tôi", bỏ phiếu (danh sách mobile). Không màn nào cuộn ngang; đáy dock = đáy màn hình;
+  - `seq/`: chuỗi khung hình đóng băng tại T ms (lineup 10 khung, thư 6, lớp phủ đêm 5, lobby vào / rời 4 + 4) ở 375 và 1440;
+  - `pairs/`, `motion/`, `game/` (ván thật).
+- **Không lộ thông tin từ xa** (harness: cùng ghế p1, cùng Leader, chỉ khác vai của p1; mọi animation đóng băng cùng lúc; thu còn 10 %, độ lệch điểm ảnh trung bình 0–255; đối chứng = chụp lại cùng một bên):
+
+  | Cặp | 375 | 1440 |
+  |---|---|---|
+  | Đêm Phe Quỷ: Sát Thủ (được gọi) \| Trung thần (không), chưa giữ | **0** | **0** |
+  | Đêm Merlin: Merlin \| Percival, chưa giữ | **0** | **0** |
+  | Đêm Percival: Percival \| Sát Thủ, chưa giữ | **0** | **0** |
+  | Thư lộ vai: Merlin \| Sát Thủ · Trung thần \| Tay sai · Percival \| Morgana | **0 · 0 · 0** | **0 · 0 · 0** |
+  | "Vai của tôi": Merlin \| Mordred · Trung thần \| Tay sai | **0 · 0** | **0 · 0** |
+  | Bỏ phiếu, cả trang (danh sách mobile): Merlin \| Trung thần · Sát Thủ \| Percival | 0,20 · 0,31 (cao 1360 = 1360) | — |
+  | *Đang giữ — đêm Quỷ / Merlin / Percival (máy đang giữ hiện thông tin, có chủ ý)* | *3,35 / 3,16 / 3,09* | *0,87 / 0,82 / 0,81* |
+  | *Đang giữ — thư lộ vai Merlin \| Sát Thủ* | *1,38* | *0,33* |
+  | *Đối chứng (mọi cặp)* | *0* | *0* |
+
+  Chưa giữ thì mọi màn riêng tư lệch đúng 0. Phần lệch của danh sách là icon gợi ý 16 px. GĐ3 ghi chênh 25 px chiều cao giữa hai phe, nay bằng nhau.
+- **Top bar** (harness, `PlayerPanel` toàn bề rộng như trang phòng mới; 14 phase × 10 bề rộng 320–1024): 0 nhãn bị cắt, 0 nhãn phải rơi xuống dòng ẩn, 0 tràn. Trong ván thật đo 139 lần (mỗi phase, mỗi tab; tab 375 đo thêm ở 390): 0 lỗi. 320 chỉ icon (riêng "Vai trong ván", "Lộ vai" hiện đủ vì lúc đó chưa có nút vai); 360 / 375 / 390 nhãn ngắn; 1440 nhãn đầy đủ.
+- **Tương phản chữ** (đo trên điểm ảnh thật như GĐ2a; 15 màn GĐ4 × 375 phần trên và dưới + 1440, có cả lúc đang giữ):
+  - chữ ≥ 11 px: **720/720 đạt ≥ 4,5:1**, thấp nhất 4,64;
+  - chữ < 11 px: **151/151 đạt**;
+  - lần đo đầu có 3 chỗ trượt, đã sửa: badge "×2" trên giấy da (4,07, nay nền đậm chữ giấy), nút "Xem lại role" (2,52, có từ trước), dấu "+" ghế trống (1,9).
+- **Giảm chuyển động** (giả lập; lineup, thư, đêm, "Vai của tôi", lobby vào / rời, chia bài, trang vào phòng):
+  - 0 animation đang chạy, 0 hạt hiệu ứng;
+  - lineup vào thẳng khung cuối: vương miện cách ghế Leader 3 px, Lady và cuộn giấy hiện đủ;
+- **CPU chậm 4×** (đo 4,6 s từ lúc màn hiện hoặc lúc bấm, 375 và 1440): lineup, thư, đêm, lobby vào / rời: p95 = 7 ms, khung dài nhất 8–49 ms, **0 khung > 50 ms**.
+- **Ván thật** (bản production; 5 origin `localhost`, `127.0.0.1`, `a/b/c.localhost`; mỗi tab một cửa sổ CDP; cỡ 1440 / 375 / 375 / 320 / 360; bot tự chơi):
+  - Ván chạy đủ, khoảng 2,5 phút: 4 người vào qua **trang vào phòng mới** (cảnh `hall`, nút "Vào bàn") → P5 rời lobby rồi vào lại → lineup → thư → 2 lượt đêm (5 người nên không có Percival; lượt Percival đã kiểm trong harness) → 3 Quest → ám sát → Phe Người thắng. **0 lỗi JS ở cả 5 tab.**
+  - Lobby của chủ phòng hiện lần lượt "P2 / P3 / P4 / P5 đã vào phòng", "P5 đã rời phòng", "P5 đã vào phòng"; lúc P5 rời có bóng ghế mờ dần (`.av-seat-out`).
+  - Lineup, mốc xong của từng phần (giây kể từ `phaseStartedAt`; "lần cuối còn chạy → lần đầu thấy xong", mỗi tab lấy mẫu khoảng 33 ms một lần):
+
+    | Tab | Ghế xáo (mô hình 1,2) | Cuộn mở (0,6) | Chip cuối (1,29) | Vương miện dừng (3,2) |
+    |---|---|---|---|---|
+    | 0 (1440) | 1,212 → 1,244 | 0,617 → 0,650 | 1,306 → 1,336 | 3,212 → 3,242 |
+    | 1 (375) | 1,213 → 1,246 | 0,618 → 0,652 | 1,307 → 1,337 | 3,214 → 3,244 |
+    | 2 (375) | 1,215 → 1,248 | 0,620 → 0,653 | 1,309 → 1,339 | 3,215 → 3,246 |
+    | 3 (320, reload lúc 2,04 s) | 1,216 → 1,250 | 0,623 → 0,655 | 1,311 → 1,341 | 3,497 → 3,529 |
+    | 4 (360) | 1,218 → 1,252 | 0,624 → 0,658 | 1,312 → 1,343 | 3,219 → 3,250 |
+
+    Bốn tab không reload lệch nhau ≤ 8 ms. Tab reload giữa lúc vương miện đang quay thì vào đúng khung (đang quay, không phát lại từ đầu), nhưng dừng muộn khoảng 0,3 s: đây là độ trễ dựng đã biết từ GĐ3 (animation bắt đầu ở lần vẽ đầu, sau khi trang tải lại và nhận state).
+  - Đêm: cả 5 tab cùng lớp phủ (`night-evils`, rồi `night-merlin`), cùng thẻ "Nhấn giữ để xem", cùng nút. Sau khi bấm, nút của ai cũng thành "✓ Xong — chờ lượt sau". Đang giữ: tab P2 (Merlin) thấy P5 sáng và "Phe Quỷ lộ diện trước bạn: P5" (Mordred ẩn), tab P3 thấy "Lượt này không gọi bạn".
+  - Cặp ảnh giữa hai tab 375 của ván thật (P2 Merlin, đang làm Leader | P3 Trung thần): thư lộ vai 0,04; "Vai của tôi" chưa giữ 1,61 (trang phía sau lớp mờ khác nhau vì thanh "Bạn là Leader"); đêm chưa giữ 6,7 / 8,2. Hai cặp đêm bị chi phối bởi thanh "Bạn là Leader" (thông tin công khai, đẩy cả trang xuống 24 px) và ô "bạn" ở ghế khác nhau, nên không dùng làm thước đo; thước đo là bảng harness ở trên.
+  - 5 tab cùng chuỗi cảnh `hall` → `night` → `forest` → `camp` → `chapel` → `camp` → `mountain` → `blood-moon` → `end-good`.
+  - Phòng test đã xoá bằng nút Xoá (mở lại link báo "Room Not Found").
+  - Kiểm lại sau khi gộp chunk (bản production, 2 tab): trang vào phòng hiện sau 1,4 s; bấm "Vào bàn" thì 0,6 s sau đã vào lobby (chunk bàn chơi tải một lần); 0 lỗi; phòng đã xoá.
+
+**Còn tồn / gợi ý cho GĐ sau:**
+- Độ trễ dựng khi reload (lần này 0,3 s ở vương miện lineup): như gợi ý GĐ3, có thể bù bằng cách đặt `currentTime` của animation trong layout effect.
+- Đang nhấn giữ ban đêm, máy của người được gọi có ghế sáng (theo đúng yêu cầu). Ai nhìn thẳng vào màn hình người đang giữ thì vẫn thấy; màn hình **không** giữ thì giống hệt nhau.
+- Thông báo vào / rời ở lobby nằm đè lên dòng tiêu đề khoảng 3 s (không chặn bấm).
+- **GĐ5:** nút cuối ván vào dock (GĐ3 chuyển sang). Token `--av-good-ink` / `--av-evil-ink` và `RoleLetter` dùng lại được nếu màn tổng kết cần giấy da.
 
 **Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch, phòng test đã xoá. Các script kiểm thử (CDP) nằm ở scratchpad của session, không có trong repo.
 
