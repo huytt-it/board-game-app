@@ -8,7 +8,9 @@ import AvButton from './AvButton';
 // "Rời phòng" / "Xoá phòng") folded out of the way. It looks the same for
 // every player (only the host's item reads "Xoá phòng", which is public).
 // Escape and a tap outside close it; focus stays inside while it is open and
-// goes back to "⋯" afterwards (useDialog).
+// goes back to "⋯" afterwards (useDialog). Opened from the keyboard, focus
+// lands on the first item (with its ring); opened by a tap or a click, on the
+// menu itself, so no ring shows on an item nobody pointed at.
 export default function RoomMenu({
   onShowRoles,
   onLeaveRoom,
@@ -18,23 +20,25 @@ export default function RoomMenu({
   onLeaveRoom?: () => void;
   isHost?: boolean;
 }) {
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState<null | 'pointer' | 'keyboard'>(null);
   if (!onShowRoles && !onLeaveRoom) return null;
   return (
     <div className="relative">
       <AvButton
         variant="ghost"
         icon="more"
-        onClick={() => setOpen((o) => !o)}
+        // A click from a pointer has a click count (`detail`); Enter / Space has 0.
+        onClick={(e) => setOpen((o) => (o ? null : e.detail > 0 ? 'pointer' : 'keyboard'))}
         aria-label="Menu phòng"
         aria-haspopup="dialog"
-        aria-expanded={open}
+        aria-expanded={!!open}
         title="Menu phòng"
         data-room-menu-button=""
       />
       {open && (
         <MenuPanel
-          onClose={() => setOpen(false)}
+          onClose={() => setOpen(null)}
+          focusItem={open === 'keyboard'}
           onShowRoles={onShowRoles}
           onLeaveRoom={onLeaveRoom}
           isHost={isHost}
@@ -46,16 +50,19 @@ export default function RoomMenu({
 
 function MenuPanel({
   onClose,
+  focusItem,
   onShowRoles,
   onLeaveRoom,
   isHost,
 }: {
   onClose: () => void;
+  /** Opened from the keyboard: focus the first item, else the menu itself. */
+  focusItem: boolean;
   onShowRoles?: () => void;
   onLeaveRoom?: () => void;
   isHost: boolean;
 }) {
-  const dialog = useDialog<HTMLDivElement>(onClose);
+  const dialog = useDialog<HTMLDivElement>(onClose, focusItem ? undefined : 'panel');
   const wrap = useRef<HTMLDivElement>(null);
 
   // A tap anywhere else closes the menu (the "⋯" toggles it itself).
@@ -90,10 +97,11 @@ function MenuPanel({
           </AvButton>
         )}
         {onLeaveRoom && (
+          // One row like the others; the host's "Xoá phòng" only reads red.
           <AvButton
-            variant={isHost ? 'danger' : 'ghost'}
+            variant="ghost"
+            danger={isHost}
             block
-            align="start"
             icon={isHost ? 'delete' : 'leave'}
             onClick={pick(onLeaveRoom)}
             data-room-exit=""

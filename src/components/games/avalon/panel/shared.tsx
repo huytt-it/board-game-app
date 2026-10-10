@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react';
+import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
 import type { AvalonGameState, AvalonRole } from '../types';
 import { ROLE_NAMES_VI } from '../constants';
 import AvIcon, { type IconName } from '../assets/AvIcon';
@@ -62,13 +62,27 @@ export function PhaseChip({
 // Glow colour of "time is running out" (--av-evil, which doubles as the warning colour), for `av-pulse-ring`.
 export const LOW_TIME_GLOW = { '--av-pulse': 'var(--av-evil)' } as CSSProperties;
 
-// A phase countdown. When time is short it throbs through a glow around it —
-// not by fading the digits (animate-pulse would drop them below 4.5:1).
-export function LowTimeClock({ low, className = '', children }: { low: boolean; className?: string; children: ReactNode }) {
+// A phase countdown. Parchment, red when time is short; it then also throbs
+// through a glow around it (`throb`) — not by fading the digits (animate-pulse
+// would drop them below 4.5:1). Leave `throb` off while the dock's "your turn"
+// edge blinks: one thing blinks at a time.
+export function LowTimeClock({
+  low,
+  throb = low,
+  className = '',
+  children,
+}: {
+  low: boolean;
+  throb?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
   return (
     <span
-      className={`relative inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 text-xs font-bold tabular-nums ${low ? 'av-pulse-ring' : ''} ${className}`}
-      style={low ? LOW_TIME_GLOW : undefined}
+      className={`relative inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 text-xs font-bold tabular-nums ${
+        low ? 'text-(--av-evil-light)' : 'text-(--av-text-2)'
+      } ${low && throb ? 'av-pulse-ring' : ''} ${className}`}
+      style={low && throb ? LOW_TIME_GLOW : undefined}
       data-low-time={low ? '' : undefined}
     >
       <AvIcon name="clock" /> {children}
@@ -76,69 +90,67 @@ export function LowTimeClock({ low, className = '', children }: { low: boolean; 
   );
 }
 
-export function TokenBadges({
-  playerId,
-  state,
-  inline = false,
-}: {
-  playerId: string;
-  state: AvalonGameState;
-  inline?: boolean;
-}) {
-  const isLeader = state.currentLeaderId === playerId;
-  const isLady = state.ladyHolderId === playerId;
-  if (!isLeader && !isLady) return null;
+// The head of a phase panel (ux-plan 8b, "one sentence, one action"): the
+// title (the screen's one display line, ≤ 6 words) and, on the right, the
+// phase clock.
+export function PanelHead({ title, clock, id }: { title: ReactNode; clock?: ReactNode; id?: string }) {
   return (
-    <div className={`flex gap-1 ${inline ? '' : 'mt-0.5'} flex-wrap`}>
-      {isLeader && (
-        <span className="inline-flex items-center gap-0.5 rounded-full bg-(--av-gold)/25 border border-(--av-gold)/45 px-1.5 py-0.5 text-[9px] font-black text-amber-100">
-          <AvIcon name="leader" className="text-(--av-gold)" /> Leader
-        </span>
-      )}
-      {isLady && (
-        <span className="inline-flex items-center gap-0.5 rounded-full bg-(--av-lady)/25 border border-(--av-lady)/45 px-1.5 py-0.5 text-[9px] font-black text-teal-100">
-          <AvIcon name="lady" className="text-(--av-lady)" /> Lady
-        </span>
-      )}
+    <div className="flex items-center justify-between gap-3">
+      <h3 id={id} className="av-display min-w-0 text-xl leading-tight text-(--av-text)">
+        {title}
+      </h3>
+      {clock}
     </div>
   );
 }
 
-// A role of the line-up (public). `surface="parchment"`: ink on the light
-// scroll of lineup-preview, the team in the darker "-ink" shades.
-export function RoleLineChip({
-  role,
-  count,
-  tone,
-  surface = 'glass',
-}: {
-  role: AvalonRole;
-  count: number;
-  tone: 'good' | 'evil';
-  surface?: 'glass' | 'parchment';
-}) {
-  const paper = surface === 'parchment';
-  const frame = paper
-    ? tone === 'good'
-      ? 'border-(--av-good-ink)/35 bg-(--av-good-ink)/10'
-      : 'border-(--av-evil-ink)/35 bg-(--av-evil-ink)/10'
-    : tone === 'good'
-      ? 'border-(--av-good)/30 bg-(--av-good)/10'
-      : 'border-(--av-evil)/30 bg-(--av-evil)/10';
-  const badge = paper
-    ? tone === 'good'
-      ? 'bg-(--av-good-ink) text-(--av-parchment)'
-      : 'bg-(--av-evil-ink) text-(--av-parchment)'
-    : tone === 'good'
-      ? 'bg-(--av-good)/30 text-(--av-good-light)'
-      : 'bg-(--av-evil)/30 text-(--av-evil-light)';
+// The panel's one sentence of status or instruction (≤ 2 lines at 375px).
+export function PanelLine({ className = '', ...rest }: HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={`mt-2 text-sm leading-relaxed text-(--av-text-2) ${className}`} {...rest} />;
+}
+
+// A quiet fact under the sentence ("Đã bầu 3/7", "Sẵn sàng 2/7").
+export function PanelNote({ className = '', ...rest }: HTMLAttributes<HTMLParagraphElement>) {
+  return <p className={`mt-1 text-xs text-(--av-text-3) ${className}`} {...rest} />;
+}
+
+// The two-fail rule, as one line — only in the panels of the quest that has it.
+export function TwoFailNote() {
   return (
-    <div className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 ${frame}`} title={ROLE_NAMES_VI[role]}>
+    <p className="mt-2 flex items-start gap-1.5 text-xs text-(--av-evil-light)" data-two-fail-note="">
+      <AvIcon name="warning" className="mt-px shrink-0" />
+      Cần 2 lá Phe Quỷ mới thất bại.
+    </p>
+  );
+}
+
+// What the dock shows once the viewer has done their part (ready, card
+// played…): a quiet solid strip with an icon, not a dimmed button.
+export function DockStatus({ icon, title, note }: { icon: IconName; title: ReactNode; note?: ReactNode }) {
+  return (
+    <div className="flex min-h-14 items-center gap-3 rounded-xl bg-(--av-raised) px-4 py-2 shadow-lg shadow-black/40" data-dock-status="">
+      <AvIcon name={icon} size={22} className="shrink-0 text-(--av-gold)" />
+      <div className="min-w-0 flex-1 text-left">
+        <p className="text-sm font-semibold text-(--av-text)">{title}</p>
+        {note && <p className="text-xs text-(--av-text-3)">{note}</p>}
+      </div>
+    </div>
+  );
+}
+
+// A role of the line-up (public), on the light parchment scroll of
+// lineup-preview: ink text, the team in the darker "-ink" shades. A tint,
+// no frame.
+export function RoleLineChip({ role, count, tone }: { role: AvalonRole; count: number; tone: 'good' | 'evil' }) {
+  const tint = tone === 'good' ? 'bg-(--av-good-ink)/10' : 'bg-(--av-evil-ink)/10';
+  const badge = tone === 'good' ? 'bg-(--av-good-ink)' : 'bg-(--av-evil-ink)';
+  return (
+    <div className={`flex items-center gap-1.5 rounded-xl px-2 py-1.5 ${tint}`} title={ROLE_NAMES_VI[role]}>
       <RoleEmblem role={role} size="xs" />
-      <span className={`flex-1 min-w-0 text-[11px] font-black truncate ${paper ? 'text-(--av-ink)' : 'text-white'}`}>
-        {role}
-      </span>
-      {count > 1 && <span className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-black ${badge}`}>×{count}</span>}
+      <span className="min-w-0 flex-1 truncate text-xs font-bold text-(--av-ink)">{role}</span>
+      {count > 1 && (
+        <span className={`shrink-0 rounded-full px-1.5 text-xs font-bold text-(--av-parchment) ${badge}`}>×{count}</span>
+      )}
     </div>
   );
 }

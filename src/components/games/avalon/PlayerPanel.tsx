@@ -2,10 +2,7 @@
 
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, type QuestCard, type TeamVote } from './types';
-import { questNeedsTwoFails } from './constants';
 import RoundTable from './RoundTable';
-import AvIcon from './assets/AvIcon';
-import GlassPanel from './ui/GlassPanel';
 import AvButton from './ui/AvButton';
 import RoomMenu from './ui/RoomMenu';
 import { useHold } from './hooks/useHold';
@@ -25,6 +22,9 @@ import { DiscussionSection } from './panel/DiscussionSection';
 import { LadySection } from './panel/LadySection';
 import { AssassinSection } from './panel/AssassinSection';
 import { EndSection } from './panel/EndSection';
+import SceneTitle from './scenes/SceneTitle';
+import { getScene } from './scenes/getScene';
+import { journeyKey } from './scenes/journey';
 
 interface PlayerPanelProps {
   state: AvalonGameState;
@@ -78,7 +78,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
 
   const isAssassin = myRole === AvalonRole.Assassin;
 
-  // Hint trong PlayerRoster / RoundTable (Đồng đội Quỷ, Quỷ bạn thấy, Merlin/
+  // Hint trên ghế của RoundTable (Đồng đội Quỷ, Quỷ bạn thấy, Merlin/
   // Morgana...) chỉ được hiện diện sau khi xong tất cả night-reveals — tức là
   // từ 'team-build' trở đi. Trong lineup-preview / role-reveal / night-* mỗi
   // người vẫn được phân vai trong gameData nên nếu không gate, sidebar sẽ lộ
@@ -89,7 +89,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
     !state.phase.startsWith('night-');
   const safeViewerRole = hintsVisible ? myRole : undefined;
 
-  // Toggle pick handler: cùng logic với grid trong TeamBuildSection — Leader bấm
+  // Toggle pick handler — Leader bấm
   // avatar trên bàn để add/remove. Khi đã đầy size, chọn thêm sẽ thay người đầu.
   const handleTablePick = (id: string) => {
     if (!isLeader || state.phase !== 'team-build') return;
@@ -127,6 +127,26 @@ export default function PlayerPanel(props: PlayerPanelProps) {
     }
   };
 
+  // The Lady aims by tapping a seat (the same onLadyInspect as the old list:
+  // it moves her gaze and resets the clock), until she has looked.
+  const isLadyHolder = state.ladyHolderId === myPlayer.id;
+  const canLadyPick = isLadyHolder && state.phase === 'lady-of-lake' && state.ladyShownCard === null;
+  const handleLadyTablePick = (id: string) => {
+    if (!canLadyPick || id === state.ladyTargetId) return;
+    props.onLadyInspect(id);
+  };
+
+  // The name of a new scene, shown on the table's free band for ~2.5 s (scenes/SceneTitle).
+  const roomId = props.roomId ?? '';
+  const sceneTitle = (
+    <SceneTitle
+      scene={getScene(state, roomId, playerCount)}
+      startedAt={state.phaseStartedAt ?? null}
+      quest={state.currentQuest}
+      seedKey={journeyKey(state, roomId)}
+    />
+  );
+
   // Slim top bar (ux-plan 8b): the phase chip on the left, "Vai của tôi" and
   // the "⋯" menu ("Các vai trong ván", Rời / Xoá phòng) on the right. The
   // reject count (the candles), the quest number (the lit tile) and the
@@ -158,24 +178,8 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   // below) so its timers and local state never run twice.
   const phaseSection = (
     <div className="space-y-3">
-      {/* team-vote says it in one line of its own panel (GĐ7a model screen);
-          team-build and quest-play follow in GĐ7b. */}
-      {(state.phase === 'team-build' || state.phase === 'quest-play') &&
-        questNeedsTwoFails(playerCount, state.currentQuest) && (
-          <GlassPanel tone="evil" className="p-3 flex items-start gap-3">
-            <AvIcon name="warning" size={24} className="text-(--av-evil-light)" />
-            <div className="flex-1 min-w-0">
-              <p className="text-xs font-black text-(--av-evil-light) uppercase tracking-wider">
-                Quest {state.currentQuest + 1} — Luật đặc biệt
-              </p>
-              <p className="mt-1 text-xs text-slate-200 leading-relaxed">
-                Cần <strong className="text-(--av-evil-light)">≥ 2 lá Phe Quỷ</strong> để Quest này thất bại.
-                1 lá Phe Quỷ đơn lẻ vẫn coi như Phe Người thắng Quest.
-              </p>
-            </div>
-          </GlassPanel>
-        )}
-
+      {/* The two-fail rule is one line inside the panels of the quest that
+          has it (team-build, team-vote, quest-play, quest-result). */}
       {state.phase === 'lineup-preview' && (
         <LineupPreviewSection
           state={state}
@@ -214,8 +218,6 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           state={state}
           gamePlayers={gamePlayers}
           teamSize={teamSize}
-          myPlayerId={myPlayer.id}
-          onProposedTeamChange={props.onProposedTeamChange}
           onSubmitTeam={props.onSubmitTeam}
         />
       )}
@@ -253,7 +255,6 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           state={state}
           myPlayer={myPlayer}
           gamePlayers={gamePlayers}
-          roomId={props.roomId ?? ''}
           onAckDiscussion={props.onAckDiscussion}
         />
       )}
@@ -263,9 +264,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           state={state}
           myPlayer={myPlayer}
           gamePlayers={gamePlayers}
-          onLadyInspect={props.onLadyInspect}
           onLadyConfirm={props.onLadyConfirm}
-          onLadyShow={props.onLadyShow}
           onLadyFinish={props.onLadyFinish}
         />
       )}
@@ -277,7 +276,6 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           myRole={myRole}
           gamePlayers={gamePlayers}
           onAssassinate={props.onAssassinate}
-          onSetAssassinChoice={props.onSetAssassinChoice}
         />
       )}
 
@@ -286,7 +284,7 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           state={state}
           myPlayer={myPlayer}
           gamePlayers={gamePlayers}
-          roomId={props.roomId ?? ''}
+          roomId={roomId}
           reveal={endReveal}
           onPlayAgain={props.onPlayAgain}
           onLeaveRoom={props.onLeaveRoom}
@@ -327,6 +325,9 @@ export default function PlayerPanel(props: PlayerPanelProps) {
               pickedTeamLimit={teamSize}
               onAssassinPick={handleAssassinTablePick}
               canAssassinPick={isAssassin && state.phase === 'assassinate'}
+              onLadyPick={handleLadyTablePick}
+              canLadyPick={canLadyPick}
+              sceneTitle={sceneTitle}
               joinOrder={props.joinOrder}
               glowIds={glowIds}
               revealAll={state.phase === 'end' ? endReveal.revealAt : undefined}

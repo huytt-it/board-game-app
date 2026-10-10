@@ -17,17 +17,20 @@
    - Không dùng lớp màu Tailwind có bảng màu (slate-*, amber-*…); chỉ black /
      white kèm độ mờ cho bóng và lớp phủ.
 
-   Cũ → mới (GĐ7a; các token "bỏ" còn giữ tới khi GĐ7b xoá chỗ dùng cuối):
+   Cũ → mới (GĐ7a, xoá hẳn ở GĐ7b — không còn chỗ dùng):
    | cũ                                  | mới                                   |
    |-------------------------------------|---------------------------------------|
-   | --av-leader                         | --av-gold (đã gộp, token cũ đã xoá)   |
+   | --av-leader                         | --av-gold                             |
    | --av-glass-border                   | --av-line                             |
    | slate-* / stone-* (chữ, viền)       | --av-text / -2 / -3, --av-line        |
    | amber-* / yellow-* (nhấn)           | --av-gold                             |
-   | --av-team (cam, người được đề cử)   | BỎ → vòng --av-parchment, không glow  |
-   | --av-approve(-light), --av-reject(-light) | BỎ → nút phiếu trung tính, icon + chữ |
-   | emerald-* / purple-* / fuchsia-* / indigo-* / teal-* / orange-* | BỎ → trung tính, --av-gold hoặc --av-evil |
+   | --av-team (cam, người được đề cử)   | vòng --av-parchment, không glow       |
+   | --av-approve(-light), --av-reject(-light) | nút phiếu trung tính, icon + chữ |
+   | emerald-* / purple-* / fuchsia-* / indigo-* / teal-* / orange-* | trung tính, --av-gold hoặc --av-evil |
    | GlassPanel 12 tone                  | 4 tone: neutral, accent, good, evil   |
+   Bán kính giao diện chỉ 3 kiểu: rounded-full (avatar, chip), rounded-xl
+   (nút, ô Quest, thẻ nhỏ), rounded-2xl (panel). Lá bài vẽ (QuestCard, lá
+   phiếu úp) dùng .av-card bên dưới.
 */
 .avalon-root {
   --av-good: #5b8def; /* Phe Người */
@@ -53,13 +56,6 @@
   --av-good-ink: #24499c;
   --av-evil-ink: #9c2b2b;
 
-  /* Đã bỏ (GĐ7a) — chỉ còn cho các màn chưa dọn, GĐ7b xoá. */
-  --av-glass-border: var(--av-line);
-  --av-team: #f0883e;
-  --av-approve: #4fae74;
-  --av-reject: #9a6bb4;
-  --av-reject-light: #c9a8dc;
-  --av-approve-light: #93d6ab;
 }
 
 /* Font tiêu đề (Cormorant Garamond, có dấu tiếng Việt) — biến
@@ -70,6 +66,12 @@
   font-weight: 700;
   /* Cormorant mặc định dùng số kiểu cổ: "1" trông như "I" — ép số thẳng hàng. */
   font-variant-numeric: lining-nums;
+}
+
+/* Lá bài vẽ (lá Quest, mặt sau, lá phiếu úp): góc bo theo tỉ lệ của lá 5:7,
+   không phải một bán kính giao diện. */
+.av-card {
+  border-radius: 14% / 10%;
 }
 
 /* AvIcon: preflight của Tailwind đặt svg/img thành display:block; icon của

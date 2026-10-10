@@ -143,6 +143,7 @@ export default function StyleBoard() {
               <AvButton variant="danger" icon="delete">Xoá phòng</AvButton>
               <AvButton variant="ghost" icon="eye">Vai của tôi</AvButton>
               <AvButton variant="ghost" icon="more" aria-label="Menu" />
+              <AvButton variant="ghost" danger icon="delete">Xoá phòng (dòng menu)</AvButton>
             </div>
             <div className="flex flex-wrap items-center gap-3">
               <AvButton variant="primary" size="lg" icon="check">Cỡ lg (dock)</AvButton>
@@ -193,7 +194,10 @@ export default function StyleBoard() {
               <AvIcon name="quest-success" className="text-(--av-good-light)" /> I thắng · <AvIcon name="quest-fail" className="text-(--av-evil-light)" /> II thua ·
               III đang chơi (vàng) · IV chưa chơi, dấu 2 lá · V chưa chơi
             </li>
-            <li>Ghế: An = bạn (viền đứt), An / Bình / Dũng được đề cử (vòng giấy da), gợi ý đêm của Merlin (góc: Giang, Phong), chấm đã bầu (Bình, Dũng)</li>
+            <li>
+              Ghế: An = bạn (viền đứt), An / Bình / Dũng được đề cử (vòng giấy da), gợi ý đêm của Merlin (góc phải: Giang, Phong); chấm
+              góc trái: đặc = đã bầu (Bình, Dũng), rỗng = chưa bầu
+            </li>
           </ul>
           <div className="mx-auto max-w-[420px]">
             <RoundTable players={table.players} state={table.state} myPlayerId="p1" viewerRole={AvalonRole.Merlin} playerCount={7} />

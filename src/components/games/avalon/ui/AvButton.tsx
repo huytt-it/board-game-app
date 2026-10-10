@@ -9,15 +9,19 @@ import AvIcon, { type IconName } from '../assets/AvIcon';
 // - `secondary`: glass with the thin line edge, parchment text.
 // - `danger`: an --av-evil edge and text, no solid red.
 // - `ghost`: no frame, for the top bar; compact (36px), its touch area still
-//   44px. With `block` it is a full-width 44px row (a menu item).
-// - `choice`: a large neutral card (Approve / Reject, the quest cards), solid
-//   (readable over a bright scene on a desktop), without an edge (it sits in the dock / a panel: no frame in a frame). Both
-//   cards of a choice look the same — neither invites the tap more than the
-//   other; `selected` gives the picked one a gold edge.
+//   44px. With `block` it is a full-width 44px row (a menu item); `danger`
+//   turns that row's text and icon red (Xoá phòng), still without a frame.
+// - `choice`: a large neutral card (Approve / Reject, the quest cards, the
+//   night card), solid (readable over a bright scene on a desktop), without
+//   an edge (it sits in the dock / a panel: no frame in a frame). Both cards
+//   of a choice look the same — neither invites the tap more than the other;
+//   `selected` gives the picked one a gold edge.
+// - `bare`: no look and no size of its own — a drawn object that is pressed
+//   (the sealed role letter); it keeps the shared focus ring and disabled state.
 //
 // Sizes: `md` ≥ 44px, `lg` 56px (the dock). Disabled is the same for all: dimmed,
 // no hover. The focus ring is avalon.css's (every button in .avalon-root).
-export type AvButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'choice';
+export type AvButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'choice' | 'bare';
 export type AvButtonSize = 'md' | 'lg';
 
 const VARIANT: Record<AvButtonVariant, string> = {
@@ -26,7 +30,9 @@ const VARIANT: Record<AvButtonVariant, string> = {
   danger: 'rounded-xl border border-(--av-evil)/60 bg-(color:--av-glass-bg) text-(--av-evil-light) enabled:hover:border-(--av-evil)',
   ghost: 'text-(--av-text-2) enabled:hover:bg-white/10 enabled:hover:text-(--av-text)',
   choice: 'rounded-xl border border-transparent bg-(--av-raised) text-(--av-text) shadow-lg shadow-black/30 enabled:hover:brightness-125',
+  bare: '',
 };
+const GHOST_DANGER = 'text-(--av-evil-light) enabled:hover:bg-(--av-evil)/10';
 
 const SIZE: Record<AvButtonSize, string> = {
   md: 'min-h-11 px-4 text-sm',
@@ -43,6 +49,8 @@ interface AvButtonProps extends ComponentPropsWithRef<'button'> {
   block?: boolean;
   /** Content alignment; a full-width ghost (a menu row) starts at the left. */
   align?: 'start' | 'center';
+  /** `ghost` only: a destructive row (red text, no frame). */
+  danger?: boolean;
 }
 
 export default function AvButton({
@@ -52,22 +60,29 @@ export default function AvButton({
   selected = false,
   block = false,
   align = variant === 'ghost' && block ? 'start' : 'center',
+  danger = false,
   type = 'button',
   className = '',
   children,
   ...rest
 }: AvButtonProps) {
-  const sized =
-    variant !== 'ghost'
+  const bare = variant === 'bare';
+  const sized = bare
+    ? ''
+    : variant !== 'ghost'
       ? SIZE[size]
       : block
         ? 'h-11 rounded-xl px-3 text-sm'
         : 'av-hit [--av-hit-x:-4px] [--av-hit-y:-4px] h-9 min-w-9 rounded-full px-2 text-xs';
+  const look = variant === 'ghost' && danger ? GHOST_DANGER : VARIANT[variant];
   const picked = variant === 'choice' && selected ? 'border-(--av-gold) bg-(--av-gold)/10 ring-1 ring-(--av-gold)' : '';
+  const base = bare
+    ? 'relative block select-none disabled:cursor-not-allowed disabled:opacity-40'
+    : `relative inline-flex items-center ${align === 'start' ? 'justify-start' : 'justify-center'} gap-2 font-semibold leading-tight transition select-none enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40`;
   return (
     <button
       type={type}
-      className={`relative inline-flex items-center ${align === 'start' ? 'justify-start' : 'justify-center'} gap-2 font-semibold leading-tight transition select-none enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40 ${VARIANT[variant]} ${sized} ${picked} ${block ? 'w-full' : ''} ${className}`}
+      className={`${base} ${look} ${sized} ${picked} ${block ? 'w-full' : ''} ${className}`}
       data-av-button={variant}
       aria-pressed={variant === 'choice' && selected ? true : undefined}
       {...rest}

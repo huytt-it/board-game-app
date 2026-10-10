@@ -112,6 +112,18 @@ function FlyingToken({
   );
 }
 
+// The phases that have a team on the table (picked, voted on, on the quest,
+// its result). Elsewhere the last team's tokens and rings are gone: at the
+// discussion, the Lady, the assassination and the end the table shows no team.
+const TEAM_PHASES: ReadonlySet<AvalonGameState['phase']> = new Set([
+  'team-build',
+  'team-vote',
+  'team-vote-result',
+  'quest-play',
+  'quest-result',
+]);
+export const isTeamPhase = (phase: AvalonGameState['phase']) => TEAM_PHASES.has(phase);
+
 export default function TableTokens({ players, state }: { players: Player[]; state: AvalonGameState }) {
   const n = players.length;
   const seatOf = (id: string | null) => (id ? players.findIndex((p) => p.id === id) : -1);
@@ -124,7 +136,7 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
   const lineup = state.phase === 'lineup-preview';
   const cue = useCue(state.phaseStartedAt ?? 0);
 
-  const team = state.proposedTeam.filter((id) => seatOf(id) >= 0);
+  const team = isTeamPhase(state.phase) ? state.proposedTeam.filter((id) => seatOf(id) >= 0) : [];
   const nominated = useArrivals(team);
   const from = leaderIdx >= 0 ? seatPosition(leaderIdx, n) : null;
 

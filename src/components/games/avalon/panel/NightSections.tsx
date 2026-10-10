@@ -5,8 +5,10 @@ import type { Player } from '@/types/player';
 import { AvalonRole, PHASE_TIMEOUTS_MS, type AvalonGameData, type AvalonGameState } from '../types';
 import { ROLE_NAMES_VI } from '../constants';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
+import { DockStatus } from './shared';
 import AvIcon, { type IconName } from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
+import AvButton from '../ui/AvButton';
 import GlassPanel from '../ui/GlassPanel';
 import PlayerAvatar from '../ui/PlayerAvatar';
 
@@ -64,11 +66,12 @@ function NightCountdown({ state, phase, allActiveAcked }: { state: AvalonGameSta
   const { remaining } = usePhaseClock(state, PHASE_TIMEOUTS_MS[phase]);
   const low = remaining < 15000;
   return (
-    <GlassPanel tone={!allActiveAcked && low ? 'evil' : 'neutral'} className="p-4 text-center">
-      <p className="mb-1 text-[11px] font-bold uppercase text-slate-400">
-        {allActiveAcked ? 'Đang chuyển bước...' : 'Tự động qua bước sau'}
-      </p>
-      <p className={`text-2xl font-black tabular-nums ${allActiveAcked ? 'text-emerald-300' : low ? 'text-amber-300' : 'text-white'}`}>
+    <GlassPanel tone={!allActiveAcked && low ? 'evil' : 'neutral'} className="flex items-center justify-between gap-3 p-4">
+      <p className="text-sm text-(--av-text-2)">{allActiveAcked ? 'Đang chuyển bước…' : 'Tự động qua bước sau'}</p>
+      <p
+        className={`text-2xl font-bold tabular-nums ${allActiveAcked ? 'text-(--av-gold)' : low ? 'text-(--av-evil-light)' : 'text-(--av-text)'}`}
+        role="timer"
+      >
         {allActiveAcked ? <AvIcon name="check" title="Đã xong" /> : formatClock(remaining)}
       </p>
     </GlassPanel>
@@ -78,13 +81,13 @@ function NightCountdown({ state, phase, allActiveAcked }: { state: AvalonGameSta
 function SeenChip({ player, mark }: { player: Player; mark: 'evil' | 'unknown' }) {
   return (
     <span
-      className={`inline-flex max-w-[9rem] items-center gap-1.5 rounded-full border bg-black/35 py-0.5 pl-0.5 pr-2 text-xs font-bold text-white ${
-        mark === 'evil' ? 'border-(--av-evil)/55' : 'border-indigo-400/55'
+      className={`inline-flex max-w-[9rem] items-center gap-1.5 rounded-full border bg-black/35 py-0.5 pl-0.5 pr-2 text-xs font-semibold text-(--av-text) ${
+        mark === 'evil' ? 'border-(--av-evil)/55' : 'border-(--av-parchment)/50'
       }`}
     >
       <PlayerAvatar player={player} size="xs" />
       <span className="truncate">{player.name}</span>
-      {mark === 'unknown' && <AvIcon name="unknown" className="shrink-0 text-indigo-300" title="Merlin hay Morgana?" />}
+      {mark === 'unknown' && <AvIcon name="unknown" className="shrink-0 text-(--av-parchment)" title="Merlin hay Morgana?" />}
     </span>
   );
 }
@@ -110,8 +113,8 @@ function NightCard({
     body = (
       <>
         <AvIcon name="eye" size={30} className="text-(--av-gold)" />
-        <span className="mt-1 block text-sm font-black text-(--av-parchment)">Nhấn giữ để xem</span>
-        <span className="mt-0.5 block text-[11px] leading-snug text-slate-300">
+        <span className="mt-1 block text-sm font-bold text-(--av-text)">Nhấn giữ để xem</span>
+        <span className="mt-0.5 block text-xs font-normal leading-snug text-(--av-text-2)">
           Ai không được gọi cũng nhấn giữ — màn hình của mọi người như nhau.
         </span>
       </>
@@ -119,9 +122,9 @@ function NightCard({
   } else if (!sight.active) {
     body = (
       <>
-        <AvIcon name="night" size={26} className="text-slate-200" />
-        <span className="mt-1 block text-sm font-black text-white">Lượt này không gọi bạn</span>
-        <span className="mt-0.5 block text-[11px] leading-snug text-slate-300">
+        <AvIcon name="night" size={26} className="text-(--av-text-2)" />
+        <span className="mt-1 block text-sm font-bold text-(--av-text)">Lượt này không gọi bạn</span>
+        <span className="mt-0.5 block text-xs font-normal leading-snug text-(--av-text-2)">
           {role ? <>Bạn là {ROLE_NAMES_VI[role]}. </> : null}Cứ nhắm mắt, chờ lượt sau.
         </span>
       </>
@@ -130,8 +133,8 @@ function NightCard({
     body = (
       <>
         <AvIcon name="oberon" size={26} className="text-(--av-evil-light)" />
-        <span className="mt-1 block text-sm font-black text-white">Bạn là Oberon — đơn độc</span>
-        <span className="mt-0.5 block text-[11px] leading-snug text-slate-300">
+        <span className="mt-1 block text-sm font-bold text-(--av-text)">Bạn là Oberon — đơn độc</span>
+        <span className="mt-0.5 block text-xs font-normal leading-snug text-(--av-text-2)">
           Không đồng đội nào hiện ra với bạn, và họ cũng không thấy bạn.
         </span>
       </>
@@ -147,28 +150,24 @@ function NightCard({
           : 'Một người là Merlin, người kia là Morgana.';
     body = (
       <>
-        <span className="block text-sm font-black text-white">{title}</span>
+        <span className="block text-sm font-bold text-(--av-text)">{title}</span>
         <span className="mt-1.5 flex flex-wrap justify-center gap-1.5">
           {sight.seen.length === 0 ? (
-            <span className="text-xs text-slate-300">Không ai hiện ra với bạn.</span>
+            <span className="text-xs font-normal text-(--av-text-2)">Không ai hiện ra với bạn.</span>
           ) : (
             sight.seen.map((p) => <SeenChip key={p.id} player={p} mark={phase === 'night-percival' ? 'unknown' : 'evil'} />)
           )}
         </span>
-        <span className="mt-1.5 block text-[11px] leading-snug text-slate-300">{note}</span>
+        <span className="mt-1.5 block text-xs font-normal leading-snug text-(--av-text-2)">{note}</span>
       </>
     );
   }
 
   return (
-    <button
-      type="button"
-      {...bind}
-      data-night-card={held ? 'open' : 'sealed'}
-      className="av-hold flex h-32 w-full cursor-pointer flex-col items-center justify-center overflow-hidden rounded-2xl border border-(--av-gold)/45 bg-(color:--av-glass-bg) px-3 text-center shadow-lg shadow-black/30 outline-none focus-visible:ring-2 focus-visible:ring-(--av-gold)"
-    >
-      {body}
-    </button>
+    // A `choice` card (solid, no edge: it sits in the dock), the same for everyone.
+    <AvButton variant="choice" block {...bind} data-night-card={held ? 'open' : 'sealed'} className="av-hold h-32 overflow-hidden text-center">
+      <span className="flex flex-col items-center">{body}</span>
+    </AvButton>
   );
 }
 
@@ -209,13 +208,13 @@ export function NightSection({
       <ActionDock>
         <div className="flex flex-col gap-2">
           <NightCard phase={phase} me={myPlayer} sight={sight} held={held} bind={holdBind} />
-          <button
-            onClick={onContinue}
-            disabled={done}
-            className="w-full rounded-2xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-3 text-base font-black text-(--av-parchment) transition-all hover:bg-(--av-gold)/30 active:scale-[0.98] disabled:border-white/10 disabled:bg-(color:--av-glass-bg) disabled:text-slate-300"
-          >
-            {done ? '✓ Xong — chờ lượt sau' : '✓ Đã xem — Tiếp tục'}
-          </button>
+          {done ? (
+            <DockStatus icon="check" title="Xong — chờ lượt sau" />
+          ) : (
+            <AvButton variant="primary" size="lg" block icon="check" onClick={onContinue}>
+              Đã xem — tiếp tục
+            </AvButton>
+          )}
         </div>
       </ActionDock>
     </div>

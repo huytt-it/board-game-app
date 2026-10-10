@@ -1,15 +1,14 @@
 import { useState } from 'react';
 import type { Player } from '@/types/player';
-import type { AvalonGameData, AvalonGameState } from '../types';
+import type { AvalonGameState } from '../types';
 import { TEAM_NAME_VI } from '../constants';
 import { TEAM_ICON_NAME } from '../presentation';
 import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
-import { PlayerRoster } from './PlayerRoster';
-import { LowTimeClock, TokenBadges } from './shared';
+import { LowTimeClock, PanelHead, PanelLine } from './shared';
 import AvIcon from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
+import AvButton from '../ui/AvButton';
 import GlassPanel from '../ui/GlassPanel';
-import PlayerAvatar from '../ui/PlayerAvatar';
 
 // The inspected team, shown ONLY to the Lady. The card around it stays neutral
 // (ux-plan 2.9): only the words and a mid-size icon carry the team colour.
@@ -32,19 +31,16 @@ function LadyResultCard({ target, team, live }: { target: Player; team: 'good' |
   return (
     <div style={{ perspective: '800px' }} data-lady-result={team} data-lady-flip={live ? 'live' : 'static'}>
       <div className={`relative [transform-style:preserve-3d] ${live ? 'av-lady-flip' : ''}`}>
-        <GlassPanel tone="neutral" className="av-flip-face p-6 text-center">
-          <p className="text-[11px] uppercase font-bold text-slate-300 mb-1 tracking-widest">
-            <AvIcon name="lady" /> Kết quả soi
+        <GlassPanel className="av-flip-face p-5 text-center">
+          <p className="text-sm text-(--av-text-2)">
+            <span className="font-semibold text-(--av-text)">{target.name}</span> thuộc
           </p>
-          <p className="text-base font-black text-white">{target.name} là</p>
           <InspectedTeam team={team} />
-          <p className="text-[11px] text-slate-400 italic">
-            Bạn có thể chia sẻ thật / nói xạo với nhóm tuỳ ý.
-          </p>
+          <p className="text-xs text-(--av-text-3)">Nói thật hay nói dối với cả bàn là tuỳ bạn.</p>
         </GlassPanel>
         {/* The back: one design for every result. */}
         <div
-          className="av-flip-back flex items-center justify-center rounded-2xl border-2 border-(--av-lady)/60 bg-(--av-ink)"
+          className="av-flip-back flex items-center justify-center rounded-2xl border border-(--av-line) bg-(--av-ink)"
           aria-hidden
         >
           <AvIcon name="lady" size={56} className="text-(--av-lady)" />
@@ -54,20 +50,23 @@ function LadyResultCard({ target, team, live }: { target: Player; team: 'good' |
   );
 }
 
+// lady-of-lake ("one sentence, one action", ux-plan 8b). The holder picks on
+// the table — a tap on a seat aims (PlayerPanel handleLadyTablePick → the
+// existing onLadyInspect, which also resets the clock) — and confirms in the
+// dock; everyone else reads one line. The aim is the Lady's token flying to
+// that seat. The target and the bystanders get the same neutral words
+// whatever the result: only the holder ever sees a team.
 export function LadySection({
   state,
   myPlayer,
   gamePlayers,
-  onLadyInspect,
   onLadyConfirm,
   onLadyFinish,
 }: {
   state: AvalonGameState;
   myPlayer: Player;
   gamePlayers: Player[];
-  onLadyInspect: (id: string) => void;
   onLadyConfirm: () => void;
-  onLadyShow: (card: 'good' | 'evil') => void;
   onLadyFinish: () => void;
 }) {
   const isHolder = state.ladyHolderId === myPlayer.id;
@@ -81,9 +80,14 @@ export function LadySection({
   // when it does; if the result is already there (a reload) it just shows.
   const [liveReveal] = useState(() => !inspected);
 
-  // Đếm ngược 45s — hiển thị cho cả Lady, target và bystander.
+  // Đếm ngược — hiển thị cho cả Lady, target và bystander. The holder's dock
+  // is already blinking: their clock only turns red.
   const { remaining } = usePhaseClock(state);
-  const timeStr = formatSecs(remaining);
+  const clock = inspected ? undefined : (
+    <LowTimeClock low={remaining < 10_000} throb={!isHolder}>
+      {formatSecs(remaining)}
+    </LowTimeClock>
+  );
 
   // What the screen reader hears when the Lady looks: the holder hears the
   // team, nobody else ever does (the same words for the target and the rest).
@@ -98,181 +102,73 @@ export function LadySection({
       {announce}
     </p>
   );
+  const name = (p: Player | null | undefined, fallback = '?') => (
+    <span className="font-semibold text-(--av-text)">{p?.name ?? fallback}</span>
+  );
 
-  if (isTarget) {
-    // The screen is the same whichever team the viewer is on: the card is
-    // neutral and says nothing about what the Lady saw (ux-plan 2.4).
-    if (!inspected) {
-      return (
-        <GlassPanel tone="neutral" className="p-5 text-center">
-          {live}
-          <p className="text-[11px] uppercase font-black text-teal-100 mb-2 tracking-widest">
-            <AvIcon name="lady" /> {holder?.name} đang ngắm bạn
-          </p>
-          <p className="text-sm text-slate-300 mb-3">
-            Chờ Lady bấm <strong className="text-white">Xác nhận soi</strong> để nhìn thấy phe thật của bạn.
-          </p>
-          <AvIcon name="eye" size={30} className="mb-1 animate-pulse text-(--av-lady)" />
-          <p className="text-[11px] text-slate-400">Còn lại {timeStr}</p>
-        </GlassPanel>
-      );
-    }
-    return (
-      <GlassPanel tone="neutral" className="p-6 text-center">
-        {live}
-        <p className="text-[11px] uppercase font-black text-slate-300 mb-2 tracking-widest">
-          <AvIcon name="lady" /> {holder?.name} đã soi bạn
-        </p>
-        <AvIcon name="eye" size={40} className="text-(--av-lady)" />
-        <p className="av-display mt-1 text-2xl text-white">Đã soi</p>
-        <p className="mt-2 text-[11px] text-slate-400">
-          Lady đã thấy phe thật của bạn — không thể nói xạo với Lady.
-        </p>
-        <p className="mt-3 text-xs text-slate-300">
-          Chờ {holder?.name} hoàn tất để chuyển token...
-        </p>
-        <AvIcon name="waiting" size={24} className="mt-2 animate-pulse text-slate-300" />
-      </GlassPanel>
-    );
-  }
-
-  if (isHolder) {
-    // Bước 3: đã confirm → reveal + Hoàn tất.
-    if (target && inspected) {
-      return (
-        <div className="space-y-3">
-          {live}
-          <LadyResultCard target={target} team={shown === 'good' ? 'good' : 'evil'} live={liveReveal} />
-          <ActionDock>
-            <button
-              onClick={onLadyFinish}
-              className="w-full rounded-2xl bg-(--av-lady) py-4 font-black text-(--av-ink) text-base hover:brightness-110 active:scale-95"
-            >
-              ✓ Hoàn tất — Chuyển token cho {target.name}
-            </button>
-          </ActionDock>
-        </div>
-      );
-    }
-
-    // Bước 1+2 gộp: luôn hiện candidate list. Click 1 người → highlight + sáng
-    // nút "Xác nhận soi". Click người khác → highlight chuyển + đồng hồ reset
-    // (thực hiện trong useAvalon.ladyInspect bằng cách ghi phaseStartedAt mới).
-    const candidates = gamePlayers.filter((p) => {
-      if (p.id === myPlayer.id) return false;
-      if (state.ladyHistory.includes(p.id)) return false;
-      return true;
-    });
-    const hasPick = !!state.ladyTargetId;
-
+  if (isHolder && target && inspected) {
     return (
       <div className="space-y-3">
         {live}
-        <GlassPanel tone="neutral" className="p-4">
-          <div className="flex items-center justify-between mb-1">
-            <p className="text-[11px] uppercase font-black text-(--av-lady)"><AvIcon name="lady" /> Lady of the Lake</p>
-            <LowTimeClock low={remaining < 10_000} className={remaining < 10_000 ? 'text-orange-300' : 'text-teal-100'}>
-              {timeStr}
-            </LowTimeClock>
-          </div>
-          <h3 className="av-display text-xl text-white mb-1">
-            {hasPick ? `Đã chọn ${target?.name} — bấm Xác nhận soi` : 'Chọn 1 người để soi'}
-          </h3>
-          <p className="text-xs text-slate-300 mb-3">
-            Người đã từng cầm token không được soi lại. Đổi người: bấm vào người khác trong danh sách (đồng hồ sẽ reset).
-          </p>
-          <div className="grid grid-cols-2 gap-2">
-            {candidates.map((p) => {
-              const picked = state.ladyTargetId === p.id;
-              return (
-                <button
-                  key={p.id}
-                  onClick={() => onLadyInspect(p.id)}
-                  aria-pressed={picked}
-                  className={`min-h-14 rounded-xl border p-3 text-left transition-all active:scale-95 ${picked
-                    ? 'border-(--av-lady) bg-(--av-lady)/20 ring-2 ring-(--av-lady)/60 shadow-lg shadow-black/40'
-                    : 'border-white/10 bg-white/5 hover:bg-white/10'
-                    }`}
-                >
-                  <div className="flex items-center gap-2">
-                    <PlayerAvatar player={p} size="sm" aim={picked ? 'lady' : null} />
-                    <span className="text-sm font-bold text-white truncate">{p.name}</span>
-                  </div>
-                  <TokenBadges playerId={p.id} state={state} />
-                  {picked && (
-                    <p className="mt-1 text-[10px] font-black text-teal-100">
-                      <AvIcon name="eye" /> Đang ngắm
-                    </p>
-                  )}
-                </button>
-              );
-            })}
-          </div>
-        </GlassPanel>
-
+        <LadyResultCard target={target} team={shown === 'good' ? 'good' : 'evil'} live={liveReveal} />
         <ActionDock>
-          <button
-            onClick={onLadyConfirm}
-            disabled={!hasPick}
-            className={`w-full rounded-2xl py-3.5 text-base font-black transition-all active:scale-95 ${hasPick
-              ? 'bg-(--av-lady) text-(--av-ink) hover:brightness-110 shadow-lg shadow-black/40'
-              : 'bg-slate-800 text-slate-400 cursor-not-allowed'
-              }`}
-          >
-            <AvIcon name="eye" /> Xác nhận soi {hasPick ? target?.name : '(chọn 1 người)'}
-          </button>
+          <AvButton variant="primary" size="lg" block icon="lady" onClick={onLadyFinish}>
+            Hoàn tất — chuyển Lady cho {target.name}
+          </AvButton>
         </ActionDock>
       </div>
     );
   }
 
-  // Bystander view — thấy ai đang được Lady ngắm/đã soi.
-  return (
-    <div className="space-y-3">
-      {live}
-      <GlassPanel tone="neutral" className="p-5 text-center">
-        <p className="text-[11px] uppercase font-bold text-(--av-lady) mb-2"><AvIcon name="lady" /> Lady of the Lake</p>
-        {!target && (
-          <>
-            <p className="text-sm text-slate-300">
-              <span className="font-black text-white">{holder?.name}</span> đang chọn người để soi...
-            </p>
-            <p className="mt-2 text-[11px] text-amber-300/80"><AvIcon name="clock" /> Còn lại {timeStr}</p>
-          </>
-        )}
-        {target && !inspected && (
-          <>
-            <p className="text-sm text-slate-300">
-              <span className="font-black text-white">{holder?.name}</span> đang ngắm{' '}
-              <span className="font-black text-teal-100">{target.name}</span>.
-            </p>
-            <p className="mt-1 text-xs text-slate-400">Chờ Lady xác nhận soi...</p>
-            <p className="mt-2 text-[11px] text-amber-300/80"><AvIcon name="clock" /> Còn lại {timeStr}</p>
-          </>
-        )}
-        {target && inspected && (
-          <>
-            <p className="text-sm text-slate-300">
-              <span className="font-black text-white">{holder?.name}</span> đã soi{' '}
-              <span className="font-black text-teal-100">{target.name}</span>.
-            </p>
-            <p className="mt-1 text-xs text-slate-400">Chờ Lady chuyển token...</p>
-          </>
-        )}
-        <AvIcon name="waiting" size={30} className="mt-3 animate-pulse text-slate-300" />
-      </GlassPanel>
-      <div className="lg:hidden">
-        <PlayerRoster
-          gamePlayers={gamePlayers}
-          state={state}
-          myPlayerId={myPlayer.id}
-          highlightedIds={state.ladyTargetId ? [state.ladyTargetId] : []}
-          showLadyTarget
-          title="Tất cả người chơi (highlight = đang bị ngắm)"
-          emphasis="lady"
-          viewerRole={(myPlayer.gameData as Partial<AvalonGameData>).role}
-        />
+  if (isHolder) {
+    // Aim on the table; aiming at someone else moves the token and resets
+    // the clock (useAvalon.ladyInspect).
+    return (
+      <div className="space-y-3">
+        {live}
+        <GlassPanel tone="accent" className="p-4">
+          <PanelHead title="Soi một người" clock={clock} />
+          <PanelLine>
+            {target ? (
+              <>Đang ngắm {name(target)} — chạm ghế khác để đổi.</>
+            ) : (
+              'Chạm vào một ghế trên bàn. Người từng cầm Lady không soi được.'
+            )}
+          </PanelLine>
+        </GlassPanel>
+        <ActionDock>
+          <AvButton variant="primary" size="lg" block icon="eye" onClick={onLadyConfirm} disabled={!target}>
+            {target ? `Xác nhận soi ${target.name}` : 'Chọn 1 người trên bàn'}
+          </AvButton>
+        </ActionDock>
       </div>
-    </div>
+    );
+  }
+
+  // The target and the bystanders: one line, the same whatever the result.
+  const title = inspected ? 'Đã soi' : 'Lady of the Lake';
+  const line = isTarget ? (
+    inspected ? (
+      <>{name(holder, 'Lady')} đã thấy phe thật của bạn — chờ chuyển Lady.</>
+    ) : (
+      <>{name(holder, 'Lady')} đang ngắm bạn — chờ xác nhận soi.</>
+    )
+  ) : !target ? (
+    <>{name(holder, 'Lady')} đang chọn người để soi.</>
+  ) : inspected ? (
+    <>
+      {name(holder, 'Lady')} đã soi {name(target)} — chờ chuyển Lady.
+    </>
+  ) : (
+    <>
+      {name(holder, 'Lady')} đang ngắm {name(target)}.
+    </>
+  );
+  return (
+    <GlassPanel className="p-4">
+      {live}
+      <PanelHead title={title} clock={clock} />
+      <PanelLine>{line}</PanelLine>
+    </GlassPanel>
   );
 }

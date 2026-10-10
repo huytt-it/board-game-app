@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, type CSSProperties, type MouseEvent } from 'react';
+import { useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, type AvalonQuestRecord } from './types';
 import { ROLE_NAMES_VI, ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
+import { ROLE_ICON_NAME } from './presentation';
 import { seatPosition } from './table/seatPosition';
-import TableTokens from './table/TableTokens';
+import TableTokens, { isTeamPhase } from './table/TableTokens';
 import CardPile from './table/CardPile';
 import { END, NIGHT, VOTE_RESULT, questResultTimeline } from './table/timelines';
 import { NIGHT_CALL, type NightPhase } from './panel/NightSections';
@@ -23,6 +24,10 @@ import RoleEmblem from './ui/RoleEmblem';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
 
+// The phases where each player confirms on their own (an ack), shown as the
+// "ready" mark on the seats. Never the night: who is called is secret.
+const READY_PHASES: ReadonlySet<string> = new Set(['lineup-preview', 'role-reveal', 'discussion']);
+
 interface RoundTableProps {
   players: Player[];
   state: AvalonGameState;
@@ -37,6 +42,12 @@ interface RoundTableProps {
   // Sát Thủ đang chọn Merlin → bấm avatar Phe Người để chọn.
   onAssassinPick?: (id: string) => void;
   canAssassinPick?: boolean;
+  // Người cầm Lady (chưa soi) → bấm ghế để ngắm người đó.
+  onLadyPick?: (id: string) => void;
+  canLadyPick?: boolean;
+  /** The scene title of the moment (scenes/SceneTitle), drawn on the table
+   *  surface between the upper seats and the quest tiles. */
+  sceneTitle?: ReactNode;
   /** Player ids in the order they joined the room: in lineup-preview the
    *  seats slide from that order to the game's seat order. */
   joinOrder?: readonly string[];
@@ -94,6 +105,9 @@ export default function RoundTable({
   pickedTeamLimit,
   onAssassinPick,
   canAssassinPick,
+  onLadyPick,
+  canLadyPick,
+  sceneTitle,
   joinOrder,
   glowIds,
   revealAll,
@@ -116,9 +130,16 @@ export default function RoundTable({
   const rejectedResult = state.phase === 'team-vote-result' && state.lastTeamVoteResult === 'rejected';
   const lastChance = rejectedResult && state.voteRejectStreak >= VOTE_TRACK_LIMIT - 1;
 
-  // "Voted" dots pop when a vote comes in (not on reload).
-  const votedIds = state.phase === 'team-vote' ? Object.keys(state.teamVotes ?? {}).sort() : [];
-  const freshVotes = useArrivals(votedIds);
+  // The small mark on each seat: in team-vote whether that player has
+  // voted (never how), and in the phases where everyone confirms on their own
+  // (the line-up, the role letter, the discussion) whether they are ready.
+  // Public in all of them. It pops when it comes in (not on reload).
+  const markKind = state.phase === 'team-vote' ? 'vote' : READY_PHASES.has(state.phase) ? 'ready' : null;
+  const markedIds =
+    markKind === 'vote' ? Object.keys(state.teamVotes ?? {}).sort() : markKind === 'ready' ? Object.keys(state.roleAcks ?? {}).sort() : [];
+  const freshMarks = useArrivals(markedIds);
+  // Who is on the team is shown only while there is a team on the table.
+  const teamOnTable = isTeamPhase(state.phase);
 
   const showPile = state.phase === 'quest-play' || questResult;
 
@@ -133,7 +154,7 @@ export default function RoundTable({
     // approved (one thing blinks at a time: the dock, or the Assassin's aim).
     const warn = isLast && !out && rejectStreak >= VOTE_TRACK_LIMIT - 1;
     const icon = (
-      <AvIcon name={out ? 'candle-out' : 'candle-lit'} className={`h-6 w-6 sm:h-7 sm:w-7 ${candleCls}`} />
+      <AvIcon name={out ? 'candle-out' : 'candle-lit'} className={`h-6 w-6 sm:h-7 sm:w-7 @min-[560px]:h-9 @min-[560px]:w-9 ${candleCls}`} />
     );
     return (
       <span
@@ -209,14 +230,14 @@ export default function RoundTable({
       <div className="absolute inset-[12%] rounded-full border-2 border-black/40 bg-[radial-gradient(circle_at_30%_25%,rgba(180,120,60,0.16),transparent_55%),linear-gradient(135deg,#33251a_0%,#241a10_50%,#140f0a_100%)] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(239,227,200,0.07)]">
         {/* Center: quest row + vote-track stacked vertically, a little below
             the middle: the name labels of the upper seats hang towards the
-            corners of the row (measured 0 overlap at 320–390px, 5–10 seats). */}
-        <div className="av-table-core absolute inset-x-0 bottom-0 top-[10cqw] flex flex-col items-center justify-center gap-3 px-3 sm:gap-4 sm:px-5">
+            corners of the row (measured 0 overlap at 300–1440px, 5–10 seats). */}
+        <div className="av-table-core absolute inset-x-0 bottom-0 top-[13cqw] flex flex-col items-center justify-center gap-3 px-3 sm:gap-4 sm:px-5 @min-[560px]:gap-5">
           {/* The five quests: a numeral and either the team size or the
               result. A tap opens the history (see openQuestAt). */}
           <button
             type="button"
             onClick={openQuestAt}
-            className="av-hit [--av-hit-x:-2px] [--av-hit-y:-6px] flex w-full max-w-[88%] items-stretch @min-[480px]:max-w-[78%] justify-center gap-1.5 rounded-xl transition hover:brightness-110 active:scale-[0.99] sm:gap-2"
+            className="av-hit [--av-hit-x:-2px] [--av-hit-y:-6px] flex w-full max-w-[88%] items-stretch @min-[480px]:max-w-[78%] justify-center gap-1.5 rounded-xl transition hover:brightness-110 active:scale-[0.99] sm:gap-2 @min-[560px]:gap-3"
             aria-label={rowLabel}
             title="Xem các Quest"
             data-quest-row=""
@@ -236,16 +257,16 @@ export default function RoundTable({
               return (
                 <span
                   key={idx}
-                  className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border py-1 sm:gap-1 sm:py-2.5 ${frame}`}
+                  className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border py-1 sm:gap-1 sm:py-2.5 @min-[560px]:gap-1.5 @min-[560px]:py-3.5 ${frame}`}
                   data-quest-idx={idx}
                   data-quest-tile={t.success ? 'success' : t.fail ? 'fail' : t.current ? 'current' : ended ? 'unplayed' : 'pending'}
                 >
                   {/* Roman numeral instead of "QUEST n": it never wraps. */}
-                  <span className="av-display text-lg leading-none whitespace-nowrap sm:text-2xl">{ROMAN[idx]}</span>
+                  <span className="av-display text-lg leading-none whitespace-nowrap sm:text-2xl @min-[560px]:text-3xl">{ROMAN[idx]}</span>
                   {t.done ? (
-                    <AvIcon name={t.success ? 'quest-success' : 'quest-fail'} className="h-5 w-5 sm:h-6 sm:w-6" />
+                    <AvIcon name={t.success ? 'quest-success' : 'quest-fail'} className="h-5 w-5 sm:h-6 sm:w-6 @min-[560px]:h-8 @min-[560px]:w-8" />
                   ) : (
-                    <span className="inline-flex h-5 items-center gap-0.5 whitespace-nowrap text-xs font-semibold tabular-nums sm:h-6">
+                    <span className="inline-flex h-5 items-center gap-0.5 whitespace-nowrap text-xs font-semibold tabular-nums sm:h-6 @min-[560px]:h-8 @min-[560px]:text-base">
                       <AvIcon name="team" />
                       {q.teamSize}
                     </span>
@@ -294,6 +315,9 @@ export default function RoundTable({
         {night && <NightVeil key={night} phase={night} startedAt={startedAt} />}
       </div>
 
+      {/* The scene's name, on the free band of the table (scenes/SceneTitle). */}
+      {sceneTitle}
+
       {/* Player avatars arranged around the table (see table/seatPosition.ts).
           Each seat is centred on the AVATAR (the name hangs below it), so the
           tokens of TableTokens land on the same points. */}
@@ -305,7 +329,7 @@ export default function RoundTable({
         const joinedAt = lineup && joinOrder ? joinOrder.indexOf(p.id) : -1;
         const from = joinedAt >= 0 && joinedAt !== i ? seatPosition(joinedAt, n) : null;
         const glowing = !!night && !!glowIds?.includes(p.id);
-        const isOnTeam = state.proposedTeam.includes(p.id);
+        const isOnTeam = teamOnTable && state.proposedTeam.includes(p.id);
         const isLeader = state.currentLeaderId === p.id;
         const isLady = state.ladyHolderId === p.id;
         const isLadyTarget = state.ladyTargetId === p.id;
@@ -316,11 +340,13 @@ export default function RoundTable({
         // End: the seat turns over to its role (everything is public now, so
         // the viewer's private hints are not needed any more).
         const role = revealAll !== undefined ? data.role : undefined;
-        const hint = role ? null : getViewerHint(p, myPlayerId, viewerRole);
+        // At the assassination the Evil team stands revealed to everyone: a
+        // public badge with the role replaces the viewer's private hint.
+        const unmasked = state.phase === 'assassinate' && data.team === 'evil' && data.role ? data.role : null;
+        const hint = role || unmasked ? null : getViewerHint(p, myPlayerId, viewerRole);
         const stabbed = !!role && state.merlinTargetId === p.id;
 
-        const voted = state.teamVotes && state.teamVotes[p.id];
-        const showVoteDot = state.phase === 'team-vote';
+        const marked = markedIds.includes(p.id);
 
         const isPickable = canPick && state.phase === 'team-build' && onTogglePick;
         const isAssassinPickable =
@@ -328,21 +354,34 @@ export default function RoundTable({
           state.phase === 'assassinate' &&
           onAssassinPick &&
           data.team === 'good';
+        // The Lady may look at anyone but herself and the former holders.
+        const isLadyPickable =
+          canLadyPick &&
+          state.phase === 'lady-of-lake' &&
+          onLadyPick &&
+          p.id !== state.ladyHolderId &&
+          !state.ladyHistory.includes(p.id);
 
         const handleClick = () => {
           if (isAssassinPickable) {
             onAssassinPick!(p.id);
             return;
           }
+          if (isLadyPickable) {
+            onLadyPick!(p.id);
+            return;
+          }
           if (isPickable) onTogglePick!(p.id);
         };
 
-        const Wrapper: 'button' | 'div' = isPickable || isAssassinPickable ? 'button' : 'div';
+        const Wrapper: 'button' | 'div' = isPickable || isAssassinPickable || isLadyPickable ? 'button' : 'div';
         const wrapperExtra = isPickable
           ? `cursor-pointer active:scale-95 ${isOnTeam ? '' : 'hover:ring-2 hover:ring-(--av-gold)/60'}`
           : isAssassinPickable
             ? `cursor-pointer active:scale-95 hover:ring-2 hover:ring-(--av-evil)/70 ${isAssassinTarget ? 'av-stab' : ''}`
-            : '';
+            : isLadyPickable
+              ? `cursor-pointer active:scale-95 ${isLadyTarget ? '' : 'hover:ring-2 hover:ring-(--av-gold)/60'}`
+              : '';
         // The tokens are drawn by TableTokens; say them in the seat's title.
         const tokens = `${isLeader ? ' · Leader' : ''}${isLady ? ' · Lady of the Lake' : ''}${role ? ` · ${ROLE_NAMES_VI[role]}` : ''}`;
 
@@ -368,33 +407,46 @@ export default function RoundTable({
               </>
             )}
 
-            {/* ONE corner badge per seat: the viewer's night hint first
-                (visible evil / Percival's "Merlin or Morgana?"), else the
-                vote dot of team-vote — never both. */}
-            {hint ? (
+            {/* The vote / ready mark, bottom-LEFT: says only THAT they voted
+                (never how) / are ready — filled when in, hollow while
+                waiting. It pops when it comes in. Every seat shows it: it
+                never competes with the corner badge on the right. */}
+            {markKind && (
               <span
-                title={hint.label}
-                className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border text-xs ${hint.kind === 'percival-sees'
-                  ? 'border-(--av-parchment)/70 bg-(--av-ink) text-(--av-parchment)'
-                  : 'border-(--av-evil-light) bg-(--av-evil) text-white'
-                  }`}
-                data-seat-badge="hint"
+                key={marked ? 'in' : 'waiting'}
+                title={markKind === 'vote' ? (marked ? 'Đã bầu' : 'Chưa bầu') : marked ? 'Sẵn sàng' : 'Chưa sẵn sàng'}
+                {...(markKind === 'vote'
+                  ? { 'data-vote-dot': marked ? 'voted' : 'waiting' }
+                  : { 'data-ready-dot': marked ? 'ready' : 'waiting' })}
+                className={`absolute -bottom-0.5 -left-0.5 h-3.5 w-3.5 rounded-full border-2 ${
+                  marked ? `border-(--av-ink) bg-(--av-parchment) ${freshMarks.has(p.id) ? 'av-pop' : ''}` : 'border-(--av-text-3) bg-(--av-ink)'
+                }`}
+              />
+            )}
+
+            {/* At most ONE corner badge per seat, bottom-right: the viewer's
+                night hint (visible evil / Percival's "Merlin or Morgana?"), or
+                — at the assassination — the unmasked Evil role, public. */}
+            {unmasked ? (
+              <span
+                title={`${ROLE_NAMES_VI[unmasked]} · Phe Quỷ`}
+                className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-(--av-evil-light) bg-(--av-evil) text-xs text-(--av-ink)"
+                data-seat-badge="unmasked"
               >
-                <AvIcon name={hint.icon} />
+                <AvIcon name={ROLE_ICON_NAME[unmasked]} />
               </span>
             ) : (
-              showVoteDot && (
-                // Pops when the vote lands. Says only THAT they voted.
+              hint && (
                 <span
-                  key={voted ? 'voted' : 'waiting'}
-                  title={voted ? 'Đã bầu' : 'Chưa bầu'}
-                  data-vote-dot={voted ? 'voted' : 'waiting'}
-                  data-seat-badge="vote"
-                  className={`absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full border-2 ${voted
-                    ? `border-(--av-ink) bg-(--av-parchment) ${freshVotes.has(p.id) ? 'av-pop' : ''}`
-                    : 'border-(--av-text-3) bg-(--av-ink)'
+                  title={hint.label}
+                  className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border text-xs ${hint.kind === 'percival-sees'
+                    ? 'border-(--av-parchment)/70 bg-(--av-ink) text-(--av-parchment)'
+                    : 'border-(--av-evil-light) bg-(--av-evil) text-white'
                     }`}
-                />
+                  data-seat-badge="hint"
+                >
+                  <AvIcon name={hint.icon} />
+                </span>
               )
             )}
           </PlayerAvatar>
@@ -460,7 +512,9 @@ export default function RoundTable({
                       }`
                   : isAssassinPickable
                     ? `Chọn ${p.name} là Merlin`
-                    : `${p.name}${tokens}`
+                    : isLadyPickable
+                      ? `Soi ${p.name}`
+                      : `${p.name}${tokens}`
               }
             >
               {seatBody}

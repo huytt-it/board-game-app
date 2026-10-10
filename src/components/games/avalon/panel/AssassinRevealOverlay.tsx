@@ -4,6 +4,7 @@ import { ROLE_TEAM } from '../constants';
 import { usePhaseTimeline } from '../hooks/usePhaseTimeline';
 import { END } from '../table/timelines';
 import AvIcon from '../assets/AvIcon';
+import AvButton from '../ui/AvButton';
 import PlayerAvatar from '../ui/PlayerAvatar';
 import RoleEmblem from '../ui/RoleEmblem';
 
@@ -56,12 +57,10 @@ export function AssassinRevealOverlay({
   // split để 2 nửa trông như được cắt ra từ chính card này.
   const cardContent = (
     <>
-      <p className="text-[11px] uppercase font-bold tracking-widest text-amber-300">
-        Sát Thủ chọn
-      </p>
-      <PlayerAvatar player={target} size="xl" className="mt-4 border-4 border-amber-200 shadow-lg shadow-amber-500/40" />
-      <p className="av-display mt-4 text-3xl text-white">{target.name}</p>
-      <p className="mt-2 text-xs text-slate-400">là Merlin?</p>
+      <p className="text-xs font-semibold text-(--av-gold)">Sát Thủ chọn</p>
+      <PlayerAvatar player={target} size="xl" className="mt-4 border-4 border-(--av-parchment)/80 shadow-lg shadow-black/50" />
+      <p className="av-display mt-4 text-3xl text-(--av-text)">{target.name}</p>
+      <p className="mt-2 text-sm text-(--av-text-2)">là Merlin?</p>
     </>
   );
 
@@ -75,7 +74,7 @@ export function AssassinRevealOverlay({
         {(stage === 'fly-in' || stage === 'blackout') && (
           <div className="absolute inset-0 flex items-center justify-center">
             <div
-              className={`flex h-full w-full flex-col items-center justify-center rounded-3xl border-4 bg-gradient-to-br from-amber-900/80 via-orange-900/70 to-slate-950 shadow-2xl border-amber-400/80 shadow-amber-500/50 ${stage === 'fly-in' ? 'av-assassin-fly-in' : ''
+              className={`flex h-full w-full flex-col items-center justify-center rounded-2xl border-4 border-(--av-gold)/80 bg-linear-to-b from-(--av-raised) to-(--av-ink) shadow-2xl shadow-black/60 ${stage === 'fly-in' ? 'av-assassin-fly-in' : ''
                 }`}
             >
               {cardContent}
@@ -88,7 +87,7 @@ export function AssassinRevealOverlay({
             {/* Nửa trên-phải: clip tam giác (top-left, top-right, bottom-right).
                 Trôi lên-phải. */}
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-4 border-amber-400/80 bg-gradient-to-br from-amber-900/80 via-orange-900/70 to-slate-950 shadow-2xl shadow-amber-500/40 av-split-upper"
+              className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border-4 border-(--av-gold)/80 bg-linear-to-b from-(--av-raised) to-(--av-ink) shadow-2xl shadow-black/60 av-split-upper"
               style={{ clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%)' }}
             >
               {cardContent}
@@ -96,7 +95,7 @@ export function AssassinRevealOverlay({
             {/* Nửa dưới-trái: clip tam giác (top-left, bottom-right, bottom-left).
                 Trôi xuống-trái. */}
             <div
-              className="absolute inset-0 flex flex-col items-center justify-center rounded-3xl border-4 border-amber-400/80 bg-gradient-to-br from-amber-900/80 via-orange-900/70 to-slate-950 shadow-2xl shadow-amber-500/40 av-split-lower"
+              className="absolute inset-0 flex flex-col items-center justify-center rounded-2xl border-4 border-(--av-gold)/80 bg-linear-to-b from-(--av-raised) to-(--av-ink) shadow-2xl shadow-black/60 av-split-lower"
               style={{ clipPath: 'polygon(0% 0%, 100% 100%, 0% 100%)' }}
             >
               {cardContent}
@@ -104,7 +103,7 @@ export function AssassinRevealOverlay({
             {/* Đường chém đỏ phát sáng — xoay -45° để cùng hướng đường tách
                 clip-path TL→BR của 2 nửa lá bài. */}
             <div
-              className="pointer-events-none absolute left-1/2 top-1/2 h-[140%] w-[3px] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-gradient-to-b from-transparent via-(--av-evil-light) to-transparent shadow-[0_0_24px_4px_rgba(224,85,85,0.75)]"
+              className="pointer-events-none absolute left-1/2 top-1/2 h-[140%] w-[3px] -translate-x-1/2 -translate-y-1/2 -rotate-45 bg-linear-to-b from-transparent via-(--av-evil-light) to-transparent shadow-[0_0_24px_4px_rgba(224,85,85,0.75)]"
             />
           </div>
         )}
@@ -123,17 +122,15 @@ export function AssassinRevealOverlay({
         {stage === 'reveal' && (
           <div className="fixed inset-0 z-30 flex items-center justify-center bg-white/95 animate-fade-in">
             <div
-              className={`mx-4 max-w-md w-full rounded-3xl border-4 bg-(color:--av-ink) px-6 py-7 text-center shadow-2xl shadow-black/50 animate-scale-in ${isMerlin
-                ? 'border-(--av-evil)/80 bg-linear-to-br from-(--av-evil)/35 to-transparent'
+              className={`mx-4 w-full max-w-md rounded-2xl border-4 bg-(--av-ink) px-6 py-7 text-center shadow-2xl shadow-black/50 animate-scale-in ${isMerlin
+                ? 'border-(--av-evil)/80 bg-linear-to-b from-(--av-evil)/30 to-transparent'
                 : team === 'good'
-                  ? 'border-(--av-good)/80 bg-linear-to-br from-(--av-good)/35 to-transparent'
-                  : 'border-slate-500/80 bg-linear-to-br from-slate-700/40 to-transparent'
+                  ? 'border-(--av-good)/80 bg-linear-to-b from-(--av-good)/30 to-transparent'
+                  : 'border-(--av-line) bg-linear-to-b from-white/8 to-transparent'
                 }`}
             >
-              <p className="text-[11px] uppercase font-black tracking-widest text-slate-300">
-                Lá bài bị chém
-              </p>
-              <p className="mt-1 text-xl font-black text-white">{target.name}</p>
+              <p className="text-xs font-semibold text-(--av-text-2)">Lá bài bị chém</p>
+              <p className="mt-1 text-xl font-bold text-(--av-text)">{target.name}</p>
               {role ? (
                 <>
                   <div className="my-3 flex justify-center">
@@ -144,13 +141,13 @@ export function AssassinRevealOverlay({
                       ? 'text-(--av-evil-light)'
                       : team === 'good'
                         ? 'text-(--av-good-light)'
-                        : 'text-slate-200'
+                        : 'text-(--av-text)'
                       }`}
                   >
                     {role}
                   </p>
                   <p
-                    className={`mt-1 text-[11px] uppercase font-black tracking-widest ${team === 'good' ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
+                    className={`mt-1 text-sm font-semibold ${team === 'good' ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
                       }`}
                   >
                     <AvIcon name={team === 'good' ? 'team-good' : 'team-evil'} />{' '}
@@ -158,16 +155,12 @@ export function AssassinRevealOverlay({
                   </p>
                 </>
               ) : (
-                <p className="my-6 text-sm text-slate-300">(Không xác định vai)</p>
+                <p className="my-6 text-sm text-(--av-text-2)">(Không xác định vai)</p>
               )}
-              <div
-                className={`mt-4 rounded-2xl border-2 py-3 px-4 ${isMerlin
-                  ? 'border-(--av-evil)/60 bg-(--av-evil)/15'
-                  : 'border-(--av-good)/60 bg-(--av-good)/15'
-                  }`}
-              >
+              {/* The verdict: a rule above it, no box in the box. */}
+              <div className="mt-4 border-t border-(--av-line) pt-4">
                 <p
-                  className={`text-base font-black uppercase tracking-widest ${isMerlin ? 'text-(--av-evil-light)' : 'text-(--av-good-light)'
+                  className={`text-base font-bold ${isMerlin ? 'text-(--av-evil-light)' : 'text-(--av-good-light)'
                     }`}
                 >
                   <AvIcon name={isMerlin ? 'team-evil' : 'team-good'} />{' '}
@@ -181,16 +174,17 @@ export function AssassinRevealOverlay({
         )}
       </div>
       {onSkip && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.stopPropagation();
-            onSkip();
-          }}
-          className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2 min-h-11 rounded-full border border-white/20 bg-black/70 px-4 py-2 text-xs font-bold text-slate-200 hover:bg-black/85"
-        >
-          Chạm để bỏ qua
-        </button>
+        <div className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-1/2 z-50 -translate-x-1/2">
+          <AvButton
+            variant="secondary"
+            onClick={(e) => {
+              e.stopPropagation();
+              onSkip();
+            }}
+          >
+            Chạm để bỏ qua
+          </AvButton>
+        </div>
       )}
     </div>
   );

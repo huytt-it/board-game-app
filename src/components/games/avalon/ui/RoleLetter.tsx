@@ -6,6 +6,7 @@ import { TEAM_ICON_NAME } from '../presentation';
 import { useHold } from '../hooks/useHold';
 import { useCue } from '../hooks/useCue';
 import AvIcon from '../assets/AvIcon';
+import AvButton from './AvButton';
 import RoleEmblem from './RoleEmblem';
 
 // The viewer's role as a letter under a wax seal. Press and HOLD the letter to
@@ -35,11 +36,12 @@ export default function RoleLetter({
 
   return (
     <div className="flex w-full flex-col items-center">
-      <button
-        type="button"
+      {/* A drawn object that is pressed (AvButton `bare`): no look of its own. */}
+      <AvButton
+        variant="bare"
         {...bind}
         data-letter={held ? 'open' : 'sealed'}
-        className="av-hold av-letter relative block h-[min(25rem,calc(100dvh-15.5rem))] min-h-[18rem] w-full max-w-[20rem] cursor-pointer overflow-hidden rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-(--av-gold)"
+        className="av-hold av-letter h-[min(25rem,calc(100dvh-15.5rem))] min-h-[18rem] w-full max-w-[20rem] cursor-pointer overflow-hidden rounded-2xl"
       >
         {!held && <span className="sr-only">Nhấn giữ để đọc vai của bạn</span>}
         {/* The envelope, centred in the stage. */}
@@ -74,7 +76,7 @@ export default function RoleLetter({
             nothing of it is painted — or read out — for the neighbours. */}
         <span className="av-letter-sheet absolute inset-0 flex flex-col items-center rounded-2xl px-5 py-4 text-center">
           <span
-            className={`inline-flex items-center gap-1.5 rounded-full border border-current/25 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-[0.2em] ${
+            className={`inline-flex items-center gap-1.5 rounded-full border border-current/25 px-2.5 py-0.5 text-xs font-bold tracking-wide ${
               team === 'good' ? 'text-(--av-good-ink)' : 'text-(--av-evil-ink)'
             }`}
           >
@@ -86,11 +88,11 @@ export default function RoleLetter({
           {/* One line for every role (see RoleEmblem / ux-plan 2.11). */}
           <span className="av-display mt-2 block whitespace-nowrap text-[min(2rem,8vw)] leading-tight text-(--av-ink)">{role}</span>
           <span className="block text-sm font-bold text-(--av-ink)/75">{ROLE_NAMES_VI[role]}</span>
-          <span className="mt-3 block text-[13px] leading-relaxed text-(--av-ink)">{ROLE_DESC_VI[role]}</span>
-          {footer && <span className="mt-auto block pt-2 text-[11px] italic leading-snug text-(--av-ink)/70">{footer}</span>}
+          <span className="mt-3 block text-sm leading-relaxed text-(--av-ink)">{ROLE_DESC_VI[role]}</span>
+          {footer && <span className="mt-auto block pt-2 text-xs italic leading-snug text-(--av-ink)/70">{footer}</span>}
         </span>
-      </button>
-      <p className="mt-2 flex items-center gap-1.5 text-xs font-bold text-(--av-parchment)">
+      </AvButton>
+      <p className="mt-2 flex items-center gap-1.5 text-xs font-semibold text-(--av-text-2)">
         <AvIcon name="eye" /> Nhấn giữ lá thư để đọc — thả tay là thư gấp lại
       </p>
     </div>

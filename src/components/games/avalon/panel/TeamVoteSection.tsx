@@ -7,12 +7,13 @@ import AvIcon from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
 import AvButton from '../ui/AvButton';
 import GlassPanel from '../ui/GlassPanel';
-import { LowTimeClock } from './shared';
+import { LowTimeClock, PanelHead, PanelLine, PanelNote, TwoFailNote } from './shared';
 
 // team-vote — the model screen of GĐ7 ("one sentence, one action"): a title
 // with the clock, who is on the team, how many have voted, and the two
-// ballots in the dock. Who has voted is the dot on each seat; the Leader is
-// the crown; the two-fail rule is a line here only on the quest that has it.
+// ballots in the dock. Who has voted is the dot before each name on the
+// table; the Leader is the crown; the two-fail rule is a line here only on the
+// quest that has it.
 export function TeamVoteSection({
   state,
   myPlayer,
@@ -45,26 +46,23 @@ export function TeamVoteSection({
   return (
     <div className="space-y-3">
       <GlassPanel tone={myVote ? 'neutral' : 'accent'} className="p-4">
-        <div className="flex items-center justify-between gap-3">
-          <h3 className="av-display text-xl leading-tight text-(--av-text)">Bỏ phiếu đội</h3>
-          <LowTimeClock low={lowTime && !!myVote} className={lowTime ? 'text-(--av-evil-light)' : 'text-(--av-text-2)'}>
-            {formatSecs(remaining)}
-          </LowTimeClock>
-        </div>
-        <p className="mt-2 text-sm leading-relaxed text-(--av-text-2)" data-vote-team="">
+        <PanelHead
+          title="Bỏ phiếu đội"
+          clock={
+            <LowTimeClock low={lowTime} throb={!!myVote}>
+              {formatSecs(remaining)}
+            </LowTimeClock>
+          }
+        />
+        <PanelLine data-vote-team="">
           {leader?.id === myPlayer.id ? 'Đội bạn đề xuất' : `Đội của ${leader?.name ?? '?'}`}:{' '}
           <span className="font-semibold text-(--av-text)">{team.map((p) => p.name).join(', ')}</span>
-        </p>
-        <p className="mt-1 text-xs text-(--av-text-3)" data-vote-count={votedCount}>
+        </PanelLine>
+        <PanelNote data-vote-count={votedCount}>
           Đã bầu {votedCount}/{gamePlayers.length}
           {!myVote && ' · hết giờ = Từ chối'}
-        </p>
-        {needsTwo && (
-          <p className="mt-2 flex items-start gap-1.5 text-xs text-(--av-evil-light)">
-            <AvIcon name="warning" className="mt-px shrink-0" />
-            Cần 2 lá Phe Quỷ mới thất bại.
-          </p>
-        )}
+        </PanelNote>
+        {needsTwo && <TwoFailNote />}
       </GlassPanel>
 
       <ActionDock>
@@ -89,7 +87,7 @@ export function TeamVoteSection({
             }`}
             data-ballot="down"
           >
-            <span className="flex h-10 w-8 shrink-0 items-center justify-center rounded-md border border-(--av-gold)/60">
+            <span className="flex h-10 w-8 shrink-0 items-center justify-center av-card border border-(--av-gold)/60">
               <AvIcon name="vote" size={18} className="text-(--av-gold)" />
             </span>
             <div className="min-w-0 flex-1 text-left">

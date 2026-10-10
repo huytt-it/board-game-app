@@ -11,6 +11,11 @@ import { useEffect, useRef, type RefObject } from 'react';
 //
 // Dialogs can stack (a confirmation over a settings modal): only the topmost
 // one handles the keys.
+//
+// `initialFocus`: what takes the focus when it opens — a ref (e.g. the safe
+// button of a confirmation), `'panel'` (the dialog itself: a menu opened by a
+// tap, so no focus ring shows on an item nobody pointed at), or by default the
+// first control inside.
 const FOCUSABLE =
   'a[href], button:not([disabled]), input:not([disabled]):not([type=hidden]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
@@ -18,7 +23,7 @@ const stack: symbol[] = [];
 
 export function useDialog<T extends HTMLElement>(
   onClose: () => void,
-  initialFocus?: RefObject<HTMLElement | null>
+  initialFocus?: RefObject<HTMLElement | null> | 'panel'
 ): RefObject<T | null> {
   const ref = useRef<T>(null);
   // The latest onClose without re-running the effect (and refocusing) on every render.
@@ -36,7 +41,7 @@ export function useDialog<T extends HTMLElement>(
 
     const focusables = () =>
       Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE)).filter((el) => el.getClientRects().length > 0);
-    (initialFocus?.current ?? focusables()[0] ?? panel).focus();
+    (initialFocus === 'panel' ? panel : (initialFocus?.current ?? focusables()[0] ?? panel)).focus();
 
     const onKey = (e: KeyboardEvent) => {
       if (stack[stack.length - 1] !== id) return;
@@ -73,7 +78,7 @@ export function useDialog<T extends HTMLElement>(
       if (at >= 0) stack.splice(at, 1);
       previous?.focus?.();
     };
-    // `initialFocus` is a ref object: stable.
+    // `initialFocus` is a ref object or a constant: stable.
   }, [initialFocus]);
 
   return ref;

@@ -12,6 +12,7 @@ import {
   type SupportedPlayerCount,
 } from './constants';
 import AvIcon from './assets/AvIcon';
+import AvButton from './ui/AvButton';
 import RoleEmblem from './ui/RoleEmblem';
 
 interface RoomSettingsProps {
@@ -20,6 +21,9 @@ interface RoomSettingsProps {
   playerCount: number;
 }
 
+// The host's settings (in ui/Modal): sections separated by rules, the modal is
+// the only frame. An optional role is a `choice` row — a gold edge and a gold
+// switch when it is on.
 export default function RoomSettings({ config, onUpdateConfig, playerCount }: RoomSettingsProps) {
   const optionalRoles =
     (config.optionalRoles as AvalonRole[] | undefined) ?? [];
@@ -66,242 +70,169 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
     onUpdateConfig({ maxPlayers: next });
   };
 
+  const morgana = optionalRoles.includes(AvalonRole.Morgana);
+  const team = (isGood: boolean) => (isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)');
+
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 overflow-hidden">
-      <div className="space-y-5 p-4">
-          <section>
-            <div className="flex items-center justify-between mb-3">
-              <h4 className="text-[11px] uppercase tracking-widest font-black text-slate-400">
-                Số người tối đa
-              </h4>
-              <span className="text-xs text-slate-500">
-                Hiện tại: <span className="text-white font-bold">{playerCount}</span> / {maxPlayers}
-              </span>
-            </div>
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => setMax(maxPlayers - 1)}
-                className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 font-bold text-xl"
-              >
-                −
-              </button>
-              <div className="flex-1 text-center">
-                <span className="text-4xl font-black text-white">{maxPlayers}</span>
-                <span className="text-slate-500 text-sm ml-1">người</span>
-              </div>
-              <button
-                onClick={() => setMax(maxPlayers + 1)}
-                className="w-11 h-11 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 font-bold text-xl"
-              >
-                +
-              </button>
-            </div>
-            <p className="mt-2 text-[11px] text-slate-500 text-center">
-              Avalon hỗ trợ 5–10 người chơi
-            </p>
-          </section>
+    <div className="divide-y divide-(--av-line) [&>section]:py-5 [&>section:first-child]:pt-0 [&>section:last-child]:pb-0">
+      <section>
+        <div className="mb-3 flex items-baseline justify-between">
+          <h3 className="text-base font-semibold text-(--av-text)">Số người tối đa</h3>
+          <span className="text-xs text-(--av-text-3)">
+            Đang có <span className="font-semibold text-(--av-text)">{playerCount}</span> / {maxPlayers}
+          </span>
+        </div>
+        <div className="flex items-center gap-4">
+          <AvButton variant="secondary" onClick={() => setMax(maxPlayers - 1)} aria-label="Bớt 1 người" className="w-11">
+            <span className="text-xl leading-none">−</span>
+          </AvButton>
+          <div className="flex-1 text-center">
+            <span className="text-4xl font-bold tabular-nums text-(--av-text)">{maxPlayers}</span>
+            <span className="ml-1 text-sm text-(--av-text-3)">người</span>
+          </div>
+          <AvButton variant="secondary" onClick={() => setMax(maxPlayers + 1)} aria-label="Thêm 1 người" className="w-11">
+            <span className="text-xl leading-none">+</span>
+          </AvButton>
+        </div>
+        <p className="mt-2 text-center text-xs text-(--av-text-3)">Avalon hỗ trợ 5–10 người chơi</p>
+        {dist && (
+          <p className="mt-3 text-center text-sm text-(--av-text-2)">
+            {playerCount} người:{' '}
+            <span className={`font-semibold ${team(true)}`}>
+              <AvIcon name="team-good" /> {dist.good} Phe Người
+            </span>{' '}
+            ·{' '}
+            <span className={`font-semibold ${team(false)}`}>
+              <AvIcon name="team-evil" /> {dist.evil} Phe Quỷ
+            </span>
+          </p>
+        )}
+      </section>
 
-          {dist && (
-            <section className="rounded-2xl border border-amber-500/25 bg-amber-500/5 p-4">
-              <p className="text-[11px] uppercase tracking-widest font-black text-amber-400 mb-2">
-                Tỉ lệ phe ({playerCount} người)
-              </p>
-              <div className="flex gap-3">
-                <div className="flex-1 rounded-xl bg-(--av-good)/10 border border-(--av-good)/35 px-3 py-2">
-                  <p className="text-[10px] uppercase text-(--av-good-light) font-bold">Phe Người</p>
-                  <p className="text-2xl font-black text-(--av-good-light)">{dist.good}</p>
+      <section>
+        <h3 className="text-base font-semibold text-(--av-text)">Vai bắt buộc</h3>
+        <p className="mb-3 mt-0.5 text-xs text-(--av-text-3)">{REQUIRED_ROLES.length} vai luôn có trong mỗi ván — không thể tắt.</p>
+        <ul className="grid grid-cols-2 gap-x-3 gap-y-2">
+          {REQUIRED_ROLES.map((role) => {
+            const isGood = ROLE_TEAM[role] === 'good';
+            return (
+              <li key={role} className="flex min-w-0 items-center gap-2">
+                <RoleEmblem role={role} size="sm" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-semibold text-(--av-text)">{role}</p>
+                  <p className={`text-xs ${team(isGood)}`}>{isGood ? 'Người' : 'Quỷ'} · luôn có</p>
                 </div>
-                <div className="flex-1 rounded-xl bg-(--av-evil)/10 border border-(--av-evil)/35 px-3 py-2">
-                  <p className="text-[10px] uppercase text-(--av-evil-light) font-bold">Phe Quỷ</p>
-                  <p className="text-2xl font-black text-(--av-evil-light)">{dist.evil}</p>
-                </div>
-              </div>
-            </section>
-          )}
-
-          <section>
-            <h4 className="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-2">
-              Vai bắt buộc
-            </h4>
-            <p className="text-[11px] text-slate-500 mb-3">
-              {REQUIRED_ROLES.length} vai luôn có trong mỗi ván — không thể tắt.
-            </p>
-            <div className="grid grid-cols-2 gap-2">
-              {REQUIRED_ROLES.map((role) => {
-                const team = ROLE_TEAM[role];
-                const isGood = team === 'good';
-                return (
-                  <div
-                    key={role}
-                    className={`flex items-center gap-2 rounded-xl border p-2.5 ${isGood
-                      ? 'border-(--av-good)/45 bg-(--av-good)/10'
-                      : 'border-(--av-evil)/45 bg-(--av-evil)/10'
-                      }`}
-                  >
-                    <RoleEmblem role={role} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-xs font-black text-white truncate">{role}</p>
-                      <p
-                        className={`text-[10px] font-bold ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
-                          }`}
-                      >
-                        {isGood ? 'Người' : 'Quỷ'} · luôn có
-                      </p>
-                    </div>
-                    <AvIcon name="lock" size={16} className="text-slate-400" />
-                  </div>
-                );
-              })}
-            </div>
-            <div
-              className={`mt-2 flex items-center gap-2 rounded-xl border p-2.5 ${optionalRoles.includes(AvalonRole.Morgana)
-                ? 'border-(--av-good)/45 bg-(--av-good)/10'
-                : 'border-white/10 bg-white/5 opacity-70'
-                }`}
-            >
-              <RoleEmblem role={AvalonRole.Percival} size="sm" />
-              <div className="flex-1 min-w-0">
-                <p className="text-xs font-black text-white truncate">{AvalonRole.Percival}</p>
-                <p className="text-[10px] font-bold text-(--av-good-light)">
-                  Người · {optionalRoles.includes(AvalonRole.Morgana)
-                    ? 'tự động có khi bật Morgana'
-                    : 'chỉ xuất hiện nếu Morgana được bật'}
-                </p>
-              </div>
-              {optionalRoles.includes(AvalonRole.Morgana) ? (
-                <AvIcon name="check" size={16} className="text-(--av-good-light)" />
-              ) : (
-                <span className="h-4 w-4 shrink-0 rounded-full border-2 border-white/30" aria-hidden="true" />
-              )}
-            </div>
-          </section>
-
-          <section>
-            <h4 className="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-1">
-              Vai phụ
-            </h4>
-            <p className="text-[11px] text-slate-500 mb-2">
-              Bật theo số người chơi. Bật vai sẽ thay 1 Trung Thần / Tay Sai mặc định.
-            </p>
-            <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5 mb-3">
-              <p className="text-[11px] font-bold text-amber-300 mb-1">
-                <AvIcon name="tip" /> Ngưỡng mở vai phụ Quỷ
+                <AvIcon name="lock" size={16} className="shrink-0 text-(--av-text-3)" />
+              </li>
+            );
+          })}
+          <li className={`col-span-2 flex min-w-0 items-center gap-2 ${morgana ? '' : 'opacity-70'}`}>
+            <RoleEmblem role={AvalonRole.Percival} size="sm" />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-semibold text-(--av-text)">{AvalonRole.Percival}</p>
+              <p className={`text-xs ${team(true)}`}>
+                Người · {morgana ? 'tự động có khi bật Morgana' : 'chỉ xuất hiện nếu Morgana được bật'}
               </p>
-              <ul className="text-[11px] text-slate-400 leading-relaxed space-y-0.5">
-                <li>• 5–6 người: chưa mở (đủ Mordred + Sát Thủ)</li>
-                <li>• 7–9 người: mở 1 vai (Morgana <em>hoặc</em> Oberon)</li>
-                <li>• 10 người: mở full (Morgana <em>và</em> Oberon)</li>
-              </ul>
             </div>
-
-            <div className="space-y-2">
-              {ALL_OPTIONAL_ROLES.map((role) => {
-                const enabled = optionalRoles.includes(role);
-                const team = ROLE_TEAM[role];
-                const isGood = team === 'good';
-                const atLimit = isAtLimitFor(role);
-                const disabled = atLimit;
-                return (
-                  <button
-                    key={role}
-                    onClick={() => toggleRole(role)}
-                    disabled={disabled}
-                    className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${enabled
-                      ? isGood
-                        ? 'border-(--av-good)/50 bg-(--av-good)/10'
-                        : 'border-(--av-evil)/50 bg-(--av-evil)/10'
-                      : 'border-white/10 bg-white/5'
-                      }`}
-                  >
-                    <RoleEmblem role={role} size="sm" />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 mb-0.5 flex-wrap">
-                        <span className="text-sm font-black text-white">{role}</span>
-                        <span
-                          className={`text-[9px] uppercase font-bold tracking-wider ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
-                            }`}
-                        >
-                          {isGood ? 'Người' : 'Quỷ'}
-                        </span>
-                        {atLimit && (
-                          <span className="text-[9px] uppercase font-bold tracking-wider text-amber-400">
-                            <AvIcon name="warning" /> Chưa đủ slot để thêm các vai trò này
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[11px] text-slate-400 leading-snug line-clamp-2">
-                        {ROLE_DESC_VI[role]}
-                      </p>
-                    </div>
-                    <div
-                      className={`shrink-0 h-6 w-11 rounded-full border transition-all ${enabled
-                        ? isGood
-                          ? 'bg-(--av-good) border-(--av-good-light)'
-                          : 'bg-(--av-evil) border-(--av-evil-light)'
-                        : 'bg-white/5 border-white/20'
-                        }`}
-                    >
-                      <div
-                        className={`h-5 w-5 rounded-full bg-white shadow-md transition-transform ${enabled ? 'translate-x-5' : 'translate-x-0.5'
-                          } translate-y-px`}
-                      />
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-
-            <p className="mt-2 text-[11px] text-slate-500">
-              Phe Người: {goodOptional.length}/{goodOptionalLimit} vai phụ · Phe Quỷ:{' '}
-              {evilOptional.length}/{evilOptionalLimit} vai phụ
-            </p>
-            {evilOptionalLimit === 0 && goodOptionalLimit === 0 && (
-              <p className="mt-2 text-[11px] text-amber-400">
-                <AvIcon name="warning" /> Số người hiện tại chỉ đủ cho các vai trò bắt buộc — không có chỗ cho các vai trò phụ.
-              </p>
+            {morgana ? (
+              <AvIcon name="check" size={16} className="shrink-0 text-(--av-gold)" />
+            ) : (
+              <span className="h-4 w-4 shrink-0 rounded-full border-2 border-(--av-text-3)" aria-hidden="true" />
             )}
-          </section>
+          </li>
+        </ul>
+      </section>
 
-          <section>
-            <h4 className="text-[11px] uppercase tracking-widest font-black text-slate-400 mb-2">
-              Luật tuỳ chọn
-            </h4>
-            <div
-              className={`flex items-center gap-3 rounded-xl border p-3 ${playerCount >= 7
-                ? 'border-(--av-lady)/50 bg-(--av-lady)/10'
-                : 'border-white/10 bg-white/5 opacity-70'
-                }`}
-            >
-              <AvIcon name="lady" size={26} className="text-(--av-lady)" />
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-black text-white">Lady of the Lake</p>
-                <p className="text-[11px] text-slate-400 leading-snug">
-                  {playerCount >= 7 ? (
-                    <>
-                      <AvIcon name="check" className="text-(--av-lady)" /> Tự động bật từ 7 người. Sau Quest 2/3/4, người cầm token chọn 1 người để soi phe.
-                    </>
-                  ) : (
-                    `Cần ≥ 7 người (hiện ${playerCount}) — sẽ tự bật khi đủ.`
-                  )}
-                </p>
-              </div>
-              <span
-                className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${playerCount >= 7
-                  ? 'bg-(--av-lady)/30 text-teal-100 border border-(--av-lady)/45'
-                  : 'bg-slate-500/20 text-slate-400'
-                  }`}
+      <section>
+        <h3 className="text-base font-semibold text-(--av-text)">Vai phụ</h3>
+        <p className="mt-0.5 text-xs text-(--av-text-3)">Bật theo số người chơi. Bật vai sẽ thay 1 Trung Thần / Tay Sai mặc định.</p>
+        <ul className="mb-3 mt-2 space-y-0.5 text-xs leading-relaxed text-(--av-text-2)">
+          <li>• 5–6 người: chưa mở vai phụ Quỷ (đủ Mordred + Sát Thủ)</li>
+          <li>
+            • 7–9 người: mở 1 vai (Morgana <em>hoặc</em> Oberon)
+          </li>
+          <li>
+            • 10 người: mở cả hai (Morgana <em>và</em> Oberon)
+          </li>
+        </ul>
+
+        <div className="space-y-2">
+          {ALL_OPTIONAL_ROLES.map((role) => {
+            const enabled = optionalRoles.includes(role);
+            const isGood = ROLE_TEAM[role] === 'good';
+            const atLimit = isAtLimitFor(role);
+            return (
+              <AvButton
+                key={role}
+                variant="choice"
+                block
+                align="start"
+                selected={enabled}
+                aria-pressed={enabled}
+                onClick={() => toggleRole(role)}
+                disabled={atLimit}
+                className="py-3 text-left"
               >
-                {playerCount >= 7 ? (
-                  <>
-                    <AvIcon name="lock" /> Auto-on
-                  </>
-                ) : (
-                  'Off'
-                )}
-              </span>
-            </div>
-          </section>
-      </div>
+                <RoleEmblem role={role} size="sm" />
+                <span className="min-w-0 flex-1">
+                  <span className="flex flex-wrap items-baseline gap-x-2">
+                    <span className="text-sm font-semibold text-(--av-text)">{role}</span>
+                    <span className={`text-xs ${team(isGood)}`}>{isGood ? 'Người' : 'Quỷ'}</span>
+                  </span>
+                  {atLimit && (
+                    <span className="block text-xs font-normal text-(--av-evil-light)">
+                      <AvIcon name="warning" /> Chưa đủ chỗ cho vai này
+                    </span>
+                  )}
+                  <span className="mt-0.5 line-clamp-2 block text-xs font-normal leading-snug text-(--av-text-2)">{ROLE_DESC_VI[role]}</span>
+                </span>
+                {/* The switch: gold when the role is on. */}
+                <span
+                  aria-hidden
+                  className={`flex h-6 w-11 shrink-0 items-center rounded-full border px-0.5 transition-colors ${
+                    enabled ? 'justify-end border-(--av-gold) bg-(--av-gold)' : 'justify-start border-(--av-line) bg-white/6'
+                  }`}
+                >
+                  <span className={`h-5 w-5 rounded-full shadow-md ${enabled ? 'bg-(--av-ink)' : 'bg-(--av-text-2)'}`} />
+                </span>
+              </AvButton>
+            );
+          })}
+        </div>
+
+        <p className="mt-2 text-xs text-(--av-text-3)">
+          Phe Người: {goodOptional.length}/{goodOptionalLimit} vai phụ · Phe Quỷ: {evilOptional.length}/{evilOptionalLimit} vai phụ
+        </p>
+        {evilOptionalLimit === 0 && goodOptionalLimit === 0 && (
+          <p className="mt-2 text-xs text-(--av-evil-light)">
+            <AvIcon name="warning" /> Số người hiện tại chỉ đủ cho các vai bắt buộc — chưa có chỗ cho vai phụ.
+          </p>
+        )}
+      </section>
+
+      <section>
+        <h3 className="text-base font-semibold text-(--av-text)">Luật tuỳ chọn</h3>
+        <div className={`mt-2 flex items-center gap-3 ${playerCount >= 7 ? '' : 'opacity-70'}`}>
+          <AvIcon name="lady" size={26} className="shrink-0 text-(--av-lady)" />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm font-semibold text-(--av-text)">Lady of the Lake</p>
+            <p className="text-xs leading-snug text-(--av-text-2)">
+              {playerCount >= 7
+                ? 'Tự động bật từ 7 người. Sau Quest 2/3/4, người cầm token chọn 1 người để soi phe.'
+                : `Cần ≥ 7 người (hiện ${playerCount}) — sẽ tự bật khi đủ.`}
+            </p>
+          </div>
+          <span className={`shrink-0 text-xs font-semibold ${playerCount >= 7 ? 'text-(--av-gold)' : 'text-(--av-text-3)'}`}>
+            {playerCount >= 7 ? (
+              <>
+                <AvIcon name="lock" /> Tự bật
+              </>
+            ) : (
+              'Tắt'
+            )}
+          </span>
+        </div>
+      </section>
     </div>
   );
 }
