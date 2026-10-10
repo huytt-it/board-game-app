@@ -526,7 +526,7 @@ Branch: `dev-avalon-uxui`.
 | 3 Vòng Quest | **Đã review — đạt** (2026-10-09) | `95fdbcfa` → `8a33c2c5` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 95fdbcfa..HEAD` | Claude Opus 5.5 | `TableTokens` (vương miện / Lady trượt theo vành bàn, token đề cử bay từ Leader), chồng bài úp + lá bay, chuỗi `team-vote-result` và `quest-result` theo giờ server, lá phiếu úp, đồng hồ vòng, `ActionDock`, nút Xoá/Rời vào top bar, `animate-pulse` chỉ còn ở viền. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ3" bên dưới. |
 | 4 Mở đầu | **Đã review — đạt** (2026-10-09) | `beb7a58f` → `782e560c` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log beb7a58f..HEAD` | Claude Opus 5.5 | Trang vào phòng riêng (`AvalonJoinScreen`), lobby ngồi xuống / rời + thông báo, bộ bài xoè, lineup (bàn tròn, xáo ghế, vương miện quay, Lady, cuộn giấy da), thư niêm phong nhấn giữ (lộ vai + "Vai của tôi"), đêm "nhắm mắt" giống nhau trên mọi máy, chip phase không còn "…", danh sách mobile cao như nhau. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ4" bên dưới. |
 | 5 Kết thúc | **Đã review — đạt** (2026-10-09) | `3de2e6e2` → `8740affc` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3de2e6e2..HEAD` | Claude Opus 5.5 | Màn kết thúc theo đồng hồ phase (overlay ám sát → banner "Bạn thắng!" / "Bạn thua…" + lý do, tàn lửa / lấp lánh, ghế lật sang vai, thẻ "Sát Thủ đâm", tổng kết hành trình, danh sách vai), chạm để bỏ qua overlay, ô Quest chưa chơi trung tính, nút cuối ván vào dock, `ConfirmDialog` thay mọi `confirm()` gốc. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ5" bên dưới. |
-| 6 Hoàn thiện | **Đã làm — chờ review** (2026-10-09) | `db179bcf` → `4edc2309` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log db179bcf..HEAD` | Claude Sonnet 5.5 | Token ngắm của Lady bay tới người bị ngắm, thẻ kết quả soi lật chỉ ở máy người cầm Lady, người bị soi / ngoài cuộc chỉ thấy "Đã soi" trung tính; nhịp tim trên mục tiêu Sát Thủ; "Đến lượt bạn" (viền vàng quanh dock + "● " trên tiêu đề tab, không bao giờ ở đêm / lộ vai); 2 `alert()` → banner; bàn hẹp (≥ 8 người, bàn < 350 px); trợ năng (vòng focus, vùng chạm 44 px, `useDialog` giữ focus trong modal, `aria-live`). Hồi quy ván thật 7 tab (có Lady). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ6" bên dưới. |
+| 6 Hoàn thiện | **Đã review — đạt** (2026-10-10) | `db179bcf` → `4edc2309` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log db179bcf..HEAD` | Claude Sonnet 5.5 | Token ngắm của Lady bay tới người bị ngắm, thẻ kết quả soi lật chỉ ở máy người cầm Lady, người bị soi / ngoài cuộc chỉ thấy "Đã soi" trung tính; nhịp tim trên mục tiêu Sát Thủ; "Đến lượt bạn" (viền vàng quanh dock + "● " trên tiêu đề tab, không bao giờ ở đêm / lộ vai); 2 `alert()` → banner; bàn hẹp (≥ 8 người, bàn < 350 px); trợ năng (vòng focus, vùng chạm 44 px, `useDialog` giữ focus trong modal, `aria-live`). Hồi quy ván thật 7 tab (có Lady). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ6" bên dưới. |
 
 ### Ghi chú của người thực thi GĐ0
 
@@ -710,6 +710,43 @@ Ghi nhận:
    - gói JS gần 95 KB gzip (cân nhắc lazy-load cảnh);
    - bù độ trễ dựng khi reload (tuỳ chọn);
    - token Lady bay tới người bị ngắm.
+
+**GĐ6 (2026-10-10): đạt, đã push. Kết thúc kế hoạch.** Nhạc trưởng tự kiểm lại:
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: vẫn 2 lỗi có sẵn từ trước.
+- Logic-core, các file ngoài thư mục Avalon và các game khác không có trong diff.
+- `AvalonBoard.tsx` chỉ đổi:
+  - `alert(msg)` → `setNotice(msg)`;
+  - banner dời lên trước nhánh lobby (có `role`);
+  - `Modal` dùng `useDialog`;
+  - nút lobby `min-h-11`.
+  Thân các handler và khối auto-progression giữ nguyên.
+- Không còn `alert()` / `confirm()` gốc. Đếm emoji = 0; regex màu phe = 0.
+- Gói JS của Avalon: 319,8 KB thô, **96,2 KB gzip** (dưới ngưỡng 100 KB, nên chưa cần lazy-load cảnh).
+- Đã đọc:
+  - `needsMyAction`: chỉ 5 trường hợp, đều dựa trên thông tin công khai; luôn `false` ở đêm / lộ vai / lineup;
+  - `useTurnTitle`: gắn và gỡ "● ";
+  - `AimHeartbeat`: chu kỳ theo bậc của đồng hồ phase, pha nhịp theo giờ server.
+- Đã xem ảnh Lady trong ván thật 7 tab: chỉ người cầm Lady thấy kết quả; người bị soi và người ngoài cuộc thấy "P6 đã soi P5" trung tính.
+
+Ghi nhận:
+1. Sửa thêm ngoài kế hoạch, được chấp nhận:
+   - người bị soi không còn thấy phe của mình (vốn là một chỗ lộ thật, có từ GĐ2b);
+   - làm sẫm 3 màu avatar để đạt tương phản 4.5:1;
+   - chặn tràn ngang 3 px của `TableTokens` ở 320 px bằng `overflow-clip`;
+   - bàn hẹp áp từ 8 người và bàn < 350 px (đo thấy cần).
+2. Không làm phần tuỳ chọn "bù độ trễ dựng bằng `currentTime`": chấp nhận (rủi ro lớn hơn lợi ích; độ trễ ≤ 0,3 s chỉ khi reload).
+
+### Tổng kết kế hoạch (nhạc trưởng, 2026-10-10)
+Hoàn thành GĐ0 → GĐ6 trên `dev-avalon-uxui`. Logic-core (`useAvalon.ts`, `types.ts`, luật trong `constants.ts`, khối auto-progression) **không đổi** suốt kế hoạch. Ngoài thư mục Avalon chỉ sửa một nhánh trong `page.tsx`.
+
+**Việc còn lại (tuỳ chọn, ngoài phạm vi):**
+- Hai nút "Copy" của `src/components/core/QRCodeDisplay.tsx` cao 36 px (dưới 44 px). Đây là component dùng chung cho mọi game nên chưa đụng.
+- Ô Quest ở bàn 320 px có vùng chạm khoảng 37–39 px.
+- `SceneTitle` phủ phần trên của bàn khoảng 2,6 s đầu mỗi cảnh mới trên điện thoại (không chặn bấm).
+- Chưa chơi thử ván thật 10 người; bàn 10 người mới được kiểm bằng harness.
+- Độ trễ dựng ≤ 0,3 s khi reload giữa một animation.
+- 2 lỗi lint `react-hooks/set-state-in-effect` có từ trước kế hoạch (`AvalonBoard.tsx`, `QuestPlaySection.tsx`).
 
 ### Ghi chú của người thực thi GĐ1
 
