@@ -683,6 +683,17 @@ Luật, giải thích, chi tiết phụ: giấu sau nút "?" hoặc "Chi tiết"
    - `bg-gradient-*` / `bg-linear-*` chỉ còn ở trang trí (bàn, cảnh, overlay);
    - xoá các token đã bỏ.
 
+#### Bổ sung cho GĐ7b (nhạc trưởng, sau review GĐ7a, 2026-10-10)
+Ngoài danh sách "Việc cho GĐ7b" trong ghi chú của người thực thi GĐ7a (xoá token cũ, panel đỏ "luật 2 lá", `PlayerRoster` bản mobile, `TokenBadges` / `RoleLineChip`), làm thêm:
+1. **Chấm "đã bầu" phải thấy được ở mọi ghế** (lệch 4 của GĐ7a làm Merlin / Phe Quỷ không thấy chấm ở các ghế có gợi ý đêm):
+   - đưa dấu "đã bầu" vào nhãn tên (ví dụ một dấu tích nhỏ trước tên), hoặc một chỗ khác không tranh với huy hiệu góc;
+   - kiểm cặp riêng tư "phiếu" như cũ.
+2. **Token và vòng đề cử chỉ hiện ở các phase của đội** (`team-build`, `team-vote`, `team-vote-result`, `quest-play`, `quest-result`). Hiện `TableTokens` hiện đội cuối cùng mỗi khi `proposedTeam` khác rỗng, nên ở ám sát / Lady / thảo luận / kết thúc vẫn còn token ⊗ trên ghế. Chỉ lọc ở UI, không đụng core.
+3. **Menu "⋯":**
+   - dòng "Xoá phòng" của host đang là nút `danger` có khung, nằm trong khung menu (khung trong khung). Đổi thành một dòng giống "Các vai trong ván", chữ và icon `--av-evil-light`, không viền;
+   - kiểm bằng **chạm thật** (`Input.dispatchMouseEvent` / touch): vòng focus vàng không được hiện trên dòng đầu khi mở bằng chạm hoặc chuột (ảnh `after/menu-host-375.png` đang có vòng này). Nếu có, khi mở bằng con trỏ thì focus vào khung menu; khi mở bằng bàn phím thì vẫn focus dòng đầu.
+4. **(Tuỳ chọn) Desktop:** ô Quest và nến có thể to theo bàn (`cqw`) khi bàn rộng > 500 px; hiện cụm giữa hơi nhỏ so với mặt bàn 1440 px.
+
 ### Không làm (cả GĐ7)
 - Không thêm tính năng, không đổi luồng phase, timer, thời lượng hay nội dung animation (trừ thời gian và vị trí của `SceneTitle`).
 - Không vẽ lại cảnh nền.
@@ -748,7 +759,7 @@ Branch: `dev-avalon-uxui`.
 | 4 Mở đầu | **Đã review — đạt** (2026-10-09) | `beb7a58f` → `782e560c` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log beb7a58f..HEAD` | Claude Opus 5.5 | Trang vào phòng riêng (`AvalonJoinScreen`), lobby ngồi xuống / rời + thông báo, bộ bài xoè, lineup (bàn tròn, xáo ghế, vương miện quay, Lady, cuộn giấy da), thư niêm phong nhấn giữ (lộ vai + "Vai của tôi"), đêm "nhắm mắt" giống nhau trên mọi máy, chip phase không còn "…", danh sách mobile cao như nhau. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ4" bên dưới. |
 | 5 Kết thúc | **Đã review — đạt** (2026-10-09) | `3de2e6e2` → `8740affc` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3de2e6e2..HEAD` | Claude Opus 5.5 | Màn kết thúc theo đồng hồ phase (overlay ám sát → banner "Bạn thắng!" / "Bạn thua…" + lý do, tàn lửa / lấp lánh, ghế lật sang vai, thẻ "Sát Thủ đâm", tổng kết hành trình, danh sách vai), chạm để bỏ qua overlay, ô Quest chưa chơi trung tính, nút cuối ván vào dock, `ConfirmDialog` thay mọi `confirm()` gốc. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ5" bên dưới. |
 | 6 Hoàn thiện | **Đã review — đạt** (2026-10-10) | `db179bcf` → `4edc2309` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log db179bcf..HEAD` | Claude Sonnet 5.5 | Token ngắm của Lady bay tới người bị ngắm, thẻ kết quả soi lật chỉ ở máy người cầm Lady, người bị soi / ngoài cuộc chỉ thấy "Đã soi" trung tính; nhịp tim trên mục tiêu Sát Thủ; "Đến lượt bạn" (viền vàng quanh dock + "● " trên tiêu đề tab, không bao giờ ở đêm / lộ vai); 2 `alert()` → banner; bàn hẹp (≥ 8 người, bàn < 350 px); trợ năng (vòng focus, vùng chạm 44 px, `useDialog` giữ focus trong modal, `aria-live`). Hồi quy ván thật 7 tab (có Lady). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ6" bên dưới. |
-| 7a Nền thiết kế + khung chung + màn mẫu | **Xong — chờ nhạc trưởng review và người dùng duyệt ảnh** (2026-10-10) | `c962ed66` → `b1f9f504` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log c962ed66..HEAD` | Claude Opus 5.5 | Token mới (`--av-line`, `--av-text/-2/-3`, `--av-raised`), gộp `--av-leader` vào `--av-gold`; `AvButton`, `AvChip`, `GlassPanel` 4 tone, `PhaseChip` một kiểu; top bar chip \| "Vai của tôi" + menu "⋯"; desktop 2 cột; bàn mới (ô Quest gọn, cả hàng ô là một nút mở popup lịch sử, ghế một huy hiệu, avatar "giấy nhuộm"); team-vote màn mẫu; bảng phong cách trong Preview. Ảnh trước / sau ở `.claude/gd7a-shots/` (mở `index.html`). Lệch kế hoạch + số đo ở "Ghi chú của người thực thi GĐ7a" bên dưới. |
+| 7a Nền thiết kế + khung chung + màn mẫu | **Đã review — code đạt** (2026-10-10); **chờ người dùng duyệt ảnh** | `c962ed66` → `b1f9f504` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log c962ed66..HEAD` | Claude Opus 5.5 | Token mới (`--av-line`, `--av-text/-2/-3`, `--av-raised`), gộp `--av-leader` vào `--av-gold`; `AvButton`, `AvChip`, `GlassPanel` 4 tone, `PhaseChip` một kiểu; top bar chip \| "Vai của tôi" + menu "⋯"; desktop 2 cột; bàn mới (ô Quest gọn, cả hàng ô là một nút mở popup lịch sử, ghế một huy hiệu, avatar "giấy nhuộm"); team-vote màn mẫu; bảng phong cách trong Preview. Ảnh trước / sau ở `.claude/gd7a-shots/` (mở `index.html`). Lệch kế hoạch + số đo ở "Ghi chú của người thực thi GĐ7a" bên dưới. |
 | 7b Áp cho mọi màn | Chưa làm | | | Xem mục 8b. |
 
 ### Ghi chú của người thực thi GĐ0
@@ -959,6 +970,30 @@ Ghi nhận:
    - chặn tràn ngang 3 px của `TableTokens` ở 320 px bằng `overflow-clip`;
    - bàn hẹp áp từ 8 người và bàn < 350 px (đo thấy cần).
 2. Không làm phần tuỳ chọn "bù độ trễ dựng bằng `currentTime`": chấp nhận (rủi ro lớn hơn lợi ích; độ trễ ≤ 0,3 s chỉ khi reload).
+
+**GĐ7a (2026-10-10): code đạt; chờ người dùng duyệt ảnh trước khi làm GĐ7b.** Nhạc trưởng tự kiểm lại:
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: vẫn 2 lỗi có sẵn.
+- Logic-core, `AvalonBoard.tsx` và mọi file ngoài thư mục Avalon không có trong diff.
+- Gói JS Avalon **98,5 KB gzip** (+2,3 KB, trong ngân sách 3 KB).
+- Số đo tự chạy lại:
+  - lớp màu có bảng màu 85 / 331 (khớp báo cáo);
+  - `uppercase` 71 (khớp);
+  - `text-[Npx]` 133 (báo cáo ghi 135, lệch nhỏ, không đáng kể).
+  - Trong các file GĐ7a viết lại, chỉ còn panel đỏ "luật 2 lá" ở `PlayerPanel` (để GĐ7b).
+- Đã đọc:
+  - `AvButton`, `AvChip`, `RoomMenu`, `GlassPanel` (4 tone + `solid`);
+  - bảng màu avatar mới;
+  - top bar và bố cục 2 cột của `PlayerPanel`;
+  - `TeamVoteSection`: lá phiếu úp giống nhau cho cả hai phiếu; chỉ một chữ nhỏ ghi lựa chọn của mình, như GĐ6.
+- Đã xem ảnh ghép trước / sau: team-vote 375 / 1440, top bar, bàn 10 người 320, ám sát 1440, popup Quest, menu, bảng phong cách, cặp riêng tư của menu.
+
+Chấp nhận các lệch 1–13 của người thực thi. Đáng chú ý:
+- (1) cả hàng ô Quest là một nút, kèm hàng chuyển Quest trong popup: hợp lý, vì 5 × 44 px không vừa 168 px;
+- (2) dời cụm ô Quest xuống: sửa luôn một va chạm có sẵn ở 6–7 người;
+- (9) `--av-text-3` = 60 %.
+
+Việc giao thêm cho GĐ7b, xem "Bổ sung cho GĐ7b" ở mục 8b.
 
 ### Tổng kết kế hoạch (nhạc trưởng, 2026-10-10)
 Hoàn thành GĐ0 → GĐ6 trên `dev-avalon-uxui`. (Sau đó người dùng yêu cầu thêm **GĐ7** "dọn giao diện", xem mục 8b.) Logic-core (`useAvalon.ts`, `types.ts`, luật trong `constants.ts`, khối auto-progression) **không đổi** suốt kế hoạch. Ngoài thư mục Avalon chỉ sửa một nhánh trong `page.tsx`.
