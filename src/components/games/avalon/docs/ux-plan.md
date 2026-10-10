@@ -760,7 +760,7 @@ Branch: `dev-avalon-uxui`.
 | 5 Kết thúc | **Đã review — đạt** (2026-10-09) | `3de2e6e2` → `8740affc` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3de2e6e2..HEAD` | Claude Opus 5.5 | Màn kết thúc theo đồng hồ phase (overlay ám sát → banner "Bạn thắng!" / "Bạn thua…" + lý do, tàn lửa / lấp lánh, ghế lật sang vai, thẻ "Sát Thủ đâm", tổng kết hành trình, danh sách vai), chạm để bỏ qua overlay, ô Quest chưa chơi trung tính, nút cuối ván vào dock, `ConfirmDialog` thay mọi `confirm()` gốc. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ5" bên dưới. |
 | 6 Hoàn thiện | **Đã review — đạt** (2026-10-10) | `db179bcf` → `4edc2309` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log db179bcf..HEAD` | Claude Sonnet 5.5 | Token ngắm của Lady bay tới người bị ngắm, thẻ kết quả soi lật chỉ ở máy người cầm Lady, người bị soi / ngoài cuộc chỉ thấy "Đã soi" trung tính; nhịp tim trên mục tiêu Sát Thủ; "Đến lượt bạn" (viền vàng quanh dock + "● " trên tiêu đề tab, không bao giờ ở đêm / lộ vai); 2 `alert()` → banner; bàn hẹp (≥ 8 người, bàn < 350 px); trợ năng (vòng focus, vùng chạm 44 px, `useDialog` giữ focus trong modal, `aria-live`). Hồi quy ván thật 7 tab (có Lady). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ6" bên dưới. |
 | 7a Nền thiết kế + khung chung + màn mẫu | **Đã review — code đạt** (2026-10-10); **chờ người dùng duyệt ảnh** | `c962ed66` → `b1f9f504` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log c962ed66..HEAD` | Claude Opus 5.5 | Token mới (`--av-line`, `--av-text/-2/-3`, `--av-raised`), gộp `--av-leader` vào `--av-gold`; `AvButton`, `AvChip`, `GlassPanel` 4 tone, `PhaseChip` một kiểu; top bar chip \| "Vai của tôi" + menu "⋯"; desktop 2 cột; bàn mới (ô Quest gọn, cả hàng ô là một nút mở popup lịch sử, ghế một huy hiệu, avatar "giấy nhuộm"); team-vote màn mẫu; bảng phong cách trong Preview. Ảnh trước / sau ở `.claude/gd7a-shots/` (mở `index.html`). Lệch kế hoạch + số đo ở "Ghi chú của người thực thi GĐ7a" bên dưới. |
-| 7b Áp cho mọi màn | Chưa làm | | | Xem mục 8b. |
+| 7b Áp cho mọi màn | **Xong, chờ review** (2026-10-10) | `f2c9510b` → `a4545ec0` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log f2c9510b..HEAD` | Claude Opus 5.5 | Mọi phase theo khuôn "một câu, một việc" (chọn đội / Lady / Sát Thủ chọn trên bàn, bỏ mọi lưới danh sách và `PlayerRoster`), màn kết thúc thu gọn "Diễn biến ván" (cao 1 màn hình ở 375), màn ngoài ván và modal đổi kiểu, `SceneTitle` vẽ trên dải trống của mặt bàn (0 giao với ghế / ô Quest), chấm đã bầu / sẵn sàng ở mọi ghế, token đội chỉ ở các phase của đội, menu "⋯" sửa vòng focus. Quét sạch: 0 lớp màu bảng màu, 0 `text-[Npx]`, `uppercase` 4, 3 bán kính. Số từ −58 %, gói JS 91,6 KB gzip. **Phát hiện `roleLineup` lưu theo thứ tự ghế** (sửa phía UI; phần dữ liệu cần người dùng quyết). Ảnh ở `.claude/gd7b-shots/` (mở `index.html`). Chi tiết ở "Ghi chú của người thực thi GĐ7b" bên dưới. |
 
 ### Ghi chú của người thực thi GĐ0
 
@@ -1719,6 +1719,136 @@ Các file 7a viết lại (`PlayerPanel` top bar + bố cục, `RoundTable`, `Te
 - Các section đang dùng `PlayerRoster` bản mobile (team-build, quest-play, Lady) và `TokenBadges` / `RoleLineChip` trong `panel/shared.tsx` còn lớp màu cũ.
 
 **Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch. Không tạo phòng Firebase nào (chỉ dùng harness). Script kiểm thử (CDP) nằm ở scratchpad của session.
+
+### Ghi chú của người thực thi GĐ7b
+
+**Đã làm:** đủ 5 mục của GĐ7b, 4 mục "Bổ sung cho GĐ7b" (kể cả mục tuỳ chọn 4) và "Việc cho GĐ7b" của người thực thi GĐ7a. Không sửa logic-core: `useAvalon.ts`, `types.ts`, `constants.ts` không có trong diff; `AvalonBoard.tsx` chỉ đổi JSX từ banner trở xuống (khối auto-progression và thân các handler giữ nguyên). Không thêm dependency, không thêm icon, không sửa `globals.css`, không đụng file ngoài thư mục Avalon.
+
+**Từng màn:**
+- **Khuôn chung** (`panel/shared.tsx`): `PanelHead` (tiêu đề display + đồng hồ), `PanelLine` (một câu), `PanelNote` (một dòng đếm), `TwoFailNote` (luật 2 lá một dòng), `DockStatus` (dải trạng thái trong dock khi đã làm xong phần mình, thay cho nút bị khoá). `LowTimeClock` tự đổi đỏ khi sắp hết giờ; `throb` tắt nhấp nháy khi dock "đến lượt bạn" đang nhấp nháy.
+- **team-build:** Leader: "Chọn N người" + "Chạm vào ghế trên bàn…" + "Đã chọn 1/2: tên" + dock "Trình đội · 1/2". **Bỏ cả lưới chọn 2 cột của Leader**: chọn trên bàn (đã có từ GĐ0, B3). Người khác: "Leader X đang chọn N người đi Quest." Luật 2 lá một dòng.
+- **team-vote-result / quest-result:** giữ nguyên mọi mốc (`VOTE_RESULT`, `questResultTimeline`), chỉ đổi màu: tổng phiếu là icon + số (không màu); con dấu "Được duyệt" vàng, "Bị bác" đỏ (nguy hiểm: tắt một nến); viền đổi màu theo kết quả thay bằng một lớp màu mờ từ trên (cùng mốc). Bỏ panel "Đội được đề xuất" và panel "Tổng lựa chọn" (tổng lá thành một dòng dưới con dấu).
+- **quest-play:** trong đội: 2 thẻ `choice` "Phe Người" / "Phe Quỷ" trong dock + "Xác nhận đặt lá"; đã đặt: "Đã đặt lá" + một câu; ngoài đội: "Đội làm nhiệm vụ" + "x/y lá đã đặt". Bỏ lưới danh sách. (Phase này trước đây không có đồng hồ; giữ như cũ.)
+- **discussion:** tiêu đề + đồng hồ, một câu, "Sẵn sàng n/N", nút. Bỏ vòng đồng hồ 128px, dải hành trình và lưới 7 người (ai sẵn sàng = chấm trên ghế, xem dưới).
+- **Lady:** người cầm chọn **trên bàn** (`RoundTable` `canLadyPick` / `onLadyPick` → đúng `onLadyInspect` cũ, ghế của người cầm và người từng cầm không chọn được); dock "Xác nhận soi X" → thẻ kết quả lật (giữ nguyên) + "Hoàn tất — chuyển Lady cho X". Người bị ngắm / ngoài cuộc: một câu, giống nhau dù kết quả thế nào. Bỏ lưới "Tất cả người chơi (highlight = đang bị ngắm)".
+- **assassinate:** 1 panel ("Sát Thủ tìm Merlin", đồng hồ, một câu theo phe — lúc này phe đã công khai — và "Sát Thủ đang ngắm X"), dock của Sát Thủ. Phe Quỷ lộ diện = **huy hiệu vai (icon vai, nền đỏ) ở góc ghế**, công khai cho mọi người, thay huy hiệu gợi ý riêng; danh sách cho trình đọc màn hình nằm trong `sr-only`. Bỏ lưới chọn của Sát Thủ (chọn trên bàn như cũ).
+- **end:** banner (icon phe, "Bạn thắng!" / "Bạn thua…", "Phe X thắng", một câu lý do), bàn lật vai, dock; **"Diễn biến ván"** (câu dẫn của cảnh, dòng "Sát Thủ đâm", hành trình 5 ô + nhật ký từng Quest, vai của mọi người) là một phần, **thu gọn mặc định** (trạng thái mở chỉ ở máy đó). Bỏ dòng "Vai của bạn" trong banner (ghế của bạn đã lật). Người không phải chủ phòng thấy "Chờ chủ phòng" là một dải trạng thái, không phải nút khoá.
+- **lineup-preview, role-reveal, đêm:** chỉ đổi kiểu. Đêm: thẻ nhấn giữ là `AvButton choice`, nút "Đã xem — tiếp tục" `primary` cho **mọi người**; bấm xong mọi người cùng thấy `DockStatus` cao bằng nút (56px) — màn hình vẫn giống hệt nhau. Lộ vai (đã đọc xong): 3 panel → 1.
+- **Màn ngoài ván:** `AvalonJoinScreen`, lobby (nút `AvButton`, nút bắt đầu trong `ActionDock` — desktop nằm dưới QR ở cột phải), `LobbyRoundTable` (ghế trống = vòng mờ, không chữ; bàn cùng kiểu với bàn trong ván), `LobbyNotices`, banner lỗi / mất mạng (mực đặc, viền đỏ), `ui/Modal` (tách từ `AvalonBoard`, dùng `GlassPanel solid`), `RoomSettings`, `RoleGuide`, `RoleCard`, `RoleReveal`, `RoleLetter`, `RolePreviewPopup`, `ConfirmDialog`. Nội dung bên trong modal không còn khung lồng khung (chỉ đường kẻ).
+- **`AssassinRevealOverlay`, `EndSparks`, lá Quest:** đổi màu (mặt bài mực + viền vàng thay cam; tàn lửa phe Quỷ theo đỏ phe), giữ nguyên mọi mốc.
+- **`SceneTitle`:** vẽ **trên mặt bàn**, trong dải trống giữa ghế trên cùng và hàng ô Quest (`RoundTable` nhận `sceneTitle`; dải: 35–65 % × 24,5–36,5 % của bàn hẹp, 32–68 % × 16–40 % khi bàn ≥ 600px). Điện thoại chỉ tên cảnh; bàn rộng thêm "Quest III" và câu dẫn (tối đa 3 dòng). Vẫn 2,6 s theo `phaseStartedAt` / giờ server.
+- **Quét sạch** (số ở bảng dưới); xoá `--av-team`, `--av-approve(-light)`, `--av-reject(-light)`, `--av-glass-border`.
+
+**Bổ sung cho GĐ7b:**
+1. **Chấm "đã bầu"** ở **góc dưới-trái avatar**, mọi ghế, kể cả ghế có gợi ý đêm (huy hiệu góc phải). Cùng chấm cho **"sẵn sàng"** ở lineup-preview, role-reveal và thảo luận (thay các danh sách sẵn sàng đã bỏ); không bao giờ ở đêm.
+2. **Token và vòng đề cử** chỉ ở `team-build` … `quest-result` (`isTeamPhase` trong `TableTokens`, dùng chung cho vòng trên ghế). Ván thật: 0 mẫu có token đội ngoài các phase đó.
+3. **Menu "⋯":** "Xoá phòng" là một dòng như "Các vai trong ván", chữ và icon `--av-evil-light`, không viền (`AvButton ghost danger`). Chạm thật (`Input.dispatchTouchEvent`) và click thật (`Input.dispatchMouseEvent`): focus vào **khung menu**, không có vòng focus; Enter trên "⋯": focus vào dòng đầu, có vòng (`useDialog(…, 'panel')`, nhận biết bằng `event.detail`). Tab từ khung đi vào dòng đầu; Esc trả focus về "⋯".
+4. **Desktop:** khi bàn ≥ 560px, số La Mã 30px, ô cao 98px, nến 36px (trước 24 / 72 / 28px ở bàn 720px).
+
+**Lệch / quyết định nhỏ so với kế hoạch (nhạc trưởng nên liếc qua):**
+1. **Chấm phiếu ở góc dưới-trái avatar, không trong nhãn tên.** Đã thử trong nhãn tên: nhãn rộng thêm khoảng 11px và chạm ô Quest I / V tới 3px ở 300–360px (6–7 người). Góc trái không tranh với huy hiệu góc phải và nằm trong khung của avatar + nhãn, nên không gây va chạm mới.
+2. **Chấm "sẵn sàng"** (lineup, lộ vai, thảo luận) không có trong kế hoạch: nó thay cho 3 danh sách "ai sẵn sàng" đã bỏ, để thông tin không mất.
+3. **Phe Quỷ lộ diện có cả Oberon** (như danh sách cũ). Huy hiệu là icon của vai (Sát Thủ = dao găm…), tên vai ở `title`.
+4. **Lobby — mời người ra:** không có ⊗ ở đâu cả; với chủ phòng, ghế của người khác là nút, **chạm ghế thì hỏi ngay** "Mời X ra khỏi phòng?" (hộp xác nhận cũ). Kế hoạch ghi "⊗ chỉ hiện khi host chạm ghế": cách này 2 chạm thay vì 3 và không phải đặt một nút nổi giữa 10 ghế ở 320px. Bỏ thêm dòng "Cần 5–10 người…" dưới bàn (giữa bàn và nút bắt đầu đã nói).
+5. **`RolePreviewPopup` ("Các vai trong ván") bỏ phần "Vai của bạn".** Trùng với "Vai của tôi" (nhấn giữ), và lộ vai ngay khi mở giữa bàn. Nay popup giống hệt nhau với mọi người (cặp ảnh = 0).
+6. **Phát hiện một chỗ lộ thông tin có từ trước (GĐ1 trở về trước) — cần người dùng quyết:** `useAvalon.assignRoles` lưu `roleLineup: pool.slice()` trong khi `pool[i]` được giao cho ghế `seatOrder[i]`, tức **`state.roleLineup` chính là vai của từng ghế theo thứ tự ghế**, nằm trong state chung. Màn lineup và popup "Các vai trong ván" liệt kê vai theo thứ tự xuất hiện đầu tiên ⇒ ví dụ "Merlin" đứng đầu cột Phe Người nghĩa là ghế Phe Người đầu tiên là Merlin (Phe Quỷ biết ai là Phe Người ⇒ Sát Thủ đâm trúng). **Đã sửa phía UI** (`presentation.inDisplayOrder`: luôn liệt kê theo thứ tự cố định; cặp ảnh lineup 0,49 → 0, popup 4,47 → 0). **Phần dữ liệu thuộc logic-core nên chưa sửa**: ai đọc Firestore vẫn suy ra được. Đề xuất (1 dòng trong `assignRoles`, cần người dùng duyệt): lưu `roleLineup` đã sắp theo thứ tự cố định hoặc đã xáo riêng. Các ván đang chơi không bị ảnh hưởng.
+7. **`SceneTitle` không hiện ở đại sảnh (lineup / lộ vai) và ban đêm.** Trước đây tiêu đề sống ở `AvalonBoard` và không bao giờ hiện ở lineup (sảnh → sảnh); nay nó gắn trên bàn và mount cùng `PlayerPanel`, nên phải loại sảnh để giữ như cũ. Ban đêm, lớp màn của bàn đã nói "Phe Quỷ mở mắt…" ở đúng chỗ đó. Tiêu đề của cảnh đổi cưỡng bức trong Preview (chọn "Cảnh") không còn hiện: tiêu đề theo `getScene` của ván.
+8. **Cụm ô Quest hạ 3cqw** (`top-[10cqw]` → `top-[13cqw]`): ở 300px / 7 người nhãn "Bob" / "Grace" chạm ô I / V 3px — **có sẵn ở `f2c9510b`** (đo lại trên HEAD bằng `git stash`), GĐ7a ghi 0 có lẽ do đo khác chiều rộng. Nay 0 va chạm, khoảng cách nhỏ nhất 1,2px.
+9. **Giữ đồng hồ ở mọi phase có hạn giờ trừ quest-play** (trước đây cũng không có). Thảo luận: vòng đồng hồ → đồng hồ chữ ở tiêu đề.
+10. **`AvButton`**: thêm variant `bare` (vật vẽ được nhấn: lá thư niêm phong — chỉ giữ vòng focus, `disabled`, `type`) và cờ `danger` cho `ghost` (dòng menu đỏ). Dòng `ghost` "Diễn biến ván" / "Thoát phòng" ở màn kết thúc có nền kính (không viền): ở desktop dock nằm thẳng trên cảnh bình minh, không có nền thì chữ chỉ 2,3–2,7:1.
+11. **Bo góc lá bài vẽ** (mặt / lưng lá Quest, lá phiếu úp, ô trống của chồng bài) chuyển vào class `.av-card` (14 % / 10 %, theo tỉ lệ lá 5:7) trong `avalon.css`; giao diện chỉ còn 3 bán kính. `GlassPanel` luôn `rounded-2xl` (bỏ dò `rounded-*` trong `className`) và nhận `ref`.
+12. **Số khung có viền vượt 2** chỉ ở các màn có **hình vẽ**: lật bài (mặt + lưng của mỗi lá + con dấu viền đôi; khung giao diện = 1 panel), thẻ kết quả Lady (mặt + lưng của cùng một thẻ + dock), lineup (panel + dock + 2 đường kẻ trong cuộn giấy). Lệnh đo đếm mọi cạnh viền nên vẫn tính chúng.
+13. **Số sắc nhấn = 4** ở các màn có token Lady trên bàn (Preview 7 người): vàng, xanh Phe Người, đỏ Phe Quỷ + token Lady 20px — như GĐ7a. Không tính token Lady thì ≤ 3 ở mọi màn.
+14. **Panel lineup 37 từ** (> 30): là danh sách vai công khai trên cuộn giấy; kế hoạch để lineup "chỉ đổi kiểu".
+15. **`uppercase` còn 4** trong lệnh đo: 3 con dấu (kết quả phiếu, kết quả Quest, "Trúng / Trật") và dòng "Mọi người khác nhắm mắt" của màn đêm; cộng 1 nhãn "Quest III" của `SceneTitle` (trong `scenes/`, ngoài glob). Chỉ còn `font-black` ở banner kết thúc.
+
+**Số đo "Nghiệm thu GĐ7"** (lệnh ở mục 8b, chạy trong `src/components/games/avalon`):
+
+| Chỉ số | Trước (`f2c9510b`, sau GĐ7a) | Sau GĐ7b | Đích |
+|---|---|---|---|
+| Lớp màu Tailwind có bảng màu | 85 lớp / 331 lần | **0 / 0** | 0 |
+| `text-[Npx]` | 133 | **0** (chữ trên bàn dùng `clamp(…cqw…)`) | chỉ chữ trên bàn |
+| `uppercase` | 71 | **4** | ≤ 12 |
+| Kiểu bo góc | 8 | **3** (`full` 40, `xl` 21, `2xl` 11) | full, xl, 2xl |
+| File có `<button` | 21 | **3**: `ui/AvButton`, `RoundTable` (ghế, hàng ô Quest, hàng chuyển Quest trong popup), `LobbyRoundTable` (ghế) | chỉ AvButton, ghế, ô Quest |
+| `bg-gradient-*` / `bg-linear-*` / `bg-[radial…]` | 22 lần / 10 file | chỉ trang trí: mặt bàn (2), màn đêm, lớp màu kết quả (2 section + `GlassPanel` good / evil), overlay ám sát, lưng lá bài | chỉ trang trí |
+
+**Mật độ** (Preview 7 người, ẩn thanh Preview; số từ nhìn thấy trong top bar + `[data-phase-section]`, không tính tên; trong ngoặc: riêng panel, không tính dock; khung có viền > 2.000px²; sắc nhấn độ bão hoà > 25 %, không tính cảnh và avatar):
+
+| Màn | Số từ 375 | Khung 375 | Khung 1440 (cột panel) | Sắc nhấn | Cao trang 375 |
+|---|---|---|---|---|---|
+| lineup-preview | 46 → **46** (37) | 11 → **4**¹ | 10 → **3**¹ | 4 → **4**² | 882 → **863** |
+| đêm (4 lượt, như nhau) | 33 → **33** (7) | 4 → **2** | 3 → **1** | 4 → **3** | 812 → **812** |
+| team-build Leader | 57 → **30** (22) | 9 → **2** | 8 → **1** | 4 → **3** | 1008 → **812** |
+| team-build người khác | 45 → **19** (14) | 10 → **1** | 2 → **1** | 4 → **3** | 945 → **812** |
+| team-vote chưa / đã bầu | 23 / 25 → **23 / 25** | 2 → **2** | 1 → **1** | 3 → **3** | 812 → **812** |
+| KQ phiếu duyệt / bác | 48 / 49 → **29 / 31** (24 / 26) | 6 → **2** | 6 → **2** | 6 → **3** | 854 → **812** |
+| KQ phiếu bác, còn 1 nến | 63 → **36** (31³) | 7 → **2** | 7 → **2** | 6 → **3** | 908 → **812** |
+| quest-play trong đội | 48 → **35** (22) | 5 → **2** | 4 → **1** | 5 → **3** | 813 → **812** |
+| quest-play đã đặt / ngoài đội | 32 / 38 → **22 / 21** | 1 / 9 → **1 / 1** | 1 → **1** | 4–5 → **3** | 984 → **812** |
+| lật bài thành công / thất bại / Quest IV | 25 / 25 / 35 → **15 / 15 / 23** | 10–14 → **6–10**¹ | 12–18 → **8–14**¹ | 4 → **4**² | 901–921 → **812** |
+| thảo luận | 59–61 → **30–36** (22) | 16–17 → **2** | 15–16 → **1** | 6 → **4**² | 1134–1160 → **812** |
+| Lady người cầm (chọn / đã chọn) | 49 → **26 / 18** | 8 → **2** | 7 → **1** | 4 → **3** | 890–909 → **812** |
+| Lady kết quả (người cầm) | 27 → **23** | 3 → **3**¹ | 2 → **2** | 4 → **3** | 812 → **812** |
+| Lady bị ngắm / ngoài cuộc | 23 / 34–38 → **16 / 11** | 1 / 9 → **1 / 1** | 1 → **1** | 4–5 → **3** | 943–968 → **812** |
+| ám sát (Sát Thủ / Người / Quỷ) | 119 / 90 / 93 → **29 / 25 / 27** | 12 / 7 / 7 → **2 / 1 / 1** | 11 / 7 / 7 → **1** | 4 → **4**² | 1091–1326 → **812** |
+| kết thúc (5 kiểu)⁴ | 151–181 → **25–35** (13–21) | 22–29 → **2** (5 khi overlay còn chạy) | 21–28 → **1** (4) | 7 → **4**² | 1774–1954 → **812** |
+| **Tổng 35 màn, 375px** | **2.234 → 940 từ (−58 %)** | | | | |
+
+¹ Gồm hình vẽ (lá bài mặt + lưng, con dấu, thẻ Lady mặt + lưng) hoặc đường kẻ trong cuộn giấy — xem lệch 12. ² Có token Lady trên bàn — xem lệch 13. ³ Đo trước khi rút câu cảnh báo còn "Còn 1 nến — bác nữa là Phe Quỷ thắng!" (bớt 3 từ ⇒ 28). ⁴ Preview đặt `phaseStartedAt` = lúc chọn cảnh, nên 2 kiểu "đâm trúng / trật" đo lúc overlay ám sát còn chạy.
+
+- **Màn kết thúc ở 375×812, chưa mở "Diễn biến ván": cao 812px = 1 màn hình** ở cả 5 kiểu (trước 1.774–1.954px). Ván thật: 900 (1440×900), 812 (375×812), 671 (320×568 = 1,18 màn hình), 844 (390×844).
+- Không panel nào > 30 từ khi chưa mở phần chi tiết, trừ lineup (lệch 14).
+
+**Kết quả kiểm thử:**
+- `npx tsc --noEmit` sạch; `npm run build` thành công (build sạch sau khi xoá harness và `.next`).
+- ESLint: `npx eslint src/components/games/avalon` vẫn đúng 2 lỗi `react-hooks/set-state-in-effect` có sẵn (`AvalonBoard.tsx`, `QuestPlaySection.tsx`) + 2 cảnh báo có sẵn trong `useAvalon.ts`.
+- **Gói JS Avalon** (chunk chứa `data-phase-section`, `gzip -6`, harness đã xoá): GĐ7a 323.848 B thô / 98.496 B gzip → **GĐ7b 286.892 / 91.602** (**−6,9 KB gzip**, dưới mốc GĐ6 96,2 KB): bỏ `PlayerRoster`, các lưới chọn, panel trùng và chuỗi class dài.
+- **Riêng tư** (cặp ảnh thu 10 %, độ lệch điểm ảnh trung bình 0–255, đóng băng animation; đối chứng = chụp lại bên A, đều 0):
+
+  | Cặp | 375 | 1440 | GĐ7a (375 / 1440) |
+  |---|---|---|---|
+  | Thư lộ vai (3 cặp) · "Vai của tôi" · Đêm (3 lượt), chưa giữ | **0** | **0** | 0 / 0 |
+  | **Lộ vai, đã đọc xong** (Merlin \| Sát Thủ) | **0** | **0** | — |
+  | **Lineup** (Merlin \| Sát Thủ) | **0** (0,49 trước khi sửa thứ tự vai) | **0** (0,15) | — |
+  | **"Các vai trong ván"** (Merlin \| Morgana) | **0** (4,47 trước khi sửa) | **0** (1,13) | — |
+  | Đặt lá chưa đặt / đã đặt | 0,20 / 0,20 | 0,05 / 0,05 | 0,20 / 0,20 · 0,05 |
+  | Phiếu chưa bầu / đã bầu (Đồng ý \| Từ chối) | 0,20 / 0,23 | 0,05 / 0,06 | 0,16 / 0,19 · 0,04 / 0,05 |
+  | Lady: bị ngắm · đã bị soi · ngoài cuộc ngắm · ngoài cuộc đã soi | 0,20 | 0,05 | 0,20 / 0,05 |
+  | Top bar + menu "⋯" mở (Người \| Quỷ) | 0,36* | **0** | 0,33* / 0 |
+  | Top bar + menu "⋯" ban đêm | **0** | **0** | 0 / 0 |
+  | Popup lịch sử Quest | 0,06 | 0,02 | 0,05 / 0,01 |
+  | Ám sát, đang ngắm (Người \| Người khác vai) | 0,02 | 0,01 | 0,21 / 0,05 |
+  | *Thư đang giữ / người cầm Lady thấy Người \| Quỷ (khác có chủ ý)* | *1,44 / 1,06* | *0,33 / 0,24* | *1,38 / 1,20 · 0,33 / 0,30* |
+
+  \* Ảnh cắt 230px trên cùng lọt vào ghế của Grace: Merlin thấy huy hiệu gợi ý, Morgana thì không (gợi ý riêng có từ GĐ1). 0,2 ở các cặp 375 là gợi ý riêng trên ghế, như GĐ6 / GĐ7a.
+- **Tương phản trên điểm ảnh thật** (31 màn: mọi phase, cảnh tối và cảnh bình minh, modal, menu, popup, lobby, trang vào phòng, bảng phong cách; bàn 9–10 người ở 320 / 375): **2.043 / 2.083 đoạn chữ ≥ 4,5:1**, thấp nhất 4,67. 40 đoạn còn lại đều là **nút đang khoá** ("Trình đội · 2/4", "Chọn 1 lá ở trên", "Vào bàn" khi chưa nhập tên, dòng Oberon khi hết chỗ trong cài đặt) — miễn theo WCAG. Dòng "Diễn biến ván" / "Thoát phòng" trên cảnh bình minh lúc đầu chỉ 2,3–2,7:1 (lệch 10), đã sửa và đo lại: 359 / 359. Bảng màu avatar không đổi so với GĐ7a (chữ trắng thấp nhất 5,76 với 10 người).
+- **Va chạm** (mọi phần của ghế, token, nhãn tên vs ô Quest và dấu 2 lá): **0** ở 300 / 320 / 340 / 360 / 375 / 390 / 1024 / 1440px × 5–10 người, ở team-vote, thảo luận, ám sát, kết thúc (vai đã lật); khoảng cách nhỏ nhất 1,2px. **Tiêu đề cảnh** (dải và hộp chữ đang hiện, đo giao nhau hình chữ nhật với mọi phần của ghế, token, ô Quest): **0 / 162** lần hiện (team-build, thảo luận, ám sát × 9 chiều rộng 300–1440 × 6 cỡ bàn), khoảng cách nhỏ nhất 1,5px, không lần nào chữ bị cắt. Không tràn ngang ở mọi ảnh.
+- **Menu "⋯" / bàn phím:** xem "Bổ sung" 3. Chọn trên bàn bằng bàn phím: ghế của Leader / Lady / Sát Thủ là nút, nhận focus và hiện vòng focus.
+- **Vùng chạm:** 0 nút < 44px ở 12 phase × 320 / 375 / 1440 (10 người).
+- **Giảm chuyển động** (giả lập): 0 animation chạy trong Avalon ở 11 phase; tiêu đề cảnh vẫn hiện (đứng yên); màn kết thúc tới thẳng khung cuối (overlay bỏ qua, thẻ "Sát Thủ đâm" nằm trong "Diễn biến ván"). Không giả lập: chỉ dock "đến lượt bạn" nhấp nháy, cộng nhịp tim + dấu ngắm trên mục tiêu ám sát.
+- **Ván thật 5 tab, bản production** (`localhost`, `127.0.0.1`, `a/b/c.localhost`; 1440, 375, 375, 320, 390px; mỗi tab một cửa sổ; từ trang vào phòng tới "Chơi ván mới"): **0 lỗi JS ở cả 5 tab**; **cả 5 tab cùng chuỗi cảnh** `hall > night > marsh > camp > forest > camp > chapel > blood-moon > end-good` và **cùng chuỗi tiêu đề cảnh** trên bàn `marsh > camp > forest > chapel > blood-moon`; "Đến lượt bạn" 0 sai lệch trên khoảng 7.300 mẫu, không bao giờ ở đêm / lộ vai; chấm phiếu đủ 5 / 5 ghế ở mọi mẫu team-vote; chấm sẵn sàng chỉ ở lineup / lộ vai / thảo luận; 0 mẫu có token đội ngoài các phase của đội; 2 huy hiệu Phe Quỷ ở ám sát và 0 ở phase khác; "Diễn biến ván" thu gọn ở mọi tab; không tràn ngang. Sau ván: "Chơi ván mới" → hộp xác nhận (focus "Huỷ") → lobby ở cả 5 tab; Esc huỷ hộp "Xoá phòng" và trả focus; **chạm ghế P5 → "Mời P5 ra khỏi phòng?" → còn 4 người**; xoá phòng → chủ phòng về trang chủ, mở lại link: "Room Not Found" (đã dọn). 2 mẫu có "● " trên tiêu đề tab mà dock chưa sáng: lệch một lần render lúc đổi phase, như `useTurnTitle` vốn có. Bước "lỗi bắt đầu ván → banner" không kích hoạt được (React bỏ qua click vào nút đang khoá), nhưng cũng không có `alert()` nào.
+
+**Đủ thông tin ("Không được làm mất"), nằm ở đâu sau GĐ7b:**
+- Ai trong đội: vòng giấy da + token trên ghế (chỉ ở các phase của đội); "Đã chọn 1/2: tên" ở team-build; "Đội của X: …" ở team-vote.
+- Ai đã / chưa bầu (không lộ bầu gì): chấm góc dưới-trái **ở mọi ghế** + "Đã bầu n/N".
+- Số lần bác: 5 ngọn nến; dòng "Còn 1 nến…" ở kết quả phiếu.
+- Kết quả từng Quest và ai đã đi: icon trên ô Quest; popup lịch sử; "Diễn biến ván" ở màn kết thúc.
+- Luật 2 lá: dấu trên ô Quest; popup; một dòng ở panel team-build / team-vote / quest-play / lật bài **của Quest đó**.
+- Đồng hồ của phase có hạn giờ: tiêu đề panel (lineup, lộ vai, đêm, team-build, team-vote, thảo luận, Lady, ám sát).
+- Leader: vương miện trên bàn; "Leader X đang chọn…" (team-build); "Đội của X" (team-vote).
+- Người cầm Lady: token Lady; câu của panel Lady.
+- "Vai của tôi" (nhấn giữ): top bar. Gợi ý đêm: huy hiệu góc phải trên ghế (ở ám sát thay bằng huy hiệu vai Phe Quỷ công khai).
+- Rời / Xoá phòng, "Các vai trong ván": menu "⋯"; màn kết thúc thêm "Thoát / Xoá phòng" trong dock.
+- Ai đã sẵn sàng (lineup, lộ vai, thảo luận): chấm trên ghế + "Sẵn sàng n/N".
+
+**Ảnh** ở `.claude/gd7b-shots/` (git bỏ qua; mở `index.html`): `compare/375`, `compare/1440` — 65 cặp trước \| sau mỗi chiều rộng (mọi cảnh Preview, ẩn thanh Preview, 375 cả trang, 1440 khung 1440×900; `x-*` = màn của harness: modal cài đặt / hướng dẫn, hộp xác nhận, "Vai của tôi", "Các vai trong ván", menu "⋯", Quest IV, bàn 10 người); `before/`, `after/` ảnh gốc; `after/checks/` menu mở bằng chạm / click / bàn phím; `pairs/` cặp riêng tư; `game/` ván thật (mỗi phase ở cả 5 tab, tiêu đề cảnh, báo cáo `game7b-report.json`).
+
+**Việc còn lại / đề xuất:**
+- **Cần người dùng quyết** (logic-core): `roleLineup` lưu theo thứ tự ghế (lệch 6).
+- Tuỳ chọn: tiêu đề cảnh khi chọn cảnh cưỡng bức trong Preview (lệch 7).
+
+**Dọn dẹp:** harness `src/app/avtest` đã xoá (không có trong commit), `.next` build lại sạch. Phòng Firebase của ván thật (`Z5ZBuMdoHbQ8uJqsAzfa`) đã xoá qua giao diện. Script kiểm thử (CDP) ở scratchpad của session `a05bf60e-…`.
 
 ---
 
