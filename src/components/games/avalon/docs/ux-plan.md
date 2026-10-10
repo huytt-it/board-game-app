@@ -759,8 +759,8 @@ Branch: `dev-avalon-uxui`.
 | 4 Mở đầu | **Đã review — đạt** (2026-10-09) | `beb7a58f` → `782e560c` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log beb7a58f..HEAD` | Claude Opus 5.5 | Trang vào phòng riêng (`AvalonJoinScreen`), lobby ngồi xuống / rời + thông báo, bộ bài xoè, lineup (bàn tròn, xáo ghế, vương miện quay, Lady, cuộn giấy da), thư niêm phong nhấn giữ (lộ vai + "Vai của tôi"), đêm "nhắm mắt" giống nhau trên mọi máy, chip phase không còn "…", danh sách mobile cao như nhau. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ4" bên dưới. |
 | 5 Kết thúc | **Đã review — đạt** (2026-10-09) | `3de2e6e2` → `8740affc` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 3de2e6e2..HEAD` | Claude Opus 5.5 | Màn kết thúc theo đồng hồ phase (overlay ám sát → banner "Bạn thắng!" / "Bạn thua…" + lý do, tàn lửa / lấp lánh, ghế lật sang vai, thẻ "Sát Thủ đâm", tổng kết hành trình, danh sách vai), chạm để bỏ qua overlay, ô Quest chưa chơi trung tính, nút cuối ván vào dock, `ConfirmDialog` thay mọi `confirm()` gốc. Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ5" bên dưới. |
 | 6 Hoàn thiện | **Đã review — đạt** (2026-10-10) | `db179bcf` → `4edc2309` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log db179bcf..HEAD` | Claude Sonnet 5.5 | Token ngắm của Lady bay tới người bị ngắm, thẻ kết quả soi lật chỉ ở máy người cầm Lady, người bị soi / ngoài cuộc chỉ thấy "Đã soi" trung tính; nhịp tim trên mục tiêu Sát Thủ; "Đến lượt bạn" (viền vàng quanh dock + "● " trên tiêu đề tab, không bao giờ ở đêm / lộ vai); 2 `alert()` → banner; bàn hẹp (≥ 8 người, bàn < 350 px); trợ năng (vòng focus, vùng chạm 44 px, `useDialog` giữ focus trong modal, `aria-live`). Hồi quy ván thật 7 tab (có Lady). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ6" bên dưới. |
-| 7a Nền thiết kế + khung chung + màn mẫu | **Đã review — code đạt** (2026-10-10); **chờ người dùng duyệt ảnh** | `c962ed66` → `b1f9f504` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log c962ed66..HEAD` | Claude Opus 5.5 | Token mới (`--av-line`, `--av-text/-2/-3`, `--av-raised`), gộp `--av-leader` vào `--av-gold`; `AvButton`, `AvChip`, `GlassPanel` 4 tone, `PhaseChip` một kiểu; top bar chip \| "Vai của tôi" + menu "⋯"; desktop 2 cột; bàn mới (ô Quest gọn, cả hàng ô là một nút mở popup lịch sử, ghế một huy hiệu, avatar "giấy nhuộm"); team-vote màn mẫu; bảng phong cách trong Preview. Ảnh trước / sau ở `.claude/gd7a-shots/` (mở `index.html`). Lệch kế hoạch + số đo ở "Ghi chú của người thực thi GĐ7a" bên dưới. |
-| 7b Áp cho mọi màn | **Xong, chờ review** (2026-10-10) | `f2c9510b` → `a4545ec0` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log f2c9510b..HEAD` | Claude Opus 5.5 | Mọi phase theo khuôn "một câu, một việc" (chọn đội / Lady / Sát Thủ chọn trên bàn, bỏ mọi lưới danh sách và `PlayerRoster`), màn kết thúc thu gọn "Diễn biến ván" (cao 1 màn hình ở 375), màn ngoài ván và modal đổi kiểu, `SceneTitle` vẽ trên dải trống của mặt bàn (0 giao với ghế / ô Quest), chấm đã bầu / sẵn sàng ở mọi ghế, token đội chỉ ở các phase của đội, menu "⋯" sửa vòng focus. Quét sạch: 0 lớp màu bảng màu, 0 `text-[Npx]`, `uppercase` 4, 3 bán kính. Số từ −58 %, gói JS 91,6 KB gzip. **Phát hiện `roleLineup` lưu theo thứ tự ghế** (sửa phía UI; phần dữ liệu cần người dùng quyết). Ảnh ở `.claude/gd7b-shots/` (mở `index.html`). Chi tiết ở "Ghi chú của người thực thi GĐ7b" bên dưới. |
+| 7a Nền thiết kế + khung chung + màn mẫu | **Đã review — đạt** (2026-10-10); người dùng duyệt hướng bằng cách cho chạy GĐ7b | `c962ed66` → `b1f9f504` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log c962ed66..HEAD` | Claude Opus 5.5 | Token mới (`--av-line`, `--av-text/-2/-3`, `--av-raised`), gộp `--av-leader` vào `--av-gold`; `AvButton`, `AvChip`, `GlassPanel` 4 tone, `PhaseChip` một kiểu; top bar chip \| "Vai của tôi" + menu "⋯"; desktop 2 cột; bàn mới (ô Quest gọn, cả hàng ô là một nút mở popup lịch sử, ghế một huy hiệu, avatar "giấy nhuộm"); team-vote màn mẫu; bảng phong cách trong Preview. Ảnh trước / sau ở `.claude/gd7a-shots/` (mở `index.html`). Lệch kế hoạch + số đo ở "Ghi chú của người thực thi GĐ7a" bên dưới. |
+| 7b Áp cho mọi màn | **Đã review — đạt** (2026-10-10) | `f2c9510b` → `a4545ec0` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log f2c9510b..HEAD` | Claude Opus 5.5 | Mọi phase theo khuôn "một câu, một việc" (chọn đội / Lady / Sát Thủ chọn trên bàn, bỏ mọi lưới danh sách và `PlayerRoster`), màn kết thúc thu gọn "Diễn biến ván" (cao 1 màn hình ở 375), màn ngoài ván và modal đổi kiểu, `SceneTitle` vẽ trên dải trống của mặt bàn (0 giao với ghế / ô Quest), chấm đã bầu / sẵn sàng ở mọi ghế, token đội chỉ ở các phase của đội, menu "⋯" sửa vòng focus. Quét sạch: 0 lớp màu bảng màu, 0 `text-[Npx]`, `uppercase` 4, 3 bán kính. Số từ −58 %, gói JS 91,6 KB gzip. **Phát hiện `roleLineup` lưu theo thứ tự ghế** (sửa phía UI; phần dữ liệu cần người dùng quyết). Ảnh ở `.claude/gd7b-shots/` (mở `index.html`). Chi tiết ở "Ghi chú của người thực thi GĐ7b" bên dưới. |
 
 ### Ghi chú của người thực thi GĐ0
 
@@ -995,8 +995,41 @@ Chấp nhận các lệch 1–13 của người thực thi. Đáng chú ý:
 
 Việc giao thêm cho GĐ7b, xem "Bổ sung cho GĐ7b" ở mục 8b.
 
+**GĐ7b (2026-10-10): đạt.** Nhạc trưởng tự kiểm lại:
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: vẫn 2 lỗi có sẵn.
+- `useAvalon.ts`, `types.ts`, `constants.ts` và mọi file ngoài thư mục Avalon không có trong diff.
+- `AvalonBoard.tsx`: mọi hunk nằm ở import, `withScene` (bỏ `SceneTitle`, chuyển lên bàn) và phần render từ banner trở xuống. Khối auto-progression và thân các handler (dòng 60–356 cũ) không đổi.
+- Gói JS Avalon **91,6 KB gzip** (−6,9 KB so với GĐ7a, dưới mốc GĐ6 96,2 KB).
+- Số đo tự chạy lại, khớp báo cáo:
+  - lớp màu có bảng màu 0;
+  - `text-[Npx]` 0;
+  - `uppercase` 4;
+  - bo góc còn `full` / `xl` / `2xl`;
+  - `<button>` chỉ còn ở `AvButton`, `RoundTable`, `LobbyRoundTable`;
+  - token cũ chỉ còn trong bảng "cũ → mới" của `avalon.css`;
+  - `PlayerRoster` đã xoá.
+- Đã xem ảnh trước / sau: chọn đội (Leader), ám sát 375 / 1440, Lady người cầm, kết thúc 375 / 1440 (cả overlay), lobby, cài đặt.
+
+**Phát hiện `roleLineup` (lệch 6): đã xác minh, không cần sửa logic-core.**
+- Đúng là `assignRoles` giao `pool[i]` cho `seatOrder[i]` và lưu `roleLineup: pool.slice()`.
+- Nhưng vai của từng người vốn đã nằm trong `rooms/{id}/players/{pid}.gameData.role`, và mọi máy đều subscribe toàn bộ người chơi: `RoundTable` cần vai của người khác để vẽ gợi ý đêm. Như vậy ở tầng dữ liệu, `roleLineup` không lộ thêm gì; muốn chống người mở DevTools thì phải giữ vai phía server, ngoài phạm vi một game cho nhóm bạn.
+- **Chỗ lộ thật là trên màn hình**: danh sách vai theo thứ tự xuất hiện ở lineup và "Các vai trong ván", ai nhìn cũng thấy, không cần DevTools. Chỗ này đã được sửa phía UI (`presentation.inDisplayOrder`, cặp ảnh = 0).
+- Kết luận: giữ nguyên `useAvalon.ts`.
+
+Chấp nhận các lệch 1–15. Đáng chú ý:
+- (1) chấm phiếu ở góc dưới-trái avatar;
+- (2) chấm "sẵn sàng" thay 3 danh sách;
+- (4) chủ phòng chạm ghế thì hỏi mời ra (có hộp xác nhận);
+- (5) "Các vai trong ván" bỏ phần "Vai của bạn" (lộ vai khi mở giữa bàn);
+- (7) `SceneTitle` không hiện ở sảnh và ban đêm.
+
+**Việc nhỏ còn lại (tuỳ chọn):**
+- Ảnh `x-settings` có vòng focus vàng trên nút đóng ngay khi modal mở. Ảnh này có thể chụp lúc modal được mở bằng code trong harness, không phải bằng chạm. Nếu chạm thật vẫn hiện vòng, áp cách của menu "⋯" (`useDialog(…, 'panel')` khi mở bằng con trỏ) cho `Modal` / `ConfirmDialog`.
+- Nút `primary` đang khoá ("Trình đội · 1/2", "Chọn 1 người trên bàn") là một khối vàng mờ, hơi đục. Có thể cân nhắc kiểu khoá trung tính.
+
 ### Tổng kết kế hoạch (nhạc trưởng, 2026-10-10)
-Hoàn thành GĐ0 → GĐ6 trên `dev-avalon-uxui`. (Sau đó người dùng yêu cầu thêm **GĐ7** "dọn giao diện", xem mục 8b.) Logic-core (`useAvalon.ts`, `types.ts`, luật trong `constants.ts`, khối auto-progression) **không đổi** suốt kế hoạch. Ngoài thư mục Avalon chỉ sửa một nhánh trong `page.tsx`.
+Hoàn thành GĐ0 → GĐ6 trên `dev-avalon-uxui`. Sau đó người dùng yêu cầu thêm **GĐ7** "dọn giao diện" (mục 8b); **GĐ7a + GĐ7b đã xong và đạt review (2026-10-10)**. Logic-core (`useAvalon.ts`, `types.ts`, luật trong `constants.ts`, khối auto-progression) **không đổi** suốt kế hoạch. Ngoài thư mục Avalon chỉ sửa một nhánh trong `page.tsx`.
 
 **Việc còn lại (tuỳ chọn, ngoài phạm vi):**
 - Hai nút "Copy" của `src/components/core/QRCodeDisplay.tsx` cao 36 px (dưới 44 px). Đây là component dùng chung cho mọi game nên chưa đụng.
