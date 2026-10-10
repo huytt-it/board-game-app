@@ -56,7 +56,7 @@ export function QuestPlaySection({
   if (!onTeam) {
     return (
       <div className="space-y-3">
-        <GlassPanel tone="mystic" className="p-5 text-center">
+        <GlassPanel tone="neutral" className="p-5 text-center">
           <p className="text-[11px] uppercase font-bold text-purple-300 mb-2"><AvIcon name="team" /> Đội đang chơi Quest</p>
           <div className="flex flex-wrap gap-2 justify-center mb-3">
             {team.map((p) => (
@@ -96,7 +96,7 @@ export function QuestPlaySection({
   // button that keeps its colour. Only icon-sized details differ.
   if (myCard) {
     return (
-      <GlassPanel tone="gold" className="p-5 text-center">
+      <GlassPanel tone="accent" className="p-5 text-center">
         <p className="text-xs uppercase font-bold text-slate-300 mb-2">Quest {state.currentQuest + 1}</p>
         <AvIcon name="card-play" size={40} className="mb-1 text-(--av-parchment)" />
         <p className="av-display text-3xl text-white">Đã đặt lá</p>
@@ -114,7 +114,7 @@ export function QuestPlaySection({
 
   return (
     <div className="space-y-3">
-      <GlassPanel tone="mystic" className="p-4">
+      <GlassPanel tone="neutral" className="p-4">
         <p className="text-[11px] uppercase font-black text-purple-300 mb-1"><AvIcon name="card-play" /> Bạn ở trong đội</p>
         <p className="text-sm text-slate-200">
           Chọn 1 lá bài để đặt vào Quest {state.currentQuest + 1}.

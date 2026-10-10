@@ -25,7 +25,7 @@ export default function RoleCard({ role, onClose }: RoleCardProps) {
       tabIndex={-1}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4 animate-fade-in outline-none"
     >
-      <GlassPanel tone="gold" emphasis className="relative w-full max-w-sm overflow-hidden rounded-3xl px-4 pb-4 pt-3">
+      <GlassPanel tone="accent" className="relative w-full max-w-sm overflow-hidden rounded-3xl px-4 pb-4 pt-3">
         <div className="flex items-center gap-2 pl-1">
           <p className="text-[11px] font-black uppercase tracking-[0.25em] text-(--av-gold)">
             <AvIcon name="eye" /> Vai của tôi

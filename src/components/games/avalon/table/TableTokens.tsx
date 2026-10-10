@@ -152,7 +152,7 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
         >
           <span
             data-token="leader"
-            className={`absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full border border-amber-100 bg-(--av-leader) text-[12px] text-(--av-ink) shadow shadow-black/40 ${lineup ? 'av-appear' : ''}`}
+            className={`absolute -top-2 -left-2 flex h-5 w-5 items-center justify-center rounded-full border border-(--av-parchment)/70 bg-(--av-gold) text-xs text-(--av-ink) shadow shadow-black/40 ${lineup ? 'av-appear' : ''}`}
             style={lineup ? { animationDelay: cue(LINEUP.spinAt) } : undefined}
           >
             <AvIcon name="leader" />
@@ -164,7 +164,7 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
         <OrbitToken angle={lady}>
           <span
             data-token="lady"
-            className={`absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border border-teal-100 bg-(--av-lady) text-[12px] text-(--av-ink) shadow shadow-black/40 ${lineup ? 'av-token-drop' : ''}`}
+            className={`absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border border-(--av-parchment)/70 bg-(--av-lady) text-xs text-(--av-ink) shadow shadow-black/40 ${lineup ? 'av-token-drop' : ''}`}
             style={lineup ? { animationDelay: cue(LINEUP.ladyAt) } : undefined}
           >
             <AvIcon name="lady" />
@@ -176,7 +176,7 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
         <FlyingToken key={aimedId} to={seatPosition(aimIdx, n)} from={ladyFrom} flying={aiming.has(aimedId)}>
           <span
             data-token="lady-aim"
-            className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-(--av-lady) bg-(--av-ink) text-[12px] text-(--av-lady) shadow shadow-black/50"
+            className="absolute -top-2 -right-2 flex h-5 w-5 items-center justify-center rounded-full border-2 border-(--av-lady) bg-(--av-ink) text-xs text-(--av-lady) shadow shadow-black/50"
           >
             <AvIcon name="lady" />
           </span>
@@ -188,7 +188,7 @@ export default function TableTokens({ players, state }: { players: Player[]; sta
         <FlyingToken key={id} to={seatPosition(seatOf(id), n)} from={from} flying={nominated.has(id)}>
           <span
             data-token="team"
-            className="absolute -top-3 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-orange-100 bg-(--av-team) text-[11px] text-(--av-ink) shadow shadow-black/50"
+            className="absolute -top-3 left-1/2 flex h-5 w-5 -translate-x-1/2 items-center justify-center rounded-full border border-(--av-ink)/60 bg-(--av-parchment) text-xs text-(--av-ink) shadow shadow-black/50"
           >
             <AvIcon name="team" />
           </span>

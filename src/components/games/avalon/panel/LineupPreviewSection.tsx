@@ -101,7 +101,7 @@ export function LineupPreviewSection({
           {/* The first Leader (and Lady, 7+ players) — their tokens land on the table. */}
           <div className={`mt-2.5 grid gap-2 border-t border-(--av-ink)/15 pt-2 ${lady ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <div className="flex min-w-0 items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-100 bg-(--av-leader) text-sm text-(--av-ink) shadow shadow-black/30">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-100 bg-(--av-gold) text-sm text-(--av-ink) shadow shadow-black/30">
                 <AvIcon name="leader" />
               </span>
               <span className="min-w-0">
@@ -132,7 +132,7 @@ export function LineupPreviewSection({
       </div>
 
       {/* Countdown + who is ready. */}
-      <GlassPanel tone={allAcked ? 'success' : low ? 'warning' : 'neutral'} className="flex items-center gap-3 p-3">
+      <GlassPanel tone={!allAcked && low ? 'evil' : 'neutral'} className="flex items-center gap-3 p-3">
         <div className="shrink-0 text-center">
           <p className="text-[9px] font-bold uppercase text-slate-400">{allAcked ? 'Chia vai' : 'Tự chia sau'}</p>
           <p className={`text-lg font-black leading-tight tabular-nums ${allAcked ? 'text-emerald-300' : low ? 'text-amber-300' : 'text-white'}`}>

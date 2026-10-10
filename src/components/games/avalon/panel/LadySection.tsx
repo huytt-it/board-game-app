@@ -32,7 +32,7 @@ function LadyResultCard({ target, team, live }: { target: Player; team: 'good' |
   return (
     <div style={{ perspective: '800px' }} data-lady-result={team} data-lady-flip={live ? 'live' : 'static'}>
       <div className={`relative [transform-style:preserve-3d] ${live ? 'av-lady-flip' : ''}`}>
-        <GlassPanel tone="lady" emphasis className="av-flip-face p-6 text-center">
+        <GlassPanel tone="neutral" className="av-flip-face p-6 text-center">
           <p className="text-[11px] uppercase font-bold text-slate-300 mb-1 tracking-widest">
             <AvIcon name="lady" /> Kết quả soi
           </p>
@@ -104,7 +104,7 @@ export function LadySection({
     // neutral and says nothing about what the Lady saw (ux-plan 2.4).
     if (!inspected) {
       return (
-        <GlassPanel tone="lady" emphasis className="p-5 text-center">
+        <GlassPanel tone="neutral" className="p-5 text-center">
           {live}
           <p className="text-[11px] uppercase font-black text-teal-100 mb-2 tracking-widest">
             <AvIcon name="lady" /> {holder?.name} đang ngắm bạn
@@ -118,7 +118,7 @@ export function LadySection({
       );
     }
     return (
-      <GlassPanel tone="lady" emphasis className="p-6 text-center">
+      <GlassPanel tone="neutral" className="p-6 text-center">
         {live}
         <p className="text-[11px] uppercase font-black text-slate-300 mb-2 tracking-widest">
           <AvIcon name="lady" /> {holder?.name} đã soi bạn
@@ -168,7 +168,7 @@ export function LadySection({
     return (
       <div className="space-y-3">
         {live}
-        <GlassPanel tone="lady" className="p-4">
+        <GlassPanel tone="neutral" className="p-4">
           <div className="flex items-center justify-between mb-1">
             <p className="text-[11px] uppercase font-black text-(--av-lady)"><AvIcon name="lady" /> Lady of the Lake</p>
             <LowTimeClock low={remaining < 10_000} className={remaining < 10_000 ? 'text-orange-300' : 'text-teal-100'}>
@@ -230,7 +230,7 @@ export function LadySection({
   return (
     <div className="space-y-3">
       {live}
-      <GlassPanel tone="lady" className="p-5 text-center">
+      <GlassPanel tone="neutral" className="p-5 text-center">
         <p className="text-[11px] uppercase font-bold text-(--av-lady) mb-2"><AvIcon name="lady" /> Lady of the Lake</p>
         {!target && (
           <>

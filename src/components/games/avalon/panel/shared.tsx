@@ -5,59 +5,69 @@ import AvIcon, { type IconName } from '../assets/AvIcon';
 import RoleEmblem from '../ui/RoleEmblem';
 
 // The phase chip of PlayerPanel's top bar, which is a size container
-// (`@container`). The bar also carries the role, reject and leave buttons, so
-// with `compact` the words adapt to the bar's content width: none below
-// 19.25rem (a 320px phone — the section's own heading names the phase), a
-// short label up to 40rem (every one fits from a 360px phone), the full one
-// beyond. The full label is always in the tooltip / for screen readers.
+// (`@container`). One neutral style for every phase — the icon tells the
+// phases apart — and gold while the table waits for the viewer (`turn`, the
+// same signal as the dock's edge; never at night). With `compact` (the bar
+// also carries "Vai của tôi" and "⋯") a phase with a `short` label uses it
+// below 22rem of bar (a phone up to ~380px). The full label is always in the
+// tooltip / for screen readers.
 //
 // Never an ellipsis: the chip is one 24px line that wraps and clips, so a
 // label that does not fit beside the icon drops to the (hidden) second line
 // and the chip shows the icon alone.
-export function PhaseChip({ phase, compact = false }: { phase: AvalonGameState['phase']; compact?: boolean }) {
-  // `short`: the label below `sm`, where the top bar also carries the role,
-  // reject and leave buttons (the full one stays in the tooltip).
-  const map: Record<string, { icon: IconName; text: string; short?: string; cls: string }> = {
-    'lineup-preview': { icon: 'roles', text: 'Vai trong ván', cls: 'bg-fuchsia-500/20 text-fuchsia-300' },
-    'role-reveal': { icon: 'seal', text: 'Lộ vai', cls: 'bg-purple-500/20 text-purple-300' },
-    'night-evils': { icon: 'night', text: 'Đêm — Phe Quỷ', short: 'Đêm', cls: 'bg-(--av-evil)/20 text-(--av-evil-light)' },
-    'night-merlin': { icon: 'night', text: 'Đêm — Merlin', short: 'Đêm', cls: 'bg-(--av-good)/20 text-(--av-good-light)' },
-    'night-percival': { icon: 'night', text: 'Đêm — Percival', short: 'Đêm', cls: 'bg-indigo-500/20 text-indigo-300' },
-    'team-build': { icon: 'team', text: 'Chọn đội', cls: 'bg-amber-500/20 text-amber-300' },
-    'team-vote': { icon: 'vote', text: 'Bỏ phiếu', cls: 'bg-(--av-parchment)/15 text-(--av-parchment)' },
-    'team-vote-result': { icon: 'vote', text: 'Kết quả phiếu', short: 'Kết quả', cls: 'bg-(--av-parchment)/15 text-(--av-parchment)' },
-    'quest-play': { icon: 'card-play', text: 'Chơi Quest', short: 'Quest', cls: 'bg-purple-500/20 text-purple-300' },
-    'quest-result': { icon: 'quest', text: 'Kết quả Quest', short: 'Kết quả', cls: 'bg-purple-500/20 text-purple-300' },
-    'discussion': { icon: 'discussion', text: 'Thảo luận', cls: 'bg-emerald-500/20 text-emerald-300' },
-    'lady-of-lake': { icon: 'lady', text: 'Lady', cls: 'bg-(--av-lady)/20 text-(--av-lady)' },
-    assassinate: { icon: 'assassinate', text: 'Ám sát', cls: 'bg-(--av-evil)/20 text-(--av-evil-light)' },
-    end: { icon: 'end', text: 'Kết thúc', cls: 'bg-slate-500/20 text-slate-300' },
+export function PhaseChip({
+  phase,
+  compact = false,
+  turn = false,
+}: {
+  phase: AvalonGameState['phase'];
+  compact?: boolean;
+  turn?: boolean;
+}) {
+  const map: Record<string, { icon: IconName; text: string; short?: string }> = {
+    'lineup-preview': { icon: 'roles', text: 'Vai trong ván' },
+    'role-reveal': { icon: 'seal', text: 'Lộ vai' },
+    'night-evils': { icon: 'night', text: 'Đêm — Phe Quỷ', short: 'Đêm' },
+    'night-merlin': { icon: 'night', text: 'Đêm — Merlin', short: 'Đêm' },
+    'night-percival': { icon: 'night', text: 'Đêm — Percival', short: 'Đêm' },
+    'team-build': { icon: 'team', text: 'Chọn đội' },
+    'team-vote': { icon: 'vote', text: 'Bỏ phiếu' },
+    'team-vote-result': { icon: 'vote', text: 'Kết quả phiếu', short: 'Kết quả' },
+    'quest-play': { icon: 'card-play', text: 'Chơi Quest', short: 'Quest' },
+    'quest-result': { icon: 'quest', text: 'Kết quả Quest', short: 'Kết quả' },
+    'discussion': { icon: 'discussion', text: 'Thảo luận' },
+    'lady-of-lake': { icon: 'lady', text: 'Lady' },
+    assassinate: { icon: 'assassinate', text: 'Ám sát' },
+    end: { icon: 'end', text: 'Kết thúc' },
   };
   const cfg = map[phase] ?? map.end;
-  const full = !compact ? '' : cfg.short ? 'hidden @[40rem]:inline' : 'hidden @[19.25rem]:inline';
+  const short = compact && cfg.short;
   return (
     <span
-      className={`flex h-6 min-w-0 flex-wrap items-center justify-center gap-x-1 overflow-hidden whitespace-nowrap rounded-full px-2 text-[11px] font-black leading-6 sm:px-2.5 ${cfg.cls}`}
+      className={`flex h-6 min-w-0 flex-wrap items-center justify-center gap-x-1 overflow-hidden whitespace-nowrap rounded-full px-2.5 text-xs font-semibold leading-6 ${
+        turn ? 'bg-(--av-gold)/15 text-(--av-gold)' : 'bg-white/6 text-(--av-text-2)'
+      }`}
       title={cfg.text}
       aria-label={cfg.text}
       data-phase-chip={phase}
+      data-turn={turn ? '' : undefined}
     >
       <AvIcon name={cfg.icon} size={14} />
-      {compact && cfg.short && <span className="hidden @[19.25rem]:inline @[40rem]:hidden">{cfg.short}</span>}
-      <span className={full}>{cfg.text}</span>
+      {short && <span className="@[22rem]:hidden">{cfg.short}</span>}
+      <span className={short ? 'hidden @[22rem]:inline' : ''}>{cfg.text}</span>
     </span>
   );
 }
 
-// Glow colour of "time is running out" (orange-400), for `av-pulse-ring`.
-export const LOW_TIME_GLOW = { '--av-pulse': 'rgb(251 146 60)' } as CSSProperties;
+// Glow colour of "time is running out" (--av-evil, which doubles as the warning colour), for `av-pulse-ring`.
+export const LOW_TIME_GLOW = { '--av-pulse': 'var(--av-evil)' } as CSSProperties;
 
 // A phase countdown. When time is short it throbs through a glow around it —
 // not by fading the digits (animate-pulse would drop them below 4.5:1).
 export function LowTimeClock({ low, className = '', children }: { low: boolean; className?: string; children: ReactNode }) {
   return (
     <span
-      className={`relative inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 text-xs font-black tabular-nums ${low ? 'av-pulse-ring' : ''} ${className}`}
+      className={`relative inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 text-xs font-bold tabular-nums ${low ? 'av-pulse-ring' : ''} ${className}`}
       style={low ? LOW_TIME_GLOW : undefined}
       data-low-time={low ? '' : undefined}
     >
@@ -81,8 +91,8 @@ export function TokenBadges({
   return (
     <div className={`flex gap-1 ${inline ? '' : 'mt-0.5'} flex-wrap`}>
       {isLeader && (
-        <span className="inline-flex items-center gap-0.5 rounded-full bg-(--av-leader)/25 border border-(--av-leader)/45 px-1.5 py-0.5 text-[9px] font-black text-amber-100">
-          <AvIcon name="leader" className="text-(--av-leader)" /> Leader
+        <span className="inline-flex items-center gap-0.5 rounded-full bg-(--av-gold)/25 border border-(--av-gold)/45 px-1.5 py-0.5 text-[9px] font-black text-amber-100">
+          <AvIcon name="leader" className="text-(--av-gold)" /> Leader
         </span>
       )}
       {isLady && (

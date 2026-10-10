@@ -4,30 +4,62 @@
 
 /* ─── Bộ nhận diện: token màu ────────────────────────────────────── */
 /* Dùng qua giá trị tuỳ biến của Tailwind, ví dụ `text-(--av-gold)`,
-   `border-(--av-good)/40`. Quy ước: xanh lam và đỏ CHỈ dùng cho ý nghĩa phe
-   (--av-good / --av-evil); Đồng ý / Từ chối, cảnh báo, "bạn"... dùng màu khác. */
+   `border-(--av-good)/40`.
+
+   Bảng màu giao diện (GĐ7, ux-plan mục 8b "ít mà chất"; cảnh nền không áp):
+   - Nền trung tính: --av-ink, --av-glass-bg, viền mảnh --av-line; chữ giấy da
+     3 mức --av-text / --av-text-2 / --av-text-3.
+   - MỘT màu nhấn: vàng --av-gold = "chỗ cần chú ý bây giờ" (nút chính, Quest
+     đang chơi, đến lượt bạn, vương miện Leader).
+   - Màu có nghĩa, ít diện tích: --av-good / --av-evil chỉ cho thông tin phe
+     CÔNG KHAI (kết quả Quest, lineup, màn kết thúc); --av-evil kiêm "nguy
+     hiểm" (xoá phòng, luật 2 lá, hết giờ). --av-lady chỉ tô icon / token Lady.
+   - Không dùng lớp màu Tailwind có bảng màu (slate-*, amber-*…); chỉ black /
+     white kèm độ mờ cho bóng và lớp phủ.
+
+   Cũ → mới (GĐ7a; các token "bỏ" còn giữ tới khi GĐ7b xoá chỗ dùng cuối):
+   | cũ                                  | mới                                   |
+   |-------------------------------------|---------------------------------------|
+   | --av-leader                         | --av-gold (đã gộp, token cũ đã xoá)   |
+   | --av-glass-border                   | --av-line                             |
+   | slate-* / stone-* (chữ, viền)       | --av-text / -2 / -3, --av-line        |
+   | amber-* / yellow-* (nhấn)           | --av-gold                             |
+   | --av-team (cam, người được đề cử)   | BỎ → vòng --av-parchment, không glow  |
+   | --av-approve(-light), --av-reject(-light) | BỎ → nút phiếu trung tính, icon + chữ |
+   | emerald-* / purple-* / fuchsia-* / indigo-* / teal-* / orange-* | BỎ → trung tính, --av-gold hoặc --av-evil |
+   | GlassPanel 12 tone                  | 4 tone: neutral, accent, good, evil   |
+*/
 .avalon-root {
   --av-good: #5b8def; /* Phe Người */
-  --av-evil: #e05555; /* Phe Quỷ */
-  --av-leader: #f2c14e; /* vương miện Leader — vàng kim */
-  --av-lady: #3cc1b4; /* Lady of the Lake — xanh ngọc */
-  --av-gold: #d4a64a; /* điểm nhấn, viền khung */
+  --av-evil: #e05555; /* Phe Quỷ; cũng là "nguy hiểm" */
+  --av-lady: #3cc1b4; /* Lady of the Lake — xanh ngọc, chỉ icon / token */
+  --av-gold: #d4a64a; /* màu nhấn duy nhất (gồm cả vương miện Leader) */
   --av-parchment: #efe3c8; /* giấy da: chữ/icon sáng trên nền tối, "bạn" */
-  --av-ink: #16110d; /* mực: nền tối của huy hiệu */
+  --av-ink: #16110d; /* mực: nền tối của huy hiệu, chữ trên nút vàng */
   --av-glass-bg: rgba(18, 13, 10, 0.8);
-  --av-glass-border: rgba(239, 227, 200, 0.14);
+  --av-line: rgba(239, 227, 200, 0.13); /* viền mảnh duy nhất của panel / nút */
+  --av-raised: #2a241e; /* mặt nổi đặc (thẻ lựa chọn, lá phiếu): mực + 9 % giấy da */
   --av-bar-bg: rgba(14, 10, 8, 0.94); /* thanh trên cùng: gần như đặc, không blur */
-  --av-team: #f0883e; /* người được đề cử vào đội */
-  --av-approve: #4fae74; /* phiếu Đồng ý */
-  --av-reject: #9a6bb4; /* phiếu Từ chối */
-  --av-reject-light: #c9a8dc; /* chữ nhỏ "Từ chối" trên nền tối */
-  --av-approve-light: #93d6ab; /* chữ nhỏ "Đồng ý" trên nền tối */
+  /* Chữ giấy da 3 mức. Màu đặc (= giấy da pha vào mực 100 / 72 / 60 %) thay
+     cho độ mờ, để tương phản không phụ thuộc cảnh phía sau: trên mực 15,1 /
+     8,0 / 5,9 : 1; trên kính ≥ 4,5 : 1 (đo điểm ảnh thật, GĐ7a). */
+  --av-text: #efe3c8;
+  --av-text-2: #b2a894;
+  --av-text-3: #988f7d;
   /* Bản sáng của màu phe, cho CHỮ nhỏ trên nền tối (đủ tương phản). */
   --av-good-light: #a9c3f7;
   --av-evil-light: #f2a7a7;
   /* Bản đậm của màu phe, cho chữ trên giấy da (thư vai, cuộn các vai). */
   --av-good-ink: #24499c;
   --av-evil-ink: #9c2b2b;
+
+  /* Đã bỏ (GĐ7a) — chỉ còn cho các màn chưa dọn, GĐ7b xoá. */
+  --av-glass-border: var(--av-line);
+  --av-team: #f0883e;
+  --av-approve: #4fae74;
+  --av-reject: #9a6bb4;
+  --av-reject-light: #c9a8dc;
+  --av-approve-light: #93d6ab;
 }
 
 /* Font tiêu đề (Cormorant Garamond, có dấu tiếng Việt) — biến
@@ -1080,7 +1112,8 @@
 /* Bàn hẹp (RoundTable là @container): từ 8 người, khi bàn rộng dưới 350 px
    (điện thoại ≤ ~390 px; ở 320 px bàn chỉ rộng 288 px), nhãn tên của các ghế
    phía trên và hai ô Quest I, V chạm nhau. Thu nhỏ ghế (44 px — vẫn đủ vùng
-   chạm), nhãn tên, và cụm ô Quest + hàng nến ở giữa. */
+   chạm) và nhãn tên. (GĐ7a: cụm ô Quest + nến ở giữa đã dời xuống 10cqw và
+   gọn hơn, nên không còn phải thu nhỏ — đo ≥ 6 px tới ghế ở 300–390 px.) */
 @container (max-width: 349px) {
   .av-table-dense .av-seat-box {
     width: 2.75rem;
@@ -1092,14 +1125,6 @@
     padding-block: 1px;
     font-size: 10px;
     line-height: 1.15;
-  }
-  .av-table-dense .av-table-core {
-    transform: scale(0.86);
-  }
-}
-@container (max-width: 300px) {
-  .av-table-dense .av-table-core {
-    transform: scale(0.8);
   }
 }
 

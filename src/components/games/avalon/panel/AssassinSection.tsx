@@ -53,7 +53,7 @@ export function AssassinSection({
   // ẩn để khối Phe Quỷ lên trên. Trong phase này cả Phe Quỷ đã lộ diện công
   // khai, nên màu phe trên các thẻ không lộ thêm gì.
   const pickedCard = picked && (
-    <GlassPanel key={picked.id} tone="evil" emphasis className="p-4 animate-scale-in">
+    <GlassPanel key={picked.id} tone="evil" className="p-4 animate-scale-in">
       <p className="text-[11px] uppercase font-black text-(--av-evil-light) mb-1 tracking-widest">
         <AvIcon name="target" /> Sát Thủ đang ngắm
       </p>
@@ -110,7 +110,7 @@ export function AssassinSection({
   );
 
   const headerCard = (
-    <GlassPanel tone="warning" className="p-4 text-center">
+    <GlassPanel tone="evil" className="p-4 text-center">
       <p className="text-[11px] uppercase font-bold text-amber-300 mb-1 tracking-widest">
         <AvIcon name="assassinate" /> Phe Người đã thắng {successes} Quest
       </p>
@@ -176,7 +176,7 @@ export function AssassinSection({
       {headerCard}
       {pickedCard}
       {evilRevealCard}
-      <GlassPanel tone="evil" emphasis className="p-4">
+      <GlassPanel tone="evil" className="p-4">
         <p className="text-[11px] uppercase font-black text-(--av-evil-light) mb-1"><AvIcon name="assassin" /> Bạn là Sát Thủ</p>
         <h3 className="av-display text-xl text-white mb-1">Chọn ai là Merlin</h3>
         <p className="text-xs text-slate-300 mb-4">

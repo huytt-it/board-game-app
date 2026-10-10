@@ -1,19 +1,21 @@
 import type { ReactNode } from 'react';
 
 // Identity colours. Each player keeps one colour everywhere (hash of the id).
-// None is a pure blue or red, so an avatar never reads as a team colour. Each
-// is dark enough for the white initial to reach 4.5:1 (all ≥ 4.8).
+// A muted "dyed paper" set (GĐ7): the same lightness (OKLCH L 0.5, C 0.07) so
+// no seat shouts louder than another or competes with the gold / team colours,
+// and no pure blue or red, so an avatar never reads as a team colour. White
+// initials reach ≥ 5.7:1 on every one.
 const AVATAR_COLORS = [
-  '#a4602a', // đồng
-  '#877011', // vàng đất
-  '#677922', // ô liu
-  '#2f7d4f', // xanh rừng
-  '#23736e', // xanh mòng két
-  '#6a4bb0', // tím
-  '#8a3f9e', // tím mận
-  '#a63b7a', // hồng sẫm
-  '#5b6573', // xám đá
-  '#7a5a3c', // nâu
+  '#82583b', // đất nung
+  '#785f32', // đồng
+  '#696634', // vàng rêu
+  '#566b40', // ô liu
+  '#3d7055', // rêu
+  '#29706c', // mòng két
+  '#2b6d7c', // lam xám
+  '#665b87', // oải hương
+  '#785579', // mận
+  '#69625a', // đá
 ] as const;
 
 // FNV-1a: tiny, stable across devices and reloads.
@@ -40,7 +42,7 @@ export function avatarInitial(name: string): string {
 export const TABLE_AVATAR_BOX = 'av-seat-box h-12 w-12 sm:h-14 sm:w-14';
 
 const SIZE_CLS = {
-  xs: 'h-5 w-5 text-[10px]',
+  xs: 'h-5 w-5 text-xs',
   sm: 'h-9 w-9 text-sm',
   table: `${TABLE_AVATAR_BOX} text-base`,
   lg: 'h-14 w-14 text-lg',
@@ -80,14 +82,16 @@ export default function PlayerAvatar({
   className = '',
   children,
 }: PlayerAvatarProps) {
-  // Aim beats selection: the Assassin's target matters more than team membership.
+  // Aim beats selection: the Assassin's target matters more than team
+  // membership. Only the Assassin's target and the night's held card glow;
+  // a nominated seat gets a plain parchment ring (one glowing thing at a time).
   const ring =
     aim === 'assassin'
       ? 'ring-[3px] ring-(--av-evil) shadow-[0_0_16px_var(--av-evil)]'
       : aim === 'lady'
-        ? 'ring-[3px] ring-(--av-lady) shadow-[0_0_16px_var(--av-lady)]'
+        ? 'ring-[3px] ring-(--av-lady)'
         : selected
-          ? 'ring-[3px] ring-(--av-team) shadow-[0_0_14px_var(--av-team)]'
+          ? 'ring-[3px] ring-(--av-parchment)'
           : glow
             ? 'ring-[3px] ring-(--av-gold) shadow-[0_0_18px_var(--av-gold)]'
             : '';
@@ -98,7 +102,7 @@ export default function PlayerAvatar({
       : aim === 'lady'
         ? 'var(--av-lady)'
         : selected
-          ? 'var(--av-team)'
+          ? 'var(--av-parchment)'
           : glow
             ? 'var(--av-gold)'
             : null;
@@ -106,7 +110,7 @@ export default function PlayerAvatar({
 
   return (
     <div
-      className={`relative flex shrink-0 items-center justify-center rounded-full font-black text-white inset-ring-2 inset-ring-white/20 transition-shadow ${SIZE_CLS[size]} ${ring} ${me} ${throb} ${className}`}
+      className={`relative flex shrink-0 items-center justify-center rounded-full font-bold text-white inset-ring-2 inset-ring-white/20 transition-shadow ${SIZE_CLS[size]} ${ring} ${me} ${throb} ${className}`}
       style={{ backgroundColor: avatarColor(player.id), ...(throb ? { ['--av-pulse' as string]: pulseColor } : {}) }}
     >
       <span className="leading-none drop-shadow-[0_1px_1px_rgba(0,0,0,0.45)]">

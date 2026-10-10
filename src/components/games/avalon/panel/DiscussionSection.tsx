@@ -61,7 +61,7 @@ export function DiscussionSection({
 
   return (
     <div className="flex flex-col gap-3">
-      <GlassPanel tone="success" emphasis className="p-5 text-center">
+      <GlassPanel tone="neutral" className="p-5 text-center">
         <p className="text-[11px] uppercase font-black text-emerald-300 mb-2 tracking-widest">
           <AvIcon name="discussion" /> Thảo luận trước Quest {state.currentQuest + 1}
         </p>

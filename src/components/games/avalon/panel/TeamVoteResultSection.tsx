@@ -64,7 +64,7 @@ export function TeamVoteResultSection({
 
   return (
     <div className="space-y-3" data-anim-stage={stage}>
-      <GlassPanel tone="gold" emphasis className="relative overflow-hidden p-6 text-center">
+      <GlassPanel tone="accent" className="relative overflow-hidden p-6 text-center">
         {/* The result's colour washes in with the stamp, not before it. */}
         <div
           className={`av-appear pointer-events-none absolute inset-0 rounded-[inherit] border-2 bg-linear-to-b to-transparent to-70% ${

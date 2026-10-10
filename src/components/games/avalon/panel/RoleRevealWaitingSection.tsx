@@ -26,7 +26,7 @@ export function RoleRevealWaitingSection({
 
   return (
     <div className="space-y-3">
-      <GlassPanel tone="mystic" className="p-5 text-center">
+      <GlassPanel tone="neutral" className="p-5 text-center">
         <p className="text-[11px] uppercase font-black text-purple-300 mb-2">
           <AvIcon name="seal" /> Đang lộ vai
         </p>
@@ -90,7 +90,7 @@ export function RoleRevealWaitingSection({
       </GlassPanel>
 
       <GlassPanel
-        tone={allAcked ? 'success' : remaining < 30000 ? 'warning' : 'neutral'}
+        tone={!allAcked && remaining < 30000 ? 'evil' : 'neutral'}
         className="p-4 text-center"
       >
         <p className="text-[11px] uppercase font-bold text-slate-400 mb-1">

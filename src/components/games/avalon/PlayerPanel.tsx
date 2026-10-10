@@ -2,17 +2,17 @@
 
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, type QuestCard, type TeamVote } from './types';
-import { VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
+import { questNeedsTwoFails } from './constants';
 import RoundTable from './RoundTable';
 import AvIcon from './assets/AvIcon';
 import GlassPanel from './ui/GlassPanel';
-import { useShownRejectStreak } from './hooks/useTableReveal';
+import AvButton from './ui/AvButton';
+import RoomMenu from './ui/RoomMenu';
 import { useHold } from './hooks/useHold';
 import { useEndReveal } from './hooks/useEndReveal';
 import { PhaseChip } from './panel/shared';
 import { needsMyAction } from './panel/myTurn';
 import { MyTurnContext, useTurnTitle } from './ui/MyTurn';
-import { PlayerRoster } from './panel/PlayerRoster';
 import { LineupPreviewSection } from './panel/LineupPreviewSection';
 import { RoleRevealWaitingSection } from './panel/RoleRevealWaitingSection';
 import { NightSection, nightSight, type NightPhase } from './panel/NightSections';
@@ -53,28 +53,6 @@ interface PlayerPanelProps {
   /** Player ids in the order they joined the room (lineup-preview: the seats
    *  slide from there to the seat order). */
   joinOrder?: readonly string[];
-}
-
-// The reject counter of the top bar. Its own component: it follows the table
-// (a rejected team's candle only goes out 3.5 s into its result), and that
-// moment must re-render this chip, not the whole panel.
-function RejectChip({ state, pushRight }: { state: AvalonGameState; pushRight: boolean }) {
-  const { rejectStreak } = useShownRejectStreak(state);
-  return (
-    <span
-      className={`inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full px-1.5 py-0.5 text-[10px] font-black sm:px-2 ${pushRight ? 'ml-auto' : ''
-        } ${rejectStreak >= 4
-          ? 'bg-(--av-evil)/20 text-(--av-evil-light) border border-(--av-evil)/45'
-          : rejectStreak >= 3
-            ? 'bg-amber-500/20 text-amber-300 border border-amber-500/40'
-            : 'bg-white/5 text-slate-400 border border-white/10'
-        }`}
-      title="Số lần đội bị từ chối liên tiếp (5 lần → Phe Quỷ thắng)"
-      data-reject-chip={rejectStreak}
-    >
-      <AvIcon name="candle-out" size={12} /> {rejectStreak}/{VOTE_TRACK_LIMIT}
-    </span>
-  );
 }
 
 export default function PlayerPanel(props: PlayerPanelProps) {
@@ -149,63 +127,30 @@ export default function PlayerPanel(props: PlayerPanelProps) {
     }
   };
 
-  // Slim top bar — phase + reject counter + "my role" button — kept short so the
-  // round table fits in the viewport without scroll on lg+. The role button is
+  // Slim top bar (ux-plan 8b): the phase chip on the left, "Vai của tôi" and
+  // the "⋯" menu ("Các vai trong ván", Rời / Xoá phòng) on the right. The
+  // reject count (the candles), the quest number (the lit tile) and the
+  // Leader (the crown) live on the table only. The role button is
   // deliberately neutral (no role icon, name or team colour): a neighbour
-  // glancing at the screen must not learn the viewer's team. Nearly opaque and
-  // without blur: the scene behind it moves.
+  // glancing at the screen must not learn the viewer's team. Nearly opaque
+  // and without blur: the scene behind it moves.
   const topBar = (
-    <div className="bg-(color:--av-bar-bg) border-b border-white/10">
-      <div className="@container flex items-center gap-1.5 px-4 py-2 sm:gap-2">
-        <PhaseChip phase={state.phase} compact={hasRoleButtons} />
-        <span className="text-xs text-slate-400 hidden sm:inline">
-          Quest {state.currentQuest + 1}/5
-        </span>
-        {hasRoleButtons && (
-          <div className="ml-auto flex shrink-0 items-center gap-1.5">
-            {props.onShowRolePreview && (
-              <button
-                onClick={props.onShowRolePreview}
-                className="av-hit flex items-center gap-1 whitespace-nowrap rounded-full border border-fuchsia-500/30 bg-fuchsia-950/40 text-fuchsia-200 px-2 py-1 text-[11px] font-bold active:opacity-75 hover:bg-fuchsia-900/40 sm:px-2.5"
-                title="Xem lại các vai trong ván"
-                aria-label="Các vai trong ván"
-              >
-                <AvIcon name="roles" size={14} />
-                <span className="hidden sm:inline">Các vai</span>
-              </button>
-            )}
-            <button
-              onClick={onShowMyRole}
-              className="av-hit flex items-center gap-1 whitespace-nowrap rounded-full border border-(--av-parchment)/25 bg-white/5 px-2 py-1 text-[11px] font-bold text-(--av-parchment) active:opacity-75 hover:bg-white/10 sm:gap-1.5 sm:px-2.5"
-              title="Xem vai của tôi"
-            >
-              <AvIcon name="eye" size={15} />
-              <span>Vai của tôi</span>
-            </button>
-          </div>
-        )}
-        <RejectChip state={state} pushRight={!hasRoleButtons} />
-        {/* Leave / delete the room — in the bar, so nothing floats over it. */}
-        {props.onLeaveRoom && (
-          <button
-            onClick={props.onLeaveRoom}
-            className="av-hit flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full border border-white/10 bg-white/5 px-1.5 py-1 text-[11px] font-bold text-slate-300 hover:bg-orange-500/10 hover:text-orange-300 sm:px-2.5"
-            title={props.isHost ? 'Xoá phòng' : 'Rời phòng'}
-            aria-label={props.isHost ? 'Xoá phòng' : 'Rời phòng'}
-            data-room-exit=""
-          >
-            <AvIcon name={props.isHost ? 'delete' : 'leave'} size={14} />
-            <span className="hidden sm:inline">{props.isHost ? 'Xoá' : 'Rời'}</span>
-          </button>
-        )}
-      </div>
-      {isLeader && state.phase !== 'role-reveal' && state.phase !== 'end' && (
-        <div className="bg-amber-500/10 border-t border-amber-500/30 px-4 py-1 text-center">
-          <span className="text-[11px] font-black text-(--av-leader)">
-            <AvIcon name="leader" /> Bạn là Leader
-          </span>
+    <div className="h-11 border-b border-(--av-line) bg-(color:--av-bar-bg)">
+      <div className="@container flex h-full items-center gap-1.5 px-4">
+        <PhaseChip phase={state.phase} compact={hasRoleButtons} turn={myTurn} />
+        <div className="ml-auto flex shrink-0 items-center gap-1">
+          {hasRoleButtons && (
+            <AvButton variant="ghost" icon="eye" onClick={onShowMyRole} title="Xem vai của tôi">
+              Vai của tôi
+            </AvButton>
+          )}
+          <RoomMenu
+            onShowRoles={hasRoleButtons ? props.onShowRolePreview : undefined}
+            onLeaveRoom={props.onLeaveRoom}
+            isHost={props.isHost}
+          />
         </div>
-      )}
+      </div>
     </div>
   );
 
@@ -213,11 +158,11 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   // below) so its timers and local state never run twice.
   const phaseSection = (
     <div className="space-y-3">
-      {(state.phase === 'team-build' ||
-        state.phase === 'team-vote' ||
-        state.phase === 'quest-play') &&
+      {/* team-vote says it in one line of its own panel (GĐ7a model screen);
+          team-build and quest-play follow in GĐ7b. */}
+      {(state.phase === 'team-build' || state.phase === 'quest-play') &&
         questNeedsTwoFails(playerCount, state.currentQuest) && (
-          <GlassPanel tone="evil" emphasis className="p-3 flex items-start gap-3">
+          <GlassPanel tone="evil" className="p-3 flex items-start gap-3">
             <AvIcon name="warning" size={24} className="text-(--av-evil-light)" />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-black text-(--av-evil-light) uppercase tracking-wider">
@@ -363,20 +308,9 @@ export default function PlayerPanel(props: PlayerPanelProps) {
 
       {/* ONE DOM for every breakpoint.
           < lg : a single column — table first, then the phase section.
-          lg+  : fixed-viewport 3 columns — roster | table (no scroll) | section. */}
-      <div className="mx-auto flex w-full max-w-lg flex-col gap-4 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-xl md:max-w-2xl lg:grid lg:h-[calc(100dvh-44px)] lg:max-w-[1500px] lg:grid-cols-[300px_minmax(0,1fr)_340px] lg:py-0 lg:pb-0 xl:grid-cols-[340px_minmax(0,1fr)_380px]">
-        <aside className="hidden overflow-y-auto py-4 pr-1 lg:block">
-          <PlayerRoster
-            gamePlayers={gamePlayers}
-            state={state}
-            myPlayerId={myPlayer.id}
-            showVoteStatus={state.phase === 'team-vote'}
-            title="Danh sách người chơi"
-            compact
-            viewerRole={safeViewerRole}
-          />
-        </aside>
-
+          lg+  : fixed-viewport 2 columns — table (no scroll) | section. The
+                 seats on the table are the player list; there is no roster. */}
+      <div className="mx-auto flex w-full max-w-lg flex-col gap-4 px-4 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:max-w-xl md:max-w-2xl lg:grid lg:h-[calc(100dvh-2.75rem)] lg:max-w-[1400px] lg:grid-cols-[minmax(0,1fr)_360px] lg:gap-6 lg:py-0 lg:pb-0 xl:grid-cols-[minmax(0,1fr)_400px]">
         {/* The table is there from the line-up on: the seats are shuffled
             and the crown is spun on it (lineup-preview). */}
         <div className="min-w-0 lg:flex lg:items-start lg:justify-center lg:overflow-hidden lg:py-4">

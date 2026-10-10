@@ -165,7 +165,6 @@ function EndStory({
     <>
       <GlassPanel
         tone={winner}
-        emphasis
         className="av-rise relative overflow-hidden p-5 text-center [@media(max-height:700px)]:pt-3"
         style={at(0)}
         data-end-banner={won === null ? 'none' : won ? 'won' : 'lost'}
@@ -176,7 +175,7 @@ function EndStory({
         </span>
         <p className="text-[11px] font-bold uppercase tracking-widest text-slate-300">Ván đấu kết thúc</p>
         <h2
-          className={`av-display av-banner-in mt-1 text-5xl leading-tight [@media(max-height:700px)]:text-4xl ${won === false ? 'text-slate-100' : 'text-(--av-leader)'}`}
+          className={`av-display av-banner-in mt-1 text-5xl leading-tight [@media(max-height:700px)]:text-4xl ${won === false ? 'text-slate-100' : 'text-(--av-gold)'}`}
           style={at(100)}
         >
           {headline}
@@ -365,7 +364,7 @@ function QuestLogRow({
             <p className="mt-1 text-[11px] leading-snug text-slate-300">
               {leader && (
                 <span className="mr-2 inline-flex items-center gap-1 whitespace-nowrap">
-                  <AvIcon name="leader" className="text-(--av-leader)" /> {leader}
+                  <AvIcon name="leader" className="text-(--av-gold)" /> {leader}
                 </span>
               )}
               {team.length > 0 && (

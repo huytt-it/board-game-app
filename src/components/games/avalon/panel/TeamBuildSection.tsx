@@ -38,7 +38,7 @@ export function TeamBuildSection({
     const emptySlots = Math.max(0, teamSize - team.length);
     return (
       <div className="space-y-3">
-        <GlassPanel tone="leader" className="p-4 sm:p-5">
+        <GlassPanel tone="accent" className="p-4 sm:p-5">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-bold text-amber-300"><AvIcon name="team" /> ĐANG CHỌN ĐỘI — QUEST {state.currentQuest + 1}</p>
             <LowTimeClock low={lowTime} className={lowTime ? 'text-orange-300' : 'text-amber-200'}>
@@ -103,9 +103,9 @@ export function TeamBuildSection({
 
   return (
     <div className="space-y-3">
-      <GlassPanel tone="leader" emphasis className="p-4">
+      <GlassPanel tone="accent" className="p-4">
         <div className="flex items-center justify-between mb-1">
-          <p className="text-[11px] uppercase font-black text-(--av-leader)"><AvIcon name="leader" /> Bạn là Leader</p>
+          <p className="text-[11px] uppercase font-black text-(--av-gold)"><AvIcon name="leader" /> Bạn là Leader</p>
           <LowTimeClock low={lowTime} className={lowTime ? 'text-orange-300' : 'text-amber-200'}>
             {timeStr}
           </LowTimeClock>

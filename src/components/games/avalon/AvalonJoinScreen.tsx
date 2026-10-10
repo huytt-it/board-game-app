@@ -76,7 +76,7 @@ export default function AvalonJoinScreen({
             )}
           </p>
 
-          <GlassPanel tone="gold" emphasis className="mt-5 w-full p-5 text-left">
+          <GlassPanel tone="accent" className="mt-5 w-full p-5 text-left">
             {/* Who is already seated. */}
             <div className="flex items-center justify-between gap-2">
               <div>

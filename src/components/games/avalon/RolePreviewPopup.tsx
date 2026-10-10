@@ -67,8 +67,7 @@ export default function RolePreviewPopup({
     >
       {/* Neutral frame and emblem whatever the viewer's team (ux-plan 2.9, 2.11). */}
       <GlassPanel
-        tone="gold"
-        emphasis
+        tone="accent"
         className="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-3xl p-5"
         onClick={(e) => e.stopPropagation()}
       >
@@ -143,7 +142,7 @@ export default function RolePreviewPopup({
 
         <section className={`mt-3 grid gap-2 ${firstLady ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 flex items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-leader) text-lg text-(--av-ink) border-2 border-amber-100 shadow shadow-black/40">
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-gold) text-lg text-(--av-ink) border-2 border-amber-100 shadow shadow-black/40">
               <AvIcon name="leader" />
             </div>
             <div className="flex-1 min-w-0">

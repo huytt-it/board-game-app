@@ -61,7 +61,7 @@ function buildRosterMarks(
   if (state.currentLeaderId === playerId) {
     marks.push({
       type: 'leader',
-      className: 'bg-(--av-leader)/25 border border-(--av-leader)/50 text-amber-100',
+      className: 'bg-(--av-gold)/25 border border-(--av-gold)/50 text-amber-100',
       icon: 'leader',
       label: 'Leader',
     });
@@ -155,7 +155,7 @@ function buildHistoryMarks(playerId: string, state: AvalonGameState, hiddenQuest
   ) {
     marks.push({
       type: 'was-leader',
-      className: 'bg-(--av-leader)/10 border border-(--av-leader)/25 text-amber-300',
+      className: 'bg-(--av-gold)/10 border border-(--av-gold)/25 text-amber-300',
       icon: 'leader',
       label: 'đã làm',
     });

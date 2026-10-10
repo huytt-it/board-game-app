@@ -41,7 +41,7 @@ export function QuestResultSection({
 
   return (
     <div className="space-y-3" data-anim-stage={stage}>
-      <GlassPanel tone="gold" emphasis className="relative overflow-hidden p-5 text-center sm:p-6">
+      <GlassPanel tone="accent" className="relative overflow-hidden p-5 text-center sm:p-6">
         {/* The result's colour washes in with the stamp. */}
         <div
           className={`av-appear pointer-events-none absolute inset-0 rounded-[inherit] border-2 bg-linear-to-b to-transparent to-70% ${

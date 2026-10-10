@@ -64,7 +64,7 @@ function NightCountdown({ state, phase, allActiveAcked }: { state: AvalonGameSta
   const { remaining } = usePhaseClock(state, PHASE_TIMEOUTS_MS[phase]);
   const low = remaining < 15000;
   return (
-    <GlassPanel tone={allActiveAcked ? 'success' : low ? 'warning' : 'neutral'} className="p-4 text-center">
+    <GlassPanel tone={!allActiveAcked && low ? 'evil' : 'neutral'} className="p-4 text-center">
       <p className="mb-1 text-[11px] font-bold uppercase text-slate-400">
         {allActiveAcked ? 'Đang chuyển bước...' : 'Tự động qua bước sau'}
       </p>
