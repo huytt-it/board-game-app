@@ -65,6 +65,7 @@ import CheckMark from './icons/check-mark';
 import Padlock from './icons/padlock';
 import LightBulb from './icons/light-bulb';
 import ClockwiseRotation from './icons/clockwise-rotation';
+import More from './icons/more';
 
 export type AssetSource =
   | { kind: 'svg'; Component: ComponentType<SVGProps<SVGSVGElement>> }
@@ -133,6 +134,7 @@ export const ICONS = {
   lock: svg(Padlock),
   tip: svg(LightBulb),
   'new-game': svg(ClockwiseRotation),
+  more: svg(More),
 } satisfies Record<string, AssetSource>;
 
 export type IconName = keyof typeof ICONS;

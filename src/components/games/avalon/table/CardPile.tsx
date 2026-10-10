@@ -64,8 +64,8 @@ export default function CardPile({ players, state }: { players: Player[]; state:
     >
       {/* Empty slot + count, so it is clear where the cards go. */}
       <div className="absolute -translate-x-1/2 -translate-y-1/2" style={{ left: `${PILE.x}%`, top: `${PILE.y}%` }}>
-        <div className="w-6 rounded-[14%/10%] border-2 border-dashed border-(--av-gold)/40 aspect-[5/7] sm:w-8 lg:w-10" />
-        <span className="absolute left-full top-1/2 ml-2 -translate-y-1/2 whitespace-nowrap rounded-full border border-(--av-gold)/40 bg-black/75 px-1.5 py-0.5 text-[10px] font-black tabular-nums text-(--av-parchment)">
+        <div className="av-card aspect-[5/7] w-6 border-2 border-dashed border-(--av-gold)/40 sm:w-8 lg:w-10" />
+        <span className="absolute left-full top-1/2 ml-2 -translate-y-1/2 whitespace-nowrap rounded-full bg-black/75 px-1.5 py-0.5 text-[clamp(10px,3cqw,12px)] font-bold tabular-nums text-(--av-text)">
           {ids.length}/{teamSize}
         </span>
       </div>

@@ -9,7 +9,7 @@ const ROMAN = ['I', 'II', 'III', 'IV', 'V'] as const;
 // The game's five legs in journey order, each a thumbnail of its location.
 // A finished leg shows its result (public information: the team colour and
 // the success / fail icon), the leg the knights head for next is marked in
-// gold, later ones are dimmed. Shown during discussion; the end-of-game
+// gold, later ones are dimmed. The end-of-game
 // summary (EndSection) shows it `final`: no leg is next any more, the legs
 // never played stay dimmed.
 export default function JourneyStrip({
@@ -37,8 +37,8 @@ export default function JourneyStrip({
               : result === 'fail'
                 ? 'border-(--av-evil)/80'
                 : isNext
-                  ? 'border-(--av-gold) shadow-[0_0_12px_rgba(212,166,74,0.45)]'
-                  : 'border-white/10';
+                  ? 'border-(--av-gold)'
+                  : 'border-(--av-line)';
           return (
             <li
               key={i}
@@ -48,7 +48,7 @@ export default function JourneyStrip({
               aria-label={`Quest ${ROMAN[i]}: ${SCENE_NAMES_VI[loc]} — ${status}`}
               title={`Quest ${ROMAN[i]}: ${SCENE_NAMES_VI[loc]}`}
             >
-              <div className={`relative aspect-[4/3] w-full overflow-hidden rounded-lg border-2 ${frame}`}>
+              <div className={`relative aspect-[4/3] w-full overflow-hidden rounded-xl border-2 ${frame}`}>
                 <SceneThumb id={loc} className={result || isNext ? '' : 'opacity-40'} />
                 {result && (
                   <span
@@ -60,7 +60,7 @@ export default function JourneyStrip({
                   </span>
                 )}
               </div>
-              <span className={`av-display text-sm leading-none ${isNext ? 'text-(--av-gold)' : 'text-slate-300'}`}>
+              <span className={`av-display text-sm leading-none ${isNext ? 'text-(--av-gold)' : 'text-(--av-text-2)'}`}>
                 {ROMAN[i]}
               </span>
             </li>
@@ -68,8 +68,8 @@ export default function JourneyStrip({
         })}
       </ol>
       {!final && (
-        <p className="mt-2 text-center text-[11px] text-slate-300">
-          Chặng kế tiếp: <span className="font-bold text-(--av-parchment)">{SCENE_NAMES_VI[next]}</span>
+        <p className="mt-2 text-center text-xs text-(--av-text-2)">
+          Chặng kế tiếp: <span className="font-semibold text-(--av-text)">{SCENE_NAMES_VI[next]}</span>
         </p>
       )}
     </div>

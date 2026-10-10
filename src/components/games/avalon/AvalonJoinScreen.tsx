@@ -7,6 +7,7 @@ import type { Room } from '@/types/room';
 import AvIcon from './assets/AvIcon';
 import { avalonDisplayFont } from './assets/fonts';
 import SceneBackdrop from './scenes/SceneBackdrop';
+import AvButton from './ui/AvButton';
 import GlassPanel from './ui/GlassPanel';
 import PlayerAvatar from './ui/PlayerAvatar';
 import './avalon.css';
@@ -64,30 +65,29 @@ export default function AvalonJoinScreen({
       <div className={`avalon-root ${avalonDisplayFont.variable} flex min-h-dvh flex-col items-center justify-center px-4 py-8`}>
         <div className="av-rise flex w-full max-w-sm flex-col items-center text-center">
           <AvIcon name="avalon" size={52} className="text-(--av-gold) drop-shadow-[0_2px_8px_rgba(0,0,0,0.6)]" />
-          <p className="mt-2 text-[11px] font-black uppercase tracking-[0.3em] text-(--av-gold)">Lời mời vào bàn tròn</p>
-          <h1 className="av-display mt-1 text-3xl leading-tight text-white">The Resistance: Avalon</h1>
-          <p className="mt-2 text-sm text-slate-300">
+          <h1 className="av-display mt-2 text-3xl leading-tight text-(--av-text)">The Resistance: Avalon</h1>
+          <p className="mt-2 text-sm text-(--av-text-2)">
             {host ? (
               <>
-                <strong className="text-(--av-parchment)">{host.name}</strong> mời bạn ngồi vào bàn. Nhập tên để vào phòng chờ.
+                <strong className="text-(--av-text)">{host.name}</strong> mời bạn ngồi vào bàn. Nhập tên để vào phòng chờ.
               </>
             ) : (
               'Nhập tên để vào phòng chờ.'
             )}
           </p>
 
-          <GlassPanel tone="gold" emphasis className="mt-5 w-full p-5 text-left">
+          <GlassPanel tone="accent" className="mt-5 w-full p-5 text-left">
             {/* Who is already seated. */}
             <div className="flex items-center justify-between gap-2">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Mã phòng</p>
-                <p className="text-xl font-black tracking-[0.2em] text-amber-100 tabular-nums">{room.roomCode}</p>
+                <p className="text-xs text-(--av-text-3)">Mã phòng</p>
+                <p className="av-display text-2xl tracking-[0.15em] text-(--av-gold) tabular-nums">{room.roomCode}</p>
               </div>
               <div className="text-right">
-                <p className="text-[10px] font-bold uppercase tracking-widest text-slate-400">Đã ngồi</p>
-                <p className="text-xl font-black tabular-nums text-white">
+                <p className="text-xs text-(--av-text-3)">Đã ngồi</p>
+                <p className="text-xl font-bold tabular-nums text-(--av-text)">
                   {players.length}
-                  <span className="text-sm font-bold text-slate-400"> / {maxPlayers}</span>
+                  <span className="text-sm font-semibold text-(--av-text-3)"> / {maxPlayers}</span>
                 </p>
               </div>
             </div>
@@ -97,7 +97,7 @@ export default function AvalonJoinScreen({
                   <span key={p.id} title={p.name} className="relative">
                     <PlayerAvatar player={p} size="sm" />
                     {p.isHost && (
-                      <span className="absolute -top-1 -left-1 flex h-4 w-4 items-center justify-center rounded-full border border-white bg-stone-200 text-[10px] text-(--av-ink)">
+                      <span className="absolute -left-1 -top-1 flex h-4 w-4 items-center justify-center rounded-full border border-(--av-ink)/60 bg-(--av-parchment) text-xs text-(--av-ink)">
                         <AvIcon name="host" title="Chủ phòng" />
                       </span>
                     )}
@@ -106,14 +106,14 @@ export default function AvalonJoinScreen({
               </div>
             )}
 
-            <div className="mt-4 border-t border-white/10 pt-4">
+            <div className="mt-4 border-t border-(--av-line) pt-4">
               {closedReason ? (
-                <p className="rounded-xl border border-amber-400/40 bg-amber-500/10 px-3 py-2.5 text-sm font-bold text-amber-200">
-                  <AvIcon name="warning" /> {closedReason}
+                <p className="flex items-start gap-2 text-sm font-semibold text-(--av-evil-light)">
+                  <AvIcon name="warning" className="mt-0.5 shrink-0" /> {closedReason}
                 </p>
               ) : (
                 <>
-                  <label className="mb-1.5 block text-sm font-bold text-(--av-parchment)" htmlFor="display-name-input">
+                  <label className="mb-1.5 block text-sm font-semibold text-(--av-text)" htmlFor="display-name-input">
                     Tên của bạn
                   </label>
                   <input
@@ -125,26 +125,29 @@ export default function AvalonJoinScreen({
                     placeholder="Ví dụ: Lancelot"
                     maxLength={20}
                     autoComplete="nickname"
-                    className="w-full rounded-xl border border-white/15 bg-black/40 px-4 py-3 text-white placeholder-slate-500 outline-none transition-colors focus:border-(--av-gold) focus:ring-1 focus:ring-(--av-gold)"
+                    className="w-full rounded-xl border border-(--av-line) bg-black/40 px-4 py-3 text-(--av-text) outline-none transition-colors placeholder:text-(--av-text-3) focus:border-(--av-gold) focus:ring-1 focus:ring-(--av-gold)"
                   />
                   {error && (
-                    <p className="mt-2 rounded-xl border border-orange-500/40 bg-orange-950/60 px-3 py-2 text-sm text-orange-200" role="alert">
-                      {error}
+                    <p className="mt-2 flex items-start gap-2 text-sm text-(--av-evil-light)" role="alert">
+                      <AvIcon name="warning" className="mt-0.5 shrink-0" /> {error}
                     </p>
                   )}
-                  <button
+                  <AvButton
+                    variant="primary"
+                    size="lg"
+                    block
+                    className="mt-3"
                     onClick={submit}
                     disabled={joining || !name.trim()}
-                    className="mt-3 w-full rounded-xl bg-gradient-to-r from-amber-600 to-yellow-600 px-4 py-3.5 text-base font-black text-(--av-ink) shadow-lg shadow-amber-500/25 transition-all hover:from-amber-500 hover:to-yellow-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:from-stone-700 disabled:to-stone-700 disabled:text-stone-300 disabled:shadow-none"
                   >
                     {joining ? 'Đang vào…' : 'Vào bàn'}
-                  </button>
+                  </AvButton>
                 </>
               )}
             </div>
           </GlassPanel>
 
-          <Link href="/" className="mt-5 inline-flex min-h-11 items-center px-3 text-sm font-bold text-slate-400 transition-colors hover:text-slate-200">
+          <Link href="/" className="mt-5 inline-flex min-h-11 items-center px-3 text-sm font-semibold text-(--av-text-2) transition-colors hover:text-(--av-text)">
             ← Về trang chủ
           </Link>
         </div>

@@ -15,9 +15,11 @@ import { END } from '../table/timelines';
 // during the burst (EndSection), and its static style is invisible (opacity 0
 // = the end of every particle), so reduced motion shows nothing.
 const COUNT: Record<AvalonTeam, number> = { good: 26, evil: 24 };
+// The palette of GĐ7: gold glints (--av-gold and lighter), embers in the
+// Evil red (--av-evil, --av-evil-light) with the fire of the end scene.
 const COLORS: Record<AvalonTeam, readonly string[]> = {
-  good: ['#ffe2a0', '#fff1c8', '#f2c879', '#ffd98a'],
-  evil: ['#f2a541', '#e0663a', '#ffb36b', '#f28b4a'],
+  good: ['#d4a64a', '#efe3c8', '#e6c27a', '#f2d9a0'],
+  evil: ['#e05555', '#f2a7a7', '#e0663a', '#c44a3a'],
 };
 
 export default function EndSparks({ winner, startedAt, at }: { winner: AvalonTeam; startedAt: number; at: number }) {

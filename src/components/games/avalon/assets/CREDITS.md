@@ -64,3 +64,4 @@ Dòng credit hiển thị trong game nằm ở cuối `RoleGuide` (modal "Hướ
 | `lock` | Bắt buộc / khoá | [Padlock](https://game-icons.net/1x1/lorc/padlock.html) | Lorc | `icons/padlock.tsx` |
 | `tip` | Gợi ý | [Light bulb](https://game-icons.net/1x1/lorc/light-bulb.html) | Lorc | `icons/light-bulb.tsx` |
 | `new-game` | Ván mới | [Clockwise rotation](https://game-icons.net/1x1/delapouite/clockwise-rotation.html) | Delapouite | `icons/clockwise-rotation.tsx` |
+| `more` | Menu "⋯" (top bar) | tự vẽ (ba chấm), không lấy từ game-icons.net | — | `icons/more.tsx` |

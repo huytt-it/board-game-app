@@ -3,6 +3,7 @@
 import type { Player } from '@/types/player';
 import { AvalonRole } from './types';
 import AvIcon from './assets/AvIcon';
+import AvButton from './ui/AvButton';
 import RoleLetter from './ui/RoleLetter';
 
 interface RoleRevealProps {
@@ -22,10 +23,9 @@ export default function RoleReveal({ myRole, startedAt, onDone }: RoleRevealProp
   return (
     <div className="fixed inset-0 z-50 flex flex-col items-center justify-center overflow-y-auto bg-(--av-ink)/55 px-4 py-5">
       <div className="flex w-full max-w-sm flex-col items-center text-center">
-        <p className="text-[11px] font-black uppercase tracking-[0.3em] text-(--av-gold)">
-          <AvIcon name="seal" /> Thư mật
-        </p>
-        <h2 className="av-display mt-0.5 text-2xl leading-tight text-(--av-parchment)">Chỉ mình bạn được đọc</h2>
+        <h2 className="av-display flex items-center gap-2 text-2xl leading-tight text-(--av-text)">
+          <AvIcon name="seal" className="text-(--av-gold)" /> Thư mật — chỉ mình bạn đọc
+        </h2>
         <div className="mt-3 w-full">
           <RoleLetter
             role={myRole}
@@ -38,12 +38,9 @@ export default function RoleReveal({ myRole, startedAt, onDone }: RoleRevealProp
             }
           />
         </div>
-        <button
-          onClick={onDone}
-          className="mt-4 w-full rounded-2xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-4 text-base font-black text-(--av-parchment) transition-all hover:bg-(--av-gold)/30 active:scale-[0.98]"
-        >
-          ✓ Đã đọc — Sẵn sàng
-        </button>
+        <AvButton variant="primary" size="lg" block icon="check" onClick={onDone} className="mt-4">
+          Đã đọc — sẵn sàng
+        </AvButton>
       </div>
     </div>
   );

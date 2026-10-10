@@ -3,12 +3,14 @@
 import type { Player } from '@/types/player';
 import type { AvalonGameState, AvalonRole } from '../types';
 import { ROLE_TEAM } from '../constants';
+import { inDisplayOrder } from '../presentation';
 import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
 import { useCue } from '../hooks/useCue';
 import { LINEUP } from '../table/timelines';
-import { RoleLineChip } from './shared';
+import { DockStatus, RoleLineChip } from './shared';
 import AvIcon from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
+import AvButton from '../ui/AvButton';
 import GlassPanel from '../ui/GlassPanel';
 
 // The line-up: which roles are in this game (public — no role is tied to a
@@ -37,7 +39,8 @@ export function LineupPreviewSection({
   const allAcked = ackCount >= total;
   const low = remaining < 15000;
 
-  const lineup = state.roleLineup ?? [];
+  // Listed in a fixed order, never in roleLineup's (seat) order — see inDisplayOrder.
+  const lineup = inDisplayOrder(state.roleLineup ?? []);
   const goodRoles = lineup.filter((r) => ROLE_TEAM[r] === 'good');
   const evilRoles = lineup.filter((r) => ROLE_TEAM[r] === 'evil');
   const leader = gamePlayers.find((p) => p.id === state.currentLeaderId);
@@ -65,7 +68,7 @@ export function LineupPreviewSection({
             <h3 className="av-display flex items-center gap-1.5 text-lg leading-tight">
               <AvIcon name="roles" className="text-(--av-ink)/70" /> Các vai trong ván
             </h3>
-            <p className="shrink-0 text-[11px] font-bold text-(--av-ink)/70">
+            <p className="shrink-0 text-xs font-bold text-(--av-ink)/70">
               {goodRoles.length} Người · {evilRoles.length} Quỷ
             </p>
           </div>
@@ -73,25 +76,25 @@ export function LineupPreviewSection({
           {/* Phe Người | Phe Quỷ — public information, in team colours. */}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <div>
-              <p className="mb-1 flex items-center gap-1 text-[11px] font-black text-(--av-good-ink)">
+              <p className="mb-1 flex items-center gap-1 text-xs font-bold text-(--av-good-ink)">
                 <AvIcon name="team-good" /> Phe Người ({goodRoles.length})
               </p>
               <div className="grid grid-cols-1 gap-1">
                 {good.map(([role, n], i) => (
                   <div key={role} className="av-chip-in" style={chipDelay(i)}>
-                    <RoleLineChip role={role} count={n} tone="good" surface="parchment" />
+                    <RoleLineChip role={role} count={n} tone="good" />
                   </div>
                 ))}
               </div>
             </div>
             <div>
-              <p className="mb-1 flex items-center gap-1 text-[11px] font-black text-(--av-evil-ink)">
+              <p className="mb-1 flex items-center gap-1 text-xs font-bold text-(--av-evil-ink)">
                 <AvIcon name="team-evil" /> Phe Quỷ ({evilRoles.length})
               </p>
               <div className="grid grid-cols-1 gap-1">
                 {evil.map(([role, n], i) => (
                   <div key={role} className="av-chip-in" style={chipDelay(good.length + i)}>
-                    <RoleLineChip role={role} count={n} tone="evil" surface="parchment" />
+                    <RoleLineChip role={role} count={n} tone="evil" />
                   </div>
                 ))}
               </div>
@@ -101,27 +104,27 @@ export function LineupPreviewSection({
           {/* The first Leader (and Lady, 7+ players) — their tokens land on the table. */}
           <div className={`mt-2.5 grid gap-2 border-t border-(--av-ink)/15 pt-2 ${lady ? 'grid-cols-2' : 'grid-cols-1'}`}>
             <div className="flex min-w-0 items-center gap-2">
-              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-amber-100 bg-(--av-leader) text-sm text-(--av-ink) shadow shadow-black/30">
+              <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-(--av-parchment)/70 bg-(--av-gold) text-sm text-(--av-ink) shadow shadow-black/30">
                 <AvIcon name="leader" />
               </span>
               <span className="min-w-0">
-                <span className="block text-[9px] font-black uppercase tracking-widest text-(--av-ink)/65">Leader đầu</span>
-                <span className="block truncate text-sm font-black">
+                <span className="block text-xs text-(--av-ink)/70">Leader đầu</span>
+                <span className="block truncate text-sm font-bold">
                   {leader?.name ?? '?'}
-                  {leader?.id === myPlayer.id && <span className="ml-1 text-[10px] text-(--av-ink)/70">(bạn)</span>}
+                  {leader?.id === myPlayer.id && <span className="ml-1 text-xs font-semibold text-(--av-ink)/70">(bạn)</span>}
                 </span>
               </span>
             </div>
             {lady && (
               <div className="flex min-w-0 items-center gap-2">
-                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-teal-100 bg-(--av-lady) text-sm text-(--av-ink) shadow shadow-black/30">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-(--av-parchment)/70 bg-(--av-lady) text-sm text-(--av-ink) shadow shadow-black/30">
                   <AvIcon name="lady" />
                 </span>
                 <span className="min-w-0">
-                  <span className="block text-[9px] font-black uppercase tracking-widest text-(--av-ink)/65">Lady đầu</span>
-                  <span className="block truncate text-sm font-black">
+                  <span className="block text-xs text-(--av-ink)/70">Lady đầu</span>
+                  <span className="block truncate text-sm font-bold">
                     {lady.name}
-                    {lady.id === myPlayer.id && <span className="ml-1 text-[10px] text-(--av-ink)/70">(bạn)</span>}
+                    {lady.id === myPlayer.id && <span className="ml-1 text-xs font-semibold text-(--av-ink)/70">(bạn)</span>}
                   </span>
                 </span>
               </div>
@@ -131,45 +134,37 @@ export function LineupPreviewSection({
         <div className="av-scroll-rod" />
       </div>
 
-      {/* Countdown + who is ready. */}
-      <GlassPanel tone={allAcked ? 'success' : low ? 'warning' : 'neutral'} className="flex items-center gap-3 p-3">
-        <div className="shrink-0 text-center">
-          <p className="text-[9px] font-bold uppercase text-slate-400">{allAcked ? 'Chia vai' : 'Tự chia sau'}</p>
-          <p className={`text-lg font-black leading-tight tabular-nums ${allAcked ? 'text-emerald-300' : low ? 'text-amber-300' : 'text-white'}`}>
-            {allAcked ? <AvIcon name="check" title="Mọi người đã sẵn sàng" /> : formatClock(remaining)}
-          </p>
-        </div>
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[10px] font-bold uppercase text-slate-400">Sẵn sàng nhận vai</span>
-            <span className="text-xs font-black tabular-nums text-white">
-              {ackCount}/{total}
-            </span>
-          </div>
-          <div className="mt-1 h-1.5 overflow-hidden rounded-full bg-white/5">
-            <div
-              className="h-full rounded-full bg-(--av-gold) transition-all duration-500"
-              style={{ width: `${total > 0 ? (ackCount / total) * 100 : 0}%` }}
-            />
-          </div>
-        </div>
+      {/* Countdown + how many are ready (the dots before the names on the table). */}
+      <GlassPanel tone={!allAcked && low ? 'evil' : 'neutral'} className="flex items-center gap-3 p-3">
+        <p className="min-w-0 flex-1 text-sm text-(--av-text-2)" data-ready-count={`${ackCount}/${total}`}>
+          Sẵn sàng nhận vai{' '}
+          <span className="font-semibold tabular-nums text-(--av-text)">
+            {ackCount}/{total}
+          </span>
+        </p>
+        <p
+          className={`shrink-0 text-right text-xs ${low && !allAcked ? 'text-(--av-evil-light)' : 'text-(--av-text-2)'}`}
+          role="timer"
+        >
+          {allAcked ? (
+            <>
+              <AvIcon name="check" className="text-(--av-gold)" /> Đang chia vai
+            </>
+          ) : (
+            <>
+              Tự chia sau <span className="text-base font-bold tabular-nums">{formatClock(remaining)}</span>
+            </>
+          )}
+        </p>
       </GlassPanel>
 
       <ActionDock>
         {!myAcked ? (
-          <button
-            onClick={onAckRole}
-            className="w-full rounded-2xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-4 text-base font-black text-(--av-parchment) transition-all hover:bg-(--av-gold)/30 active:scale-[0.98]"
-          >
-            ✓ Đã xem — Sẵn sàng nhận vai
-          </button>
+          <AvButton variant="primary" size="lg" block icon="check" onClick={onAckRole}>
+            Đã xem — sẵn sàng nhận vai
+          </AvButton>
         ) : (
-          <button
-            disabled
-            className="w-full rounded-2xl border border-emerald-400/40 bg-(color:--av-glass-bg) py-4 text-base font-black text-emerald-200"
-          >
-            ✓ Bạn sẵn sàng — Chờ những người khác
-          </button>
+          <DockStatus icon="check" title="Bạn đã sẵn sàng" note="Chờ những người còn lại" />
         )}
       </ActionDock>
     </div>

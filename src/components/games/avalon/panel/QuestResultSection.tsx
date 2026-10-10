@@ -4,19 +4,18 @@ import { questNeedsTwoFails } from '../constants';
 import { useCue } from '../hooks/useCue';
 import { usePhaseTimeline } from '../hooks/usePhaseTimeline';
 import { questResultTimeline, questRevealOrder } from '../table/timelines';
+import { TwoFailNote } from './shared';
 import AvIcon from '../assets/AvIcon';
 import GlassPanel from '../ui/GlassPanel';
 import { CardBack, CardFace } from '../ui/QuestCard';
 
-const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
-
 // quest-result (8 s): 0–0.8 s the face-down cards are shuffled and dealt into
 // a row, then turned over one by one (0.6 s apart), and 0.4 s after the last
 // one the SUCCESS / FAILED stamp lands — the quest's tile on the table seals at
-// the same moment (RoundTable). The row is rebuilt from the COUNTS only
-// (failCount) and shuffled with phaseStartedAt as the seed: nobody's card is
-// ever shown as theirs (ux-plan 2.4). Public result, so the team colours are
-// fine here — but they only appear as the cards turn.
+// the same moment (RoundTable) — with the totals under it. The row is rebuilt
+// from the COUNTS only (failCount) and shuffled with phaseStartedAt as the
+// seed: nobody's card is ever shown as theirs (ux-plan 2.4). Public result, so
+// the team colours are fine here — but they only appear as the cards turn.
 export function QuestResultSection({
   state,
   playerCount,
@@ -37,33 +36,30 @@ export function QuestResultSection({
   const order = questRevealOrder(quest.teamSize, quest.failCount, startedAt);
   const n = order.length;
   const needsTwo = questNeedsTwoFails(playerCount, state.currentQuest);
-  const tone = success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)';
+  const tone = success ? 'border-(--av-good-light) text-(--av-good-light)' : 'border-(--av-evil-light) text-(--av-evil-light)';
 
   return (
-    <div className="space-y-3" data-anim-stage={stage}>
-      <GlassPanel tone="gold" emphasis className="relative overflow-hidden p-5 text-center sm:p-6">
+    <div data-anim-stage={stage}>
+      <GlassPanel className="relative overflow-hidden p-5 text-center">
         {/* The result's colour washes in with the stamp. */}
         <div
-          className={`av-appear pointer-events-none absolute inset-0 rounded-[inherit] border-2 bg-linear-to-b to-transparent to-70% ${
-            success ? 'border-(--av-good)/55 from-(--av-good)/18' : 'border-(--av-evil)/55 from-(--av-evil)/18'
+          className={`av-appear pointer-events-none absolute inset-0 rounded-2xl bg-linear-to-b to-transparent to-70% ${
+            success ? 'from-(--av-good)/16' : 'from-(--av-evil)/16'
           }`}
           style={{ animationDelay: cue(tl.stampAt) }}
         />
 
         <div className="av-rise relative" style={{ animationDelay: cue(0) }}>
-          <p className="text-[11px] uppercase font-bold text-slate-300 tracking-widest">
-            Quest {ROMAN[state.currentQuest] ?? state.currentQuest + 1} · Đội {quest.teamSize} người
-          </p>
-          <p className="av-display mt-1 text-3xl text-white">Lật bài</p>
+          <h3 className="av-display text-xl leading-tight text-(--av-text)">Lật bài</h3>
           {needsTwo && (
-            <p className="mt-1 text-[11px] font-bold text-(--av-evil-light)">
-              <AvIcon name="warning" /> Quest này cần ≥ 2 lá Phe Quỷ mới thất bại
-            </p>
+            <div className="flex justify-center">
+              <TwoFailNote />
+            </div>
           )}
         </div>
 
         {/* The row of cards: dealt from one pile, then turned over in order. */}
-        <div className="relative mt-5 flex justify-center gap-2 [--card-gap:0.5rem] [--card-w:2.75rem] sm:[--card-w:3.5rem]" data-reveal-order={order.join(',')}>
+        <div className="relative mt-4 flex justify-center gap-2 [--card-gap:0.5rem] [--card-w:2.75rem] sm:[--card-w:3.5rem]" data-reveal-order={order.join(',')}>
           {order.map((side, i) => {
             const deal = {
               '--sx': `calc(${(n - 1) / 2 - i} * (var(--card-w) + var(--card-gap)))`,
@@ -86,11 +82,9 @@ export function QuestResultSection({
           })}
         </div>
 
-        <div className="relative mt-5 flex h-14 items-center justify-center" aria-live="polite">
+        <div className="relative mt-4 flex h-14 items-center justify-center" aria-live="polite">
           <div
-            className={`av-stamp inline-flex items-center gap-2 rounded-lg border-[3px] border-double bg-black/40 px-4 py-1.5 ${tone} ${
-              success ? 'border-(--av-good-light)' : 'border-(--av-evil-light)'
-            }`}
+            className={`av-stamp inline-flex items-center gap-2 rounded-xl border-[3px] border-double bg-black/40 px-4 py-1.5 ${tone}`}
             style={{ animationDelay: cue(tl.stampAt) }}
             data-stamp={success ? 'success' : 'fail'}
           >
@@ -99,24 +93,22 @@ export function QuestResultSection({
           </div>
           <span className="sr-only">{stage !== 'reveal' ? (success ? 'Quest thành công' : 'Quest thất bại') : ''}</span>
         </div>
-      </GlassPanel>
 
-      <GlassPanel className="av-appear p-5" style={{ animationDelay: cue(tl.stampAt + 200) }}>
-        <p className="text-[11px] uppercase font-bold text-slate-400 mb-3 text-center">
-          Tổng lựa chọn
+        {/* The totals, under the stamp: icon and number, no boxes. */}
+        <p
+          className="av-appear relative mt-3 flex justify-center gap-6 text-sm font-semibold text-(--av-text)"
+          style={{ animationDelay: cue(tl.stampAt + 200) }}
+          data-quest-totals={`${goodCount}/${evilCount}`}
+        >
+          <span className="inline-flex items-center gap-1.5" title="Lá Phe Người">
+            <AvIcon name="quest-success" size={18} className="text-(--av-good-light)" />
+            {goodCount} Phe Người
+          </span>
+          <span className="inline-flex items-center gap-1.5" title="Lá Phe Quỷ">
+            <AvIcon name="quest-fail" size={18} className="text-(--av-evil-light)" />
+            {evilCount} Phe Quỷ
+          </span>
         </p>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-xl border-2 border-(--av-good)/35 bg-(--av-good)/10 p-4 text-center">
-            <AvIcon name="quest-success" size={30} className="mb-1 text-(--av-good-light)" />
-            <p className="text-[10px] uppercase font-bold text-(--av-good-light) mb-0.5">Lá Phe Người</p>
-            <p className="text-3xl font-black text-white">{goodCount}</p>
-          </div>
-          <div className="rounded-xl border-2 border-(--av-evil)/35 bg-(--av-evil)/10 p-4 text-center">
-            <AvIcon name="quest-fail" size={30} className="mb-1 text-(--av-evil-light)" />
-            <p className="text-[10px] uppercase font-bold text-(--av-evil-light) mb-0.5">Lá Phe Quỷ</p>
-            <p className="text-3xl font-black text-white">{evilCount}</p>
-          </div>
-        </div>
       </GlassPanel>
     </div>
   );

@@ -18,18 +18,19 @@ import RoleCard from './RoleCard';
 import RolePreviewPopup from './RolePreviewPopup';
 import LobbyRoundTable from './LobbyRoundTable';
 import AvalonJoinScreen from './AvalonJoinScreen';
+import StyleBoard from './StyleBoard';
 import DealingCards from './ui/DealingCards';
 import LobbyNotices from './ui/LobbyNotices';
 import { useRosterNotices } from './hooks/useRosterChanges';
 import { QUEST_TEAM_SIZES } from './constants';
 import AvIcon from './assets/AvIcon';
 import SceneBackdrop from './scenes/SceneBackdrop';
-import SceneTitle from './scenes/SceneTitle';
 import { getScene } from './scenes/getScene';
-import { getJourney, journeyKey, mulberry32 } from './scenes/journey';
-import { LOCATION_IDS, SCENE_IDS, SCENE_NAMES_VI, type LocationId, type SceneId } from './scenes/types';
+import { getJourney, mulberry32 } from './scenes/journey';
+import { SCENE_IDS, SCENE_NAMES_VI, type SceneId } from './scenes/types';
 
 type PreviewPhase =
+  | 'style'
   | 'join'
   | 'join-closed'
   | 'lobby'
@@ -84,6 +85,7 @@ type PreviewPhase =
   | 'end-evil-rejects';
 
 const PHASE_LABELS: Record<PreviewPhase, string> = {
+  style: 'Bảng phong cách (token, nút, panel, ô Quest, ghế)',
   join: 'Trang vào phòng (lời mời)',
   'join-closed': 'Trang vào phòng (ván đang diễn ra)',
   lobby: 'Phòng chờ (lobby) — có nút Người vào / rời',
@@ -139,6 +141,7 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
 };
 
 const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
+  { label: 'Thiết kế (GĐ7)', items: ['style'] },
   { label: 'Vào phòng', items: ['join', 'join-closed'] },
   { label: 'Phòng chờ', items: ['lobby'] },
   { label: 'Trước ván', items: ['dealing', 'lineup-preview'] },
@@ -289,7 +292,7 @@ function evilJourney(): AvalonQuestRecord[] {
 // `replay` rebuilds the scene as if the phase had JUST started (phaseStartedAt =
 // serverNow()), so entry animations and countdowns can be watched again.
 function buildScene(
-  phase: PreviewPhase,
+  phase: Exclude<PreviewPhase, 'style'>,
   replay: boolean
 ): { players: Player[]; state: AvalonGameState; viewerId: string } {
   const players = basePlayers();
@@ -1102,7 +1105,8 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   const [gameNo, setGameNo] = useState(0);
 
   const built = useMemo(() => {
-    const b = buildScene(phase, replayNonce > 0);
+    // The style board has no game of its own: any built scene will do.
+    const b = buildScene(phase === 'style' ? 'team-vote-not-voted' : phase, replayNonce > 0);
     const seatOrder = mockSeatOrder(b.state.seatOrder, gameNo);
     return { ...b, state: { ...b.state, seatOrder } };
   }, [phase, replayNonce, gameNo]);
@@ -1226,21 +1230,11 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   // The order people joined in, as the line-up's seats slide from it.
   const joinOrder = useMemo(() => mockSeatOrder(players.map((p) => p.id), gameNo + 101), [players, gameNo]);
 
-  const preGame = phase === 'lobby' || phase === 'join' || phase === 'join-closed' || phase === 'dealing';
+  const preGame = phase === 'style' || phase === 'lobby' || phase === 'join' || phase === 'join-closed' || phase === 'dealing';
   const autoScene = getScene(preGame ? null : state, 'preview', playerCount);
   const sceneId = sceneChoice === 'auto' ? autoScene.id : sceneChoice;
   const storm = forceStorm || (sceneChoice === 'auto' && autoScene.storm);
   const journey = getJourney(state, 'preview');
-  // What the title announces: the phase's scene, or the forced one.
-  const shownScene =
-    sceneChoice === 'auto'
-      ? autoScene
-      : {
-          ...autoScene,
-          id: sceneChoice,
-          location: (LOCATION_IDS as readonly string[]).includes(sceneChoice) ? (sceneChoice as LocationId) : autoScene.location,
-        };
-
   const noop = () => undefined;
   const stub = () => undefined;
   const onProposedTeamChange = (ids: string[]) => updateSim((s) => ({ ...s, proposedTeam: ids }));
@@ -1251,14 +1245,6 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   return (
     <div className="avalon-root fixed inset-0 z-50 bg-slate-950 animate-fade-in flex flex-col">
       <SceneBackdrop sceneId={sceneId} storm={storm} gloom={sceneChoice === 'auto' ? autoScene.gloom : 0} />
-      {/* Remounted by "Phát lại", so the title of the current scene plays again. */}
-      <SceneTitle
-        key={replayNonce}
-        scene={shownScene}
-        startedAt={preGame ? null : state.phaseStartedAt}
-        quest={state.currentQuest}
-        seedKey={journeyKey(state, 'preview')}
-      />
       <header className="shrink-0 border-b border-white/10 bg-(color:--av-bar-bg)">
         <div className="flex items-center gap-2 px-4 py-3 flex-wrap">
           <button
@@ -1413,7 +1399,9 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
       </header>
 
       <div className="flex-1 overflow-y-auto" data-preview-scene={sceneId}>
-        {phase === 'join' || phase === 'join-closed' ? (
+        {phase === 'style' ? (
+          <StyleBoard />
+        ) : phase === 'join' || phase === 'join-closed' ? (
           <AvalonJoinScreen
             room={mockRoom(phase === 'join' ? 'lobby' : 'day', players.length)}
             players={players.map((p) => (p.id === 'p1' ? { ...p, isHost: true } : p))}

@@ -45,7 +45,7 @@ export default function ActionDock({ children, className = '' }: { children: Rea
         ref={dock}
         data-action-dock=""
         data-my-turn={myTurn ? '' : undefined}
-        className={`${myTurn ? 'av-dock-turn ' : ''}fixed inset-x-0 bottom-0 z-30 border-t border-(--av-glass-border) bg-(color:--av-bar-bg) px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_30px_-12px_rgba(0,0,0,0.8)] lg:relative lg:z-auto lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${className}`}
+        className={`${myTurn ? 'av-dock-turn ' : ''}fixed inset-x-0 bottom-0 z-30 border-t border-(--av-line) bg-(color:--av-bar-bg) px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_30px_-12px_rgba(0,0,0,0.8)] lg:relative lg:z-auto lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${className}`}
       >
         <div className="mx-auto w-full max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-none">{children}</div>
       </div>

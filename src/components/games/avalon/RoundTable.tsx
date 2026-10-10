@@ -1,11 +1,12 @@
 'use client';
 
-import { useState, type CSSProperties } from 'react';
+import { useState, type CSSProperties, type MouseEvent, type ReactNode } from 'react';
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState, type AvalonQuestRecord } from './types';
 import { ROLE_NAMES_VI, ROLE_TEAM, VOTE_TRACK_LIMIT, questNeedsTwoFails } from './constants';
+import { ROLE_ICON_NAME } from './presentation';
 import { seatPosition } from './table/seatPosition';
-import TableTokens from './table/TableTokens';
+import TableTokens, { isTeamPhase } from './table/TableTokens';
 import CardPile from './table/CardPile';
 import { END, NIGHT, VOTE_RESULT, questResultTimeline } from './table/timelines';
 import { NIGHT_CALL, type NightPhase } from './panel/NightSections';
@@ -16,11 +17,16 @@ import { useHiddenQuest, useShownRejectStreak } from './hooks/useTableReveal';
 import AvIcon, { type IconName } from './assets/AvIcon';
 import AimHeartbeat from './ui/AimHeartbeat';
 import Cued from './ui/Cued';
+import AvButton from './ui/AvButton';
 import GlassPanel from './ui/GlassPanel';
 import PlayerAvatar from './ui/PlayerAvatar';
 import RoleEmblem from './ui/RoleEmblem';
 
 const ROMAN = ['I', 'II', 'III', 'IV', 'V'];
+
+// The phases where each player confirms on their own (an ack), shown as the
+// "ready" mark on the seats. Never the night: who is called is secret.
+const READY_PHASES: ReadonlySet<string> = new Set(['lineup-preview', 'role-reveal', 'discussion']);
 
 interface RoundTableProps {
   players: Player[];
@@ -36,6 +42,12 @@ interface RoundTableProps {
   // Sát Thủ đang chọn Merlin → bấm avatar Phe Người để chọn.
   onAssassinPick?: (id: string) => void;
   canAssassinPick?: boolean;
+  // Người cầm Lady (chưa soi) → bấm ghế để ngắm người đó.
+  onLadyPick?: (id: string) => void;
+  canLadyPick?: boolean;
+  /** The scene title of the moment (scenes/SceneTitle), drawn on the table
+   *  surface between the upper seats and the quest tiles. */
+  sceneTitle?: ReactNode;
   /** Player ids in the order they joined the room: in lineup-preview the
    *  seats slide from that order to the game's seat order. */
   joinOrder?: readonly string[];
@@ -81,10 +93,6 @@ function getViewerHint(
   return null;
 }
 
-// Colour of the throbbing glow around the quest being played (amber-300).
-const CURRENT_QUEST_GLOW = { '--av-pulse': 'rgb(252 211 77)' } as CSSProperties;
-const LAST_CANDLE_GLOW = { '--av-pulse': 'var(--av-evil)' } as CSSProperties;
-
 export default function RoundTable({
   players,
   state,
@@ -97,6 +105,9 @@ export default function RoundTable({
   pickedTeamLimit,
   onAssassinPick,
   canAssassinPick,
+  onLadyPick,
+  canLadyPick,
+  sceneTitle,
   joinOrder,
   glowIds,
   revealAll,
@@ -119,9 +130,16 @@ export default function RoundTable({
   const rejectedResult = state.phase === 'team-vote-result' && state.lastTeamVoteResult === 'rejected';
   const lastChance = rejectedResult && state.voteRejectStreak >= VOTE_TRACK_LIMIT - 1;
 
-  // "Voted" dots pop when a vote comes in (not on reload).
-  const votedIds = state.phase === 'team-vote' ? Object.keys(state.teamVotes ?? {}).sort() : [];
-  const freshVotes = useArrivals(votedIds);
+  // The small mark on each seat: in team-vote whether that player has
+  // voted (never how), and in the phases where everyone confirms on their own
+  // (the line-up, the role letter, the discussion) whether they are ready.
+  // Public in all of them. It pops when it comes in (not on reload).
+  const markKind = state.phase === 'team-vote' ? 'vote' : READY_PHASES.has(state.phase) ? 'ready' : null;
+  const markedIds =
+    markKind === 'vote' ? Object.keys(state.teamVotes ?? {}).sort() : markKind === 'ready' ? Object.keys(state.roleAcks ?? {}).sort() : [];
+  const freshMarks = useArrivals(markedIds);
+  // Who is on the team is shown only while there is a team on the table.
+  const teamOnTable = isTeamPhase(state.phase);
 
   const showPile = state.phase === 'quest-play' || questResult;
 
@@ -130,22 +148,19 @@ export default function RoundTable({
     const isNext = i === rejectStreak;
     const isLast = i === VOTE_TRACK_LIMIT - 1;
     const snuffing = rejectedResult && i === state.voteRejectStreak - 1;
-    const candleCls = out
-      ? 'text-stone-400/70'
-      : isLast
-        ? 'text-(--av-evil) drop-shadow-[0_0_6px_var(--av-evil)]'
-        : 'text-(--av-leader) drop-shadow-[0_0_5px_var(--av-leader)]';
-    // One candle left: the last one throbs red until a team is approved.
+    // The table is the background: plain flames, no glow.
+    const candleCls = out ? 'text-(--av-text-3)/70' : isLast ? 'text-(--av-evil)' : 'text-(--av-gold)';
+    // One candle left: the last one gets a still red ring until a team is
+    // approved (one thing blinks at a time: the dock, or the Assassin's aim).
     const warn = isLast && !out && rejectStreak >= VOTE_TRACK_LIMIT - 1;
     const icon = (
-      <AvIcon name={out ? 'candle-out' : 'candle-lit'} className={`h-6 w-6 sm:h-7 sm:w-7 ${candleCls}`} />
+      <AvIcon name={out ? 'candle-out' : 'candle-lit'} className={`h-6 w-6 sm:h-7 sm:w-7 @min-[560px]:h-9 @min-[560px]:w-9 ${candleCls}`} />
     );
     return (
       <span
         key={i}
         title={isLast ? 'Lần từ chối thứ 5 — Phe Quỷ thắng ngay!' : `Đã từ chối ${i + 1} lần`}
-        className={`relative flex rounded-full transition-transform ${isNext ? 'scale-125' : ''} ${warn ? 'av-pulse-ring' : ''}`}
-        style={warn ? LAST_CANDLE_GLOW : undefined}
+        className={`relative flex rounded-full transition-transform ${isNext ? 'scale-125' : ''} ${warn ? 'ring-2 ring-(--av-evil)/80' : ''}`}
         data-candle={out ? 'out' : 'lit'}
       >
         {snuffing && out ? (
@@ -157,141 +172,126 @@ export default function RoundTable({
           icon
         )}
         {snuffing && (
-          <Cued startedAt={startedAt} at={VOTE_RESULT.candleAt} className="av-smoke pointer-events-none absolute -top-3 left-1/2 h-3 w-1.5 -translate-x-1/2 rounded-full bg-stone-300/60" />
+          <Cued startedAt={startedAt} at={VOTE_RESULT.candleAt} className="av-smoke pointer-events-none absolute -top-3 left-1/2 h-3 w-1.5 -translate-x-1/2 rounded-full bg-(--av-text-2)/60" />
         )}
       </span>
     );
   });
 
+  // The quest tiles. Public, the same on every screen.
+  const tileState = (idx: number) => {
+    const q = state.quests[idx];
+    // A result still being revealed in quest-result is not shown yet.
+    const done = q.result !== null && hiddenQuest !== idx;
+    return {
+      done,
+      success: done && q.result === 'success',
+      fail: done && q.result === 'fail',
+      current: !ended && idx === state.currentQuest,
+      needsTwo: questNeedsTwoFails(playerCount, idx),
+    };
+  };
+  const rowLabel = `Các Quest — ${state.quests
+    .map((q, idx) => {
+      const t = tileState(idx);
+      const what = t.success ? 'thành công' : t.fail ? 'thất bại' : t.current ? 'đang chơi' : ended ? 'không được chơi' : 'chưa chơi';
+      return `${ROMAN[idx]}: ${what}, ${q.teamSize} người${t.needsTwo && !t.done && !ended ? ', cần 2 lá Phe Quỷ để thất bại' : ''}`;
+    })
+    .join('; ')}. Xem chi tiết.`;
+  const lastPlayed = Math.max(0, ...state.quests.map((_, idx) => (tileState(idx).done ? idx : 0)));
+
+  // Quest history: the WHOLE row of tiles is one button. A tap opens the
+  // quest under the finger (the nearest tile between two), and the popup can
+  // switch to any other quest. Five tiles side by side cannot each be 44px
+  // wide at 320px, but the row is one large target. The keyboard opens the
+  // quest being played (or the last one, at the end).
+  const openQuestAt = (e: MouseEvent<HTMLButtonElement>) => {
+    let idx = ended ? lastPlayed : Math.min(state.currentQuest, state.quests.length - 1);
+    if (e.detail > 0) {
+      let best = Infinity;
+      e.currentTarget.querySelectorAll<HTMLElement>('[data-quest-idx]').forEach((t) => {
+        const r = t.getBoundingClientRect();
+        const d = e.clientX < r.left ? r.left - e.clientX : e.clientX > r.right ? e.clientX - r.right : 0;
+        if (d < best) {
+          best = d;
+          idx = Number(t.dataset.questIdx);
+        }
+      });
+    }
+    setOpenQuestIdx(idx);
+  };
+
   return (
     // A size container: the tokens and flying cards measure in cqw (% of the table).
-    <div className={`@container relative mx-auto w-full max-w-[640px] sm:max-w-[680px] lg:max-w-[760px] aspect-square select-none ${n >= 8 ? "av-table-dense" : ""}`}>
-      {/* The round table itself — wood/dark gradient with concentric rings */}
-      <div className="absolute inset-[12%] rounded-full bg-[radial-gradient(circle_at_30%_25%,rgba(180,120,60,0.25),transparent_55%),linear-gradient(135deg,#3b2a1a_0%,#2a1c0f_50%,#15100a_100%)] border-[3px] border-amber-800/60 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_2px_8px_rgba(255,200,140,0.1)]">
-        <div className="absolute inset-2 rounded-full border border-amber-700/30" />
-        <div className="absolute inset-5 rounded-full border border-amber-600/15" />
-
-        {/* Center: quest row + vote-track stacked vertically */}
-        <div className="av-table-core absolute inset-0 flex flex-col items-center justify-center gap-4 px-4 sm:px-6">
-          {/* Quest badges (M1..M5) — bigger, simpler when done. Click for popup. */}
-          <div className="flex items-stretch justify-center gap-2 sm:gap-3 w-full max-w-[94%]">
+    // On a desktop the table never grows taller than the screen (top bar + padding).
+    <div className={`@container relative mx-auto w-full max-w-[640px] sm:max-w-[680px] lg:max-w-[min(720px,calc(100dvh-5.75rem))] aspect-square select-none ${n >= 8 ? "av-table-dense" : ""}`}>
+      {/* The round table itself: dark wood, one faint rim. It is the
+          background of the game, not its centrepiece. */}
+      <div className="absolute inset-[12%] rounded-full border-2 border-black/40 bg-[radial-gradient(circle_at_30%_25%,rgba(180,120,60,0.16),transparent_55%),linear-gradient(135deg,#33251a_0%,#241a10_50%,#140f0a_100%)] shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_0_0_1px_rgba(239,227,200,0.07)]">
+        {/* Center: quest row + vote-track stacked vertically, a little below
+            the middle: the name labels of the upper seats hang towards the
+            corners of the row (measured 0 overlap at 300–1440px, 5–10 seats). */}
+        <div className="av-table-core absolute inset-x-0 bottom-0 top-[13cqw] flex flex-col items-center justify-center gap-3 px-3 sm:gap-4 sm:px-5 @min-[560px]:gap-5">
+          {/* The five quests: a numeral and either the team size or the
+              result. A tap opens the history (see openQuestAt). */}
+          <button
+            type="button"
+            onClick={openQuestAt}
+            className="av-hit [--av-hit-x:-2px] [--av-hit-y:-6px] flex w-full max-w-[88%] items-stretch @min-[480px]:max-w-[78%] justify-center gap-1.5 rounded-xl transition hover:brightness-110 active:scale-[0.99] sm:gap-2 @min-[560px]:gap-3"
+            aria-label={rowLabel}
+            title="Xem các Quest"
+            data-quest-row=""
+          >
             {state.quests.map((q, idx) => {
-              const isCurrent = !ended && idx === state.currentQuest;
-              // A result still being revealed in quest-result is not shown yet.
-              const isDone = q.result !== null && hiddenQuest !== idx;
-              const success = isDone && q.result === 'success';
-              const fail = isDone && q.result === 'fail';
-              const needsTwo = questNeedsTwoFails(playerCount, idx);
-              const sealing = questResult && isCurrent && isDone;
-
-              // The current quest's tile throbs through its glow only — the
-              // numeral and the team size inside keep full contrast.
-              const ringColor = success
-                ? 'border-(--av-good)/80 bg-(--av-good)/25 shadow-black/40'
-                : fail
-                  ? 'border-(--av-evil)/80 bg-(--av-evil)/25 shadow-black/40'
-                  : isCurrent
-                    ? 'border-amber-300/90 bg-amber-500/15 shadow-amber-400/40 ring-2 ring-amber-300/60 av-pulse-ring'
+              const t = tileState(idx);
+              const sealing = questResult && t.current && t.done;
+              const frame = t.success
+                ? 'border-(--av-good)/70 bg-(--av-good)/15 text-(--av-good-light)'
+                : t.fail
+                  ? 'border-(--av-evil)/70 bg-(--av-evil)/15 text-(--av-evil-light)'
+                  : t.current
+                    ? 'border-(--av-gold) bg-(--av-gold)/10 text-(--av-gold)'
                     : ended
-                      ? 'border-stone-700/60 bg-stone-950/50'
-                      : 'border-stone-600/70 bg-stone-900/60';
-              const numberColor = success
-                ? 'text-(--av-good-light)'
-                : fail
-                  ? 'text-(--av-evil-light)'
-                  : isCurrent
-                    ? 'text-amber-200'
-                    : ended
-                      ? 'text-stone-500'
-                      : 'text-stone-400';
-
-              const baseCls = `relative flex flex-1 min-w-0 flex-col items-center justify-center rounded-2xl border-2 px-1 py-2 sm:px-1.5 sm:py-3 text-center shadow ${ringColor}`;
-
-              // Roman numeral instead of "QUEST n": it never wraps, even at 375px.
-              const badgeBody = (
-                <>
-                  <div className={`av-display text-lg sm:text-2xl leading-none whitespace-nowrap ${numberColor}`}>
-                    {ROMAN[idx]}
-                  </div>
-                  {isDone ? (
-                    <>
-                      <AvIcon
-                        name={success ? 'quest-success' : 'quest-fail'}
-                        className={`mt-1 h-6 w-6 sm:h-8 sm:w-8 ${success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'}`}
-                      />
-                      <div
-                        className={`mt-0.5 hidden sm:block text-xs font-black whitespace-nowrap ${success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
-                          }`}
-                      >
-                        {success ? 'Thành công' : 'Thất bại'}
-                      </div>
-                      <div className="mt-1 inline-flex items-center gap-1 rounded-full bg-white/10 border border-white/15 px-1.5 py-0.5 text-[9px] sm:text-[10px] font-bold text-slate-200">
-                        <AvIcon name="details" />
-                        <span className="hidden sm:inline">Chi tiết</span>
-                      </div>
-                    </>
+                      ? 'border-(--av-line) bg-black/25 text-(--av-text-3)'
+                      : 'border-(--av-line) bg-black/35 text-(--av-text-2)';
+              return (
+                <span
+                  key={idx}
+                  className={`relative flex min-w-0 flex-1 flex-col items-center justify-center gap-0.5 rounded-xl border py-1 sm:gap-1 sm:py-2.5 @min-[560px]:gap-1.5 @min-[560px]:py-3.5 ${frame}`}
+                  data-quest-idx={idx}
+                  data-quest-tile={t.success ? 'success' : t.fail ? 'fail' : t.current ? 'current' : ended ? 'unplayed' : 'pending'}
+                >
+                  {/* Roman numeral instead of "QUEST n": it never wraps. */}
+                  <span className="av-display text-lg leading-none whitespace-nowrap sm:text-2xl @min-[560px]:text-3xl">{ROMAN[idx]}</span>
+                  {t.done ? (
+                    <AvIcon name={t.success ? 'quest-success' : 'quest-fail'} className="h-5 w-5 sm:h-6 sm:w-6 @min-[560px]:h-8 @min-[560px]:w-8" />
                   ) : (
-                    <>
-                      <div
-                        className={`mt-1 inline-flex items-center gap-0.5 whitespace-nowrap text-[11px] font-bold ${isCurrent ? 'text-amber-300' : 'text-stone-400'
-                          }`}
-                      >
-                        <span className="sm:hidden"><AvIcon name="team" /></span>
-                        {q.teamSize}
-                        <span className="hidden sm:inline"> người</span>
-                      </div>
-                      {needsTwo && !ended && (
-                        <div className="mt-1 inline-flex items-center gap-0.5 whitespace-nowrap rounded-full bg-(--av-evil)/30 border border-(--av-evil)/55 px-1.5 py-px text-[9px] font-black text-(--av-evil-light)">
-                          ≥2<span className="hidden sm:inline"> lá Quỷ</span>
-                          <span className="sm:hidden"><AvIcon name="quest-fail" /></span>
-                        </div>
-                      )}
-                    </>
+                    <span className="inline-flex h-5 items-center gap-0.5 whitespace-nowrap text-xs font-semibold tabular-nums sm:h-6 @min-[560px]:h-8 @min-[560px]:text-base">
+                      <AvIcon name="team" />
+                      {q.teamSize}
+                    </span>
+                  )}
+                  {/* The two-fail rule: a small mark, explained in the popup. */}
+                  {t.needsTwo && !t.done && !ended && (
+                    <span
+                      className="absolute -right-1 -top-1.5 flex h-4 items-center gap-px rounded-full border border-(--av-evil)/70 bg-(--av-ink) px-1 text-[clamp(9px,2.8cqw,11px)] font-bold leading-none text-(--av-evil-light)"
+                      data-two-fails=""
+                    >
+                      <AvIcon name="quest-fail" />2
+                    </span>
                   )}
                   {/* The result was just stamped: the tile is sealed in its colour. */}
                   {sealing && (
                     <Cued
                       startedAt={startedAt}
                       at={questResultTimeline(q.teamSize).stampAt}
-                      className={`av-seal pointer-events-none absolute -inset-1 rounded-2xl border-2 ${success ? 'border-(--av-good-light)' : 'border-(--av-evil-light)'}`}
+                      className={`av-seal pointer-events-none absolute -inset-1 rounded-xl border-2 ${t.success ? 'border-(--av-good-light)' : 'border-(--av-evil-light)'}`}
                     />
                   )}
-                </>
-              );
-
-              if (isDone) {
-                return (
-                  <button
-                    key={idx}
-                    onClick={() => setOpenQuestIdx(idx)}
-                    className={`${baseCls} av-hit [--av-hit-x:-6px] [--av-hit-y:0px] hover:brightness-110 active:scale-95 transition`}
-                    title={`Xem chi tiết Quest ${idx + 1}`}
-                    aria-label={`Quest ${idx + 1}: ${success ? 'thành công' : 'thất bại'} — xem chi tiết`}
-                    data-quest-tile={success ? 'success' : 'fail'}
-                  >
-                    {badgeBody}
-                  </button>
-                );
-              }
-              return (
-                <div
-                  key={idx}
-                  title={
-                    ended
-                      ? `Quest ${idx + 1} — không được chơi`
-                      : needsTwo
-                        ? `Quest ${idx + 1} — ${q.teamSize} người — Cần ≥ 2 lá Phe Quỷ để Quest fail`
-                        : `Quest ${idx + 1} — ${q.teamSize} người`
-                  }
-                  className={baseCls}
-                  style={isCurrent ? CURRENT_QUEST_GLOW : undefined}
-                  data-quest-tile={isCurrent ? 'current' : ended ? 'unplayed' : 'pending'}
-                >
-                  {badgeBody}
-                </div>
+                </span>
               );
             })}
-          </div>
+          </button>
 
           {/* Reject track: 5 candles, one goes out each time a team is rejected.
               The 5th burns in the evil colour — if it goes out, evil wins. With
@@ -315,6 +315,9 @@ export default function RoundTable({
         {night && <NightVeil key={night} phase={night} startedAt={startedAt} />}
       </div>
 
+      {/* The scene's name, on the free band of the table (scenes/SceneTitle). */}
+      {sceneTitle}
+
       {/* Player avatars arranged around the table (see table/seatPosition.ts).
           Each seat is centred on the AVATAR (the name hangs below it), so the
           tokens of TableTokens land on the same points. */}
@@ -326,7 +329,7 @@ export default function RoundTable({
         const joinedAt = lineup && joinOrder ? joinOrder.indexOf(p.id) : -1;
         const from = joinedAt >= 0 && joinedAt !== i ? seatPosition(joinedAt, n) : null;
         const glowing = !!night && !!glowIds?.includes(p.id);
-        const isOnTeam = state.proposedTeam.includes(p.id);
+        const isOnTeam = teamOnTable && state.proposedTeam.includes(p.id);
         const isLeader = state.currentLeaderId === p.id;
         const isLady = state.ladyHolderId === p.id;
         const isLadyTarget = state.ladyTargetId === p.id;
@@ -337,11 +340,13 @@ export default function RoundTable({
         // End: the seat turns over to its role (everything is public now, so
         // the viewer's private hints are not needed any more).
         const role = revealAll !== undefined ? data.role : undefined;
-        const hint = role ? null : getViewerHint(p, myPlayerId, viewerRole);
+        // At the assassination the Evil team stands revealed to everyone: a
+        // public badge with the role replaces the viewer's private hint.
+        const unmasked = state.phase === 'assassinate' && data.team === 'evil' && data.role ? data.role : null;
+        const hint = role || unmasked ? null : getViewerHint(p, myPlayerId, viewerRole);
         const stabbed = !!role && state.merlinTargetId === p.id;
 
-        const voted = state.teamVotes && state.teamVotes[p.id];
-        const showVoteDot = state.phase === 'team-vote';
+        const marked = markedIds.includes(p.id);
 
         const isPickable = canPick && state.phase === 'team-build' && onTogglePick;
         const isAssassinPickable =
@@ -349,21 +354,34 @@ export default function RoundTable({
           state.phase === 'assassinate' &&
           onAssassinPick &&
           data.team === 'good';
+        // The Lady may look at anyone but herself and the former holders.
+        const isLadyPickable =
+          canLadyPick &&
+          state.phase === 'lady-of-lake' &&
+          onLadyPick &&
+          p.id !== state.ladyHolderId &&
+          !state.ladyHistory.includes(p.id);
 
         const handleClick = () => {
           if (isAssassinPickable) {
             onAssassinPick!(p.id);
             return;
           }
+          if (isLadyPickable) {
+            onLadyPick!(p.id);
+            return;
+          }
           if (isPickable) onTogglePick!(p.id);
         };
 
-        const Wrapper: 'button' | 'div' = isPickable || isAssassinPickable ? 'button' : 'div';
+        const Wrapper: 'button' | 'div' = isPickable || isAssassinPickable || isLadyPickable ? 'button' : 'div';
         const wrapperExtra = isPickable
-          ? `cursor-pointer active:scale-95 ${isOnTeam ? '' : 'hover:ring-2 hover:ring-amber-300/60'}`
+          ? `cursor-pointer active:scale-95 ${isOnTeam ? '' : 'hover:ring-2 hover:ring-(--av-gold)/60'}`
           : isAssassinPickable
             ? `cursor-pointer active:scale-95 hover:ring-2 hover:ring-(--av-evil)/70 ${isAssassinTarget ? 'av-stab' : ''}`
-            : '';
+            : isLadyPickable
+              ? `cursor-pointer active:scale-95 ${isLadyTarget ? '' : 'hover:ring-2 hover:ring-(--av-gold)/60'}`
+              : '';
         // The tokens are drawn by TableTokens; say them in the seat's title.
         const tokens = `${isLeader ? ' · Leader' : ''}${isLady ? ' · Lady of the Lake' : ''}${role ? ` · ${ROLE_NAMES_VI[role]}` : ''}`;
 
@@ -374,7 +392,6 @@ export default function RoundTable({
             selected={isOnTeam}
             aim={isAssassinTarget ? 'assassin' : isLadyTarget ? 'lady' : null}
             isMe={isMe}
-            pulse={isOnTeam}
             glow={glowing}
           >
             {isAssassinTarget && (
@@ -390,29 +407,47 @@ export default function RoundTable({
               </>
             )}
 
-            {/* Hint icon (visible-evil / Percival uncertainty) */}
-            {hint && (
+            {/* The vote / ready mark, bottom-LEFT: says only THAT they voted
+                (never how) / are ready — filled when in, hollow while
+                waiting. It pops when it comes in. Every seat shows it: it
+                never competes with the corner badge on the right. */}
+            {markKind && (
               <span
-                title={hint.label}
-                className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full text-[12px] text-white border ${hint.kind === 'percival-sees'
-                  ? 'bg-indigo-500 border-indigo-200'
-                  : 'bg-(--av-evil) border-(--av-evil-light)'
-                  }`}
-              >
-                <AvIcon name={hint.icon} />
-              </span>
-            )}
-            {/* Vote status dot (only during team-vote); pops when the vote lands. */}
-            {showVoteDot && (
-              <span
-                key={voted ? 'voted' : 'waiting'}
-                title={voted ? 'Đã bầu' : 'Chưa bầu'}
-                data-vote-dot={voted ? 'voted' : 'waiting'}
-                className={`absolute -bottom-1 -left-1 h-3 w-3 rounded-full border ${voted
-                  ? `bg-emerald-400 border-emerald-200 ${freshVotes.has(p.id) ? 'av-pop' : ''}`
-                  : 'bg-slate-500 border-slate-300 animate-pulse'
-                  }`}
+                key={marked ? 'in' : 'waiting'}
+                title={markKind === 'vote' ? (marked ? 'Đã bầu' : 'Chưa bầu') : marked ? 'Sẵn sàng' : 'Chưa sẵn sàng'}
+                {...(markKind === 'vote'
+                  ? { 'data-vote-dot': marked ? 'voted' : 'waiting' }
+                  : { 'data-ready-dot': marked ? 'ready' : 'waiting' })}
+                className={`absolute -bottom-0.5 -left-0.5 h-3.5 w-3.5 rounded-full border-2 ${
+                  marked ? `border-(--av-ink) bg-(--av-parchment) ${freshMarks.has(p.id) ? 'av-pop' : ''}` : 'border-(--av-text-3) bg-(--av-ink)'
+                }`}
               />
+            )}
+
+            {/* At most ONE corner badge per seat, bottom-right: the viewer's
+                night hint (visible evil / Percival's "Merlin or Morgana?"), or
+                — at the assassination — the unmasked Evil role, public. */}
+            {unmasked ? (
+              <span
+                title={`${ROLE_NAMES_VI[unmasked]} · Phe Quỷ`}
+                className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border border-(--av-evil-light) bg-(--av-evil) text-xs text-(--av-ink)"
+                data-seat-badge="unmasked"
+              >
+                <AvIcon name={ROLE_ICON_NAME[unmasked]} />
+              </span>
+            ) : (
+              hint && (
+                <span
+                  title={hint.label}
+                  className={`absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full border text-xs ${hint.kind === 'percival-sees'
+                    ? 'border-(--av-parchment)/70 bg-(--av-ink) text-(--av-parchment)'
+                    : 'border-(--av-evil-light) bg-(--av-evil) text-white'
+                    }`}
+                  data-seat-badge="hint"
+                >
+                  <AvIcon name={hint.icon} />
+                </span>
+              )
             )}
           </PlayerAvatar>
         );
@@ -434,7 +469,7 @@ export default function RoundTable({
                 <RoleEmblem role={role} size="md" />
                 {stabbed && (
                   <span
-                    className="absolute -bottom-1 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-(--av-evil-light) bg-(--av-evil) text-[12px] text-(--av-ink) shadow shadow-black/50"
+                    className="absolute -bottom-1 -right-1.5 flex h-5 w-5 items-center justify-center rounded-full border border-(--av-evil-light) bg-(--av-evil) text-xs text-(--av-ink) shadow shadow-black/50"
                     title="Bị Sát Thủ đâm"
                   >
                     <AvIcon name="assassinate" />
@@ -477,7 +512,9 @@ export default function RoundTable({
                       }`
                   : isAssassinPickable
                     ? `Chọn ${p.name} là Merlin`
-                    : `${p.name}${tokens}`
+                    : isLadyPickable
+                      ? `Soi ${p.name}`
+                      : `${p.name}${tokens}`
               }
             >
               {seatBody}
@@ -485,9 +522,9 @@ export default function RoundTable({
               {/* Near-opaque label: the seats sit over the scene, which can be
                   bright (the dawn of end-good) — the name must stay readable. */}
               <div
-                className={`av-seat-name absolute left-1/2 top-full mt-1 w-max max-w-[80px] -translate-x-1/2 truncate rounded-md px-1.5 py-0.5 text-[11px] font-bold leading-tight text-center ${isMe
+                className={`av-seat-name absolute left-1/2 top-full mt-1 w-max max-w-[80px] -translate-x-1/2 truncate rounded-full px-2 py-0.5 text-[clamp(10px,3.5cqw,12px)] font-semibold leading-tight text-center ${isMe
                   ? 'bg-black/75 text-(--av-parchment) ring-1 ring-(--av-parchment)/50'
-                  : 'bg-black/75 text-white'
+                  : 'bg-black/75 text-(--av-text)'
                   }`}
                 title={p.name}
               >
@@ -507,10 +544,12 @@ export default function RoundTable({
 
       {openQuestIdx !== null && state.quests[openQuestIdx] && (
         <QuestDetailPopup
-          questIndex={openQuestIdx}
-          quest={state.quests[openQuestIdx]}
+          initial={openQuestIdx}
+          quests={state.quests}
           players={players}
           playerCount={playerCount}
+          current={ended ? -1 : state.currentQuest}
+          hiddenQuest={hiddenQuest}
           onClose={() => setOpenQuestIdx(null)}
         />
       )}
@@ -536,152 +575,173 @@ function NightVeil({ phase, startedAt }: { phase: NightPhase; startedAt: number 
           <AvIcon name={call.icon} className="mr-1 text-[0.8em]" />
           {call.who} mở mắt…
         </p>
-        <p className="mt-1 text-[clamp(10px,3.4cqw,13px)] leading-snug text-slate-300">{call.line}</p>
-        <p className="mt-1.5 text-[clamp(9px,2.8cqw,11px)] font-bold uppercase tracking-wider text-slate-400">Mọi người khác nhắm mắt</p>
+        <p className="mt-1 text-[clamp(10px,3.4cqw,13px)] leading-snug text-(--av-text-2)">{call.line}</p>
+        <p className="mt-1.5 text-[clamp(9px,2.8cqw,11px)] font-bold uppercase tracking-wider text-(--av-text-3)">Mọi người khác nhắm mắt</p>
       </Cued>
     </Cued>
   );
 }
 
+// The quest history (a tap on the row of tiles): one quest at a time, and a
+// switcher of the five numerals (tinted like the tiles) to move between them.
+// Played: the result, the cards, the vote on the approved team, the Leader
+// and the team. Not played yet: the team size and the two-fail rule. All of it
+// public; a result still being revealed (quest-result) stays hidden.
 function QuestDetailPopup({
-  questIndex,
-  quest,
+  initial,
+  quests,
   players,
   playerCount,
+  current,
+  hiddenQuest,
   onClose,
 }: {
-  questIndex: number;
-  quest: AvalonQuestRecord;
+  initial: number;
+  quests: readonly AvalonQuestRecord[];
   players: Player[];
   playerCount: number;
+  /** The quest being played, -1 once the game is over. */
+  current: number;
+  hiddenQuest: number | null;
   onClose: () => void;
 }) {
-  const success = quest.result === 'success';
+  const [idx, setIdx] = useState(initial);
+  const dialog = useDialog<HTMLDivElement>(onClose);
+
+  const quest = quests[idx];
+  const playedOf = (i: number) => quests[i].result !== null && hiddenQuest !== i;
+  const played = playedOf(idx);
+  const success = played && quest.result === 'success';
   const evilCount = quest.failCount;
   const goodCount = Math.max(0, quest.teamSize - evilCount);
-  const team = quest.teamIds
-    .map((id) => players.find((p) => p.id === id))
-    .filter(Boolean) as Player[];
+  const team = quest.teamIds.map((id) => players.find((p) => p.id === id)).filter(Boolean) as Player[];
   const leader = quest.leaderId ? players.find((p) => p.id === quest.leaderId) : null;
-  const approve = quest.approveCount;
-  const reject = quest.rejectCount;
-  const needsTwo = questNeedsTwoFails(playerCount, questIndex);
-
-  const dialog = useDialog<HTMLDivElement>(onClose);
+  const needsTwo = questNeedsTwoFails(playerCount, idx);
+  const status = played
+    ? success
+      ? 'Thành công'
+      : 'Thất bại'
+    : idx === current
+      ? 'Đang chơi'
+      : current < 0
+        ? 'Không được chơi'
+        : 'Chưa chơi';
+  const tint = played ? (success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)') : idx === current ? 'text-(--av-gold)' : 'text-(--av-text-2)';
 
   return (
     <div
       ref={dialog}
       role="dialog"
       aria-modal="true"
-      aria-label={`Chi tiết Quest ${questIndex + 1}`}
+      aria-label={`Quest ${ROMAN[idx]}: ${status}`}
       tabIndex={-1}
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in outline-none"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-black/70 p-3 outline-none animate-fade-in sm:items-center"
       onClick={onClose}
+      data-quest-popup={idx}
     >
       {/* A quest's result is public: tinted by it, the same on every screen. */}
       <GlassPanel
-        tone={success ? 'good' : 'evil'}
-        emphasis
-        className="relative w-full sm:max-w-md overflow-hidden rounded-3xl p-5"
+        tone={played ? (success ? 'good' : 'evil') : 'neutral'}
+        solid
+        className="w-full p-5 sm:max-w-md"
         onClick={(e) => e.stopPropagation()}
       >
-        <button
-          onClick={onClose}
-          className="absolute right-3 top-3 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
-          aria-label="Đóng"
-        >
-          <AvIcon name="close" size={20} />
-        </button>
+        <div className="flex justify-center gap-1.5" role="group" aria-label="Chọn Quest">
+          {quests.map((q, i) => {
+            const done = playedOf(i);
+            const tile = done
+              ? q.result === 'success'
+                ? 'border-(--av-good)/70 bg-(--av-good)/15 text-(--av-good-light)'
+                : 'border-(--av-evil)/70 bg-(--av-evil)/15 text-(--av-evil-light)'
+              : i === current
+                ? 'border-(--av-gold)/70 text-(--av-gold)'
+                : 'border-(--av-line) text-(--av-text-2)';
+            return (
+              <button
+                key={i}
+                type="button"
+                onClick={() => setIdx(i)}
+                aria-pressed={i === idx}
+                aria-label={`Quest ${i + 1}`}
+                className={`av-display flex h-11 w-11 items-center justify-center rounded-xl border text-lg transition hover:brightness-125 ${tile} ${
+                  i === idx ? 'ring-2 ring-(--av-parchment) ring-offset-2 ring-offset-(--av-ink)' : ''
+                }`}
+              >
+                {ROMAN[i]}
+              </button>
+            );
+          })}
+        </div>
 
-        <div className="text-center">
-          <p className="text-[11px] uppercase font-bold text-slate-300 tracking-widest">
-            Quest {questIndex + 1}
+        <div className="mt-5 flex flex-col items-center text-center">
+          <AvIcon name={played ? (success ? 'quest-success' : 'quest-fail') : 'quest'} size={44} className={tint} />
+          <p className={`av-display mt-1 text-3xl leading-tight ${tint}`}>{status}</p>
+          <p className="mt-1 text-sm text-(--av-text-2)">
+            Quest {ROMAN[idx]} · {quest.teamSize} người
           </p>
-          <AvIcon
-            name={success ? 'quest-success' : 'quest-fail'}
-            size={52}
-            className={`my-2 ${success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'}`}
-          />
-          <p
-            className={`av-display text-3xl ${success ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'}`}
-          >
-            {success ? 'Thành công' : 'Thất bại'}
-          </p>
+        </div>
+
+        <dl className="mt-4 divide-y divide-(--av-line) border-t border-(--av-line) text-sm">
+          {played && (
+            <div className="flex items-center justify-between gap-3 py-2.5">
+              <dt className="text-(--av-text-3)">Lá bài</dt>
+              <dd className="flex items-center gap-3 font-semibold text-(--av-text)">
+                <span className="inline-flex items-center gap-1">
+                  <AvIcon name="quest-success" className="text-(--av-good-light)" title="Lá Phe Người" />
+                  {goodCount}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <AvIcon name="quest-fail" className="text-(--av-evil-light)" title="Lá Phe Quỷ" />
+                  {evilCount}
+                </span>
+              </dd>
+            </div>
+          )}
+          {played && (quest.approveCount !== undefined || quest.rejectCount !== undefined) && (
+            <div className="flex items-center justify-between gap-3 py-2.5">
+              <dt className="text-(--av-text-3)">Phiếu</dt>
+              <dd className="flex items-center gap-3 font-semibold text-(--av-text)">
+                <span className="inline-flex items-center gap-1">
+                  <AvIcon name="vote-approve" title="Đồng ý" /> {quest.approveCount ?? '—'}
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <AvIcon name="vote-reject" title="Từ chối" /> {quest.rejectCount ?? '—'}
+                </span>
+              </dd>
+            </div>
+          )}
+          {played && (
+            <div className="flex items-start justify-between gap-3 py-2.5">
+              <dt className="shrink-0 text-(--av-text-3)">Đội</dt>
+              <dd className="flex min-w-0 flex-wrap justify-end gap-x-3 gap-y-1.5 font-semibold text-(--av-text)">
+                {team.length === 0
+                  ? '—'
+                  : team.map((p) => (
+                      <span key={p.id} className="inline-flex items-center gap-1.5">
+                        <PlayerAvatar player={p} size="xs" />
+                        {p.name}
+                        {leader?.id === p.id && <AvIcon name="leader" className="text-(--av-gold)" title="Leader" />}
+                      </span>
+                    ))}
+                {leader && !team.some((p) => p.id === leader.id) && (
+                  <span className="inline-flex items-center gap-1 text-(--av-text-2)">
+                    <AvIcon name="leader" className="text-(--av-gold)" title="Leader" /> {leader.name}
+                  </span>
+                )}
+              </dd>
+            </div>
+          )}
           {needsTwo && (
-            <p className="mt-1 text-[10px] font-bold text-(--av-evil-light)">
-              <AvIcon name="warning" /> Quest này cần ≥ 2 lá Phe Quỷ để fail
+            <p className="flex items-start gap-2 py-2.5 text-left text-(--av-evil-light)">
+              <AvIcon name="warning" className="mt-0.5 shrink-0" />
+              Quest này cần ít nhất 2 lá Phe Quỷ mới thất bại.
             </p>
           )}
-        </div>
+        </dl>
 
-        <div className="mt-4 grid grid-cols-2 gap-2">
-          <div className="rounded-xl border-2 border-(--av-good)/35 bg-(--av-good)/10 p-3 text-center">
-            <AvIcon name="quest-success" size={26} className="mb-0.5 text-(--av-good-light)" />
-            <p className="text-[10px] uppercase font-bold text-(--av-good-light)">Lá Phe Người</p>
-            <p className="text-2xl font-black text-white leading-tight">{goodCount}</p>
-          </div>
-          <div className="rounded-xl border-2 border-(--av-evil)/35 bg-(--av-evil)/10 p-3 text-center">
-            <AvIcon name="quest-fail" size={26} className="mb-0.5 text-(--av-evil-light)" />
-            <p className="text-[10px] uppercase font-bold text-(--av-evil-light)">Lá Phe Quỷ</p>
-            <p className="text-2xl font-black text-white leading-tight">{evilCount}</p>
-          </div>
-        </div>
-
-        {(approve !== undefined || reject !== undefined) && (
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-xl border border-(--av-approve)/30 bg-(--av-approve)/10 p-2.5 text-center">
-              <p className="text-[10px] uppercase font-bold text-(--av-approve-light)">
-                <AvIcon name="vote-approve" /> Đồng ý
-              </p>
-              <p className="text-lg font-black text-white leading-tight">
-                {approve ?? '—'}
-              </p>
-            </div>
-            <div className="rounded-xl border border-(--av-reject)/30 bg-(--av-reject)/10 p-2.5 text-center">
-              <p className="text-[10px] uppercase font-bold text-(--av-reject-light)">
-                <AvIcon name="vote-reject" /> Từ chối
-              </p>
-              <p className="text-lg font-black text-white leading-tight">
-                {reject ?? '—'}
-              </p>
-            </div>
-          </div>
-        )}
-
-        <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3">
-          <p className="flex flex-wrap items-center gap-1 text-[10px] uppercase font-bold text-slate-400 mb-2">
-            <AvIcon name="team" /> Đội đi Quest
-            {leader && (
-              <>
-                {' · '}
-                <AvIcon name="leader" className="text-(--av-leader)" /> {leader.name}
-              </>
-            )}
-          </p>
-          {team.length === 0 ? (
-            <p className="text-xs text-slate-500 italic">(không rõ)</p>
-          ) : (
-            <div className="flex flex-wrap gap-1.5">
-              {team.map((p) => (
-                <span
-                  key={p.id}
-                  className="inline-flex items-center gap-1.5 rounded-full bg-white/8 border border-white/15 px-2.5 py-1 text-xs font-bold text-white"
-                >
-                  <PlayerAvatar player={p} size="xs" />
-                  {p.name}
-                </span>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <button
-          onClick={onClose}
-          className="mt-4 min-h-11 w-full rounded-xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-2.5 text-sm font-black text-(--av-parchment) hover:bg-(--av-gold)/30"
-        >
-          ✓ Đóng
-        </button>
+        <AvButton variant="secondary" block onClick={onClose} className="mt-4">
+          Đóng
+        </AvButton>
       </GlassPanel>
     </div>
   );
