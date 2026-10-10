@@ -46,6 +46,7 @@ Gợi ý model: GĐ0 (refactor cơ học, cần cẩn thận) dùng Sonnet hoặ
 | Âm thanh | **Không** thêm âm thanh |
 | Rung máy | Chưa bàn tới. Mặc định **không rung**; nếu muốn thêm thì hỏi người dùng (không bao giờ rung vào ban đêm) |
 | Dọn giao diện (2026-10-10) | Người dùng thấy màu, nút, lớp rối mắt và nhiều màn hiện quá nhiều thông tin → thêm **GĐ7** (mục 8b). Mặc định nhạc trưởng đề xuất, người dùng duyệt qua ảnh sau GĐ7a: một màu nhấn vàng; nút phiếu trung tính; bỏ cột danh sách bên trái ở desktop; "Các vai" và Rời / Xoá vào menu "⋯"; màn kết thúc thu gọn chi tiết |
+| Thời gian & Lady hết giờ (2026-10-11) | Chủ phòng chỉnh thời gian 6 phase chính (chọn đội, bỏ phiếu, đặt lá, thảo luận, Lady, Sát Thủ) trong Cài đặt, chốt lúc bắt đầu ván; 8 giây xem kết quả, đêm, lộ vai giữ nguyên. Lady hết giờ mà chưa soi: chọn trong Cài đặt giữa "Bỏ lượt" (mặc định, như cũ), "Soi ngẫu nhiên", "Dừng lại và thông báo"; luôn báo cho cả bàn. Đồng hồ sắp hết giờ: đỏ, rõ hơn. Xem **GĐ8** (mục 8c), được sửa một phần core |
 
 ---
 
@@ -729,6 +730,190 @@ Ngoài danh sách "Việc cho GĐ7b" trong ghi chú của người thực thi G�
 
 ---
 
+## 8c. GĐ8 — Thời gian các phase, Lady hết giờ, đồng hồ sắp hết (thêm 2026-10-11)
+
+**Vì sao:** người dùng phát hiện 3 vấn đề sau GĐ7:
+1. Lady hết giờ thì tự động mất mà không ai được báo gì.
+2. Khung thời gian sắp hết giờ chưa đủ rõ; cần đỏ, dễ thấy hơn.
+3. Muốn chỉnh được thời gian các phase (thảo luận, bỏ phiếu…).
+
+Kèm theo là 2 việc nhỏ còn lại sau GĐ7 (mục 8 bên dưới).
+
+> **Khác các GĐ trước: GĐ8 ĐƯỢC sửa một phần logic-core**, nhưng chỉ đúng những chỗ liệt kê ở "Ngoại lệ mục 2.1". Mọi phần khác của mục 2 vẫn giữ nguyên. Gặp chỗ nào ngoài danh sách mà thấy cần sửa: **dừng lại và hỏi người dùng**.
+
+### Hiện trạng
+- **Thời lượng phase** là hằng `PHASE_TIMEOUTS_MS` trong `types.ts`. Có 3 chỗ dùng:
+  - `AvalonBoard.remainingMs` (các timer tự chuyển phase);
+  - `hooks/usePhaseClock` (đồng hồ hiển thị);
+  - `panel/NightSections`.
+  
+  Mọi máy tự tính hạn chót từ `phaseStartedAt` cộng hằng số đó.
+- **Lady hết giờ** (`useAvalon.ladyTimeoutAdvance`):
+  - đã bấm "Xác nhận soi" thì Lady chuyển cho người bị soi, như bấm "Hoàn tất";
+  - **chưa xác nhận** thì bỏ lượt soi, và Lady chuyển **ngẫu nhiên** cho một người chưa từng cầm.
+  
+  Không ghi lại vì sao, nên không màn nào báo được: chỉ có token Lady trượt sang ghế khác. Lưu ý thêm: `ladyInspect` đặt lại `phaseStartedAt` mỗi lần đổi người, tức đồng hồ chạy lại từ đầu.
+- **Đồng hồ:** `LowTimeClock` (`panel/shared.tsx`) chỉ đổi chữ sang đỏ nhạt trong 10 giây cuối, cỡ chữ nhỏ.
+- **Cài đặt phòng:** lưu ở `room.config`.
+  - Đọc qua `readConfig` (`useAvalon.ts`), ghi qua `updateConfig` (`useRoom`).
+  - Modal `RoomSettings` chỉ mở được ở lobby, chỉ chủ phòng chỉnh.
+  - Repo không có file Firestore rules (quản lý trên console). Nếu ghi field mới bị từ chối, **dừng lại báo người dùng**.
+
+### Quyết định của người dùng (2026-10-11)
+- **Lady hết giờ mà chưa soi:** cho chọn trong Cài đặt, gồm 3 chế độ:
+  - **Bỏ lượt** (mặc định, đúng như hiện tại): không soi; Lady chuyển ngẫu nhiên cho người chưa từng cầm.
+  - **Soi ngẫu nhiên:**
+    - hệ thống tự soi người đang được ngắm; nếu chưa ngắm ai thì chọn ngẫu nhiên một người hợp lệ;
+    - người cầm thấy kết quả (lật thẻ như soi thường), rồi Lady chuyển cho người bị soi như luật thường.
+  - **Dừng lại và thông báo:**
+    - hết giờ thì ván **không** tự đi tiếp; mọi người thấy "Hết giờ — đang chờ X soi";
+    - người cầm vẫn soi được bình thường;
+    - chủ phòng có 2 nút "Bỏ lượt" / "Soi ngẫu nhiên" để gỡ khi người cầm vắng.
+  
+  Cả 3 chế độ đều **báo cho cả bàn** sau đó (xem "Thông báo Lady").
+- **Thời gian chỉnh được:** 6 phase chính, gồm chọn đội, bỏ phiếu, đặt lá, thảo luận, Lady và Sát Thủ.
+  - Chủ phòng chỉnh trong Cài đặt ở lobby.
+  - Giá trị được **chốt lúc bắt đầu ván**.
+  - Hai màn xem kết quả vẫn cố định 8 giây (quyết định mục 1). Đêm, lộ vai và lineup giữ nguyên.
+- **Cách làm:** session thực thi riêng, nhạc trưởng review. PR #61 đã được merge (`88bbd567`); GĐ8 sẽ là một PR riêng.
+- **Thư mục làm việc:** thư mục chính của repo có thể đang ở nhánh khác của người dùng (ví dụ `dev-werewolf`). **Không** `git checkout` đổi nhánh ở đó nếu nó đang có thay đổi dở. Hãy làm trong worktree riêng: `git worktree add ../avalon-gd8 dev-avalon-uxui`, hoặc session worktree của app.
+
+### Ngoại lệ mục 2.1 (chỉ GĐ8 được sửa)
+1. **`types.ts`:**
+   - `AvalonRoomConfig` thêm 2 field tuỳ chọn:
+     - `phaseSeconds?: Partial<Record<TimedPhase, number>>`;
+     - `ladyTimeoutMode?: 'skip' | 'random' | 'wait'`.
+   - Thêm type `TimedPhase` = 6 phase trên, cùng bảng `PHASE_SECONDS_LIMITS` (min, max, bước, mặc định) để UI và core dùng chung.
+   - `AvalonGameState` thêm 3 field **tuỳ chọn**:
+     - `timeouts?: Partial<Record<AvalonPhase, number>>` (ms, chốt lúc bắt đầu);
+     - `ladyTimeoutMode?`;
+     - `ladyLastEvent?` (xem dưới).
+   - **Không** đổi field cũ. **Không** đổi giá trị trong `PHASE_TIMEOUTS_MS` (vẫn là mặc định). Ván đang chơi và phòng cũ thiếu field thì dùng mặc định.
+2. **Helper `phaseTimeoutMs(state, phase = state.phase)`** = `state.timeouts?.[phase] ?? PHASE_TIMEOUTS_MS[phase]`.
+   - Thay **cả 3 chỗ** đang dùng `PHASE_TIMEOUTS_MS[...]`.
+   - Không còn chỗ nào khác đọc thẳng hằng số này (kiểm bằng `rg`).
+3. **`useAvalon.ts`:**
+   - **`readConfig`** đọc 2 field mới, có mặc định và kẹp vào giới hạn của `PHASE_SECONDS_LIMITS`; giá trị rác thì dùng mặc định.
+   - **`assignRoles`** ghi `timeouts` và `ladyTimeoutMode` vào `fresh`, chốt cho cả ván.
+   - **`ladyFinish` / `ladyTimeoutAdvance`:** cài 3 chế độ, và mọi lần rời phase Lady đều ghi `ladyLastEvent`. Dùng đúng CAS hiện có (`advance` với `expect`), không thêm luồng ghi mới ngoài 2 hành động của chủ phòng bên dưới.
+   - **`ladyLastEvent`** = `{ quest, holderId, targetId: string | null, how: 'inspected' | 'random' | 'skipped', newHolderId }`.
+     - `quest` là chỉ số Quest vừa xong, để UI biết sự kiện thuộc lượt nào.
+     - **Không** chứa kết quả phe: kết quả vẫn chỉ nằm ở `ladyShownCard` như cũ.
+   - **Chế độ "soi ngẫu nhiên"**, khi hết giờ mà chưa xác nhận:
+     - **không** rời phase;
+     - đặt `ladyTargetId` (người đang ngắm, hoặc chọn ngẫu nhiên trong số người hợp lệ: chưa từng cầm và không phải người đang cầm) và `ladyShownCard` (phe thật, cách tính như `ladyConfirm`);
+     - đặt `phaseStartedAt = serverNow() - (T - 10_000)`, tức còn đúng 10 giây để người cầm xem thẻ. Ghi chú rõ trong code là cố ý;
+     - đánh dấu là soi tự động để `ladyLastEvent.how = 'random'`.
+     
+     Lần hết giờ thứ hai đi theo nhánh "đã xác nhận" sẵn có. Người cầm bấm "Hoàn tất" sớm cũng được.
+   - **Chế độ "dừng lại"**, khi hết giờ: `ladyTimeoutAdvance` **không làm gì** (không ghi).
+     - Thêm 2 hành động `ladyForceSkip` / `ladyForceRandom`. Chúng gọi đúng nhánh "bỏ lượt" / "soi ngẫu nhiên" ở trên.
+     - Chỉ chạy khi `phase === 'lady-of-lake'` và đã hết giờ (tính trên giờ server).
+     - UI chỉ hiện 2 nút này cho chủ phòng; core không cần kiểm quyền (cùng mức tin cậy như các hành động khác).
+4. **`AvalonBoard.tsx`:**
+   - `remainingMs` dùng helper;
+   - truyền 2 hành động mới xuống `PlayerPanel`;
+   - truyền `ladyTimeoutMode` / `phaseSeconds` vào `RoomSettings`.
+   - Khối `useEffect` của Lady giữ nguyên: chế độ nằm trong core.
+
+Không được đổi: luật khác, các timer khác, `TAKEOVER_MS`, schema của người chơi, `PHASE_TIMEOUTS_MS` của các phase không chỉnh được.
+
+### Việc cần làm
+1. **Cài đặt thời gian** (`RoomSettings`):
+   - Thêm mục "Thời gian". Mỗi phase một dòng stepper −/+ (giống stepper số người), hiện "30 giây" / "10 phút".
+   - Nút "Mặc định" cho cả mục.
+   - Giới hạn đề xuất (min–max, bước, mặc định):
+
+     | Phase | min–max | Bước | Mặc định |
+     |---|---|---|---|
+     | Chọn đội | 30–180 s | 15 s | 60 s |
+     | Bỏ phiếu | 15–120 s | 15 s | 30 s |
+     | Đặt lá | 30–300 s | 30 s | 120 s |
+     | Thảo luận | 1–20 phút | 1 phút | 10 phút |
+     | Lady | 30–180 s | 15 s | 60 s |
+     | Sát Thủ | 1–10 phút | 1 phút | 3 phút |
+
+   - Ghi qua `updateConfig`, theo đúng cách `optionalRoles` đang làm.
+   - Người không phải chủ phòng không thấy mục này (như phần còn lại của modal).
+2. **Cài đặt Lady hết giờ:** trong cùng modal, một nhóm 3 lựa chọn (radio) kèm một câu giải thích mỗi lựa chọn. Chỉ hiện khi ván có thể có Lady (≥ 7 người tối đa hoặc theo điều kiện Lady hiện có; xem `useLadyOfLake` và `ladyApplies`).
+3. **Hiển thị thời gian đã chốt trong ván:**
+   - các chữ đang ghi cứng số giây / phút (chú thích, `RoleGuide`, `docs/guide.md` nếu có) phải lấy từ helper hoặc bỏ con số;
+   - kiểm bằng `rg -n -i "30s|10 phút|180|60 giây|45s"`.
+4. **Thông báo Lady** (đọc từ `ladyLastEvent`; thông tin công khai, mọi máy giống nhau):
+   - Ở **thảo luận** ngay sau phase Lady (`ladyLastEvent.quest` khớp), panel thêm một dòng:
+     - "X đã soi Y";
+     - "X hết giờ — tự soi ngẫu nhiên Y";
+     - "X hết giờ, bỏ lượt — Lady chuyển cho Z".
+   - Cùng lúc, `notice` / banner (4 giây) hiện cùng câu đó cho người đang mở màn hình. Banner là trang trí; dòng trong panel mới là nguồn chính, nên reload vẫn thấy.
+   - **Kết quả phe chỉ người cầm thấy** (như GĐ6). Trong chế độ "soi ngẫu nhiên", người cầm thấy thẻ lật trong 10 giây còn lại của phase Lady. Người bị soi và người ngoài cuộc chỉ thấy câu trung tính.
+   - **Trước khi hết giờ**, panel của người cầm có một dòng nói rõ chuyện gì sẽ xảy ra theo chế độ:
+     - "Hết giờ mà chưa soi: Lady chuyển ngẫu nhiên";
+     - "… hệ thống tự soi ngẫu nhiên";
+     - "… ván sẽ dừng chờ bạn".
+     
+     Dòng này chuyển đỏ khi sắp hết giờ (mục 5).
+   - **Chế độ "dừng lại", sau khi hết giờ:**
+     - mọi người thấy "Hết giờ — đang chờ X soi" (đỏ);
+     - chủ phòng thấy thêm 2 nút "Bỏ lượt" / "Soi ngẫu nhiên" (`AvButton secondary`), có `ConfirmDialog`;
+     - đồng hồ hiện "Hết giờ" thay cho số âm.
+5. **Đồng hồ sắp hết giờ, rõ hơn** (`LowTimeClock` và nơi dùng):
+   - **Ngưỡng** = `max(10 s, 15 % thời lượng phase)`. Ví dụ: bỏ phiếu 30 s → 10 s; đặt lá 120 s → 18 s; thảo luận 10 phút → 90 s.
+   - **Khi sắp hết:**
+     - đồng hồ thành **viên thuốc đỏ đặc, chữ trắng, đậm, to hơn** (≥ 16px);
+     - nền đỏ phải đủ tối để chữ trắng đạt ≥ 4.5:1. `--av-evil` #e05555 với chữ trắng chỉ khoảng 3.6:1, nên dùng `--av-evil-ink` hoặc thêm token đỏ đậm.
+   - **Thanh thời gian mảnh** ở mép trên panel phase:
+     - chạy bằng CSS animation theo giờ server (`animation-duration` = thời lượng, `animation-delay` = −đã trôi; xem `useCue` / `<Cued>`), **không** setState mỗi khung hình;
+     - màu `--av-line` bình thường, đỏ khi sắp hết.
+   - **Chip phase trên top bar:** khi sắp hết, chuyển đỏ và hiện số giây còn lại, để vẫn thấy khi panel nằm ngoài màn hình. Giống nhau trên mọi máy, kể cả ban đêm.
+   - **Một thứ nhấp nháy mỗi lúc:**
+     - nếu đang "đến lượt bạn", viền dock chuyển **đỏ** nhấp nháy, còn đồng hồ đỏ đứng yên;
+     - nếu không, đồng hồ đỏ nhấp nháy (chỉ quầng sáng, chữ không mờ).
+   - **Giảm chuyển động:** không nhấp nháy, vẫn đỏ.
+6. **Ban đêm / lộ vai:** đồng hồ đỏ phải giống hệt nhau trên mọi máy (mục 2.4). Không có "đến lượt bạn" ở đêm, nên ở đêm chỉ có đồng hồ.
+7. **Preview / harness:**
+   - thêm cảnh: Lady hết giờ ở 3 chế độ (trước và sau khi hết giờ, góc nhìn người cầm / người bị soi / người ngoài / chủ phòng);
+   - thảo luận có dòng thông báo Lady;
+   - mọi phase ở trạng thái sắp hết giờ;
+   - modal cài đặt có mục "Thời gian".
+8. **Hai việc nhỏ còn lại sau GĐ7:**
+   - **Vòng focus khi mở modal:**
+     - kiểm bằng **chuột / chạm thật** (`Input.dispatchMouseEvent` / `Input.dispatchTouchEvent`, không phải `el.click()`) xem `Modal` và `ConfirmDialog` có hiện vòng focus vàng ngay khi mở không. Ảnh `x-settings` của GĐ7b có thể chỉ do harness mở modal bằng code;
+     - nếu có: `useDialog` nhớ kiểu thao tác cuối (`pointerdown` / `keydown`, listener ở cấp module). Mở bằng con trỏ thì focus vào panel (không vòng); mở bằng bàn phím thì giữ cách cũ (dòng đầu / nút an toàn có vòng);
+     - nếu không: ghi vào nhật ký là ảnh do harness, không sửa.
+   - **Nút `primary` đang khoá:** thay khối vàng mờ (opacity 40 %) bằng mặt trung tính: `--av-raised`, chữ `--av-text-3`, không bóng, không opacity. Đọc rõ là "chưa bấm được", không đục. Các variant khác giữ như cũ.
+
+### Không làm
+- Không cho chỉnh thời gian xem kết quả (8 giây), đêm, lộ vai, lineup.
+- Không đổi luật Lady nào khác (ai được soi, chuyển cho ai khi soi xong).
+- Không thêm âm thanh hay rung.
+- Không thêm dependency. Không đụng game khác hay `globals.css`.
+- Không push (nhạc trưởng push sau khi review).
+
+### Nghiệm thu
+- **Kiểm thử chung (mục 9):** `tsc`, `eslint` (mốc 2 lỗi), `build`.
+- **Gói JS Avalon:** ghi số mới; không tăng quá 4 KB gzip so với GĐ7b (91,6 KB).
+- **`rg 'PHASE_TIMEOUTS_MS\['`:** chỉ còn trong helper.
+- **Phòng cũ / ván đang chơi không có field mới:** chạy đúng mặc định. Thử bằng harness với state thiếu field.
+- **Ván thật** (bản production, mỗi tab một cửa sổ):
+  - **7 tab** (Lady cần ≥ 7 người), thời gian chỉnh ngắn (ví dụ bỏ phiếu 15 s, Lady 30 s, thảo luận 1 phút), chạy **3 lần**, mỗi lần một chế độ Lady:
+    - để hết giờ Lady mà không soi;
+    - kiểm cả 7 tab cùng một dòng thông báo;
+    - kết quả soi ngẫu nhiên chỉ người cầm thấy;
+    - chế độ "dừng lại": ván đứng yên cho tới khi chủ phòng bấm (đo ≥ 30 s sau hạn), rồi đi tiếp đúng nhánh;
+    - 0 lỗi JS; mỗi lần chuyển phase chỉ một lần ghi thắng (không nhảy phase 2 lần).
+  - Đồng hồ cả 7 tab lệch ≤ 1 giây so với thời lượng đã chỉnh. Reload giữa phase vẫn đúng.
+- **Cặp riêng tư** (mục 2.4):
+  - đồng hồ sắp hết ở đêm và ở thảo luận: Phe Người | Phe Quỷ = 0;
+  - thông báo Lady với người bị soi / người ngoài: không phụ thuộc kết quả = 0.
+- **Tương phản** chữ trên viên thuốc đỏ và dòng cảnh báo ≥ 4.5:1 (pixel thật). Có kiểm giảm chuyển động.
+- **Nhật ký mục 10:**
+  - ghi rõ từng dòng core đã đổi (`git diff --stat` cho `useAvalon.ts` / `types.ts` / `AvalonBoard.tsx`);
+  - lý do của từng chỗ;
+  - kết quả 3 lần chạy Lady.
+- **Gợi ý model:** Opus 5.5. Có sửa core và CAS, cần cẩn thận.
+
+---
+
 ## 9. Kiểm thử (mọi GĐ)
 
 1. Chạy `npx tsc --noEmit`, `npx eslint src/components/games/avalon` (không được thêm lỗi mới; mốc hiện tại là 2 lỗi `react-hooks/set-state-in-effect` có sẵn), và `npm run build`. Không dùng `npm run lint` toàn repo vì bị nhiễu bởi `.claude/worktrees/**`.
@@ -761,6 +946,7 @@ Branch: `dev-avalon-uxui`.
 | 6 Hoàn thiện | **Đã review — đạt** (2026-10-10) | `db179bcf` → `4edc2309` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log db179bcf..HEAD` | Claude Sonnet 5.5 | Token ngắm của Lady bay tới người bị ngắm, thẻ kết quả soi lật chỉ ở máy người cầm Lady, người bị soi / ngoài cuộc chỉ thấy "Đã soi" trung tính; nhịp tim trên mục tiêu Sát Thủ; "Đến lượt bạn" (viền vàng quanh dock + "● " trên tiêu đề tab, không bao giờ ở đêm / lộ vai); 2 `alert()` → banner; bàn hẹp (≥ 8 người, bàn < 350 px); trợ năng (vòng focus, vùng chạm 44 px, `useDialog` giữ focus trong modal, `aria-live`). Hồi quy ván thật 7 tab (có Lady). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ6" bên dưới. |
 | 7a Nền thiết kế + khung chung + màn mẫu | **Đã review — đạt** (2026-10-10); người dùng duyệt hướng bằng cách cho chạy GĐ7b | `c962ed66` → `b1f9f504` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log c962ed66..HEAD` | Claude Opus 5.5 | Token mới (`--av-line`, `--av-text/-2/-3`, `--av-raised`), gộp `--av-leader` vào `--av-gold`; `AvButton`, `AvChip`, `GlassPanel` 4 tone, `PhaseChip` một kiểu; top bar chip \| "Vai của tôi" + menu "⋯"; desktop 2 cột; bàn mới (ô Quest gọn, cả hàng ô là một nút mở popup lịch sử, ghế một huy hiệu, avatar "giấy nhuộm"); team-vote màn mẫu; bảng phong cách trong Preview. Ảnh trước / sau ở `.claude/gd7a-shots/` (mở `index.html`). Lệch kế hoạch + số đo ở "Ghi chú của người thực thi GĐ7a" bên dưới. |
 | 7b Áp cho mọi màn | **Đã review — đạt** (2026-10-10) | `f2c9510b` → `a4545ec0` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log f2c9510b..HEAD` | Claude Opus 5.5 | Mọi phase theo khuôn "một câu, một việc" (chọn đội / Lady / Sát Thủ chọn trên bàn, bỏ mọi lưới danh sách và `PlayerRoster`), màn kết thúc thu gọn "Diễn biến ván" (cao 1 màn hình ở 375), màn ngoài ván và modal đổi kiểu, `SceneTitle` vẽ trên dải trống của mặt bàn (0 giao với ghế / ô Quest), chấm đã bầu / sẵn sàng ở mọi ghế, token đội chỉ ở các phase của đội, menu "⋯" sửa vòng focus. Quét sạch: 0 lớp màu bảng màu, 0 `text-[Npx]`, `uppercase` 4, 3 bán kính. Số từ −58 %, gói JS 91,6 KB gzip. **Phát hiện `roleLineup` lưu theo thứ tự ghế** (sửa phía UI; phần dữ liệu cần người dùng quyết). Ảnh ở `.claude/gd7b-shots/` (mở `index.html`). Chi tiết ở "Ghi chú của người thực thi GĐ7b" bên dưới. |
+| 8 Thời gian phase, Lady hết giờ, đồng hồ sắp hết | Chưa làm | | | Xem mục 8c. **Được sửa một phần logic-core** theo "Ngoại lệ mục 2.1" của GĐ8. Làm trên `dev-avalon-uxui` (đã đồng bộ với main sau #61: `5dc9d8fe`). |
 
 ### Ghi chú của người thực thi GĐ0
 
