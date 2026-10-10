@@ -1,11 +1,23 @@
 'use client';
 
 import { use, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRoom } from '@/hooks/useRoom';
 import { useAuth } from '@/hooks/useAuth';
 import { getGameComponent, getGameEntry } from '@/lib/gameRegistry';
 import LoadingSpinner from '@/components/core/LoadingSpinner';
 import type { GameType } from '@/types/room';
+
+// Avalon has its own invite screen (its own scene, in Vietnamese); loaded only
+// when an Avalon room is opened, from the board's module (same chunk).
+const AvalonJoinScreen = dynamic(() => import('@/components/games/avalon/AvalonBoard').then((m) => m.AvalonJoinScreen), {
+  ssr: false,
+  loading: () => (
+    <div className="flex min-h-screen items-center justify-center">
+      <LoadingSpinner text="Entering room..." />
+    </div>
+  ),
+});
 
 export default function RoomPage({
   params,
@@ -132,6 +144,12 @@ export default function RoomPage({
     }
   };
 
+  if (!isPlayerInRoom && room && gameType === 'avalon') {
+    return (
+      <AvalonJoinScreen room={room} players={players} onJoin={(name) => joinRoomById(roomId, playerId, name)} />
+    );
+  }
+
   if (!isPlayerInRoom && room) {
      return (
        <div className="flex min-h-screen flex-col items-center justify-center gap-6 px-4 py-8 text-center animate-fade-in">
@@ -184,7 +202,8 @@ export default function RoomPage({
   }
 
   return (
-    <div className="min-h-screen px-4 py-6 sm:px-6 lg:px-8">
+    // Avalon lays out its own padding (full-width top bar, scenes).
+    <div className={gameType === 'avalon' ? 'min-h-screen' : 'min-h-screen px-4 py-6 sm:px-6 lg:px-8'}>
       <GameComponent
         room={room}
         players={players}

@@ -4,11 +4,15 @@ import type { Player } from '@/types/player';
 import { type AvalonRole, type AvalonGameData, type AvalonGameState } from './types';
 import {
   ROLE_DESC_VI,
-  ROLE_ICONS,
   ROLE_NAMES_VI,
   ROLE_TEAM,
   TEAM_NAME_VI,
 } from './constants';
+import AvIcon from './assets/AvIcon';
+import { TEAM_ICON_NAME } from './presentation';
+import GlassPanel from './ui/GlassPanel';
+import RoleEmblem from './ui/RoleEmblem';
+import { useDialog } from './hooks/useDialog';
 
 interface RolePreviewPopupProps {
   state: AvalonGameState;
@@ -49,25 +53,31 @@ export default function RolePreviewPopup({
   const firstLadyId = state.ladyHistory?.[0] ?? state.ladyHolderId;
   const firstLady = firstLadyId ? players.find((p) => p.id === firstLadyId) : null;
 
+  const dialog = useDialog<HTMLDivElement>(onClose);
+
   return (
     <div
-      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in"
+      ref={dialog}
+      role="dialog"
+      aria-modal="true"
+      aria-label="Các vai trong ván"
+      tabIndex={-1}
+      className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/70 backdrop-blur-sm p-3 animate-fade-in outline-none"
       onClick={onClose}
     >
-      <div
-        className={`relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-3xl border-2 p-5 shadow-2xl ${
-          isGood
-            ? 'border-blue-500/50 bg-gradient-to-br from-blue-950/95 to-slate-950/95'
-            : 'border-red-500/50 bg-gradient-to-br from-red-950/95 to-slate-950/95'
-        }`}
+      {/* Neutral frame and emblem whatever the viewer's team (ux-plan 2.9, 2.11). */}
+      <GlassPanel
+        tone="gold"
+        emphasis
+        className="relative w-full sm:max-w-lg max-h-[92vh] overflow-y-auto rounded-3xl p-5"
         onClick={(e) => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="sticky top-0 float-right z-10 flex h-9 w-9 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
+          className="sticky top-0 float-right z-10 flex h-11 w-11 items-center justify-center rounded-full bg-white/10 text-white hover:bg-white/20"
           aria-label="Đóng"
         >
-          ✕
+          <AvIcon name="close" size={20} />
         </button>
 
         {myRole && myTeam && (
@@ -75,20 +85,18 @@ export default function RolePreviewPopup({
             <p className="text-[11px] uppercase font-bold text-slate-300 tracking-widest">
               Vai của bạn
             </p>
-            <div className="text-5xl my-2">{ROLE_ICONS[myRole]}</div>
+            <div className="my-2 flex justify-center">
+              <RoleEmblem role={myRole} size="lg" tone="neutral" />
+            </div>
             <span
-              className={`inline-block rounded-full px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
-                isGood ? 'bg-blue-500/20 text-blue-300' : 'bg-red-500/20 text-red-300'
+              className={`inline-flex items-center gap-1 rounded-full border border-(--av-parchment)/20 bg-black/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest ${
+                isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
               }`}
             >
-              {TEAM_NAME_VI[myTeam]}
+              <AvIcon name={TEAM_ICON_NAME[myTeam]} /> {TEAM_NAME_VI[myTeam]}
             </span>
-            <h2 className="mt-2 text-xl font-black text-white">{myRole}</h2>
-            <p
-              className={`text-xs font-semibold ${
-                isGood ? 'text-blue-300' : 'text-red-300'
-              }`}
-            >
+            <h2 className="av-display mt-2 text-3xl text-white">{myRole}</h2>
+            <p className="text-xs font-semibold text-(--av-parchment)">
               {ROLE_NAMES_VI[myRole]}
             </p>
             <div className="mt-3 rounded-xl border border-white/10 bg-black/30 p-3 text-left">
@@ -104,10 +112,10 @@ export default function RolePreviewPopup({
             Vai trong ván ({lineup.length})
           </p>
           <div className="grid grid-cols-2 gap-2">
-            <div className="rounded-2xl border border-blue-500/30 bg-blue-900/15 p-3">
+            <div className="rounded-2xl border border-(--av-good)/35 bg-(--av-good)/10 p-3">
               <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-base">🛡️</span>
-                <h3 className="text-xs font-black text-blue-200">
+                <AvIcon name="team-good" size={16} className="text-(--av-good-light)" />
+                <h3 className="text-xs font-black text-(--av-good-light)">
                   Phe Người ({goodRoles.length})
                 </h3>
               </div>
@@ -117,10 +125,10 @@ export default function RolePreviewPopup({
                 ))}
               </div>
             </div>
-            <div className="rounded-2xl border border-red-500/30 bg-red-900/15 p-3">
+            <div className="rounded-2xl border border-(--av-evil)/35 bg-(--av-evil)/10 p-3">
               <div className="flex items-center gap-1.5 mb-2">
-                <span className="text-base">👹</span>
-                <h3 className="text-xs font-black text-red-200">
+                <AvIcon name="team-evil" size={16} className="text-(--av-evil-light)" />
+                <h3 className="text-xs font-black text-(--av-evil-light)">
                   Phe Quỷ ({evilRoles.length})
                 </h3>
               </div>
@@ -135,8 +143,8 @@ export default function RolePreviewPopup({
 
         <section className={`mt-3 grid gap-2 ${firstLady ? 'grid-cols-2' : 'grid-cols-1'}`}>
           <div className="rounded-2xl border border-amber-500/30 bg-amber-500/5 p-3 flex items-center gap-2">
-            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-amber-500 to-orange-500 text-sm border-2 border-amber-300 shadow shadow-amber-500/40">
-              👑
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-leader) text-lg text-(--av-ink) border-2 border-amber-100 shadow shadow-black/40">
+              <AvIcon name="leader" />
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-[10px] uppercase font-black tracking-widest text-amber-300">
@@ -151,18 +159,18 @@ export default function RolePreviewPopup({
             </div>
           </div>
           {firstLady && (
-            <div className="rounded-2xl border border-cyan-500/30 bg-cyan-500/5 p-3 flex items-center gap-2">
-              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-cyan-500 to-teal-500 text-sm border-2 border-cyan-300 shadow shadow-cyan-500/40">
-                🌊
+            <div className="rounded-2xl border border-(--av-lady)/35 bg-(--av-lady)/5 p-3 flex items-center gap-2">
+              <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-(--av-lady) text-lg text-(--av-ink) border-2 border-teal-100 shadow shadow-black/40">
+                <AvIcon name="lady" />
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] uppercase font-black tracking-widest text-cyan-300">
+                <p className="text-[10px] uppercase font-black tracking-widest text-(--av-lady)">
                   Lady đầu
                 </p>
                 <p className="text-sm font-black text-white truncate">
                   {firstLady.name}
                   {firstLady.id === myPlayer.id && (
-                    <span className="ml-1 text-[10px] text-cyan-200">(bạn)</span>
+                    <span className="ml-1 text-[10px] text-teal-100">(bạn)</span>
                   )}
                 </p>
               </div>
@@ -172,15 +180,11 @@ export default function RolePreviewPopup({
 
         <button
           onClick={onClose}
-          className={`mt-5 w-full rounded-2xl py-3 text-base font-black text-white transition-all active:scale-[0.98] ${
-            isGood
-              ? 'bg-gradient-to-r from-blue-600 to-cyan-600 hover:from-blue-500 hover:to-cyan-500'
-              : 'bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500'
-          }`}
+          className="mt-5 w-full rounded-2xl border border-(--av-gold)/60 bg-(--av-gold)/20 py-3 text-base font-black text-(--av-parchment) transition-all hover:bg-(--av-gold)/30 active:scale-[0.98]"
         >
           ✓ Đóng
         </button>
-      </div>
+      </GlassPanel>
     </div>
   );
 }
@@ -198,12 +202,12 @@ function RoleRow({
     <div
       className={`flex items-start gap-2 rounded-lg border px-2 py-1.5 ${
         tone === 'good'
-          ? 'border-blue-500/30 bg-blue-500/10'
-          : 'border-red-500/30 bg-red-500/10'
+          ? 'border-(--av-good)/30 bg-(--av-good)/10'
+          : 'border-(--av-evil)/30 bg-(--av-evil)/10'
       }`}
       title={ROLE_NAMES_VI[role]}
     >
-      <span className="text-base shrink-0 leading-none mt-0.5">{ROLE_ICONS[role]}</span>
+      <RoleEmblem role={role} size="xs" className="mt-0.5" />
       <div className="flex-1 min-w-0">
         <p className="text-[11px] font-black text-white truncate">{role}</p>
         <p className="text-[9px] text-slate-300/80 leading-snug line-clamp-2">
@@ -214,8 +218,8 @@ function RoleRow({
         <span
           className={`shrink-0 rounded-full px-1.5 py-px text-[9px] font-black ${
             tone === 'good'
-              ? 'bg-blue-500/30 text-blue-200'
-              : 'bg-red-500/30 text-red-200'
+              ? 'bg-(--av-good)/30 text-(--av-good-light)'
+              : 'bg-(--av-evil)/30 text-(--av-evil-light)'
           }`}
         >
           ×{count}

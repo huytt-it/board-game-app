@@ -6,13 +6,13 @@ import {
   ALL_OPTIONAL_ROLES,
   REQUIRED_ROLES,
   ROLE_DESC_VI,
-  ROLE_ICONS,
-  ROLE_NAMES_VI,
   ROLE_TEAM,
   TEAM_DISTRIBUTION,
   PLAYER_COUNTS,
   type SupportedPlayerCount,
 } from './constants';
+import AvIcon from './assets/AvIcon';
+import RoleEmblem from './ui/RoleEmblem';
 
 interface RoomSettingsProps {
   config: RoomConfig;
@@ -107,13 +107,13 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                 Tỉ lệ phe ({playerCount} người)
               </p>
               <div className="flex gap-3">
-                <div className="flex-1 rounded-xl bg-blue-500/10 border border-blue-500/30 px-3 py-2">
-                  <p className="text-[10px] uppercase text-blue-400 font-bold">Phe Người</p>
-                  <p className="text-2xl font-black text-blue-200">{dist.good}</p>
+                <div className="flex-1 rounded-xl bg-(--av-good)/10 border border-(--av-good)/35 px-3 py-2">
+                  <p className="text-[10px] uppercase text-(--av-good-light) font-bold">Phe Người</p>
+                  <p className="text-2xl font-black text-(--av-good-light)">{dist.good}</p>
                 </div>
-                <div className="flex-1 rounded-xl bg-red-500/10 border border-red-500/30 px-3 py-2">
-                  <p className="text-[10px] uppercase text-red-400 font-bold">Phe Quỷ</p>
-                  <p className="text-2xl font-black text-red-200">{dist.evil}</p>
+                <div className="flex-1 rounded-xl bg-(--av-evil)/10 border border-(--av-evil)/35 px-3 py-2">
+                  <p className="text-[10px] uppercase text-(--av-evil-light) font-bold">Phe Quỷ</p>
+                  <p className="text-2xl font-black text-(--av-evil-light)">{dist.evil}</p>
                 </div>
               </div>
             </section>
@@ -134,43 +134,45 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                   <div
                     key={role}
                     className={`flex items-center gap-2 rounded-xl border p-2.5 ${isGood
-                      ? 'border-blue-500/40 bg-blue-500/10'
-                      : 'border-red-500/40 bg-red-500/10'
+                      ? 'border-(--av-good)/45 bg-(--av-good)/10'
+                      : 'border-(--av-evil)/45 bg-(--av-evil)/10'
                       }`}
                   >
-                    <span className="text-2xl shrink-0">{ROLE_ICONS[role]}</span>
+                    <RoleEmblem role={role} size="sm" />
                     <div className="flex-1 min-w-0">
                       <p className="text-xs font-black text-white truncate">{role}</p>
                       <p
-                        className={`text-[10px] font-bold ${isGood ? 'text-blue-400' : 'text-red-400'
+                        className={`text-[10px] font-bold ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
                           }`}
                       >
                         {isGood ? 'Người' : 'Quỷ'} · luôn có
                       </p>
                     </div>
-                    <span className="text-base shrink-0">🔒</span>
+                    <AvIcon name="lock" size={16} className="text-slate-400" />
                   </div>
                 );
               })}
             </div>
             <div
               className={`mt-2 flex items-center gap-2 rounded-xl border p-2.5 ${optionalRoles.includes(AvalonRole.Morgana)
-                ? 'border-blue-500/40 bg-blue-500/10'
+                ? 'border-(--av-good)/45 bg-(--av-good)/10'
                 : 'border-white/10 bg-white/5 opacity-70'
                 }`}
             >
-              <span className="text-2xl shrink-0">{ROLE_ICONS[AvalonRole.Percival]}</span>
+              <RoleEmblem role={AvalonRole.Percival} size="sm" />
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-black text-white truncate">{AvalonRole.Percival}</p>
-                <p className="text-[10px] font-bold text-blue-400">
+                <p className="text-[10px] font-bold text-(--av-good-light)">
                   Người · {optionalRoles.includes(AvalonRole.Morgana)
                     ? 'tự động có khi bật Morgana'
                     : 'chỉ xuất hiện nếu Morgana được bật'}
                 </p>
               </div>
-              <span className="text-base shrink-0">
-                {optionalRoles.includes(AvalonRole.Morgana) ? '✓' : '○'}
-              </span>
+              {optionalRoles.includes(AvalonRole.Morgana) ? (
+                <AvIcon name="check" size={16} className="text-(--av-good-light)" />
+              ) : (
+                <span className="h-4 w-4 shrink-0 rounded-full border-2 border-white/30" aria-hidden="true" />
+              )}
             </div>
           </section>
 
@@ -182,7 +184,9 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
               Bật theo số người chơi. Bật vai sẽ thay 1 Trung Thần / Tay Sai mặc định.
             </p>
             <div className="rounded-xl border border-amber-500/20 bg-amber-500/5 p-2.5 mb-3">
-              <p className="text-[11px] font-bold text-amber-300 mb-1">💡 Ngưỡng mở vai phụ Quỷ</p>
+              <p className="text-[11px] font-bold text-amber-300 mb-1">
+                <AvIcon name="tip" /> Ngưỡng mở vai phụ Quỷ
+              </p>
               <ul className="text-[11px] text-slate-400 leading-relaxed space-y-0.5">
                 <li>• 5–6 người: chưa mở (đủ Mordred + Sát Thủ)</li>
                 <li>• 7–9 người: mở 1 vai (Morgana <em>hoặc</em> Oberon)</li>
@@ -204,24 +208,24 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                     disabled={disabled}
                     className={`w-full flex items-center gap-3 rounded-xl border p-3 text-left transition-all active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50 ${enabled
                       ? isGood
-                        ? 'border-blue-500/50 bg-blue-500/10'
-                        : 'border-red-500/50 bg-red-500/10'
+                        ? 'border-(--av-good)/50 bg-(--av-good)/10'
+                        : 'border-(--av-evil)/50 bg-(--av-evil)/10'
                       : 'border-white/10 bg-white/5'
                       }`}
                   >
-                    <span className="text-2xl shrink-0">{ROLE_ICONS[role]}</span>
+                    <RoleEmblem role={role} size="sm" />
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-0.5 flex-wrap">
                         <span className="text-sm font-black text-white">{role}</span>
                         <span
-                          className={`text-[9px] uppercase font-bold tracking-wider ${isGood ? 'text-blue-400' : 'text-red-400'
+                          className={`text-[9px] uppercase font-bold tracking-wider ${isGood ? 'text-(--av-good-light)' : 'text-(--av-evil-light)'
                             }`}
                         >
                           {isGood ? 'Người' : 'Quỷ'}
                         </span>
                         {atLimit && (
                           <span className="text-[9px] uppercase font-bold tracking-wider text-amber-400">
-                            ⚠️ Chưa đủ slot để thêm các vai trò này
+                            <AvIcon name="warning" /> Chưa đủ slot để thêm các vai trò này
                           </span>
                         )}
                       </div>
@@ -232,8 +236,8 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
                     <div
                       className={`shrink-0 h-6 w-11 rounded-full border transition-all ${enabled
                         ? isGood
-                          ? 'bg-blue-500 border-blue-400'
-                          : 'bg-red-500 border-red-400'
+                          ? 'bg-(--av-good) border-(--av-good-light)'
+                          : 'bg-(--av-evil) border-(--av-evil-light)'
                         : 'bg-white/5 border-white/20'
                         }`}
                     >
@@ -253,7 +257,7 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
             </p>
             {evilOptionalLimit === 0 && goodOptionalLimit === 0 && (
               <p className="mt-2 text-[11px] text-amber-400">
-                ⚠️ Số người hiện tại chỉ đủ cho các vai trò bắt buộc — không có chỗ cho các vai trò phụ.
+                <AvIcon name="warning" /> Số người hiện tại chỉ đủ cho các vai trò bắt buộc — không có chỗ cho các vai trò phụ.
               </p>
             )}
           </section>
@@ -264,26 +268,36 @@ export default function RoomSettings({ config, onUpdateConfig, playerCount }: Ro
             </h4>
             <div
               className={`flex items-center gap-3 rounded-xl border p-3 ${playerCount >= 7
-                ? 'border-cyan-500/50 bg-cyan-500/10'
+                ? 'border-(--av-lady)/50 bg-(--av-lady)/10'
                 : 'border-white/10 bg-white/5 opacity-70'
                 }`}
             >
-              <span className="text-2xl">🌊</span>
+              <AvIcon name="lady" size={26} className="text-(--av-lady)" />
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-black text-white">Lady of the Lake</p>
                 <p className="text-[11px] text-slate-400 leading-snug">
-                  {playerCount >= 7
-                    ? '✅ Tự động bật từ 7 người. Sau Quest 2/3/4, người cầm token chọn 1 người để soi phe.'
-                    : `Cần ≥ 7 người (hiện ${playerCount}) — sẽ tự bật khi đủ.`}
+                  {playerCount >= 7 ? (
+                    <>
+                      <AvIcon name="check" className="text-(--av-lady)" /> Tự động bật từ 7 người. Sau Quest 2/3/4, người cầm token chọn 1 người để soi phe.
+                    </>
+                  ) : (
+                    `Cần ≥ 7 người (hiện ${playerCount}) — sẽ tự bật khi đủ.`
+                  )}
                 </p>
               </div>
               <span
                 className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-black uppercase ${playerCount >= 7
-                  ? 'bg-cyan-500/30 text-cyan-200 border border-cyan-400/40'
+                  ? 'bg-(--av-lady)/30 text-teal-100 border border-(--av-lady)/45'
                   : 'bg-slate-500/20 text-slate-400'
                   }`}
               >
-                {playerCount >= 7 ? '🔒 Auto-on' : 'Off'}
+                {playerCount >= 7 ? (
+                  <>
+                    <AvIcon name="lock" /> Auto-on
+                  </>
+                ) : (
+                  'Off'
+                )}
               </span>
             </div>
           </section>

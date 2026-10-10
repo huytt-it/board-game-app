@@ -11,16 +11,7 @@ export const ROLE_TEAM: Record<AvalonRole, AvalonTeam> = {
   [AvalonRole.Minion]: 'evil',
 };
 
-export const ROLE_ICONS: Record<AvalonRole, string> = {
-  [AvalonRole.Merlin]: '🧙',
-  [AvalonRole.Percival]: '🛡️',
-  [AvalonRole.LoyalServant]: '⚔️',
-  [AvalonRole.Mordred]: '👑',
-  [AvalonRole.Morgana]: '🔮',
-  [AvalonRole.Oberon]: '🦉',
-  [AvalonRole.Assassin]: '🗡️',
-  [AvalonRole.Minion]: '🐍',
-};
+// Role icons are display data: see ROLE_ICON_NAME in presentation.ts.
 
 export const ROLE_NAMES_VI: Record<AvalonRole, string> = {
   [AvalonRole.Merlin]: 'Pháp Sư Merlin',
