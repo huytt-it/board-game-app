@@ -947,7 +947,7 @@ Branch: `dev-avalon-uxui` (GĐ0–GĐ7), `dev-avalon-gd8` (GĐ8).
 | 6 Hoàn thiện | **Đã review — đạt** (2026-10-10) | `db179bcf` → `4edc2309` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log db179bcf..HEAD` | Claude Sonnet 5.5 | Token ngắm của Lady bay tới người bị ngắm, thẻ kết quả soi lật chỉ ở máy người cầm Lady, người bị soi / ngoài cuộc chỉ thấy "Đã soi" trung tính; nhịp tim trên mục tiêu Sát Thủ; "Đến lượt bạn" (viền vàng quanh dock + "● " trên tiêu đề tab, không bao giờ ở đêm / lộ vai); 2 `alert()` → banner; bàn hẹp (≥ 8 người, bàn < 350 px); trợ năng (vòng focus, vùng chạm 44 px, `useDialog` giữ focus trong modal, `aria-live`). Hồi quy ván thật 7 tab (có Lady). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ6" bên dưới. |
 | 7a Nền thiết kế + khung chung + màn mẫu | **Đã review — đạt** (2026-10-10); người dùng duyệt hướng bằng cách cho chạy GĐ7b | `c962ed66` → `b1f9f504` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log c962ed66..HEAD` | Claude Opus 5.5 | Token mới (`--av-line`, `--av-text/-2/-3`, `--av-raised`), gộp `--av-leader` vào `--av-gold`; `AvButton`, `AvChip`, `GlassPanel` 4 tone, `PhaseChip` một kiểu; top bar chip \| "Vai của tôi" + menu "⋯"; desktop 2 cột; bàn mới (ô Quest gọn, cả hàng ô là một nút mở popup lịch sử, ghế một huy hiệu, avatar "giấy nhuộm"); team-vote màn mẫu; bảng phong cách trong Preview. Ảnh trước / sau ở `.claude/gd7a-shots/` (mở `index.html`). Lệch kế hoạch + số đo ở "Ghi chú của người thực thi GĐ7a" bên dưới. |
 | 7b Áp cho mọi màn | **Đã review — đạt** (2026-10-10) | `f2c9510b` → `a4545ec0` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log f2c9510b..HEAD` | Claude Opus 5.5 | Mọi phase theo khuôn "một câu, một việc" (chọn đội / Lady / Sát Thủ chọn trên bàn, bỏ mọi lưới danh sách và `PlayerRoster`), màn kết thúc thu gọn "Diễn biến ván" (cao 1 màn hình ở 375), màn ngoài ván và modal đổi kiểu, `SceneTitle` vẽ trên dải trống của mặt bàn (0 giao với ghế / ô Quest), chấm đã bầu / sẵn sàng ở mọi ghế, token đội chỉ ở các phase của đội, menu "⋯" sửa vòng focus. Quét sạch: 0 lớp màu bảng màu, 0 `text-[Npx]`, `uppercase` 4, 3 bán kính. Số từ −58 %, gói JS 91,6 KB gzip. **Phát hiện `roleLineup` lưu theo thứ tự ghế** (sửa phía UI; phần dữ liệu cần người dùng quyết). Ảnh ở `.claude/gd7b-shots/` (mở `index.html`). Chi tiết ở "Ghi chú của người thực thi GĐ7b" bên dưới. |
-| 8 Thời gian phase, Lady hết giờ, đồng hồ sắp hết | **Đã làm, chờ review** (2026-10-11) | `9e129953` → commit code `feat(avalon-ux): GĐ8 …` + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 9e129953..HEAD` trên **`dev-avalon-gd8`** | Claude Opus 5.5 | Cài đặt "Thời gian" (6 phase, chốt lúc bắt đầu ván) + "Lady hết giờ" (Bỏ lượt / Soi ngẫu nhiên / Dừng lại chờ), `ladyLastEvent` + dòng thông báo ở thảo luận + banner 4 giây, đồng hồ sắp hết giờ (viên thuốc đỏ, chip đỏ có số giây, thanh thời gian, viền dock đỏ), nút `primary` khoá trung tính. **Sửa core đúng các chỗ ở "Ngoại lệ mục 2.1"** (liệt kê từng chỗ ở "Ghi chú của người thực thi GĐ8"). Ván thật 7 tab × 3 chế độ Lady + 2 lần người cầm soi muộn: đạt. Gói JS chính 87,4 KB gzip (Preview tách ra tải khi cần). |
+| 8 Thời gian phase, Lady hết giờ, đồng hồ sắp hết | **Đã review — đạt** (2026-10-11) | `9e129953` → commit code `feat(avalon-ux): GĐ8 …` + commit docs ngay sau (cập nhật nhật ký này) — xem `git log 9e129953..HEAD` trên **`dev-avalon-gd8`** | Claude Opus 5.5 | Cài đặt "Thời gian" (6 phase, chốt lúc bắt đầu ván) + "Lady hết giờ" (Bỏ lượt / Soi ngẫu nhiên / Dừng lại chờ), `ladyLastEvent` + dòng thông báo ở thảo luận + banner 4 giây, đồng hồ sắp hết giờ (viên thuốc đỏ, chip đỏ có số giây, thanh thời gian, viền dock đỏ), nút `primary` khoá trung tính. **Sửa core đúng các chỗ ở "Ngoại lệ mục 2.1"** (liệt kê từng chỗ ở "Ghi chú của người thực thi GĐ8"). Ván thật 7 tab × 3 chế độ Lady + 2 lần người cầm soi muộn: đạt. Gói JS chính 87,4 KB gzip (Preview tách ra tải khi cần). |
 
 ### Ghi chú của người thực thi GĐ0
 
@@ -1214,6 +1214,50 @@ Chấp nhận các lệch 1–15. Đáng chú ý:
 **Việc nhỏ còn lại (tuỳ chọn):**
 - Ảnh `x-settings` có vòng focus vàng trên nút đóng ngay khi modal mở. Ảnh này có thể chụp lúc modal được mở bằng code trong harness, không phải bằng chạm. Nếu chạm thật vẫn hiện vòng, áp cách của menu "⋯" (`useDialog(…, 'panel')` khi mở bằng con trỏ) cho `Modal` / `ConfirmDialog`.
 - Nút `primary` đang khoá ("Trình đội · 1/2", "Chọn 1 người trên bàn") là một khối vàng mờ, hơi đục. Có thể cân nhắc kiểu khoá trung tính.
+
+**GĐ8 (2026-10-11): đạt.** Nhạc trưởng tự kiểm lại trên `dev-avalon-gd8`:
+- `npx tsc --noEmit` sạch; `npm run build` thành công.
+- `npx eslint src/components/games/avalon`: vẫn 2 lỗi có sẵn.
+- Gói JS chính **87,4 KB gzip**. Preview tách riêng, chỉ tải khi bấm "Xem trước".
+- `rg 'PHASE_TIMEOUTS_MS\['` chỉ còn trong `phaseTimeoutMs`.
+- Không file nào ngoài thư mục Avalon. Worktree sạch, không còn harness.
+- **Đọc từng dòng core đã đổi.**
+  - `types.ts`: chỉ thêm, gồm 3 field tuỳ chọn, các type, `PHASE_SECONDS_LIMITS` và `phaseTimeoutMs`.
+  - `AvalonBoard.tsx`:
+    - `remainingMs` dùng helper;
+    - truyền 2 hành động mới và cấu hình xuống;
+    - `AvalonPreview` nạp bằng `next/dynamic`.
+    
+    Khối auto-progression và thân các handler không đổi.
+  - `useAvalon.ts`:
+    - `readConfig` kẹp giá trị theo bước và giới hạn;
+    - `assignRoles` chốt `timeouts` / `ladyTimeoutMode`;
+    - nhánh "bỏ lượt" chuyển nguyên văn vào `ladySkipPatch`;
+    - 'random' ở lại phase với `phaseStartedAt` = còn 10 giây. Đã xác minh `advance` để patch ghi đè `phaseStartedAt` mặc định (`{ phaseStartedAt: serverNow(), ...patch }`), nên mẹo này đúng;
+    - 'wait' không ghi gì khi hết giờ;
+    - `ladyForce` chặn khi đã soi hoặc chưa hết giờ (giờ server);
+    - mọi lần ghi vẫn qua CAS `advance` với `expect` cũ;
+    - `ladyLastEvent` không chứa phe.
+- Đã xem ảnh:
+  - bỏ phiếu sắp hết giờ (chip đỏ có số giây, viên thuốc đỏ, thanh thời gian, viền dock đỏ);
+  - Lady "dừng lại" sau hạn ở máy chủ phòng (2 nút);
+  - dòng thông báo "bỏ lượt" ở thảo luận;
+  - cài đặt "Thời gian" và "Lady hết giờ";
+  - ảnh ghép ván thật chế độ "soi ngẫu nhiên" (thẻ chỉ ở tab người cầm, toast và dòng thảo luận giống nhau ở mọi tab).
+  
+  Dòng JSON trên ảnh cài đặt là của trang harness, không phải UI.
+
+Chấp nhận các lệch 1–13. Đáng chú ý:
+- (1) 'wait': người cầm soi sau hạn vẫn có 10 giây xem thẻ;
+- (4) `quest-play` có đồng hồ;
+- (5) đồng hồ làm tròn lên và tick theo giây chẵn của phase;
+- (9) Preview nạp theo yêu cầu.
+
+Rủi ro (13) chấp nhận: khe rất hẹp và `ladyLastEvent` vẫn đúng.
+
+**Tuỳ chọn về sau:**
+- 2 loại log trình duyệt có từ trước: `<svg width="auto">` từ `AvIcon size="auto"`, và lỗi 400 của transaction CAS thua cuộc;
+- chú thích "60s / 30s / 45s / 180s" trong vùng core (đã cố ý để nguyên).
 
 ### Tổng kết kế hoạch (nhạc trưởng, 2026-10-10)
 Hoàn thành GĐ0 → GĐ6 trên `dev-avalon-uxui`. Sau đó người dùng yêu cầu thêm **GĐ7** "dọn giao diện" (mục 8b); **GĐ7a + GĐ7b đã xong và đạt review (2026-10-10)**. Logic-core (`useAvalon.ts`, `types.ts`, luật trong `constants.ts`, khối auto-progression) **không đổi** suốt kế hoạch. Ngoài thư mục Avalon chỉ sửa một nhánh trong `page.tsx`.
