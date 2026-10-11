@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import { isDead } from '../state';
 import Button from '../ui/Button';
@@ -34,10 +35,15 @@ export function Roster({ ctx, mark }: { ctx: PanelCtx; mark?: (id: string) => bo
 
 // Thảo luận (rules §5.8): cả làng nói chuyện ngoài đời. Kết thúc sớm khi mọi
 // người còn sống đã bấm "Sẵn sàng bỏ phiếu".
-export default function TalkPanel({ ctx, onReady }: { ctx: PanelCtx; onReady: () => void }) {
+export default function TalkPanel({ ctx, onReady }: { ctx: PanelCtx; onReady: () => Promise<unknown> }) {
+  const [sentAt, setSentAt] = useState<number | null>(null);
   const alive = aliveIds(ctx.table);
   const iAmAlive = alive.includes(ctx.me.id);
-  const ready = !!ctx.state.acks?.[ctx.me.id];
+  const ready = !!ctx.state.acks?.[ctx.me.id] || sentAt === ctx.state.phaseStartedAt;
+  const send = () => {
+    setSentAt(ctx.state.phaseStartedAt);
+    onReady().catch(() => setSentAt(null));
+  };
   const readyCount = alive.filter((id) => ctx.state.acks?.[id]).length;
   return (
     <section data-phase-section="day-talk">
@@ -50,7 +56,7 @@ export default function TalkPanel({ ctx, onReady }: { ctx: PanelCtx; onReady: ()
       </p>
       {iAmAlive ? (
         <Dock>
-          <Button variant="primary" block disabled={ready || ctx.remaining <= 0} onClick={onReady}>
+          <Button variant="primary" block disabled={ready || ctx.remaining <= 0} onClick={send}>
             {ready ? 'Đã sẵn sàng — chờ mọi người' : 'Sẵn sàng bỏ phiếu'}
           </Button>
         </Dock>

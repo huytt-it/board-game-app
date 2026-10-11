@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import type { DayBallot } from '../types';
 import Button from '../ui/Button';
@@ -7,11 +8,18 @@ import { DeadNote, Dock, PhaseHeader, PlayerTile, type PanelCtx } from './shared
 
 // Bỏ phiếu (rules §5.9): bầu một người còn sống khác mình, hoặc Bỏ qua. Đổi
 // được đến khi hết bước. Ai đã bầu thì mọi người thấy (dấu ✓), bầu ai thì ẩn.
-export default function VotePanel({ ctx, onVote }: { ctx: PanelCtx; onVote: (ballot: DayBallot) => void }) {
+export default function VotePanel({ ctx, onVote }: { ctx: PanelCtx; onVote: (ballot: DayBallot) => Promise<unknown> }) {
   const alive = aliveIds(ctx.table);
   const iAmAlive = alive.includes(ctx.me.id);
   const votes = ctx.state.dayVotes ?? {};
-  const mine = votes[ctx.me.id];
+  // Phiếu vừa bấm sáng ngay trên máy này (trả lại nếu gửi lỗi).
+  const [pending, setPending] = useState<{ at: number; b: DayBallot } | null>(null);
+  const mine = (pending && pending.at === ctx.state.phaseStartedAt ? pending.b : null) ?? votes[ctx.me.id];
+  const vote = (b: DayBallot) => {
+    const p = { at: ctx.state.phaseStartedAt, b };
+    setPending(p);
+    onVote(b).catch(() => setPending((cur) => (cur === p ? null : cur)));
+  };
   const open = ctx.remaining > 0;
   const votedCount = alive.filter((id) => typeof votes[id] === 'string').length;
   const byId = new Map(ctx.players.map((p) => [p.id, p]));
@@ -33,7 +41,7 @@ export default function VotePanel({ ctx, onVote }: { ctx: PanelCtx; onVote: (bal
               label={self ? `${p.name} (bạn)` : `Bầu ${p.name}`}
               selected={mine === id}
               disabled={!iAmAlive || self || !open}
-              onClick={() => onVote(id)}
+              onClick={() => vote(id)}
               mark={typeof votes[id] === 'string' ? voted : undefined}
             />
           );
@@ -44,7 +52,7 @@ export default function VotePanel({ ctx, onVote }: { ctx: PanelCtx; onVote: (bal
       </p>
       {iAmAlive ? (
         <Dock>
-          <Button variant={mine === 'skip' ? 'primary' : 'secondary'} block aria-pressed={mine === 'skip'} disabled={!open} onClick={() => onVote('skip')}>
+          <Button variant={mine === 'skip' ? 'primary' : 'secondary'} block aria-pressed={mine === 'skip'} disabled={!open} onClick={() => vote('skip')}>
             {mine === 'skip' ? 'Đã chọn Bỏ qua' : 'Bỏ qua'}
           </Button>
         </Dock>

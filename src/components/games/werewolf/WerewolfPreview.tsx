@@ -9,7 +9,7 @@ import { nightActionOf, ROLE_NAME, ROLE_TEAM } from '@/components/games/werewolf
 import { DEFAULT_RULES } from '@/components/games/werewolf/engine/types.ts';
 import { PhaseView, TopBar } from './WerewolfBoard';
 import { dataOf, readConfig, tableOf } from './state';
-import type { PickOutcome } from './useWerewolf';
+import type { PickResult } from './useWerewolf';
 import type { DayBallot, WerewolfGameData, WerewolfGameState, WwLogEntry, WwPhase, WwRole } from './types';
 import LobbyPanel from './panel/LobbyPanel';
 import RoomMenu from './ui/RoomMenu';
@@ -247,33 +247,34 @@ function Screen({ scene, role, start }: { scene: PreviewScene; role: WwRole; sta
   const myData = dataOf(me);
   const ctx = { state, me, myData, players, table, isHost: true };
 
-  const onPick = async (targetId: string): Promise<PickOutcome> => {
+  const onPick = (targetId: string): PickResult => {
     const cur = pickFor(myData.nightPick, state.round);
-    if (cur?.confirmed && myData.role !== 'werewolf') return 'locked';
-    if (!isValidTarget(table, ME, nightActionOf(myData.role as WwRole), targetId, { guardLast: myData.guardLast ?? null })) return 'invalid';
+    if (cur?.confirmed && myData.role !== 'werewolf') return { outcome: 'locked', write: null };
+    if (!isValidTarget(table, ME, nightActionOf(myData.role as WwRole), targetId, { guardLast: myData.guardLast ?? null })) {
+      return { outcome: 'invalid', write: null };
+    }
     setMine({ nightPick: { round: state.round, targetId, confirmed: false } });
-    return 'ok';
+    return { outcome: 'ok', write: Promise.resolve() };
   };
-  const onConfirm = () => {
-    const cur = pickFor(myData.nightPick, state.round);
-    if (!cur?.targetId) return;
-    const look = myData.role === 'seer' ? seerLook(table, ME, cur.targetId) : null;
+  const onConfirm = async (targetId: string) => {
+    const look = myData.role === 'seer' ? seerLook(table, ME, targetId) : null;
     setMine({
-      nightPick: { ...cur, confirmed: true },
+      nightPick: { round: state.round, targetId, confirmed: true },
       ...(look ? { seerLog: [{ round: state.round, targetId: look.targetId, isWolf: look.isWolf }] } : {}),
     });
   };
+  const local = (fn: () => void) => async () => fn();
   return (
     <>
       <TopBar menu={<RoomMenu ctx={ctx} isHost inGame onLeave={() => {}} onDelete={() => {}} />} />
       <PhaseView
         ctx={ctx}
         handlers={{
-          onAckDeal: () => setState((s) => s && { ...s, acks: { ...s.acks, [ME]: true } }),
+          onAckDeal: local(() => setState((s) => s && { ...s, acks: { ...s.acks, [ME]: true } })),
           onPick,
           onConfirmNight: onConfirm,
-          onReady: () => setState((s) => s && { ...s, acks: { ...s.acks, [ME]: true } }),
-          onVote: (b) => setState((s) => s && { ...s, dayVotes: { ...s.dayVotes, [ME]: b } }),
+          onReady: local(() => setState((s) => s && { ...s, acks: { ...s.acks, [ME]: true } })),
+          onVote: async (b) => setState((s) => s && { ...s, dayVotes: { ...s.dayVotes, [ME]: b } }),
           onPlayAgain: () => {},
           onLeave: () => {},
         }}

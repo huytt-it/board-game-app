@@ -4,7 +4,7 @@
 // dữ liệu phòng, gọi engine để quyết định, và ghi `Step` engine trả về trong
 // MỘT compare-and-set. Luật nằm hết trong engine/.
 
-import { useCallback, useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { gameStorage } from '@/services/database/firebaseAdapter';
 import { serverNow } from '@/lib/serverClock';
 import type { BaseGameData, Player } from '@/types/player';
@@ -30,6 +30,31 @@ type PlayerWrites = Array<{ playerId: string; data: Partial<BaseGameData> }>;
 
 /** Kết quả một lần chạm chọn ở Đêm ①: màn chỉ báo lý do trong khung giữ-để-xem. */
 export type PickOutcome = 'ok' | 'invalid' | 'locked' | 'closed';
+
+/** `write`: lần ghi đang gửi (null = không cần ghi gì). */
+export interface PickResult {
+  outcome: PickOutcome;
+  write: Promise<unknown> | null;
+}
+
+// Nhiều người bấm cùng lúc thì các transaction trên doc phòng đụng nhau:
+// Firestore huỷ, tự thử lại vài lần rồi bỏ cuộc — người chơi sẽ thấy báo lỗi
+// "mất mạng" dù mạng vẫn tốt. Thử thêm vài lần với độ trễ ngẫu nhiên; mất
+// mạng thật thì ném ngay.
+const CONTENTION_TRIES = 4;
+
+async function retryOnContention<T>(write: () => Promise<T>): Promise<T> {
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await write();
+    } catch (err) {
+      const offline =
+        (err as { code?: string } | null)?.code === 'unavailable' || (typeof navigator !== 'undefined' && navigator.onLine === false);
+      if (offline || attempt >= CONTENTION_TRIES) throw err;
+      await new Promise((r) => setTimeout(r, 150 + Math.random() * 300 * attempt));
+    }
+  }
+}
 
 export function useWerewolf(roomId: string | undefined, room: Room | null, players: Player[]) {
   const config = useMemo(() => (room ? readConfig(room) : null), [room]);
@@ -72,10 +97,33 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
   const updateInPhase = useCallback(
     async (phase: WwPhase, round: number, patch: Record<string, unknown>, playerData?: PlayerWrites) => {
       if (!roomId) return false;
-      return gameStorage.casGameState(roomId, { phase, round }, patch, { playerData });
+      return retryOnContention(() => gameStorage.casGameState(roomId, { phase, round }, patch, { playerData }));
     },
     [roomId]
   );
+
+  // Các lần ghi của chính người chơi này đi lần lượt, nên lần chạm sau luôn là
+  // lần đến sau (chọn A rồi B thì kết quả là B). `sent` bỏ lần bấm trùng với
+  // lần đang gửi.
+  const queue = useRef<Promise<unknown>>(Promise.resolve());
+  const sent = useRef(new Map<string, string>());
+  const enqueue = useCallback((key: string, value: string, write: () => Promise<unknown>): Promise<unknown> | null => {
+    if (sent.current.get(key) === value) return null;
+    sent.current.set(key, value);
+    const run = queue.current.then(write, write);
+    queue.current = run.catch(() => {});
+    return run.then(
+      (ok) => {
+        if (sent.current.get(key) === value) sent.current.delete(key);
+        return ok;
+      },
+      (err) => {
+        // Gửi không được: lần bấm lại sau đó phải được gửi.
+        if (sent.current.get(key) === value) sent.current.delete(key);
+        throw err;
+      }
+    );
+  }, []);
 
   /** Ghi một `Step` của engine: phase, vòng, người chết, nhật ký, người thắng — một CAS. */
   const applyStep = useCallback(
@@ -176,9 +224,9 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
   const ackDeal = useCallback(
     async (playerId: string) => {
       if (!state || state.phase !== 'deal') return;
-      await updateInPhase('deal', state.round, { [`acks.${playerId}`]: true });
+      await enqueue('ack', `deal@${state.phaseStartedAt}`, () => updateInPhase('deal', state.round, { [`acks.${playerId}`]: true }));
     },
-    [state, updateInPhase]
+    [state, enqueue, updateInPhase]
   );
 
   /** Xem vai → Đêm 1 (mọi người đã xem, hoặc hết giờ). */
@@ -189,9 +237,9 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
 
   // ── Đêm ① ──────────────────────────────────────────────────────────────
 
-  /** Chọn (hoặc đổi) người ở Đêm ①. Lựa chọn ghi vào gameData của chính mình. */
-  const pickNight = useCallback(
-    async (playerId: string, targetId: string): Promise<PickOutcome> => {
+  /** Người này chọn được `targetId` lúc này không (kiểm tra ngay, không ghi). */
+  const nightCheck = useCallback(
+    (playerId: string, targetId: string): PickOutcome => {
       if (!state || !table || !phaseOpen('night') || !isAlive(table, playerId)) return 'closed';
       const me = dataOf(byId.get(playerId));
       if (!me.role) return 'closed';
@@ -199,32 +247,47 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
       // Tiên tri, Bảo vệ, Dân: Xác nhận là chốt. Sói đổi được, đổi thì mất Xác nhận.
       if (current?.confirmed && me.role !== 'werewolf') return 'locked';
       if (!isValidTarget(table, playerId, nightActionOf(me.role), targetId, { guardLast: me.guardLast ?? null })) return 'invalid';
-      if (current?.targetId === targetId) return 'ok';
-      await updateInPhase('night', state.round, {}, [
-        { playerId, data: { nightPick: { round: state.round, targetId, confirmed: false } } },
-      ]);
       return 'ok';
     },
-    [state, table, byId, phaseOpen, updateInPhase]
+    [state, table, byId, phaseOpen]
   );
 
-  /** Xác nhận lựa chọn Đêm ①. Tiên tri: kết quả soi ghi vào seerLog cùng lần ghi này (E15). */
-  const confirmNight = useCallback(
-    async (playerId: string) => {
-      if (!state || !table || !phaseOpen('night') || !isAlive(table, playerId)) return;
-      const me = dataOf(byId.get(playerId));
-      const current = pickFor(me.nightPick, state.round);
-      if (!me.role || !current?.targetId || current.confirmed) return;
-      if (!isValidTarget(table, playerId, nightActionOf(me.role), current.targetId, { guardLast: me.guardLast ?? null })) return;
-      const data: Partial<WerewolfGameData> = { nightPick: { ...current, confirmed: true } };
-      const look = me.role === 'seer' ? seerLook(table, playerId, current.targetId) : null;
-      if (look) {
-        const log = (me.seerLog ?? []).filter((l) => l.round !== state.round);
-        data.seerLog = [...log, { round: state.round, targetId: look.targetId, isWolf: look.isWolf }];
-      }
-      await updateInPhase('night', state.round, {}, [{ playerId, data }]);
+  /** Chọn (hoặc đổi) người ở Đêm ①. Lựa chọn ghi vào gameData của chính mình. */
+  const pickNight = useCallback(
+    (playerId: string, targetId: string): PickResult => {
+      const outcome = nightCheck(playerId, targetId);
+      if (outcome !== 'ok' || !state) return { outcome, write: null };
+      const current = pickFor(dataOf(byId.get(playerId)).nightPick, state.round);
+      if (current?.targetId === targetId && !sent.current.has('night')) return { outcome, write: null };
+      const round = state.round;
+      const write = enqueue('night', `${state.phaseStartedAt}:${targetId}:pick`, () =>
+        updateInPhase('night', round, {}, [{ playerId, data: { nightPick: { round, targetId, confirmed: false } } }])
+      );
+      return { outcome, write };
     },
-    [state, table, byId, phaseOpen, updateInPhase]
+    [state, byId, nightCheck, enqueue, updateInPhase]
+  );
+
+  /**
+   * Xác nhận người đang chọn ở Đêm ① (`targetId` là ô đang sáng trên màn, kể cả
+   * khi lần ghi chọn chưa về). Tiên tri: kết quả soi ghi vào seerLog cùng lần
+   * ghi này (E15).
+   */
+  const confirmNight = useCallback(
+    async (playerId: string, targetId: string) => {
+      if (!state || !table || nightCheck(playerId, targetId) !== 'ok') return;
+      const me = dataOf(byId.get(playerId));
+      if (!me.role) return;
+      const round = state.round;
+      const data: Partial<WerewolfGameData> = { nightPick: { round, targetId, confirmed: true } };
+      const look = me.role === 'seer' ? seerLook(table, playerId, targetId) : null;
+      if (look) {
+        const log = (me.seerLog ?? []).filter((l) => l.round !== round);
+        data.seerLog = [...log, { round, targetId: look.targetId, isWolf: look.isWolf }];
+      }
+      await enqueue('night', `${state.phaseStartedAt}:${targetId}:confirm`, () => updateInPhase('night', round, {}, [{ playerId, data }]));
+    },
+    [state, table, byId, nightCheck, enqueue, updateInPhase]
   );
 
   /**
@@ -274,9 +337,9 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
   const readyToVote = useCallback(
     async (playerId: string) => {
       if (!state || state.phase !== 'day-talk' || !table || !isAlive(table, playerId)) return;
-      await updateInPhase('day-talk', state.round, { [`acks.${playerId}`]: true });
+      await enqueue('ack', `talk@${state.phaseStartedAt}`, () => updateInPhase('day-talk', state.round, { [`acks.${playerId}`]: true }));
     },
-    [state, table, updateInPhase]
+    [state, table, enqueue, updateInPhase]
   );
 
   /** Thảo luận → Bỏ phiếu (mọi người còn sống sẵn sàng, hoặc hết giờ). */
@@ -292,9 +355,12 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
     async (playerId: string, ballot: DayBallot) => {
       if (!state || !table || !phaseOpen('day-vote') || !isAlive(table, playerId)) return;
       if (ballot !== 'skip' && !isValidTarget(table, playerId, 'vote', ballot)) return;
-      await updateInPhase('day-vote', state.round, { [`dayVotes.${playerId}`]: ballot });
+      if ((state.dayVotes ?? {})[playerId] === ballot && !sent.current.has('vote')) return;
+      await enqueue('vote', `${state.phaseStartedAt}:${ballot}`, () =>
+        updateInPhase('day-vote', state.round, { [`dayVotes.${playerId}`]: ballot })
+      );
     },
-    [state, table, phaseOpen, updateInPhase]
+    [state, table, phaseOpen, enqueue, updateInPhase]
   );
 
   /** Hết Bỏ phiếu: kiểm phiếu (engine), người bị treo chết ngay, sang Kết quả. */
@@ -331,6 +397,7 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
     startGame,
     ackDeal,
     proceedAfterDeal,
+    nightCheck,
     pickNight,
     confirmNight,
     resolveNightPhase,

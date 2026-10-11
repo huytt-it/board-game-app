@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useHold } from '@/components/games/shared/hooks/useHold';
 import { ROLE_BLURB, ROLE_NAME } from '@/components/games/werewolf/engine/roles.ts';
 import { wolfIds } from '@/components/games/werewolf/engine/table.ts';
@@ -26,9 +27,14 @@ export function MyRoleBody({ ctx }: { ctx: Pick<PanelCtx, 'me' | 'myData' | 'pla
   );
 }
 
-export default function DealPanel({ ctx, onAck }: { ctx: PanelCtx; onAck: () => void }) {
+export default function DealPanel({ ctx, onAck }: { ctx: PanelCtx; onAck: () => Promise<unknown> }) {
   const { held, bind } = useHold(ctx.state.phaseStartedAt);
-  const acked = !!ctx.state.acks?.[ctx.me.id];
+  const [sentAt, setSentAt] = useState<number | null>(null);
+  const acked = !!ctx.state.acks?.[ctx.me.id] || sentAt === ctx.state.phaseStartedAt;
+  const ack = () => {
+    setSentAt(ctx.state.phaseStartedAt);
+    onAck().catch(() => setSentAt(null));
+  };
   const ackCount = ctx.players.filter((p) => ctx.state.acks?.[p.id]).length;
   return (
     <section data-phase-section="deal">
@@ -42,7 +48,7 @@ export default function DealPanel({ ctx, onAck }: { ctx: PanelCtx; onAck: () => 
         {ackCount}/{ctx.players.length} người đã xem
       </p>
       <Dock>
-        <Button variant="primary" block disabled={acked} onClick={onAck}>
+        <Button variant="primary" block disabled={acked} onClick={ack}>
           {acked ? 'Đã xem — chờ mọi người' : 'Đã xem'}
         </Button>
       </Dock>

@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useHold } from '@/components/games/shared/hooks/useHold';
 import { pickFor, wolfStatus } from '@/components/games/werewolf/engine/night.ts';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
-import type { PickOutcome } from '../useWerewolf';
+import type { PickResult } from '../useWerewolf';
 import { dataOf } from '../state';
 import type { WwRole } from '../types';
 import Button from '../ui/Button';
@@ -95,35 +95,53 @@ export default function NightPanel({
   onConfirm,
 }: {
   ctx: PanelCtx;
-  onPick: (targetId: string) => Promise<PickOutcome>;
-  onConfirm: () => void;
+  onPick: (targetId: string) => PickResult;
+  onConfirm: (targetId: string) => Promise<unknown>;
 }) {
   const { state, me, myData, table, players } = ctx;
   const { held, bind } = useHold(state.phaseStartedAt);
   // Lý do lần chạm vừa rồi không đổi được gì: chỉ hiện trong thẻ khi giữ.
   const [note, setNote] = useState<{ at: number; text: string } | null>(null);
   const heldAtDown = useRef(false);
+  // Ô vừa chạm sáng ngay trên máy này, trước khi lần ghi về (trả lại nếu gửi
+  // lỗi); đang gửi Xác nhận thì khoá lưới. Như nhau với mọi vai.
+  const [pending, setPending] = useState<{ at: number; id: string } | null>(null);
+  const [confirmingAt, setConfirmingAt] = useState<number | null>(null);
   const alive = aliveIds(table);
   const pick = pickFor(myData.nightPick, state.round);
   const confirmed = !!pick?.confirmed;
+  const confirming = confirmingAt === state.phaseStartedAt && !confirmed;
+  const shownPick = (pending && pending.at === state.phaseStartedAt ? pending.id : null) ?? pick?.targetId ?? null;
   const open = ctx.remaining > 0;
   const role = myData.role as WwRole;
   const iAmAlive = alive.includes(me.id);
   const shownNote = note && note.at === state.phaseStartedAt ? note.text : null;
   const say = (text: string | null) => setNote(text ? { at: state.phaseStartedAt, text } : null);
 
-  const tap = async (targetId: string) => {
+  const tap = (targetId: string) => {
     const wasHeld = heldAtDown.current || held;
     heldAtDown.current = false;
     if (!open) return say('Hết giờ.');
+    if (confirming) return;
     if (confirmed && !(role === 'werewolf' && wasHeld)) {
       return say(role === 'werewolf' ? 'Muốn đổi: vừa giữ thẻ, vừa chạm người khác.' : 'Bạn đã xác nhận, không đổi được nữa.');
     }
-    const outcome = await onPick(targetId);
-    if (outcome === 'invalid') say(invalidText(role, ctx, targetId));
-    else if (outcome === 'locked') say('Bạn đã xác nhận, không đổi được nữa.');
-    else if (outcome === 'closed') say('Hết giờ.');
-    else say(null);
+    const { outcome, write } = onPick(targetId);
+    if (outcome === 'invalid') return say(invalidText(role, ctx, targetId));
+    if (outcome === 'locked') return say('Bạn đã xác nhận, không đổi được nữa.');
+    if (outcome === 'closed') return say('Hết giờ.');
+    say(null);
+    setConfirmingAt(null);
+    const mine = { at: state.phaseStartedAt, id: targetId };
+    setPending(mine);
+    write?.catch(() => setPending((p) => (p === mine ? null : p)));
+  };
+
+  const confirm = () => {
+    if (!shownPick) return;
+    // Giữ "đang gửi" đến khi snapshot báo đã xác nhận; gửi lỗi thì trả lại.
+    setConfirmingAt(state.phaseStartedAt);
+    onConfirm(shownPick).catch(() => setConfirmingAt(null));
   };
 
   const byId = new Map(players.map((p) => [p.id, p]));
@@ -142,12 +160,12 @@ export default function NightPanel({
               key={id}
               player={p}
               label={`Chọn ${p.name}`}
-              selected={iAmAlive && pick?.targetId === id}
+              selected={iAmAlive && shownPick === id}
               disabled={!iAmAlive}
               onPointerDown={() => {
                 heldAtDown.current = held;
               }}
-              onClick={() => void tap(id)}
+              onClick={() => tap(id)}
               mark={id === me.id ? <span className="rounded-full bg-slate-600 px-1.5 text-[10px] font-bold text-slate-100">bạn</span> : undefined}
             />
           );
@@ -168,8 +186,8 @@ export default function NightPanel({
             </HoldCard>
           </div>
           <Dock>
-            <Button variant="primary" block disabled={!open || !pick?.targetId || confirmed} onClick={onConfirm}>
-              {confirmed ? 'Đã xác nhận' : 'Xác nhận'}
+            <Button variant="primary" block disabled={!open || !shownPick || confirmed || confirming} onClick={confirm}>
+              {confirmed ? 'Đã xác nhận' : confirming ? 'Đang gửi…' : 'Xác nhận'}
             </Button>
           </Dock>
         </>

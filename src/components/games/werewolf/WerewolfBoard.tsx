@@ -9,7 +9,7 @@ import { gameStorage } from '@/services/database/firebaseAdapter';
 import QRCodeDisplay from '@/components/core/QRCodeDisplay';
 import type { GameModuleProps } from '@/lib/gameRegistry';
 import { dealDone, nightDone, talkDone, voteDone } from '@/components/games/werewolf/engine/flow.ts';
-import { useWerewolf, type PickOutcome } from './useWerewolf';
+import { useWerewolf, type PickResult } from './useWerewolf';
 import { dataOf, nightPicksOf } from './state';
 import { phaseTimeoutMs, type DayBallot, type WerewolfGameState, type WerewolfRoomConfig, type WwTable } from './types';
 import { usePhaseRemaining } from './hooks/usePhaseClock';
@@ -35,12 +35,13 @@ function remainingMs(state: WerewolfGameState): number {
   return phaseTimeoutMs(state) - (serverNow() - state.phaseStartedAt);
 }
 
+// Hành động trong phase trả về lần ghi: panel trả lại trạng thái "đã bấm" nếu gửi lỗi.
 export interface PhaseHandlers {
-  onAckDeal: () => void;
-  onPick: (targetId: string) => Promise<PickOutcome>;
-  onConfirmNight: () => void;
-  onReady: () => void;
-  onVote: (ballot: DayBallot) => void;
+  onAckDeal: () => Promise<unknown>;
+  onPick: (targetId: string) => PickResult;
+  onConfirmNight: (targetId: string) => Promise<unknown>;
+  onReady: () => Promise<unknown>;
+  onVote: (ballot: DayBallot) => Promise<unknown>;
   onPlayAgain: () => void;
   onLeave: () => void;
 }
@@ -132,12 +133,12 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     return () => clearTimeout(t);
   }, [notice]);
 
-  // Hành động của người chơi: gửi không được (mất mạng) thì báo, không im lặng.
-  const act =
-    <A extends unknown[]>(fn: (...args: A) => unknown) =>
-    (...args: A) => {
-      Promise.resolve(fn(...args)).catch(() => setNotice('Không gửi được — kiểm tra kết nối mạng rồi thử lại.'));
-    };
+  // Hành động của người chơi: gửi không được (mất mạng) thì báo, không im lặng,
+  // rồi ném tiếp để panel trả lại trạng thái.
+  const failed = useCallback((err: unknown): never => {
+    setNotice('Không gửi được — kiểm tra kết nối mạng rồi thử lại.');
+    throw err;
+  }, []);
 
   // ── Tự chuyển phase ─────────────────────────────────────────────────
   // MỌI máy chạy timer. Mỗi lần đổi phase là một CAS (useWerewolf.advance),
@@ -240,11 +241,11 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
   );
 
   const handlePick = useCallback(
-    (targetId: string): Promise<PickOutcome> =>
-      pickNight(playerId, targetId).catch(() => {
-        setNotice('Không gửi được — kiểm tra kết nối mạng rồi thử lại.');
-        return 'closed' as const;
-      }),
+    (targetId: string): PickResult => {
+      const res = pickNight(playerId, targetId);
+      res.write?.catch(() => setNotice('Không gửi được — kiểm tra kết nối mạng rồi thử lại.'));
+      return res;
+    },
     [pickNight, playerId]
   );
 
@@ -316,11 +317,11 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     <PhaseView
       ctx={ctx}
       handlers={{
-        onAckDeal: act(() => ackDeal(playerId)),
+        onAckDeal: () => ackDeal(playerId).catch(failed),
         onPick: handlePick,
-        onConfirmNight: act(() => confirmNight(playerId)),
-        onReady: act(() => readyToVote(playerId)),
-        onVote: act((ballot: DayBallot) => castDayVote(playerId, ballot)),
+        onConfirmNight: (targetId: string) => confirmNight(playerId, targetId).catch(failed),
+        onReady: () => readyToVote(playerId).catch(failed),
+        onVote: (ballot: DayBallot) => castDayVote(playerId, ballot).catch(failed),
         onPlayAgain: handleNewGame,
         onLeave: isHost ? handleDelete : handleLeave,
       }}
