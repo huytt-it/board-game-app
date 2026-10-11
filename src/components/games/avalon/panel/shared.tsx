@@ -2,7 +2,7 @@ import { useContext, type CSSProperties, type HTMLAttributes, type ReactNode } f
 import { phaseTimeoutMs, type AvalonGameState, type AvalonRole } from '../types';
 import { ROLE_NAMES_VI } from '../constants';
 import { formatCountdown, usePhaseClock } from '../hooks/usePhaseClock';
-import { useCue } from '../hooks/useCue';
+import { useCue } from '@/components/games/shared/hooks/useCue';
 import AvIcon, { type IconName } from '../assets/AvIcon';
 import { MyTurnContext } from '../ui/MyTurn';
 import RoleEmblem from '../ui/RoleEmblem';

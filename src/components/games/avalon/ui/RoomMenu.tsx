@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { useDialog } from '../hooks/useDialog';
+import { useDialog } from '@/components/games/shared/hooks/useDialog';
 import AvButton from './AvButton';
 
 // The "⋯" of the top bar: the rarely used room actions ("Các vai trong ván",

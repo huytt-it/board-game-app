@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { SCENES, type AssetSource } from '../assets/registry';
-import { useReducedMotion } from '../hooks/useReducedMotion';
+import { useReducedMotion } from '@/components/games/shared/hooks/useReducedMotion';
 import { between, H, rng, W } from './paper';
 import { hashString } from './journey';
 import Storm from './weather/Storm';

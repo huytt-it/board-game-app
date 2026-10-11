@@ -5,7 +5,7 @@ import { AvalonRole, type AvalonGameData, type AvalonGameState, type QuestCard, 
 import RoundTable from './RoundTable';
 import AvButton from './ui/AvButton';
 import RoomMenu from './ui/RoomMenu';
-import { useHold } from './hooks/useHold';
+import { useHold } from '@/components/games/shared/hooks/useHold';
 import { useEndReveal } from './hooks/useEndReveal';
 import { ChipCountdown, PhaseChip, PhaseTimeBar } from './panel/shared';
 import { needsMyAction } from './panel/myTurn';

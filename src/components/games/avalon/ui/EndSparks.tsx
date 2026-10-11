@@ -2,7 +2,7 @@
 
 import { useMemo, type CSSProperties } from 'react';
 import type { AvalonTeam } from '../types';
-import { useCue } from '../hooks/useCue';
+import { useCue } from '@/components/games/shared/hooks/useCue';
 import { mulberry32 } from '../scenes/journey';
 import { END } from '../table/timelines';
 

@@ -3,7 +3,7 @@
 // same frame and a reload lands on the right one (usePhaseTimeline / useCue).
 // The stage arrays are module-level constants: usePhaseTimeline needs them
 // referentially stable.
-import type { TimelineStage } from '../hooks/usePhaseTimeline';
+import type { TimelineStage } from '@/components/games/shared/hooks/usePhaseTimeline';
 import { mulberry32 } from '../scenes/journey';
 
 // ─── lineup-preview (60 s on screen, animation ~4 s) — GĐ4 ─────────

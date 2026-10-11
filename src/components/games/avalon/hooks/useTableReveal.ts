@@ -1,7 +1,7 @@
 'use client';
 
 import type { AvalonGameState } from '../types';
-import { usePhaseTimeline, type TimelineStage } from './usePhaseTimeline';
+import { usePhaseTimeline, type TimelineStage } from '@/components/games/shared/hooks/usePhaseTimeline';
 import { CANDLE_STAGES, IDLE_STAGES, questSealStages } from '../table/timelines';
 
 // What the round table, the roster and the reject chip may show while the
