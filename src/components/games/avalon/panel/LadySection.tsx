@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { useState, type ReactNode } from 'react';
 import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
 import { TEAM_NAME_VI } from '../constants';
 import { TEAM_ICON_NAME } from '../presentation';
-import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
-import { LowTimeClock, PanelHead, PanelLine } from './shared';
+import { formatSecs, isLowTime, usePhaseClock } from '../hooks/usePhaseClock';
+import { useConfirm } from '../hooks/useConfirm';
+import { LowTimeClock, PanelHead, PanelLine, PanelNote } from './shared';
+import { LADY_TIMEOUT_HINT, ladyLookedForHer } from './ladyEvent';
 import AvIcon from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
 import AvButton from '../ui/AvButton';
@@ -27,11 +29,12 @@ function InspectedTeam({ team }: { team: 'good' | 'evil' }) {
 // local, decorative transition: it plays when the result ARRIVES while the
 // screen is open, and a reload shows the card face up straight away (ux-plan
 // 2.2). Face up is the static style; the keyframes only describe the turn.
-function LadyResultCard({ target, team, live }: { target: Player; team: 'good' | 'evil'; live: boolean }) {
+function LadyResultCard({ target, team, live, note }: { target: Player; team: 'good' | 'evil'; live: boolean; note?: ReactNode }) {
   return (
     <div style={{ perspective: '800px' }} data-lady-result={team} data-lady-flip={live ? 'live' : 'static'}>
       <div className={`relative [transform-style:preserve-3d] ${live ? 'av-lady-flip' : ''}`}>
         <GlassPanel className="av-flip-face p-5 text-center">
+          {note}
           <p className="text-sm text-(--av-text-2)">
             <span className="font-semibold text-(--av-text)">{target.name}</span> thuộc
           </p>
@@ -56,18 +59,28 @@ function LadyResultCard({ target, team, live }: { target: Player; team: 'good' |
 // dock; everyone else reads one line. The aim is the Lady's token flying to
 // that seat. The target and the bystanders get the same neutral words
 // whatever the result: only the holder ever sees a team.
+//
+// Her time running out (GĐ8, state.ladyTimeoutMode): the holder is told
+// beforehand what will happen; with 'random' the game looks for her and she
+// sees the card turn over in the 10 s left; with 'wait' the game stops —
+// everyone reads "Hết giờ — đang chờ X soi" and the host gets two buttons.
 export function LadySection({
   state,
   myPlayer,
   gamePlayers,
   onLadyConfirm,
   onLadyFinish,
+  onForceSkip,
+  onForceRandom,
 }: {
   state: AvalonGameState;
   myPlayer: Player;
   gamePlayers: Player[];
   onLadyConfirm: () => void;
   onLadyFinish: () => void;
+  /** Only for the host: answer a 'wait' the holder leaves unanswered. */
+  onForceSkip?: () => void;
+  onForceRandom?: () => void;
 }) {
   const isHolder = state.ladyHolderId === myPlayer.id;
   const isTarget = state.ladyTargetId === myPlayer.id;
@@ -75,19 +88,23 @@ export function LadySection({
   const target = state.ladyTargetId ? gamePlayers.find((p) => p.id === state.ladyTargetId) : null;
   const shown = state.ladyShownCard;
   const inspected = shown !== null;
+  const mode = state.ladyTimeoutMode ?? 'skip';
+  // The game looked for her ('random' timeout or the host's button).
+  const lookedForHer = ladyLookedForHer(state);
 
   // Did this screen open before the result came in? Then the card turns over
   // when it does; if the result is already there (a reload) it just shows.
   const [liveReveal] = useState(() => !inspected);
 
-  // Đếm ngược — hiển thị cho cả Lady, target và bystander. The holder's dock
-  // is already blinking: their clock only turns red.
+  // Đếm ngược — hiển thị cho cả Lady, target và bystander. Red when time runs
+  // out; with 'wait' it then reads "Hết giờ" and the game stands still.
   const { remaining } = usePhaseClock(state);
+  const low = isLowTime(state, remaining);
+  const waiting = mode === 'wait' && !inspected && remaining <= 0;
   const clock = inspected ? undefined : (
-    <LowTimeClock low={remaining < 10_000} throb={!isHolder}>
-      {formatSecs(remaining)}
-    </LowTimeClock>
+    <LowTimeClock low={low}>{waiting ? 'Hết giờ' : formatSecs(remaining)}</LowTimeClock>
   );
+  const { ask, dialog: confirmDialog } = useConfirm();
 
   // What the screen reader hears when the Lady looks: the holder hears the
   // team, nobody else ever does (the same words for the target and the rest).
@@ -110,7 +127,18 @@ export function LadySection({
     return (
       <div className="space-y-3">
         {live}
-        <LadyResultCard target={target} team={shown === 'good' ? 'good' : 'evil'} live={liveReveal} />
+        <LadyResultCard
+          target={target}
+          team={shown === 'good' ? 'good' : 'evil'}
+          live={liveReveal}
+          note={
+            lookedForHer && (
+              <p className="mb-2 text-xs font-semibold text-(--av-evil-light)" data-lady-auto="">
+                Hết giờ — hệ thống đã soi giúp bạn.
+              </p>
+            )
+          }
+        />
         <ActionDock>
           <AvButton variant="primary" size="lg" block icon="lady" onClick={onLadyFinish}>
             Hoàn tất — chuyển Lady cho {target.name}
@@ -135,6 +163,14 @@ export function LadySection({
               'Chạm vào một ghế trên bàn. Người từng cầm Lady không soi được.'
             )}
           </PanelLine>
+          {/* What her time running out will do — red once it is running out. */}
+          {waiting ? (
+            <TimeoutLine>Hết giờ — cả bàn đang chờ bạn soi.</TimeoutLine>
+          ) : (
+            <PanelNote className={low ? 'font-semibold text-(--av-evil-light)' : ''} data-lady-hint={mode}>
+              {LADY_TIMEOUT_HINT[mode]}
+            </PanelNote>
+          )}
         </GlassPanel>
         <ActionDock>
           <AvButton variant="primary" size="lg" block icon="eye" onClick={onLadyConfirm} disabled={!target}>
@@ -164,11 +200,76 @@ export function LadySection({
       {name(holder, 'Lady')} đang ngắm {name(target)}.
     </>
   );
+  const holderName = holder?.name ?? 'Lady';
   return (
-    <GlassPanel className="p-4">
-      {live}
-      <PanelHead title={title} clock={clock} />
-      <PanelLine>{line}</PanelLine>
-    </GlassPanel>
+    <div className="space-y-3">
+      <GlassPanel className="p-4">
+        {live}
+        <PanelHead title={title} clock={clock} />
+        <PanelLine>
+          {lookedForHer && target ? (
+            <>
+              {name(holder, 'Lady')} hết giờ — tự soi ngẫu nhiên {name(target)}.
+            </>
+          ) : (
+            line
+          )}
+        </PanelLine>
+        {waiting && <TimeoutLine>Hết giờ — đang chờ {holderName} soi.</TimeoutLine>}
+      </GlassPanel>
+      {/* The host can end a wait the holder leaves unanswered (each asks first). */}
+      {waiting && onForceSkip && onForceRandom && (
+        <ActionDock>
+          <div className="grid grid-cols-2 gap-3" data-lady-force="">
+            <AvButton
+              variant="secondary"
+              size="lg"
+              onClick={async () => {
+                if (
+                  await ask({
+                    title: `Bỏ lượt của ${holderName}?`,
+                    message: 'Không ai bị soi; Lady chuyển ngẫu nhiên cho một người chưa từng cầm.',
+                    confirmLabel: 'Bỏ lượt',
+                    icon: 'lady',
+                  })
+                )
+                  onForceSkip();
+              }}
+            >
+              Bỏ lượt
+            </AvButton>
+            <AvButton
+              variant="secondary"
+              size="lg"
+              onClick={async () => {
+                if (
+                  await ask({
+                    title: `Soi ngẫu nhiên thay ${holderName}?`,
+                    message: `Hệ thống soi người ${holderName} đang ngắm, hoặc một người ngẫu nhiên. Chỉ ${holderName} thấy kết quả.`,
+                    confirmLabel: 'Soi ngẫu nhiên',
+                    tone: 'gold',
+                    icon: 'lady',
+                  })
+                )
+                  onForceRandom();
+              }}
+            >
+              Soi ngẫu nhiên
+            </AvButton>
+          </div>
+        </ActionDock>
+      )}
+      {confirmDialog}
+    </div>
+  );
+}
+
+// "Hết giờ — …": the Lady's 'wait' after her time is up, in the warning red.
+function TimeoutLine({ children }: { children: ReactNode }) {
+  return (
+    <p className="mt-2 flex items-start gap-1.5 text-sm font-semibold text-(--av-evil-light)" data-lady-waiting="">
+      <AvIcon name="clock" className="mt-0.5 shrink-0" />
+      <span>{children}</span>
+    </p>
   );
 }

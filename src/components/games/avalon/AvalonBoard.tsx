@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { useRoom, ACTIVE_ROOM_KEY } from '@/hooks/useRoom';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -15,10 +16,9 @@ import RolePreviewPopup from './RolePreviewPopup';
 import RoomSettings from './RoomSettings';
 import RoleGuide from './RoleGuide';
 import PlayerPanel from './PlayerPanel';
-import AvalonPreview from './AvalonPreview';
 import LobbyRoundTable from './LobbyRoundTable';
 import { useAvalon, defaultAvalonConfig } from './useAvalon';
-import { AvalonRole, type AvalonGameData, type AvalonGameState, PHASE_TIMEOUTS_MS } from './types';
+import { AvalonRole, type AvalonGameData, type AvalonGameState, phaseTimeoutMs } from './types';
 import { PLAYER_COUNTS } from './constants';
 import AvIcon from './assets/AvIcon';
 import { avalonDisplayFont } from './assets/fonts';
@@ -34,6 +34,10 @@ import LobbyNotices from './ui/LobbyNotices';
 import { useRosterNotices } from './hooks/useRosterChanges';
 import { useConfirm } from './hooks/useConfirm';
 import './avalon.css';
+
+// The mock-scene Preview ("Xem trước", with the style board) is a tool for the
+// host, opened from the lobby: loaded on demand, so players never download it.
+const AvalonPreview = dynamic(() => import('./AvalonPreview'), { ssr: false });
 
 // Class for every Avalon root element: scopes avalon.css (tokens, reduced
 // motion) and provides the --av-font-display variable.
@@ -58,9 +62,10 @@ function withScene(scene: SceneResult, body: React.ReactNode) {
 // has not advanced (host offline / asleep).
 const TAKEOVER_MS = 2500;
 
-// Time left in the current phase, on the shared server clock.
+// Time left in the current phase, on the shared server clock (the duration
+// this game fixed when it started, else the default).
 function remainingMs(state: AvalonGameState): number {
-  return PHASE_TIMEOUTS_MS[state.phase] - (serverNow() - (state.phaseStartedAt ?? serverNow()));
+  return phaseTimeoutMs(state) - (serverNow() - (state.phaseStartedAt ?? serverNow()));
 }
 
 // True once every player still in the room has an entry (ack / vote).
@@ -73,6 +78,7 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
   const { leaveRoom, deleteRoom, resetRoom, updateConfig } = useRoom(room.id, playerId);
 
   const {
+    config,
     state,
     gamePlayers,
     playerCount,
@@ -100,6 +106,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
     ladyShow,
     ladyFinish,
     ladyTimeoutAdvance,
+    ladyForceSkip,
+    ladyForceRandom,
     setAssassinChoice,
     assassinate,
     assassinTimeoutAdvance,
@@ -374,6 +382,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
             config={room.config}
             onUpdateConfig={updateConfig}
             playerCount={playerCount}
+            phaseSeconds={config?.phaseSeconds}
+            ladyTimeoutMode={config?.ladyTimeoutMode}
           />
         </Modal>
 
@@ -516,6 +526,8 @@ export default function AvalonBoard({ room, players, playerId, isHost }: GameMod
         onLadyConfirm={act(ladyConfirm)}
         onLadyShow={ladyShow}
         onLadyFinish={act(ladyFinish)}
+        onLadyForceSkip={act(ladyForceSkip)}
+        onLadyForceRandom={act(ladyForceRandom)}
         onAssassinate={act(assassinate)}
         onSetAssassinChoice={act(setAssassinChoice)}
         onShowMyRole={() => setShowMyRoleCard(true)}

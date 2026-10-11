@@ -7,13 +7,19 @@ import type { BaseGameData, Player } from '@/types/player';
 import type { Room, RoomStatus } from '@/types/room';
 import {
   AvalonRole,
+  PHASE_SECONDS_LIMITS,
+  TIMED_PHASES,
+  phaseTimeoutMs,
   type AvalonPhase,
   type AvalonGameState,
   type AvalonGameData,
   type AvalonQuestRecord,
   type AvalonRoomConfig,
+  type LadyEvent,
+  type LadyTimeoutMode,
   type TeamVote,
   type QuestCard,
+  type TimedPhase,
 } from './types';
 import {
   ROLE_TEAM,
@@ -86,11 +92,124 @@ export function readState(room: Room): AvalonGameState | null {
   return gs && gs.phase ? gs : null;
 }
 
-export function readConfig(room: Room): AvalonRoomConfig {
+export function readConfig(room: Room): AvalonRoomConfig & {
+  phaseSeconds: Record<TimedPhase, number>;
+  ladyTimeoutMode: LadyTimeoutMode;
+} {
   const cfg = room.config as Record<string, unknown>;
   const optionalRoles = (cfg.optionalRoles as AvalonRole[] | undefined) ?? [];
   const useLadyOfLake = (cfg.useLadyOfLake as boolean | undefined) ?? false;
-  return { optionalRoles, useLadyOfLake };
+  const phaseSeconds = readPhaseSeconds(cfg.phaseSeconds);
+  const ladyTimeoutMode = LADY_TIMEOUT_MODES.includes(cfg.ladyTimeoutMode as LadyTimeoutMode)
+    ? (cfg.ladyTimeoutMode as LadyTimeoutMode)
+    : 'skip';
+  return { optionalRoles, useLadyOfLake, phaseSeconds, ladyTimeoutMode };
+}
+
+const LADY_TIMEOUT_MODES: readonly LadyTimeoutMode[] = ['skip', 'random', 'wait'];
+
+// Seconds per adjustable phase from the room's settings (GĐ8). A number is
+// snapped to the settings' step and clamped to the limits; anything else (a
+// missing field in an older room, garbage) is the default.
+function readPhaseSeconds(raw: unknown): Record<TimedPhase, number> {
+  const src = raw && typeof raw === 'object' ? (raw as Record<string, unknown>) : {};
+  const out = {} as Record<TimedPhase, number>;
+  for (const phase of TIMED_PHASES) {
+    const { min, max, step, def } = PHASE_SECONDS_LIMITS[phase];
+    const v = src[phase];
+    out[phase] =
+      typeof v === 'number' && Number.isFinite(v)
+        ? Math.min(max, Math.max(min, min + Math.round((v - min) / step) * step))
+        : def;
+  }
+  return out;
+}
+
+// ── Lady of the Lake: how her turn ends (GĐ8) ───────────────────────────
+// Every way out of lady-of-lake writes `ladyLastEvent` so every screen can say
+// it: who held her, whom she looked at and how, who holds her now. It is
+// public and carries no team — the team seen stays in ladyShownCard.
+
+/** The holder's time to see a card the game turned over for her. */
+const LADY_VIEW_MS = 10_000;
+
+function ladyEvent(s: AvalonGameState, how: LadyEvent['how'], targetId: string | null, newHolderId: string): LadyEvent {
+  // currentQuest already points at the next quest during the Lady's turn.
+  return { quest: s.currentQuest - 1, holderId: s.ladyHolderId ?? '', targetId, how, newHolderId };
+}
+
+// An event this turn already wrote for the current target while staying in the
+// phase: the game's own look ('random') or the 'wait' grace ('inspected').
+function ladyMark(s: AvalonGameState): LadyEvent | null {
+  const e = s.ladyLastEvent;
+  return e && e.quest === s.currentQuest - 1 && e.targetId === s.ladyTargetId ? e : null;
+}
+
+// Moves the phase clock so that exactly LADY_VIEW_MS are left. On purpose: the
+// holder gets that long to see the card, then the next timeout hands the Lady
+// on through the "she has looked" branch.
+function ladyViewClock(s: AvalonGameState): number {
+  return serverNow() - (phaseTimeoutMs(s, 'lady-of-lake') - LADY_VIEW_MS);
+}
+
+/** She has looked: the token goes to the player she inspected. */
+function ladyPassPatch(s: AvalonGameState): Partial<AvalonGameState> {
+  const newHistory = [...s.ladyHistory, s.ladyHolderId!].filter(Boolean) as string[];
+  return {
+    phase: 'discussion',
+    ladyHolderId: s.ladyTargetId,
+    ladyHistory: newHistory,
+    ladyTargetId: null,
+    ladyShownCard: null,
+    roleAcks: {},
+    ladyLastEvent: ladyEvent(s, ladyMark(s)?.how ?? 'inspected', s.ladyTargetId, s.ladyTargetId ?? ''),
+  };
+}
+
+/** No look: the token goes to a random player who never held it. */
+function ladySkipPatch(s: AvalonGameState, present: Player[]): Partial<AvalonGameState> {
+  const used = new Set(s.ladyHistory ?? []);
+  if (s.ladyHolderId) used.add(s.ladyHolderId);
+  const candidates = present.filter((p) => !used.has(p.id));
+  const fallback =
+    candidates.length > 0
+      ? candidates[Math.floor(Math.random() * candidates.length)].id
+      : s.ladyHolderId; // không còn ai → giữ nguyên holder
+  const newHistory = s.ladyHolderId
+    ? [...s.ladyHistory, s.ladyHolderId].filter(Boolean) as string[]
+    : s.ladyHistory ?? [];
+  return {
+    phase: 'discussion',
+    ladyHolderId: fallback,
+    ladyHistory: newHistory,
+    ladyTargetId: null,
+    ladyShownCard: null,
+    roleAcks: {},
+    ladyLastEvent: ladyEvent(s, 'skipped', null, fallback ?? ''),
+  };
+}
+
+/** The game looks for her: at the player she aims at, else a random valid one
+ *  (never held the Lady, not the holder), with the TRUE team (as ladyConfirm).
+ *  Stays in the phase. Null when there is nobody to look at. */
+function ladyRandomPatch(s: AvalonGameState, present: Player[], everyone: Player[]): Partial<AvalonGameState> | null {
+  const used = new Set(s.ladyHistory ?? []);
+  if (s.ladyHolderId) used.add(s.ladyHolderId);
+  const valid = present.filter((p) => !used.has(p.id));
+  const targetId = s.ladyTargetId ?? (valid.length > 0 ? valid[Math.floor(Math.random() * valid.length)].id : null);
+  if (!targetId) return null;
+  const team = (everyone.find((p) => p.id === targetId)?.gameData as Partial<AvalonGameData> | undefined)?.team;
+  return {
+    ladyTargetId: targetId,
+    ladyShownCard: team === 'evil' ? 'evil' : 'good',
+    phaseStartedAt: ladyViewClock(s),
+    ladyLastEvent: ladyEvent(s, 'random', targetId, targetId),
+  };
+}
+
+/** The phase durations a new game fixes, in ms (state.timeouts). */
+function timeoutsFor(phaseSeconds: Record<TimedPhase, number>): Partial<Record<AvalonPhase, number>> {
+  return Object.fromEntries(TIMED_PHASES.map((p) => [p, phaseSeconds[p] * 1000]));
 }
 
 export function getPlayerData(player: Player | undefined): Partial<AvalonGameData> {
@@ -296,6 +415,11 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
       ladyShownCard: null,
       seatOrder,
       assassinChoiceId: null,
+      // The host's settings are fixed for the whole game here: changing them
+      // later (next lobby) never touches a game already running.
+      timeouts: timeoutsFor(cfg.phaseSeconds),
+      ladyTimeoutMode: cfg.ladyTimeoutMode,
+      ladyLastEvent: null,
     };
     await gameStorage.updateRoomGameState(roomId, fresh as never);
     await gameStorage.updateRoomStatus(roomId, 'night');
@@ -653,63 +777,62 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     []
   );
 
+  // "Hoàn tất": the holder hands the Lady to the player she inspected (writes
+  // ladyLastEvent: 'inspected', or 'random' if the game looked for her).
   const ladyFinish = useCallback(async () => {
     if (!state || !state.ladyTargetId) return;
-    const newHistory = [...state.ladyHistory, state.ladyHolderId!].filter(Boolean) as string[];
-    await advance({
-      phase: 'discussion',
-      ladyHolderId: state.ladyTargetId,
-      ladyHistory: newHistory,
-      ladyTargetId: null,
-      ladyShownCard: null,
-      roleAcks: {},
-    });
+    await advance(ladyPassPatch(state));
   }, [state, advance]);
 
-  // Fallback khi hết 45s. Lady chỉ thực sự "soi" khi đã CONFIRM (ladyShownCard
-  // được set). Nếu CHƯA confirm → bỏ qua lượt soi, đồng thời RANDOM 1 Lady mới
-  // từ những player chưa từng cầm token (loại current Lady và lịch sử).
+  // The Lady's time is up (ladyTimeoutMode, fixed when the game started; an
+  // older game has none = 'skip'). She has looked (ladyShownCard set) → the
+  // token goes to the player she inspected. She has not:
+  //   - 'skip': no look; RANDOM new Lady among players who never held her
+  //     (loại current Lady và lịch sử) — the behaviour before GĐ8;
+  //   - 'random': the game looks for her and stays in the phase for
+  //     LADY_VIEW_MS (ladyRandomPatch); the next timeout hands the Lady on;
+  //   - 'wait': nothing is written — the game waits for her, or for the host
+  //     (ladyForceSkip / ladyForceRandom).
   const ladyTimeoutAdvance = useCallback(async () => {
     if (!state || state.phase !== 'lady-of-lake') return;
+    const mode = state.ladyTimeoutMode ?? 'skip';
     const inspectionConfirmed = state.ladyShownCard !== null && !!state.ladyTargetId;
     const expect = { ladyTargetId: state.ladyTargetId, ladyShownCard: state.ladyShownCard };
     if (inspectionConfirmed) {
-      const newHistory = [...state.ladyHistory, state.ladyHolderId!].filter(Boolean) as string[];
-      await advance(
-        {
-          phase: 'discussion',
-          ladyHolderId: state.ladyTargetId,
-          ladyHistory: newHistory,
-          ladyTargetId: null,
-          ladyShownCard: null,
-          roleAcks: {},
-        },
-        { expect }
-      );
-    } else {
-      const used = new Set(state.ladyHistory ?? []);
-      if (state.ladyHolderId) used.add(state.ladyHolderId);
-      const candidates = gamePlayers.filter((p) => !used.has(p.id));
-      const fallback =
-        candidates.length > 0
-          ? candidates[Math.floor(Math.random() * candidates.length)].id
-          : state.ladyHolderId; // không còn ai → giữ nguyên holder
-      const newHistory = state.ladyHolderId
-        ? [...state.ladyHistory, state.ladyHolderId].filter(Boolean) as string[]
-        : state.ladyHistory ?? [];
-      await advance(
-        {
-          phase: 'discussion',
-          ladyHolderId: fallback,
-          ladyHistory: newHistory,
-          ladyTargetId: null,
-          ladyShownCard: null,
-          roleAcks: {},
-        },
-        { expect }
-      );
+      if (mode === 'wait' && !ladyMark(state)) {
+        // 'wait': she may have looked only after her time was up, so the
+        // timeout comes at once — first give her LADY_VIEW_MS to see the card
+        // (once: the event written now marks it), as for the game's own look.
+        await advance(
+          { phaseStartedAt: ladyViewClock(state), ladyLastEvent: ladyEvent(state, 'inspected', state.ladyTargetId, state.ladyTargetId ?? '') },
+          { expect }
+        );
+        return;
+      }
+      await advance(ladyPassPatch(state), { expect });
+      return;
     }
-  }, [state, gamePlayers, advance]);
+    if (mode === 'wait') return;
+    const lookForHer = mode === 'random' ? ladyRandomPatch(state, gamePlayers, players) : null;
+    await advance(lookForHer ?? ladySkipPatch(state, gamePlayers), { expect });
+  }, [state, gamePlayers, players, advance]);
+
+  // The host's two answers to a 'wait' nobody resolves (the holder is away):
+  // the same branches the other modes take on their own. Only once her time
+  // is up on the server clock, and only before she has looked. The UI offers
+  // them to the host only (same trust as every other action).
+  const ladyForce = useCallback(
+    async (how: 'skip' | 'random') => {
+      if (!state || state.phase !== 'lady-of-lake' || state.ladyShownCard !== null) return;
+      if (serverNow() - state.phaseStartedAt < phaseTimeoutMs(state)) return;
+      const expect = { ladyTargetId: state.ladyTargetId, ladyShownCard: state.ladyShownCard };
+      const lookForHer = how === 'random' ? ladyRandomPatch(state, gamePlayers, players) : null;
+      await advance(lookForHer ?? ladySkipPatch(state, gamePlayers), { expect });
+    },
+    [state, gamePlayers, players, advance]
+  );
+  const ladyForceSkip = useCallback(() => ladyForce('skip'), [ladyForce]);
+  const ladyForceRandom = useCallback(() => ladyForce('random'), [ladyForce]);
 
   const setAssassinChoice = useCallback(
     async (targetId: string | null, callerId?: string) => {
@@ -796,6 +919,8 @@ export function useAvalon(roomId: string | undefined, room: Room | null, players
     ladyShow,
     ladyFinish,
     ladyTimeoutAdvance,
+    ladyForceSkip,
+    ladyForceRandom,
     setAssassinChoice,
     assassinate,
     assassinTimeoutAdvance,

@@ -9,6 +9,11 @@ import { createContext, useEffect } from 'react';
 // player who looked away sees it from the tab bar.
 export const MyTurnContext = createContext(false);
 
+// The phase's time is running out (hooks/usePhaseClock useLowTime): the same on
+// every screen. With "your turn" the dock's edge turns red; the clocks read it
+// through `low` props.
+export const LowTimeContext = createContext(false);
+
 const MARK = '● ';
 
 export function useTurnTitle(active: boolean) {

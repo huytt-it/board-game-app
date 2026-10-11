@@ -1,7 +1,7 @@
 import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
 import { questNeedsTwoFails } from '../constants';
-import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
+import { formatSecs, isLowTime, usePhaseClock } from '../hooks/usePhaseClock';
 import { LowTimeClock, PanelHead, PanelLine, PanelNote, TwoFailNote } from './shared';
 import ActionDock from '../ui/ActionDock';
 import AvButton from '../ui/AvButton';
@@ -29,16 +29,11 @@ export function TeamBuildSection({
   const picked = team.map((id) => gamePlayers.find((p) => p.id === id)?.name).filter(Boolean);
   const needsTwo = questNeedsTwoFails(gamePlayers.length, state.currentQuest);
 
-  // Countdown 60s cho Leader chọn đội. Hết giờ: auto-submit nếu đủ size,
-  // ngược lại xoay sang Leader kế tiếp (xử lý trong useAvalon). The Leader's
-  // dock is already blinking: their clock only turns red.
+  // Countdown cho Leader chọn đội (thời lượng của ván). Hết giờ: auto-submit
+  // nếu đủ size, ngược lại xoay sang Leader kế tiếp (xử lý trong useAvalon).
+  // The Leader's dock is already blinking: their clock only turns red.
   const { remaining } = usePhaseClock(state);
-  const lowTime = remaining < 15_000;
-  const clock = (
-    <LowTimeClock low={lowTime} throb={!isLeader}>
-      {formatSecs(remaining)}
-    </LowTimeClock>
-  );
+  const clock = <LowTimeClock low={isLowTime(state, remaining)}>{formatSecs(remaining)}</LowTimeClock>;
   const count = (
     <PanelNote data-pick-count={`${team.length}/${teamSize}`}>
       Đã chọn {team.length}/{teamSize}

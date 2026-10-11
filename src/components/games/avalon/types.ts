@@ -73,6 +73,45 @@ export interface AvalonGameState {
   ladyShownCard: 'good' | 'evil' | null;
   seatOrder: string[];
   assassinChoiceId: string | null;
+  // GĐ8 — optional: a game started before them (or an old room) has none and
+  // runs on the defaults.
+  /** Durations (ms) the host set, fixed when the game starts (phaseTimeoutMs). */
+  timeouts?: Partial<Record<AvalonPhase, number>>;
+  /** What happens when the Lady's time runs out before she has looked. */
+  ladyTimeoutMode?: LadyTimeoutMode;
+  /** How the last Lady turn ended — public, never a team (that stays in ladyShownCard). */
+  ladyLastEvent?: LadyEvent | null;
+}
+
+// The six phases whose length the host can set (room settings, GĐ8). The two
+// 8-second result reviews, the night, the role reveal and the line-up stay fixed.
+export type TimedPhase = 'team-build' | 'team-vote' | 'quest-play' | 'discussion' | 'lady-of-lake' | 'assassinate';
+
+/** Seconds: the settings' stepper bounds and step, and the default (= PHASE_TIMEOUTS_MS). */
+export const PHASE_SECONDS_LIMITS: Record<TimedPhase, { min: number; max: number; step: number; def: number }> = {
+  'team-build': { min: 30, max: 180, step: 15, def: 60 },
+  'team-vote': { min: 15, max: 120, step: 15, def: 30 },
+  'quest-play': { min: 30, max: 300, step: 30, def: 120 },
+  'discussion': { min: 60, max: 1200, step: 60, def: 600 },
+  'lady-of-lake': { min: 30, max: 180, step: 15, def: 60 },
+  'assassinate': { min: 60, max: 600, step: 60, def: 180 },
+};
+
+export const TIMED_PHASES = Object.keys(PHASE_SECONDS_LIMITS) as TimedPhase[];
+
+// The Lady's time runs out before she has looked:
+// - 'skip': no look; the token goes to a random player who never held it (default, as before);
+// - 'random': the game looks for her (her aim, or a random valid player) and she sees the card;
+// - 'wait': the game stops until she looks (the host can skip or look at random for her).
+export type LadyTimeoutMode = 'skip' | 'random' | 'wait';
+
+export interface LadyEvent {
+  /** Index of the quest that was just played (the Lady turn after it). */
+  quest: number;
+  holderId: string;
+  targetId: string | null;
+  how: 'inspected' | 'random' | 'skipped';
+  newHolderId: string;
 }
 
 export const PHASE_TIMEOUTS_MS: Record<AvalonPhase, number> = {
@@ -92,7 +131,16 @@ export const PHASE_TIMEOUTS_MS: Record<AvalonPhase, number> = {
   'end': 0,
 };
 
+/** How long `phase` lasts in this game: the duration fixed when it started,
+ *  else the default. The ONLY reader of PHASE_TIMEOUTS_MS. */
+export function phaseTimeoutMs(state: Pick<AvalonGameState, 'phase' | 'timeouts'>, phase: AvalonPhase = state.phase): number {
+  return state.timeouts?.[phase] ?? PHASE_TIMEOUTS_MS[phase];
+}
+
 export interface AvalonRoomConfig {
   optionalRoles: AvalonRole[];
   useLadyOfLake: boolean;
+  /** Seconds per adjustable phase; missing = default. */
+  phaseSeconds?: Partial<Record<TimedPhase, number>>;
+  ladyTimeoutMode?: LadyTimeoutMode;
 }

@@ -1,7 +1,10 @@
-import type { CSSProperties, HTMLAttributes, ReactNode } from 'react';
-import type { AvalonGameState, AvalonRole } from '../types';
+import { useContext, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react';
+import { phaseTimeoutMs, type AvalonGameState, type AvalonRole } from '../types';
 import { ROLE_NAMES_VI } from '../constants';
+import { formatCountdown, usePhaseClock } from '../hooks/usePhaseClock';
+import { useCue } from '../hooks/useCue';
 import AvIcon, { type IconName } from '../assets/AvIcon';
+import { MyTurnContext } from '../ui/MyTurn';
 import RoleEmblem from '../ui/RoleEmblem';
 
 // The phase chip of PlayerPanel's top bar, which is a size container
@@ -15,14 +18,23 @@ import RoleEmblem from '../ui/RoleEmblem';
 // Never an ellipsis: the chip is one 24px line that wraps and clips, so a
 // label that does not fit beside the icon drops to the (hidden) second line
 // and the chip shows the icon alone.
+//
+// Running out of time (GĐ8, `low`): solid red with white text and the seconds
+// left (`countdown`) right after the icon, so a player whose panel is
+// scrolled away still sees it — the same on every screen, night included. It
+// never blinks (the panel's clock or the dock does).
 export function PhaseChip({
   phase,
   compact = false,
   turn = false,
+  low = false,
+  countdown,
 }: {
   phase: AvalonGameState['phase'];
   compact?: boolean;
   turn?: boolean;
+  low?: boolean;
+  countdown?: ReactNode;
 }) {
   const map: Record<string, { icon: IconName; text: string; short?: string }> = {
     'lineup-preview': { icon: 'roles', text: 'Vai trong ván' },
@@ -45,48 +57,96 @@ export function PhaseChip({
   return (
     <span
       className={`flex h-6 min-w-0 flex-wrap items-center justify-center gap-x-1 overflow-hidden whitespace-nowrap rounded-full px-2.5 text-xs font-semibold leading-6 ${
-        turn ? 'bg-(--av-gold)/15 text-(--av-gold)' : 'bg-white/6 text-(--av-text-2)'
+        low ? 'bg-(--av-alarm) text-white' : turn ? 'bg-(--av-gold)/15 text-(--av-gold)' : 'bg-white/6 text-(--av-text-2)'
       }`}
       title={cfg.text}
       aria-label={cfg.text}
       data-phase-chip={phase}
       data-turn={turn ? '' : undefined}
+      data-low-time={low ? '' : undefined}
     >
       <AvIcon name={cfg.icon} size={14} />
+      {low && countdown && <span className="font-bold tabular-nums">{countdown}</span>}
       {short && <span className="@[22rem]:hidden">{cfg.short}</span>}
       <span className={short ? 'hidden @[22rem]:inline' : ''}>{cfg.text}</span>
     </span>
   );
 }
 
+// The chip's seconds while time runs out: ticks on its own (only this text
+// re-renders every second); "Hết giờ" once the clock reads 0 (the Lady's
+// 'wait' mode stays there until someone acts).
+export function ChipCountdown({ state }: { state: AvalonGameState }) {
+  const { remaining } = usePhaseClock(state);
+  return <span role="timer">{remaining > 0 ? formatCountdown(state.phase, remaining) : 'Hết giờ'}</span>;
+}
+
 // Glow colour of "time is running out" (--av-evil, which doubles as the warning colour), for `av-pulse-ring`.
 export const LOW_TIME_GLOW = { '--av-pulse': 'var(--av-evil)' } as CSSProperties;
 
-// A phase countdown. Parchment, red when time is short; it then also throbs
-// through a glow around it (`throb`) — not by fading the digits (animate-pulse
-// would drop them below 4.5:1). Leave `throb` off while the dock's "your turn"
-// edge blinks: one thing blinks at a time.
+// A phase countdown (one fixed height in both states, so the head row does
+// not jump). Parchment while there is time; when it runs out (GĐ8,
+// hooks/usePhaseClock isLowTime) a solid red pill with white, bold, larger
+// digits (--av-alarm: white on it is 6 : 1). Then it also throbs through a
+// glow around it — never by fading the digits — unless the dock's "your turn"
+// edge is blinking (red by then): one thing blinks at a time. `throb` forces
+// it on / off (the assassination: the target's heartbeat is the one beat).
+// Reduced motion: still red, no throb (avalon.css turns the glow's animation off).
 export function LowTimeClock({
   low,
-  throb = low,
+  throb,
+  big = false,
   className = '',
   children,
 }: {
   low: boolean;
   throb?: boolean;
+  /** The night's large countdown. */
+  big?: boolean;
   className?: string;
   children: ReactNode;
 }) {
+  const myTurn = useContext(MyTurnContext);
+  const pulse = low && (throb ?? !myTurn);
+  const size = big ? 'h-10 text-2xl' : low ? 'h-7 text-base' : 'h-7 text-xs';
+  const look = low
+    ? 'bg-(--av-alarm) px-2.5 text-white shadow shadow-black/40'
+    : `px-1.5 ${big ? 'text-(--av-text)' : 'text-(--av-text-2)'}`;
   return (
     <span
-      className={`relative inline-flex items-center gap-1 whitespace-nowrap rounded-full px-1.5 text-xs font-bold tabular-nums ${
-        low ? 'text-(--av-evil-light)' : 'text-(--av-text-2)'
-      } ${low && throb ? 'av-pulse-ring' : ''} ${className}`}
-      style={low && throb ? LOW_TIME_GLOW : undefined}
+      className={`relative inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-full font-bold tabular-nums ${size} ${look} ${
+        pulse ? 'av-pulse-ring' : ''
+      } ${className}`}
+      style={pulse ? LOW_TIME_GLOW : undefined}
+      data-clock=""
       data-low-time={low ? '' : undefined}
+      data-throb={pulse ? '' : undefined}
     >
       <AvIcon name="clock" /> {children}
     </span>
+  );
+}
+
+// A thin bar on the top edge of the phase panel that shrinks to nothing over
+// the phase's duration (GĐ8): a CSS animation lined up with the server clock
+// (duration = the phase's length, delay = −time already gone, see useCue), not
+// a render per frame. Faint (--av-line) while there is time, red when it runs
+// out. Reduced motion: no animation — the static width is the time left,
+// updated every second. Keyed on the phase start: the Lady's clock restarts
+// when she changes her aim.
+export function PhaseTimeBar({ state, low }: { state: AvalonGameState; low: boolean }) {
+  const total = phaseTimeoutMs(state);
+  const startedAt = state.phaseStartedAt ?? 0;
+  const { remaining } = usePhaseClock(state);
+  const cue = useCue(startedAt);
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-x-5 -top-px z-10 h-[3px] overflow-hidden rounded-full" data-time-bar={low ? 'low' : ''}>
+      <div
+        key={`${startedAt}:${total}`}
+        className={`av-timebar h-full w-full ${low ? 'bg-(--av-evil)' : 'bg-(--av-text-3)/45'}`}
+        style={{ animationDuration: `${total}ms`, animationDelay: cue(0), transform: `scaleX(${total > 0 ? remaining / total : 0})` }}
+      />
+    </div>
   );
 }
 
