@@ -776,7 +776,8 @@ Kèm theo là 2 việc nhỏ còn lại sau GĐ7 (mục 8 bên dưới).
   - Giá trị được **chốt lúc bắt đầu ván**.
   - Hai màn xem kết quả vẫn cố định 8 giây (quyết định mục 1). Đêm, lộ vai và lineup giữ nguyên.
 - **Cách làm:** session thực thi riêng, nhạc trưởng review. PR #61 đã được merge (`88bbd567`); GĐ8 sẽ là một PR riêng.
-- **Thư mục làm việc:** thư mục chính của repo có thể đang ở nhánh khác của người dùng (ví dụ `dev-werewolf`). **Không** `git checkout` đổi nhánh ở đó nếu nó đang có thay đổi dở. Hãy làm trong worktree riêng: `git worktree add ../avalon-gd8 dev-avalon-uxui`, hoặc session worktree của app.
+- **Thư mục làm việc:** thư mục chính của repo có thể đang ở nhánh khác của người dùng (ví dụ `dev-werewolf`). **Không** `git checkout` đổi nhánh ở đó nếu nó đang có thay đổi dở. Hãy làm trong worktree riêng: `git worktree add ../avalon-gd8 dev-avalon-gd8`, hoặc session worktree của app.
+- **Nhánh:** **`dev-avalon-gd8`**, tách từ `dev` (2026-10-11) theo yêu cầu của người dùng. Nhánh đã có sẵn commit đồng bộ với main sau #61 (`5dc9d8fe`, không đổi file) và kế hoạch này. GĐ8 commit lên nhánh này, **không** lên `dev-avalon-uxui`.
 
 ### Ngoại lệ mục 2.1 (chỉ GĐ8 được sửa)
 1. **`types.ts`:**
@@ -932,7 +933,7 @@ Không được đổi: luật khác, các timer khác, `TAKEOVER_MS`, schema c�
 
 ## 10. Nhật ký tiến độ (người thực thi cập nhật)
 
-Branch: `dev-avalon-uxui`.
+Branch: `dev-avalon-uxui` (GĐ0–GĐ7), `dev-avalon-gd8` (GĐ8).
 
 | GĐ | Trạng thái | Commit (đầu → cuối) | Model | Ghi chú / lệch kế hoạch |
 |---|---|---|---|---|
@@ -946,7 +947,7 @@ Branch: `dev-avalon-uxui`.
 | 6 Hoàn thiện | **Đã review — đạt** (2026-10-10) | `db179bcf` → `4edc2309` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log db179bcf..HEAD` | Claude Sonnet 5.5 | Token ngắm của Lady bay tới người bị ngắm, thẻ kết quả soi lật chỉ ở máy người cầm Lady, người bị soi / ngoài cuộc chỉ thấy "Đã soi" trung tính; nhịp tim trên mục tiêu Sát Thủ; "Đến lượt bạn" (viền vàng quanh dock + "● " trên tiêu đề tab, không bao giờ ở đêm / lộ vai); 2 `alert()` → banner; bàn hẹp (≥ 8 người, bàn < 350 px); trợ năng (vòng focus, vùng chạm 44 px, `useDialog` giữ focus trong modal, `aria-live`). Hồi quy ván thật 7 tab (có Lady). Lệch kế hoạch + kết quả kiểm thử ở "Ghi chú của người thực thi GĐ6" bên dưới. |
 | 7a Nền thiết kế + khung chung + màn mẫu | **Đã review — đạt** (2026-10-10); người dùng duyệt hướng bằng cách cho chạy GĐ7b | `c962ed66` → `b1f9f504` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log c962ed66..HEAD` | Claude Opus 5.5 | Token mới (`--av-line`, `--av-text/-2/-3`, `--av-raised`), gộp `--av-leader` vào `--av-gold`; `AvButton`, `AvChip`, `GlassPanel` 4 tone, `PhaseChip` một kiểu; top bar chip \| "Vai của tôi" + menu "⋯"; desktop 2 cột; bàn mới (ô Quest gọn, cả hàng ô là một nút mở popup lịch sử, ghế một huy hiệu, avatar "giấy nhuộm"); team-vote màn mẫu; bảng phong cách trong Preview. Ảnh trước / sau ở `.claude/gd7a-shots/` (mở `index.html`). Lệch kế hoạch + số đo ở "Ghi chú của người thực thi GĐ7a" bên dưới. |
 | 7b Áp cho mọi màn | **Đã review — đạt** (2026-10-10) | `f2c9510b` → `a4545ec0` (code) + commit docs ngay sau (cập nhật nhật ký này) — xem `git log f2c9510b..HEAD` | Claude Opus 5.5 | Mọi phase theo khuôn "một câu, một việc" (chọn đội / Lady / Sát Thủ chọn trên bàn, bỏ mọi lưới danh sách và `PlayerRoster`), màn kết thúc thu gọn "Diễn biến ván" (cao 1 màn hình ở 375), màn ngoài ván và modal đổi kiểu, `SceneTitle` vẽ trên dải trống của mặt bàn (0 giao với ghế / ô Quest), chấm đã bầu / sẵn sàng ở mọi ghế, token đội chỉ ở các phase của đội, menu "⋯" sửa vòng focus. Quét sạch: 0 lớp màu bảng màu, 0 `text-[Npx]`, `uppercase` 4, 3 bán kính. Số từ −58 %, gói JS 91,6 KB gzip. **Phát hiện `roleLineup` lưu theo thứ tự ghế** (sửa phía UI; phần dữ liệu cần người dùng quyết). Ảnh ở `.claude/gd7b-shots/` (mở `index.html`). Chi tiết ở "Ghi chú của người thực thi GĐ7b" bên dưới. |
-| 8 Thời gian phase, Lady hết giờ, đồng hồ sắp hết | Chưa làm | | | Xem mục 8c. **Được sửa một phần logic-core** theo "Ngoại lệ mục 2.1" của GĐ8. Làm trên `dev-avalon-uxui` (đã đồng bộ với main sau #61: `5dc9d8fe`). |
+| 8 Thời gian phase, Lady hết giờ, đồng hồ sắp hết | Chưa làm | | | Xem mục 8c. **Được sửa một phần logic-core** theo "Ngoại lệ mục 2.1" của GĐ8. Làm trên nhánh **`dev-avalon-gd8`** (tách từ `dev`, đã đồng bộ với main sau #61: `5dc9d8fe`). |
 
 ### Ghi chú của người thực thi GĐ0
 
