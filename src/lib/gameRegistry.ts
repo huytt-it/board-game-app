@@ -31,6 +31,11 @@ const ClocktowerBoard = dynamic(
   { ssr: false }
 );
 
+const WerewolfBoard = dynamic(
+  () => import('@/components/games/werewolf/WerewolfBoard'),
+  { ssr: false }
+);
+
 const AvalonBoard = dynamic(
   () => import('@/components/games/avalon/AvalonBoard'),
   { ssr: false }
@@ -60,13 +65,13 @@ export const GAME_REGISTRY: GameRegistryEntry[] = [
   },
   {
     key: 'werewolf',
-    label: 'Werewolf',
-    description: 'The village must find the werewolves before night falls. Classic social deduction for 6-18 players.',
+    label: 'Ma Sói',
+    description: 'Không cần quản trò: app gọi từng bước, đếm giờ và công bố kết quả. Ban đêm Sói cắn người, ban ngày cả làng nói chuyện ngoài đời rồi bỏ phiếu treo một người. 5-10 người.',
     icon: '🐺',
-    enabled: false,
-    minPlayers: 6,
-    maxPlayers: 18,
-    component: null,
+    enabled: true,
+    minPlayers: 5,
+    maxPlayers: 10,
+    component: WerewolfBoard,
   },
   {
     key: 'avalon',
