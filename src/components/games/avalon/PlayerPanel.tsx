@@ -7,9 +7,11 @@ import AvButton from './ui/AvButton';
 import RoomMenu from './ui/RoomMenu';
 import { useHold } from './hooks/useHold';
 import { useEndReveal } from './hooks/useEndReveal';
-import { PhaseChip } from './panel/shared';
+import { ChipCountdown, PhaseChip, PhaseTimeBar } from './panel/shared';
 import { needsMyAction } from './panel/myTurn';
-import { MyTurnContext, useTurnTitle } from './ui/MyTurn';
+import { LowTimeContext, MyTurnContext, useTurnTitle } from './ui/MyTurn';
+import { isClocked, useLowTime } from './hooks/usePhaseClock';
+import LadyNotice from './ui/LadyNotice';
 import { LineupPreviewSection } from './panel/LineupPreviewSection';
 import { RoleRevealWaitingSection } from './panel/RoleRevealWaitingSection';
 import { NightSection, nightSight, type NightPhase } from './panel/NightSections';
@@ -39,6 +41,9 @@ interface PlayerPanelProps {
   onLadyConfirm: () => void;
   onLadyShow: (card: 'good' | 'evil') => void;
   onLadyFinish: () => void;
+  /** The host's way out of the Lady's 'wait' once her time is up (GĐ8). */
+  onLadyForceSkip?: () => void;
+  onLadyForceRandom?: () => void;
   onAssassinate: (targetId: string, callerId?: string) => void;
   onSetAssassinChoice?: (targetId: string | null, callerId?: string) => void;
   onShowMyRole: () => void;
@@ -120,6 +125,11 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   const myTurn = needsMyAction(state, myPlayer);
   useTurnTitle(myTurn);
 
+  // The phase's time is running out (GĐ8): the chip turns red with the seconds
+  // left, the bar on the panel turns red, and with "your turn" the dock's edge
+  // blinks red. Time only — the same on every screen, night included.
+  const lowTime = useLowTime(state);
+
   const handleAssassinTablePick = (id: string) => {
     if (!isAssassin || state.phase !== 'assassinate') return;
     if (props.onSetAssassinChoice) {
@@ -157,7 +167,13 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   const topBar = (
     <div className="h-11 border-b border-(--av-line) bg-(color:--av-bar-bg)">
       <div className="@container flex h-full items-center gap-1.5 px-4">
-        <PhaseChip phase={state.phase} compact={hasRoleButtons} turn={myTurn} />
+        <PhaseChip
+          phase={state.phase}
+          compact={hasRoleButtons}
+          turn={myTurn}
+          low={lowTime}
+          countdown={lowTime ? <ChipCountdown state={state} /> : undefined}
+        />
         <div className="ml-auto flex shrink-0 items-center gap-1">
           {hasRoleButtons && (
             <AvButton variant="ghost" icon="eye" onClick={onShowMyRole} title="Xem vai của tôi">
@@ -177,7 +193,10 @@ export default function PlayerPanel(props: PlayerPanelProps) {
   // The phase-specific section panel. Rendered exactly ONCE (see the layout
   // below) so its timers and local state never run twice.
   const phaseSection = (
-    <div className="space-y-3">
+    <div className="relative space-y-3">
+      {/* The phase's time, on the top edge of its first panel (not on the
+          line-up's scroll, which has its own countdown panel). */}
+      {isClocked(state.phase) && state.phase !== 'lineup-preview' && <PhaseTimeBar state={state} low={lowTime} />}
       {/* The two-fail rule is one line inside the panels of the quest that
           has it (team-build, team-vote, quest-play, quest-result). */}
       {state.phase === 'lineup-preview' && (
@@ -266,6 +285,8 @@ export default function PlayerPanel(props: PlayerPanelProps) {
           gamePlayers={gamePlayers}
           onLadyConfirm={props.onLadyConfirm}
           onLadyFinish={props.onLadyFinish}
+          onForceSkip={props.isHost ? props.onLadyForceSkip : undefined}
+          onForceRandom={props.isHost ? props.onLadyForceRandom : undefined}
         />
       )}
 
@@ -303,6 +324,8 @@ export default function PlayerPanel(props: PlayerPanelProps) {
         {myTurn ? 'Đến lượt bạn' : ''}
       </p>
       <div className="sticky top-0 z-20">{topBar}</div>
+      {/* "X đã soi Y" for ~4 s when the Lady's turn ends while this screen is open. */}
+      <LadyNotice state={state} players={gamePlayers} />
 
       {/* ONE DOM for every breakpoint.
           < lg : a single column — table first, then the phase section.
@@ -337,7 +360,9 @@ export default function PlayerPanel(props: PlayerPanelProps) {
 
         <div data-phase-section className="lg:overflow-y-auto lg:py-4 lg:pl-1">
           {/* The dock sits in the section: it blinks when the table waits for you. */}
-          <MyTurnContext.Provider value={myTurn}>{phaseSection}</MyTurnContext.Provider>
+          <MyTurnContext.Provider value={myTurn}>
+            <LowTimeContext.Provider value={lowTime}>{phaseSection}</LowTimeContext.Provider>
+          </MyTurnContext.Provider>
         </div>
       </div>
     </div>

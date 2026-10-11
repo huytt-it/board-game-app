@@ -1,7 +1,7 @@
 'use client';
 
 import { useContext, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
-import { MyTurnContext } from './MyTurn';
+import { LowTimeContext, MyTurnContext } from './MyTurn';
 
 // The phase's main action (submit the team, Approve / Reject, place the card,
 // confirm the Lady's look or the stab, "I'm ready"), always under the thumb.
@@ -17,10 +17,13 @@ import { MyTurnContext } from './MyTurn';
 //
 // When the table is waiting for the viewer (MyTurnContext) a gold edge blinks
 // around the dock — `opacity` of an overlay only, the buttons keep full contrast.
+// It blinks red once the phase's time is running out (LowTimeContext).
 export default function ActionDock({ children, className = '' }: { children: ReactNode; className?: string }) {
   const dock = useRef<HTMLDivElement>(null);
   const [height, setHeight] = useState(0);
   const myTurn = useContext(MyTurnContext);
+  const lowTime = useContext(LowTimeContext);
+  const urgent = myTurn && lowTime;
 
   useLayoutEffect(() => {
     const el = dock.current;
@@ -44,8 +47,8 @@ export default function ActionDock({ children, className = '' }: { children: Rea
       <div
         ref={dock}
         data-action-dock=""
-        data-my-turn={myTurn ? '' : undefined}
-        className={`${myTurn ? 'av-dock-turn ' : ''}fixed inset-x-0 bottom-0 z-30 border-t border-(--av-line) bg-(color:--av-bar-bg) px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_30px_-12px_rgba(0,0,0,0.8)] lg:relative lg:z-auto lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${className}`}
+        data-my-turn={myTurn ? (urgent ? 'urgent' : '') : undefined}
+        className={`${myTurn ? 'av-dock-turn ' : ''}${urgent ? 'av-dock-urgent ' : ''}fixed inset-x-0 bottom-0 z-30 border-t border-(--av-line) bg-(color:--av-bar-bg) px-4 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] shadow-[0_-12px_30px_-12px_rgba(0,0,0,0.8)] lg:relative lg:z-auto lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none ${className}`}
       >
         <div className="mx-auto w-full max-w-lg sm:max-w-xl md:max-w-2xl lg:max-w-none">{children}</div>
       </div>

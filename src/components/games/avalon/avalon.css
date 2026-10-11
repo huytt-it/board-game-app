@@ -55,7 +55,9 @@
   /* Bản đậm của màu phe, cho chữ trên giấy da (thư vai, cuộn các vai). */
   --av-good-ink: #24499c;
   --av-evil-ink: #9c2b2b;
-
+  /* Đỏ đặc của đồng hồ sắp hết giờ (GĐ8): chữ trắng trên nó 6,0 : 1
+     (--av-evil với chữ trắng chỉ ~3,6 : 1). Chỉ cho "hết giờ", không cho phe. */
+  --av-alarm: #b8312f;
 }
 
 /* Font tiêu đề (Cormorant Garamond, có dấu tiếng Việt) — biến
@@ -1098,16 +1100,38 @@
   position: absolute;
   inset: 0;
   pointer-events: none;
-  border-top: 2px solid var(--av-gold);
-  box-shadow: inset 0 0 18px 2px var(--av-gold);
+  border-top: 2px solid var(--av-dock-edge, var(--av-gold));
+  box-shadow: inset 0 0 18px 2px var(--av-dock-edge, var(--av-gold));
   opacity: 0.35;
   animation: av-glow 1.1s ease-in-out infinite alternate;
 }
 @media (min-width: 1024px) {
   .av-dock-turn::after {
-    border: 2px solid var(--av-gold);
+    border: 2px solid var(--av-dock-edge, var(--av-gold));
     border-radius: 1rem;
-    box-shadow: inset 0 0 12px 1px var(--av-gold);
+    box-shadow: inset 0 0 12px 1px var(--av-dock-edge, var(--av-gold));
+  }
+}
+/* GĐ8: đến lượt bạn VÀ sắp hết giờ — viền dock nhấp nháy đỏ (đồng hồ đỏ
+   trong panel thì đứng yên: mỗi lúc một thứ nhấp nháy). */
+.av-dock-urgent {
+  --av-dock-edge: var(--av-evil);
+}
+
+/* Thanh thời gian mảnh ở mép trên panel phase (panel/shared.tsx
+   PhaseTimeBar): co từ đủ về 0 trong đúng thời lượng phase, theo giờ server
+   (animation-duration = thời lượng, animation-delay = −đã trôi). Style tĩnh
+   (giảm chuyển động) là phần còn lại, cập nhật mỗi giây. */
+.av-timebar {
+  transform-origin: left center;
+  animation: av-timebar linear both;
+}
+@keyframes av-timebar {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
   }
 }
 

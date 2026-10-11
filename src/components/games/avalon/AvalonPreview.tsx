@@ -6,12 +6,18 @@ import type { Player } from '@/types/player';
 import type { Room } from '@/types/room';
 import {
   AvalonRole,
+  phaseTimeoutMs,
   type AvalonGameState,
   type AvalonGameData,
   type AvalonQuestRecord,
   type QuestCard,
   type TeamVote,
 } from './types';
+import type { RoomConfig } from '@/types/room';
+import { readConfig } from './useAvalon';
+import { isClocked, lowTimeMs } from './hooks/usePhaseClock';
+import RoomSettings from './RoomSettings';
+import Modal from './ui/Modal';
 import PlayerPanel from './PlayerPanel';
 import RoleReveal from './RoleReveal';
 import RoleCard from './RoleCard';
@@ -75,6 +81,20 @@ type PreviewPhase =
   | 'lady-target-inspected-evil'
   | 'lady-bystander-aiming'
   | 'lady-bystander-inspected'
+  | 'lady-skip-holder'
+  | 'lady-random-holder'
+  | 'lady-wait-holder'
+  | 'lady-random-holder-auto'
+  | 'lady-random-target-auto'
+  | 'lady-random-bystander-auto'
+  | 'lady-wait-holder-expired'
+  | 'lady-wait-target-expired'
+  | 'lady-wait-bystander-expired'
+  | 'lady-wait-host-expired'
+  | 'discussion-lady-inspected'
+  | 'discussion-lady-random'
+  | 'discussion-lady-skipped'
+  | 'settings'
   | 'assassinate-as-assassin'
   | 'assassinate-good-bystander'
   | 'assassinate-evil-bystander'
@@ -130,6 +150,20 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
   'lady-target-inspected-evil': 'Lady — bạn đã bị soi (Quỷ)',
   'lady-bystander-aiming': 'Lady — ngoài cuộc (đang ngắm)',
   'lady-bystander-inspected': 'Lady — ngoài cuộc (đã soi)',
+  'lady-skip-holder': 'Lady hết giờ "Bỏ lượt" — người cầm, sắp hết giờ',
+  'lady-random-holder': 'Lady hết giờ "Soi ngẫu nhiên" — người cầm, sắp hết giờ',
+  'lady-wait-holder': 'Lady hết giờ "Dừng lại" — người cầm, sắp hết giờ',
+  'lady-random-holder-auto': 'Lady "Soi ngẫu nhiên" đã hết giờ — người cầm (thẻ lật)',
+  'lady-random-target-auto': 'Lady "Soi ngẫu nhiên" đã hết giờ — người bị soi',
+  'lady-random-bystander-auto': 'Lady "Soi ngẫu nhiên" đã hết giờ — người ngoài',
+  'lady-wait-holder-expired': 'Lady "Dừng lại" đã hết giờ — người cầm',
+  'lady-wait-target-expired': 'Lady "Dừng lại" đã hết giờ — người bị ngắm',
+  'lady-wait-bystander-expired': 'Lady "Dừng lại" đã hết giờ — người ngoài',
+  'lady-wait-host-expired': 'Lady "Dừng lại" đã hết giờ — chủ phòng (2 nút)',
+  'discussion-lady-inspected': 'Thảo luận — sau Lady: đã soi',
+  'discussion-lady-random': 'Thảo luận — sau Lady: hết giờ, tự soi ngẫu nhiên',
+  'discussion-lady-skipped': 'Thảo luận — sau Lady: hết giờ, bỏ lượt',
+  settings: 'Cài đặt phòng (Thời gian, Lady hết giờ)',
   'assassinate-as-assassin': 'Ám sát (bạn là Sát Thủ)',
   'assassinate-good-bystander': 'Ám sát (Người — im lặng)',
   'assassinate-evil-bystander': 'Ám sát (Quỷ — hội ý)',
@@ -141,7 +175,7 @@ const PHASE_LABELS: Record<PreviewPhase, string> = {
 };
 
 const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
-  { label: 'Thiết kế (GĐ7)', items: ['style'] },
+  { label: 'Thiết kế (GĐ7)', items: ['style', 'settings'] },
   { label: 'Vào phòng', items: ['join', 'join-closed'] },
   { label: 'Phòng chờ', items: ['lobby'] },
   { label: 'Trước ván', items: ['dealing', 'lineup-preview'] },
@@ -182,7 +216,14 @@ const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
   { label: 'KQ Quest', items: ['quest-result-success', 'quest-result-fail', 'quest-result-q4-one-fail', 'quest-result-five'] },
   {
     label: 'Thảo luận sau Quest',
-    items: ['discussion-pending', 'discussion-mostly-ready', 'discussion-i-acked'],
+    items: [
+      'discussion-pending',
+      'discussion-mostly-ready',
+      'discussion-i-acked',
+      'discussion-lady-inspected',
+      'discussion-lady-random',
+      'discussion-lady-skipped',
+    ],
   },
   {
     label: 'Lady of the Lake',
@@ -196,6 +237,21 @@ const PHASE_GROUPS: { label: string; items: PreviewPhase[] }[] = [
       'lady-target-inspected-evil',
       'lady-bystander-aiming',
       'lady-bystander-inspected',
+    ],
+  },
+  {
+    label: 'Lady hết giờ (GĐ8)',
+    items: [
+      'lady-skip-holder',
+      'lady-random-holder',
+      'lady-wait-holder',
+      'lady-random-holder-auto',
+      'lady-random-target-auto',
+      'lady-random-bystander-auto',
+      'lady-wait-holder-expired',
+      'lady-wait-target-expired',
+      'lady-wait-bystander-expired',
+      'lady-wait-host-expired',
     ],
   },
   {
@@ -289,12 +345,36 @@ function evilJourney(): AvalonQuestRecord[] {
   return q;
 }
 
+// The Lady's default length — the GĐ8 scenes keep the default durations (no
+// `timeouts` in their state, like a game from before GĐ8).
+const LADY_T = phaseTimeoutMs({ phase: 'lady-of-lake' });
+
+// A Lady turn after quest II (index 1): two quests played, David holds her.
+function ladyBase(base: AvalonGameState): AvalonGameState {
+  const quests = emptyQuests();
+  quests[0] = played(quests[0], 'p1', ['p1', 'p3'], [5, 2], 0);
+  quests[1] = played(quests[1], 'p2', ['p2', 'p5', 'p7'], [4, 3], 1);
+  return {
+    ...base,
+    phase: 'lady-of-lake',
+    currentQuest: 2,
+    currentLeaderId: 'p3',
+    quests,
+    roleAcks: {},
+    ladyHolderId: 'p4',
+    ladyHistory: [],
+    ladyTargetId: null,
+    ladyShownCard: null,
+  };
+}
+
 // `replay` rebuilds the scene as if the phase had JUST started (phaseStartedAt =
 // serverNow()), so entry animations and countdowns can be watched again.
+// `isHost` (default true): whether the viewer is the room's host.
 function buildScene(
-  phase: Exclude<PreviewPhase, 'style'>,
+  phase: Exclude<PreviewPhase, 'style' | 'settings'>,
   replay: boolean
-): { players: Player[]; state: AvalonGameState; viewerId: string } {
+): { players: Player[]; state: AvalonGameState; viewerId: string; isHost?: boolean } {
   const players = basePlayers();
   // Phase start time `ms` milliseconds in the past — all on the shared server clock.
   const ago = (ms: number) => serverNow() - (replay ? 0 : ms);
@@ -690,6 +770,87 @@ function buildScene(
         },
         viewerId: 'p2',
       };
+
+    // GĐ8 — the Lady's time running out, in each of the room's three modes.
+    // After quest II (index 1): David (p4) holds her. Before the deadline the
+    // holder is told what will happen; after it, 'random' has looked for her
+    // (Grace, 10 s left to see the card) and 'wait' stands still (aimed at
+    // Charlie, not confirmed) — the host (Alice) gets two buttons.
+    case 'lady-skip-holder':
+    case 'lady-random-holder':
+    case 'lady-wait-holder':
+      return {
+        players,
+        state: {
+          ...ladyBase(base),
+          ladyTimeoutMode: phase === 'lady-skip-holder' ? 'skip' : phase === 'lady-random-holder' ? 'random' : 'wait',
+          ladyTargetId: 'p7',
+          phaseStartedAt: ago(LADY_T - 8_000),
+        },
+        viewerId: 'p4',
+      };
+
+    case 'lady-random-holder-auto':
+    case 'lady-random-target-auto':
+    case 'lady-random-bystander-auto':
+      return {
+        players,
+        state: {
+          ...ladyBase(base),
+          ladyTimeoutMode: 'random',
+          ladyTargetId: 'p7',
+          ladyShownCard: 'evil',
+          ladyLastEvent: { quest: 1, holderId: 'p4', targetId: 'p7', how: 'random', newHolderId: 'p7' },
+          phaseStartedAt: ago(LADY_T - 10_000),
+        },
+        viewerId: phase === 'lady-random-holder-auto' ? 'p4' : phase === 'lady-random-target-auto' ? 'p7' : 'p2',
+      };
+
+    case 'lady-wait-holder-expired':
+    case 'lady-wait-target-expired':
+    case 'lady-wait-bystander-expired':
+    case 'lady-wait-host-expired':
+      return {
+        players,
+        state: {
+          ...ladyBase(base),
+          ladyTimeoutMode: 'wait',
+          ladyTargetId: 'p3',
+          ladyShownCard: null,
+          phaseStartedAt: ago(LADY_T + 35_000),
+        },
+        viewerId:
+          phase === 'lady-wait-holder-expired'
+            ? 'p4'
+            : phase === 'lady-wait-target-expired'
+              ? 'p3'
+              : phase === 'lady-wait-host-expired'
+                ? 'p1'
+                : 'p2',
+        isHost: phase === 'lady-wait-host-expired',
+      };
+
+    // The discussion right after a Lady turn: one more line says how it ended.
+    case 'discussion-lady-inspected':
+    case 'discussion-lady-random':
+    case 'discussion-lady-skipped': {
+      const how = phase === 'discussion-lady-inspected' ? 'inspected' : phase === 'discussion-lady-random' ? 'random' : 'skipped';
+      const target = how === 'skipped' ? null : 'p7';
+      const newHolder = how === 'skipped' ? 'p6' : 'p7';
+      return {
+        players,
+        state: {
+          ...ladyBase(base),
+          phase: 'discussion',
+          roleAcks: { p1: true, p5: true },
+          ladyHolderId: newHolder,
+          ladyHistory: ['p4'],
+          ladyLastEvent: { quest: 1, holderId: 'p4', targetId: target, how, newHolderId: newHolder },
+          phaseStartedAt: ago(40_000),
+        },
+        viewerId: 'p3',
+      };
+    }
 
     case 'team-vote-result-approved':
       return {
@@ -1104,15 +1265,24 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   const [forceStorm, setForceStorm] = useState(false);
   const [gameNo, setGameNo] = useState(0);
 
+  // GĐ8: "Sắp hết giờ" moves the phase start so that the clocked phases are
+  // 3 s into their "running out" stretch (max(10 s, 15 %) of the duration).
+  const [lowTime, setLowTime] = useState(false);
+  // The settings modal's own room config (the 'settings' scene).
+  const [settingsConfig, setSettingsConfig] = useState<RoomConfig>({ maxPlayers: 10, optionalRoles: [], useLadyOfLake: true });
+
   const built = useMemo(() => {
-    // The style board has no game of its own: any built scene will do.
-    const b = buildScene(phase === 'style' ? 'team-vote-not-voted' : phase, replayNonce > 0);
+    // The style board and the settings have no game of their own: any built scene will do.
+    const b = buildScene(phase === 'style' || phase === 'settings' ? 'team-vote-not-voted' : phase, replayNonce > 0);
     const seatOrder = mockSeatOrder(b.state.seatOrder, gameNo);
-    return { ...b, state: { ...b.state, seatOrder } };
-  }, [phase, replayNonce, gameNo]);
+    const T = phaseTimeoutMs(b.state);
+    const phaseStartedAt =
+      lowTime && isClocked(b.state.phase) ? serverNow() - (T - (lowTimeMs(T) - 3_000)) : b.state.phaseStartedAt;
+    return { ...b, state: { ...b.state, seatOrder, phaseStartedAt } };
+  }, [phase, replayNonce, gameNo, lowTime]);
   const viewerId = built.viewerId;
 
-  const simKey = `${phase}:${replayNonce}:${gameNo}`;
+  const simKey = `${phase}:${replayNonce}:${gameNo}:${lowTime}`;
   const [simState, setSimState] = useState<Sim>(() => freshSim(simKey));
   const sim = simState.key === simKey ? simState : freshSim(simKey);
   const updateSim = (f: (s: Sim) => Sim) => setSimState((cur) => f(cur.key === simKey ? cur : freshSim(simKey)));
@@ -1230,7 +1400,8 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
   // The order people joined in, as the line-up's seats slide from it.
   const joinOrder = useMemo(() => mockSeatOrder(players.map((p) => p.id), gameNo + 101), [players, gameNo]);
 
-  const preGame = phase === 'style' || phase === 'lobby' || phase === 'join' || phase === 'join-closed' || phase === 'dealing';
+  const preGame =
+    phase === 'style' || phase === 'settings' || phase === 'lobby' || phase === 'join' || phase === 'join-closed' || phase === 'dealing';
   const autoScene = getScene(preGame ? null : state, 'preview', playerCount);
   const sceneId = sceneChoice === 'auto' ? autoScene.id : sceneChoice;
   const storm = forceStorm || (sceneChoice === 'auto' && autoScene.storm);
@@ -1333,6 +1504,19 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
               />
               Bão
             </label>
+            <label
+              className="shrink-0 flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm font-bold text-slate-200"
+              title="Dời giờ bắt đầu phase để đồng hồ đang ở đoạn sắp hết giờ (GĐ8)"
+            >
+              <input
+                type="checkbox"
+                checked={lowTime}
+                onChange={(e) => setLowTime(e.target.checked)}
+                className="accent-purple-500"
+                data-preview-low-time=""
+              />
+              Sắp hết giờ
+            </label>
           </div>
           <div className="flex items-center gap-2 text-[11px] text-slate-400">
             <p className="min-w-0 flex-1">
@@ -1401,6 +1585,17 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
       <div className="flex-1 overflow-y-auto" data-preview-scene={sceneId}>
         {phase === 'style' ? (
           <StyleBoard />
+        ) : phase === 'settings' ? (
+          // The host's settings modal, on a local copy of the room config.
+          <Modal open onClose={() => setPhase('style')} icon="settings" title="Cài đặt Avalon">
+            <RoomSettings
+              config={settingsConfig}
+              onUpdateConfig={(next) => setSettingsConfig((c) => ({ ...c, ...next }))}
+              playerCount={players.length}
+              phaseSeconds={readConfig({ config: settingsConfig } as Room).phaseSeconds}
+              ladyTimeoutMode={readConfig({ config: settingsConfig } as Room).ladyTimeoutMode}
+            />
+          </Modal>
         ) : phase === 'join' || phase === 'join-closed' ? (
           <AvalonJoinScreen
             room={mockRoom(phase === 'join' ? 'lobby' : 'day', players.length)}
@@ -1456,7 +1651,9 @@ export default function AvalonPreview({ onClose }: { onClose: () => void }) {
             onAckDiscussion={onAckDiscussion}
             onPlayAgain={stub}
             onLeaveRoom={onClose}
-            isHost={true}
+            isHost={built.isHost ?? true}
+            onLadyForceSkip={stub}
+            onLadyForceRandom={stub}
             roomId="preview"
             joinOrder={joinOrder}
           />

@@ -19,13 +19,16 @@ import AvIcon, { type IconName } from '../assets/AvIcon';
 // - `bare`: no look and no size of its own — a drawn object that is pressed
 //   (the sealed role letter); it keeps the shared focus ring and disabled state.
 //
-// Sizes: `md` ≥ 44px, `lg` 56px (the dock). Disabled is the same for all: dimmed,
-// no hover. The focus ring is avalon.css's (every button in .avalon-root).
+// Sizes: `md` ≥ 44px, `lg` 56px (the dock). Disabled: dimmed, no hover — except
+// `primary`, which turns into a plain neutral face (raised ink, --av-text-3,
+// no shadow, no dimming: "not yet", 4.8 : 1) instead of a muddy faded gold.
+// The focus ring is avalon.css's (every button in .avalon-root).
 export type AvButtonVariant = 'primary' | 'secondary' | 'danger' | 'ghost' | 'choice' | 'bare';
 export type AvButtonSize = 'md' | 'lg';
 
 const VARIANT: Record<AvButtonVariant, string> = {
-  primary: 'rounded-xl bg-(--av-gold) text-(--av-ink) shadow-lg shadow-black/30 enabled:hover:brightness-110',
+  primary:
+    'rounded-xl bg-(--av-gold) text-(--av-ink) shadow-lg shadow-black/30 enabled:hover:brightness-110 disabled:bg-(--av-raised) disabled:text-(--av-text-3) disabled:shadow-none',
   secondary: 'rounded-xl border border-(--av-line) bg-(color:--av-glass-bg) text-(--av-text) enabled:hover:border-(--av-text-3)',
   danger: 'rounded-xl border border-(--av-evil)/60 bg-(color:--av-glass-bg) text-(--av-evil-light) enabled:hover:border-(--av-evil)',
   ghost: 'text-(--av-text-2) enabled:hover:bg-white/10 enabled:hover:text-(--av-text)',
@@ -76,9 +79,10 @@ export default function AvButton({
         : 'av-hit [--av-hit-x:-4px] [--av-hit-y:-4px] h-9 min-w-9 rounded-full px-2 text-xs';
   const look = variant === 'ghost' && danger ? GHOST_DANGER : VARIANT[variant];
   const picked = variant === 'choice' && selected ? 'border-(--av-gold) bg-(--av-gold)/10 ring-1 ring-(--av-gold)' : '';
+  const dim = variant === 'primary' ? '' : 'disabled:opacity-40';
   const base = bare
-    ? 'relative block select-none disabled:cursor-not-allowed disabled:opacity-40'
-    : `relative inline-flex items-center ${align === 'start' ? 'justify-start' : 'justify-center'} gap-2 font-semibold leading-tight transition select-none enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40`;
+    ? `relative block select-none disabled:cursor-not-allowed ${dim}`
+    : `relative inline-flex items-center ${align === 'start' ? 'justify-start' : 'justify-center'} gap-2 font-semibold leading-tight transition select-none enabled:active:scale-[0.98] disabled:cursor-not-allowed ${dim}`;
   return (
     <button
       type={type}

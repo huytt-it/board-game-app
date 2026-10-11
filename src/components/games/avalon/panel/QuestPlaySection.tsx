@@ -3,7 +3,8 @@ import type { Player } from '@/types/player';
 import type { AvalonGameData, AvalonGameState, QuestCard } from '../types';
 import { questNeedsTwoFails } from '../constants';
 import { playedIds } from '../table/CardPile';
-import { PanelHead, PanelLine, PanelNote, TwoFailNote } from './shared';
+import { formatCountdown, isLowTime, usePhaseClock } from '../hooks/usePhaseClock';
+import { LowTimeClock, PanelHead, PanelLine, PanelNote, TwoFailNote } from './shared';
 import ActionDock from '../ui/ActionDock';
 import AvButton from '../ui/AvButton';
 import GlassPanel from '../ui/GlassPanel';
@@ -50,6 +51,11 @@ export function QuestPlaySection({
   }, [toast]);
   const showToast = (text: string) => setToast((prev) => ({ text, id: (prev?.id ?? 0) + 1 }));
   const played = playedIds(state, gamePlayers).length;
+  // The phase's clock (GĐ8: its length is a room setting now). A card not
+  // played in time counts as success — so the team must see the time run out.
+  // The same clock for everyone (in the team or not).
+  const { remaining } = usePhaseClock(state);
+  const clock = <LowTimeClock low={isLowTime(state, remaining)}>{formatCountdown(state.phase, remaining)}</LowTimeClock>;
   // "x/y lá đã đặt": how many members' cards are in — a count, never whose or which.
   const count = (
     <PanelNote data-played-count={`${played}/${teamSize}`}>
@@ -63,7 +69,7 @@ export function QuestPlaySection({
   if (!onTeam) {
     return (
       <GlassPanel className="p-4">
-        <PanelHead title="Đội làm nhiệm vụ" />
+        <PanelHead title="Đội làm nhiệm vụ" clock={clock} />
         <PanelLine>Bạn không trong đội — chờ đội đặt lá.</PanelLine>
         {count}
         {needsTwo && <TwoFailNote />}
@@ -74,7 +80,7 @@ export function QuestPlaySection({
   if (myCard) {
     return (
       <GlassPanel className="p-4">
-        <PanelHead title="Đã đặt lá" />
+        <PanelHead title="Đã đặt lá" clock={clock} />
         <PanelLine>Lá của bạn đã úp vào chồng bài giữa bàn.</PanelLine>
         {count}
       </GlassPanel>
@@ -84,7 +90,7 @@ export function QuestPlaySection({
   return (
     <div className="space-y-3">
       <GlassPanel tone="accent" className="p-4">
-        <PanelHead title="Chọn lá bài" />
+        <PanelHead title="Chọn lá bài" clock={clock} />
         {/* The same rule text for everyone on the team, so it reveals nothing. */}
         <PanelLine>Phe Người luôn đặt lá Phe Người; Phe Quỷ chọn lá nào cũng được.</PanelLine>
         {count}

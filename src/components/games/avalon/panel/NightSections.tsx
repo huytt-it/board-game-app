@@ -2,10 +2,10 @@
 
 import { useState, type HTMLAttributes } from 'react';
 import type { Player } from '@/types/player';
-import { AvalonRole, PHASE_TIMEOUTS_MS, type AvalonGameData, type AvalonGameState } from '../types';
+import { AvalonRole, type AvalonGameData, type AvalonGameState } from '../types';
 import { ROLE_NAMES_VI } from '../constants';
-import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
-import { DockStatus } from './shared';
+import { formatCountdown, isLowTime, usePhaseClock } from '../hooks/usePhaseClock';
+import { DockStatus, LowTimeClock } from './shared';
 import AvIcon, { type IconName } from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
 import AvButton from '../ui/AvButton';
@@ -62,18 +62,24 @@ export const NIGHT_CALL: Record<NightPhase, { icon: IconName; who: string; line:
   'night-percival': { icon: 'percival', who: 'Percival', line: 'Percival thấy Merlin và Morgana — không rõ ai là ai.' },
 };
 
-function NightCountdown({ state, phase, allActiveAcked }: { state: AvalonGameState; phase: NightPhase; allActiveAcked: boolean }) {
-  const { remaining } = usePhaseClock(state, PHASE_TIMEOUTS_MS[phase]);
-  const low = remaining < 15000;
+// The turn's countdown: the same on every screen (time and the called
+// players' acks are public) — red pill when it runs out (GĐ8). Nobody has
+// "your turn" at night, so the clock is the one thing that throbs.
+function NightCountdown({ state, allActiveAcked }: { state: AvalonGameState; allActiveAcked: boolean }) {
+  const { remaining } = usePhaseClock(state);
+  const low = isLowTime(state, remaining);
   return (
     <GlassPanel tone={!allActiveAcked && low ? 'evil' : 'neutral'} className="flex items-center justify-between gap-3 p-4">
       <p className="text-sm text-(--av-text-2)">{allActiveAcked ? 'Đang chuyển bước…' : 'Tự động qua bước sau'}</p>
-      <p
-        className={`text-2xl font-bold tabular-nums ${allActiveAcked ? 'text-(--av-gold)' : low ? 'text-(--av-evil-light)' : 'text-(--av-text)'}`}
-        role="timer"
-      >
-        {allActiveAcked ? <AvIcon name="check" title="Đã xong" /> : formatClock(remaining)}
-      </p>
+      {allActiveAcked ? (
+        <p className="text-2xl text-(--av-gold)">
+          <AvIcon name="check" title="Đã xong" />
+        </p>
+      ) : (
+        <LowTimeClock low={low} big>
+          <span role="timer">{formatCountdown(state.phase, remaining)}</span>
+        </LowTimeClock>
+      )}
     </GlassPanel>
   );
 }
@@ -204,7 +210,7 @@ export function NightSection({
 
   return (
     <div className="flex flex-col gap-3">
-      <NightCountdown state={state} phase={phase} allActiveAcked={allActiveAcked} />
+      <NightCountdown state={state} allActiveAcked={allActiveAcked} />
       <ActionDock>
         <div className="flex flex-col gap-2">
           <NightCard phase={phase} me={myPlayer} sight={sight} held={held} bind={holdBind} />

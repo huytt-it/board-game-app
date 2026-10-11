@@ -1,7 +1,7 @@
 import type { Player } from '@/types/player';
 import { AvalonRole, type AvalonGameData, type AvalonGameState } from '../types';
 import { ROLE_NAMES_VI } from '../constants';
-import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
+import { formatCountdown, isLowTime, usePhaseClock } from '../hooks/usePhaseClock';
 import { useConfirm } from '../hooks/useConfirm';
 import { LowTimeClock, PanelHead, PanelLine, PanelNote } from './shared';
 import ActionDock from '../ui/ActionDock';
@@ -34,10 +34,9 @@ export function AssassinSection({
 
   const { remaining } = usePhaseClock(state);
   const { ask, dialog: confirmDialog } = useConfirm();
-  // Rounded UP to whole seconds before formatting as m:ss (unlike formatClock
-  // alone, which rounds down), so the label hits 0:00 only when time is up.
-  const timeLabel = formatClock(Math.ceil(remaining / 1000) * 1000);
-  const lowTime = remaining <= 30_000;
+  // m:ss rounded UP to whole seconds, so the label hits 0:00 only when time is up.
+  const timeLabel = formatCountdown(state.phase, remaining);
+  const lowTime = isLowTime(state, remaining);
   const pickedName = <span className="font-semibold text-(--av-text)">{picked?.name}</span>;
 
   const line = isAssassin ? (
@@ -60,7 +59,7 @@ export function AssassinSection({
         <PanelHead
           title="Sát Thủ tìm Merlin"
           clock={
-            <LowTimeClock low={lowTime} throb={false} className="text-sm">
+            <LowTimeClock low={lowTime} throb={false}>
               {timeLabel}
             </LowTimeClock>
           }

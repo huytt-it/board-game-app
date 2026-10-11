@@ -1,6 +1,6 @@
 import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
-import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
+import { formatCountdown, isLowTime, usePhaseClock } from '../hooks/usePhaseClock';
 import { LowTimeClock, PanelHead, PanelLine, PanelNote } from './shared';
 import ActionDock from '../ui/ActionDock';
 import AvButton from '../ui/AvButton';
@@ -35,7 +35,7 @@ export function RoleRevealWaitingSection({
           title="Đang đọc thư"
           clock={
             allAcked ? undefined : (
-              <LowTimeClock low={remaining < 30_000}>{formatClock(remaining)}</LowTimeClock>
+              <LowTimeClock low={isLowTime(state, remaining)}>{formatCountdown(state.phase, remaining)}</LowTimeClock>
             )
           }
         />

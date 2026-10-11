@@ -4,10 +4,10 @@ import type { Player } from '@/types/player';
 import type { AvalonGameState, AvalonRole } from '../types';
 import { ROLE_TEAM } from '../constants';
 import { inDisplayOrder } from '../presentation';
-import { formatClock, usePhaseClock } from '../hooks/usePhaseClock';
+import { formatCountdown, isLowTime, usePhaseClock } from '../hooks/usePhaseClock';
 import { useCue } from '../hooks/useCue';
 import { LINEUP } from '../table/timelines';
-import { DockStatus, RoleLineChip } from './shared';
+import { DockStatus, LowTimeClock, RoleLineChip } from './shared';
 import AvIcon from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
 import AvButton from '../ui/AvButton';
@@ -37,7 +37,7 @@ export function LineupPreviewSection({
   const ackCount = ackedIds.length;
   const total = gamePlayers.length;
   const allAcked = ackCount >= total;
-  const low = remaining < 15000;
+  const low = isLowTime(state, remaining);
 
   // Listed in a fixed order, never in roleLineup's (seat) order — see inDisplayOrder.
   const lineup = inDisplayOrder(state.roleLineup ?? []);
@@ -142,17 +142,17 @@ export function LineupPreviewSection({
             {ackCount}/{total}
           </span>
         </p>
-        <p
-          className={`shrink-0 text-right text-xs ${low && !allAcked ? 'text-(--av-evil-light)' : 'text-(--av-text-2)'}`}
-          role="timer"
-        >
+        <p className="flex shrink-0 items-center gap-1.5 text-right text-xs text-(--av-text-2)">
           {allAcked ? (
             <>
               <AvIcon name="check" className="text-(--av-gold)" /> Đang chia vai
             </>
           ) : (
             <>
-              Tự chia sau <span className="text-base font-bold tabular-nums">{formatClock(remaining)}</span>
+              Tự chia sau{' '}
+              <LowTimeClock low={low}>
+                <span role="timer">{formatCountdown(state.phase, remaining)}</span>
+              </LowTimeClock>
             </>
           )}
         </p>

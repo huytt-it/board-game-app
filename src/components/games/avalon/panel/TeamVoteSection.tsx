@@ -1,7 +1,7 @@
 import type { Player } from '@/types/player';
 import type { AvalonGameState, TeamVote } from '../types';
 import { questNeedsTwoFails } from '../constants';
-import { formatSecs, usePhaseClock } from '../hooks/usePhaseClock';
+import { formatSecs, isLowTime, usePhaseClock } from '../hooks/usePhaseClock';
 import { useArrivals } from '../hooks/useArrivals';
 import AvIcon from '../assets/AvIcon';
 import ActionDock from '../ui/ActionDock';
@@ -31,12 +31,12 @@ export function TeamVoteSection({
   const votedCount = Object.keys(state.teamVotes).length;
   const needsTwo = questNeedsTwoFails(gamePlayers.length, state.currentQuest);
 
-  // Đếm ngược 30s — hết giờ player chưa bầu = REJECT mặc định. The last ten
-  // seconds the clock turns red; it also throbs (through its glow: the digits
-  // keep their contrast) once you have voted — before that the dock's "your
-  // turn" edge is already blinking, and one thing blinks at a time.
+  // Đếm ngược (thời lượng của ván) — hết giờ player chưa bầu = REJECT mặc
+  // định. When time runs out the clock turns red; it also throbs (through its
+  // glow: the digits keep their contrast) once you have voted — before that
+  // the dock's "your turn" edge is blinking, and one thing blinks at a time.
   const { remaining } = usePhaseClock(state);
-  const lowTime = remaining < 10_000;
+  const lowTime = isLowTime(state, remaining);
 
   // My own ballot turns face down when I vote — the same card whether I
   // approved or rejected.
@@ -49,9 +49,7 @@ export function TeamVoteSection({
         <PanelHead
           title="Bỏ phiếu đội"
           clock={
-            <LowTimeClock low={lowTime} throb={!!myVote}>
-              {formatSecs(remaining)}
-            </LowTimeClock>
+            <LowTimeClock low={lowTime}>{formatSecs(remaining)}</LowTimeClock>
           }
         />
         <PanelLine data-vote-team="">
