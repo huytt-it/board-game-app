@@ -4,8 +4,11 @@ import {
   MAX_PLAYERS,
   MIN_PLAYERS,
   ROLE_ORDER,
+  BALANCE_WARN,
   ROLE_PRESETS,
+  balanceLean,
   balanceScore,
+  balanceWarning,
   dealRoles,
   nightActionOf,
   presetFor,
@@ -159,4 +162,43 @@ test('việc Đêm ① của từng vai', () => {
   assert.equal(nightActionOf('seer'), 'seer');
   assert.equal(nightActionOf('guard'), 'guard');
   for (const role of ['villager', 'witch', 'hunter'] as const) assert.equal(nightActionOf(role), 'suspect');
+});
+
+describe('cảnh báo cân bằng (rules §4, ±BALANCE_WARN)', () => {
+  test('ngưỡng là 6', () => {
+    assert.equal(BALANCE_WARN, 6);
+  });
+
+  test('bộ mặc định 5–10 người không bao giờ bị cảnh báo', () => {
+    for (let n = MIN_PLAYERS; n <= MAX_PLAYERS; n++) {
+      assert.equal(balanceWarning(presetFor(n) as RoleCounts), null, `${n} người`);
+    }
+  });
+
+  test('đúng ±6 thì không cảnh báo, quá ±6 thì cảnh báo (không phải lỗi bắt đầu)', () => {
+    // +6: 1 Sói, Tiên tri, Bảo vệ, 2 Dân (bộ 5 người).
+    assert.equal(balanceWarning({ werewolf: 1, seer: 1, guard: 1, villager: 2 }), null);
+    // −6: 3 Sói, Tiên tri, Bảo vệ, 2 Dân (7 người) = −18 + 7 + 3 + 2.
+    assert.equal(balanceScore({ werewolf: 3, seer: 1, guard: 1, villager: 2 }), -6);
+    assert.equal(balanceWarning({ werewolf: 3, seer: 1, guard: 1, villager: 2 }), null);
+    // +7: 1 Sói, Tiên tri, Bảo vệ, 3 Dân (6 người).
+    const many = { werewolf: 1, seer: 1, guard: 1, villager: 3 };
+    assert.equal(balanceScore(many), 7);
+    assert.match(balanceWarning(many) ?? '', /phía Dân \(điểm \+7\)/);
+    assert.deepEqual(validateSetup(6, many), []);
+    // −7: 2 Sói, 5 Dân (7 người).
+    const wolfy = { werewolf: 2, villager: 5 };
+    assert.equal(balanceScore(wolfy), -7);
+    assert.match(balanceWarning(wolfy) ?? '', /phía Sói \(điểm -7\)/);
+    assert.deepEqual(validateSetup(7, wolfy), []);
+  });
+
+  test('nhãn lợi Dân / cân / lợi Sói', () => {
+    assert.equal(balanceLean(6), 'village');
+    assert.equal(balanceLean(3), 'village');
+    assert.equal(balanceLean(2), 'even');
+    assert.equal(balanceLean(0), 'even');
+    assert.equal(balanceLean(-2), 'even');
+    assert.equal(balanceLean(-3), 'wolves');
+  });
 });

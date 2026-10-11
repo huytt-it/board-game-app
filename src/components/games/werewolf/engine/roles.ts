@@ -94,6 +94,39 @@ export function balanceScore(counts: RoleCounts): number {
   return ROLE_ORDER.reduce((sum, role) => sum + full[role] * ROLE_POINTS[role], 0);
 }
 
+/**
+ * Điểm lệch quá mức này (nhỏ hơn −6 hoặc lớn hơn +6) thì sảnh cảnh báo, không
+ * chặn bắt đầu ván. Bộ mặc định cao nhất là +6 nên không bao giờ bị cảnh báo
+ * (rules §4, người dùng chốt 2026-10-11).
+ */
+export const BALANCE_WARN = 6;
+
+/** Câu cảnh báo cho sảnh khi bộ vai lệch quá ±BALANCE_WARN, hoặc null. */
+export function balanceWarning(counts: RoleCounts): string | null {
+  const score = balanceScore(counts);
+  if (score > BALANCE_WARN) return `Bộ vai lệch nhiều về phía Dân (điểm +${score}). Vẫn bắt đầu được.`;
+  if (score < -BALANCE_WARN) return `Bộ vai lệch nhiều về phía Sói (điểm ${score}). Vẫn bắt đầu được.`;
+  return null;
+}
+
+/** Điểm trong khoảng ±BALANCE_EVEN thì nhãn ở sảnh ghi "cân". */
+export const BALANCE_EVEN = 2;
+
+export type BalanceLean = 'village' | 'even' | 'wolves';
+
+export const BALANCE_LEAN_TEXT: Record<BalanceLean, string> = {
+  village: 'lợi Dân',
+  even: 'cân',
+  wolves: 'lợi Sói',
+};
+
+/** Nhãn "lợi Dân / cân / lợi Sói" luôn hiện cạnh điểm ở sảnh. */
+export function balanceLean(score: number): BalanceLean {
+  if (score > BALANCE_EVEN) return 'village';
+  if (score < -BALANCE_EVEN) return 'wolves';
+  return 'even';
+}
+
 export type SetupErrorCode = 'player-count' | 'bad-count' | 'total' | 'no-wolf' | 'too-many-wolves' | 'special-limit';
 
 export interface SetupError {
