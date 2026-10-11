@@ -429,8 +429,41 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 | GĐ | Trạng thái | Commit (đầu → cuối) | Ghi chú |
 |---|---|---|---|
 | Kế hoạch | Xong | `d0fbb4db` → (commit này) | Nhạc trưởng viết plan.md + rules.md, 2026-10-11. |
-| GĐ0 | Chưa bắt đầu | | |
+| GĐ0 | Xong, chờ review | `6440892c` → (commit `feat(werewolf): GĐ0 …`) | Engine thuần + 132 test (22 nhóm), phủ đủ E1–E28. `tsc`, eslint werewolf, `build` sạch; không import react/firebase/`@/`. Chi tiết và các điểm lệch ở §12.1. |
 | GĐ1 | Chưa bắt đầu | | |
 | GĐ2 | Chưa bắt đầu | | |
 | GĐ3 | Chưa bắt đầu | | |
 | GĐ4 | Chưa bắt đầu | | |
+
+### 12.1 GĐ0 — ghi chú của người thực thi (2026-10-11)
+
+**Đã làm**
+- `tsconfig.json`: thêm `allowImportingTsExtensions`. `package.json`: script `test:werewolf`.
+- `engine/`: `types.ts`, `roles.ts`, `night.ts`, `day.ts`, `win.ts`, `flow.ts`, `log.ts`, cùng 3 file phụ `table.ts` (ai sống, ai là Sói), `random.ts` (`shuffle`, `pickOne`) và `testkit.ts` (đồ nghề cho test, không phải file test).
+- Test: `roles` 22, `night` 45, `day` 8, `win` 6, `flow` 47, `log` 4. Có test mang mã của từng ca E1–E28. Có test cho preset 5–10 người (đúng bảng, tổng, hợp lệ, điểm), `dealRoles` (đúng số lượng, rng cố định cho kết quả cố định), và đủ các hàng "Sang" của bảng §4.2 (trừ `end → sảnh`, việc của UI).
+
+**API cho GĐ1** (mọi hàm thuần, nhận `WwTable = { seatOrder, roles, deaths }`; `roles` dựng từ `players/*.gameData.role`):
+- Bắt đầu: `startGame(playerIds, counts, rng)` gồm `validateSetup` (lỗi tiếng Việt), xáo ghế và `dealRoles`.
+- Kết thúc sớm: `dealDone`, `nightDone` (mọi người đã Xác nhận **và** `wolfStatus().agreed`), `witchDone`, `talkDone`, `voteDone`.
+- Phase kế: `afterDeal`, `afterNight` (ra `night-witch` hoặc `dawn`), `afterNightWitch`, `afterDawn`, `afterTalk`, `afterVote`, `afterVoteResult`, `afterHunter`. Mỗi hàm trả `Step = { phase, round, newDeaths, log, winner, hunter }`, kèm phần riêng: `attack`/`wolves`/`night` (đêm), `vote` (phiếu).
+- Rời làng: `applyLeave(table, round, phase, id)` trả `{ newDeaths, log, winner }`, hoặc `null` nếu người đó đã chết hay ván đã xong.
+- UI: `wolfStatus` (lựa chọn của bầy, "Lan (1) · Minh (1)"), `validTargets`/`isValidTarget`, `seerLook` (ghi `seerLog` lúc Xác nhận), `validateWitchPick` + `WITCH_PICK_ERROR_TEXT`, `describeLog` (câu tiếng Việt, chia đêm/ngày), `ROLE_NAME`, `ROLE_BLURB`, `ROLE_POINTS`, `balanceScore`, `WIN_REASON_TEXT`.
+- Mọi giá trị trả về dùng `null`, không có `undefined` (có test), để ghi thẳng vào Firestore.
+
+**Lệch kế hoạch**
+1. Thêm 4 file ngoài danh sách §4.1: `types.ts`, `table.ts`, `random.ts`, `testkit.ts`.
+2. Script test có thêm `--disable-warning=MODULE_TYPELESS_PACKAGE_JSON`. Vì `package.json` không có `"type"`, Node in một cảnh báo cho mỗi file `.ts`. Thêm `"type": "module"` thì ảnh hưởng cả app Next, nên chỉ tắt cảnh báo.
+3. `round`: `deal` là vòng 0, mỗi lần vào `night` thì +1 (đêm 1 / ngày 1 = 1, đúng §4.3). Người chết ghi `round` của vòng đang chạy.
+4. Nhật ký: chết vì treo / Thợ săn / rời làng không có mục `death` riêng, vì đã nằm trong mục `vote` / `hunter` / `left`. Mục `death` chỉ dùng cho người chết ban đêm. Thêm loại `left` có `during: WwPhase`.
+
+**Chỗ `rules.md` chưa nói rõ, engine đã chọn cách hiểu (nhạc trưởng / người dùng xác nhận giúp):**
+- **Bảo vệ** chọn mà chưa Xác nhận khi hết giờ thì **không che**. Làm giống Phù thủy (rules §5.4); Tiên tri cũng chỉ soi khi Xác nhận. Riêng Sói thì mọi lựa chọn đều được tính, đúng §5.3.
+- **"Người mình nghi"**: người còn sống khác mình. **"Đoán Sói nhắm ai"**: người còn sống, kể cả mình.
+- **E5 lọt qua UI** (cứu X + độc X): engine giữ phần cứu, bỏ phần độc, bình độc còn nguyên.
+- Bình chỉ mất khi có hiệu lực lúc tính đêm. Ví dụ người bị độc đã rời làng trong đêm thì bình độc còn.
+- `vote-result`: kiểm tra Thợ săn bị treo **trước**, rồi mới kiểm tra thắng (đúng thứ tự §5.9).
+- Ngưỡng "điểm lệch nhiều" để cảnh báo (rules §4) chưa có số. Engine chỉ có `balanceScore`; GĐ1 cần chốt ngưỡng.
+
+**Lưu ý cho GĐ1**
+- `validTargets` khác nhau theo vai (Sói không chọn Sói; Bảo vệ không chọn `guardLast`; Tiên tri / người nghi không chọn mình). Lưới Đêm ① **không được** làm mờ hay khoá ô theo vai khi không giữ, nếu không sẽ lộ vai (§2.3). Chỉ báo "không chọn được" lúc đang giữ.
+- `afterNightWitch` đọc lại `nightPicks` (Bảo vệ) cùng `witchPicks`. Hãy đưa cả hai vào `expectPlayerData` của CAS `night-witch → dawn`.
