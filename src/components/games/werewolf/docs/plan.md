@@ -477,7 +477,7 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 |---|---|---|---|
 | Kế hoạch | Xong | `d0fbb4db` → (commit này) | Nhạc trưởng viết plan.md + rules.md, 2026-10-11. |
 | GĐ0 | **Review đạt** (nhạc trưởng, 2026-10-11) | `6440892c` → `68af55e5` | Engine thuần + 132 test (22 nhóm), phủ đủ E1–E28. `tsc`, eslint werewolf, `build` sạch; không import react/firebase/`@/`. Chi tiết và các điểm lệch ở §12.1, review ở §12.2. |
-| GĐ1 | Chưa bắt đầu | | |
+| GĐ1 | **Xong, chờ review** (người thực thi, 2026-10-11) | `08623054` → (commit docs này); code `15d0d159`, `13e33330`, `0f4da818`, `b51f226f` | Chơi được 4 vai trên điện thoại, không quản trò. Hook UI chuyển sang `games/shared/hooks`. Engine 136 test. Ván thật 7 cửa sổ: Dân thắng 11/11, Sói thắng 9/9 kiểm tra đạt. Cặp ảnh riêng tư Đêm ① + Xem vai 12/12 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.3. |
 | GĐ2 | Chưa bắt đầu | | |
 | GĐ3 | Chưa bắt đầu | | |
 | GĐ4 | Chưa bắt đầu | | |
@@ -544,3 +544,51 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 - Cảnh báo cân bằng khi điểm lệch quá ±6. Không chặn bắt đầu ván. Bộ mặc định không bao giờ bị cảnh báo.
 
 **Việc chuyển sang GĐ1:** xem "Bổ sung cho GĐ1" ở §6 (có thêm `BALANCE_WARN` + `balanceWarning` vào engine).
+
+### 12.3 GĐ1 — ghi chú của người thực thi (2026-10-11)
+
+**Commit** (đều trên `dev-werewolf`, chưa push):
+1. `15d0d159` rút 5 hook (`useHold`, `useDialog`, `useReducedMotion`, `useCue`, `usePhaseTimeline`) sang `games/shared/hooks/` bằng `git mv`; Avalon chỉ đổi đường import (alias `@/components/games/shared/hooks/…`).
+2. `13e33330` engine `BALANCE_WARN` / `balanceWarning` / `balanceLean` (+4 test), `types.ts`, `state.ts`, `useWerewolf.ts`.
+3. `0f4da818` `WerewolfBoard`, `panel/*`, `ui/*`, `hooks/usePhaseClock.ts`, `WerewolfPreview`, bật Ma Sói trong `gameRegistry`.
+4. `b51f226f` chống đụng transaction khi cả bàn bấm cùng lúc (phát hiện nhờ ván thật, xem lệch 9).
+5. Commit docs này: §12.
+
+**Đã làm**
+- `useWerewolf` chỉ đọc dữ liệu → gọi engine → ghi `Step` trong một CAS (`applyStep`). `expect` đúng bảng "Bổ sung cho GĐ1" mục 4: `acks` (deal → night, day-talk → day-vote), `nightPick` của mọi người còn sống + `guardLast` của Bảo vệ (night → dawn, ghi `guardLast` mới cùng transaction), `dayVotes` (day-vote → vote-result), và `deaths` ở mọi lần chuyển.
+- `WerewolfBoard`: một effect timer cho 6 phase của GĐ1; kết thúc sớm bằng `dealDone` / `nightDone` / `talkDone` / `voteDone`; chủ phòng ngay, máy khác +2,5 s; chưa đủ vai của mọi ghế (`ready`) thì không quyết gì. Banner mất kết nối, báo lỗi gửi, `useWakeLock`, menu ⋯ (Vai của tôi / Thoát / Xoá phòng), hộp xác nhận riêng.
+- Panel: Lobby (+LobbySettings), Deal, Night, Dawn, Talk, Vote, VoteResult, End. Người chết thấy màn công khai + "ngồi im lặng".
+- Đêm ①: khi không giữ, màn giống hệt với mọi vai (câu, lưới mọi người còn sống, nút, "Chưa / Đã xác nhận"); phần riêng chỉ render khi giữ: khung bầy Sói (lựa chọn của đồng đội + `wolfStatus`), kết quả soi (Tiên tri, ghi `seerLog` cùng lần Xác nhận), `guardLast` (Bảo vệ), lý do chạm ô không hợp lệ.
+- `WerewolfPreview`: 17 màn × 4 vai người xem; người xem luôn ghế 1, đổi vai = đổi chỗ với người giữ vai đó; tham số `start` cố định đồng hồ để chụp cặp ảnh cùng lúc.
+
+**Lệch kế hoạch**
+1. Thêm file ngoài §4.1: `state.ts` (đọc state / cài đặt / `WwTable`, dùng chung Board và Preview, không Firebase), `hooks/usePhaseClock.ts` (bản riêng), `panel/shared.tsx`, `panel/LobbySettings.tsx`, và `ui/Button.tsx`, `ui/Dialog.tsx` (Modal + `useConfirm` riêng), `ui/RoomMenu.tsx`. Thư mục `ui/` vốn để GĐ3; GĐ1 chỉ có bản tối thiểu, GĐ3 thay giao diện.
+2. `lastVote` lưu `{ ballots, executedId, outcome }` (không chỉ `executedId`) để màn Kết quả công khai ai bầu ai và lý do không treo. `endReason` là mã `WinReason`, chữ lấy từ `WIN_REASON_TEXT`.
+3. **Bộ vai ở sảnh:** chủ phòng chỉnh số Sói và vai đặc biệt bằng −/+; **Dân làng = số người − các vai còn lại (tự tính)**, nên tổng luôn khớp khi người vào / ra. `roleCounts: null` = bộ mặc định (nút "Về mặc định"). Plan §4.4 ghi "chỉnh từng vai": Dân không có stepper riêng. Bắt đầu ván vẫn qua `validateSetup`.
+4. **Nhãn cân bằng:** "cân" khi |điểm| ≤ 2 (`BALANCE_EVEN`) — con số tự chọn, **người dùng chưa chốt**. Bộ 4 vai của GĐ1: 7 người +1 "cân", 5 người +6 "lợi Dân". Cảnh báo ±6 đúng như đã chốt.
+5. "Lộ vai khi chết" và "Sói hoà phiếu" đã có hiệu lực ở GĐ1 (vai người chết hiện ở Bình minh / Kết quả / danh sách). "Hồn ma xem hết vai", "Thợ săn bị độc vẫn bắn", stepper Đêm ② và Thợ săn để mờ, ghi "GĐ2".
+6. Bắt đầu ván là **một** transaction (CAS `{ phase: null }`) ghi cả state lẫn vai của mọi người (Avalon dùng 3 lần ghi). Mọi trường `gameData` của ván trước cũng được ghi lại.
+7. `updateInPhase` kiểm `{ phase, round }`, không chỉ `phase`: lần ghi muộn của đêm trước không đè lên đêm sau.
+8. **Sói đổi sau khi Xác nhận** = vừa giữ thẻ vừa chạm ô khác (hai ngón; trên máy tính: giữ Space + bấm chuột). Ô lưới chặn `pointerup` lan lên `window` và chặn `mousedown` mặc định (không đổi tiêu điểm) để `useHold` không đóng thẻ khi ngón thứ hai chạm. Không sửa `useHold`. Nhắc cách làm nằm trong khung bầy (chỉ hiện khi giữ).
+9. **Đụng transaction (phát hiện ở ván thật):** mỗi lần chọn / xác nhận / bầu đi qua `casGameState`, mà adapter luôn ghi `lastActivityAt` vào doc phòng (kể cả khi `patch` rỗng). Cả bàn bấm cùng lúc thì transaction đụng nhau, Firestore bỏ cuộc sau 5 lần: 4/7 cửa sổ hiện "Không gửi được — kiểm tra kết nối mạng", xác nhận dồn tới 5–11 s. Đã sửa trong phạm vi werewolf: thử lại có độ trễ ngẫu nhiên (mất mạng thật thì báo ngay), hàng đợi ghi của từng người, bỏ lần bấm trùng, ô / phiếu sáng ngay trên máy (trả lại nếu gửi lỗi). Sau sửa: 0 lần gửi lỗi, xác nhận < 0,9 s. **Đề xuất (cần người dùng đồng ý vì là file dùng chung):** trong `firebaseAdapter.casGameState`, không ghi doc phòng khi `patch` rỗng và không có `status` — khi đó các lần ghi vào `players/<id>` không còn tranh doc phòng; Avalon (`playQuestCard`) cũng hưởng lợi. Phiếu ngày và `acks` vẫn ghi vào doc phòng (như `teamVotes` của Avalon).
+10. Màn chơi nằm trong khung `px-4 py-6` chung của trang phòng (`page.tsx` không đổi, đúng §3). Ở 1440px nội dung là một cột giữa; dải nền tối của thanh nút đáy hơi lộ — để GĐ3.
+11. Thuộc tính cho kiểm thử: `data-ww-root / -phase / -started / -round`, `data-ww-hold`, `data-ww-confirmed`, `data-player-id`, `data-ww-winner`, `data-ww-log`. Thông tin riêng (`data-ww-my-role`, `data-ww-pack`, `data-ww-seer-result`) chỉ nằm trong khung đang giữ.
+
+**Kiểm thử (§11 + nghiệm thu GĐ1)**
+- `npm run test:werewolf`: 136/136 (23 nhóm). `npx tsc --noEmit` sạch. `npx eslint src/components/games/werewolf` sạch; `npx eslint src/components/games` 29 lỗi / 29 cảnh báo = baseline trước khi chuyển hook. `npm run build` qua. Engine không import react / firebase / `@/`.
+- Chuyển hook: `AvalonPreview` xem lại 6 màn (lộ vai, đêm Phe Quỷ, đêm Merlin, bỏ phiếu đội, kết quả Quest, kết thúc) — đúng.
+- Harness: ảnh 375px của 17 màn, không cuộn ngang, không lỗi console; thêm 4 màn ở 1440px.
+- **Cặp ảnh riêng tư** (cùng `start`, chụp cùng lúc, không giữ, thu 10%, trung bình |Δ| 0–255): Đêm ① chưa chọn / đã chọn / đã xác nhận và Xem vai, Sói so với Dân, Tiên tri, Bảo vệ: **12/12 = 0.000**. Đối chứng: hai màn khác nhau (chưa chọn | đã xác nhận) 0.768; cặp khi đang giữ 0.58–2.41.
+- Tương tác giữ-thẻ (chuột thật qua CDP): 11/11 — Sói đã xác nhận không đổi được khi không giữ, đổi được khi vừa giữ vừa chạm (mất xác nhận, thẻ vẫn mở, khung bầy báo chưa thống nhất); Tiên tri đã xác nhận không đổi được; ô không hợp lệ không chọn, lý do chỉ hiện khi giữ; Bảo vệ tự che được.
+- **Ván thật** 7 cửa sổ (`localhost`, `127.0.0.1`, `a`–`e.localhost`), bản build production, bot qua CDP đọc vai bằng cách giữ thẻ. Bản build cuối:
+  - Ván Dân thắng (11/11): Đêm 1 hai Sói chọn khác nhau → chạy đủ 20 s (20 265 ms) → hoà "Ngẫu nhiên"; reload một cửa sổ giữa Đêm 1 → khôi phục đúng lựa chọn, "Đã xác nhận" và đồng hồ (0:10 = 0:10); đóng cửa sổ chủ phòng giữa Đêm 2 (một người không bấm) → chuyển phase ở 22 753 ms = 20 000 + 250 + 2 500 (máy khác tiếp quản), mở lại chủ phòng chơi tiếp; Dân thắng ở cả 7 cửa sổ.
+  - Ván Sói thắng (9/9): 3 Sói, "Sói hoà phiếu: Không cắn"; Đêm 1 hoà → không cắn; Đêm 2 đa số 2–1 → cắn; cả hai đêm chạy đủ 20 s; Sói thắng ở cả 7 cửa sổ.
+  - Lệch phase giữa các cửa sổ lớn nhất **139 ms / 123 ms** (≤ 1 s). 0 lần gửi lỗi, 0 lỗi JS / `console.error`.
+  - Một lần chạy trước còn phủ E12 trong ván thật (Sói duy nhất không chọn → "Không Sói nào chọn").
+- Phòng thử: 6 phòng tạo, 6 phòng xoá bằng nút của chủ phòng.
+
+**Việc chuyển sang GĐ2**
+- Xoá `GD1_DISABLED_ROLES`, `GD1_DISABLED_PHASES` và phần ép Phù thủy / Thợ săn = 0 trong `lobbyCounts`.
+- `resolveNightPhase` hiện bỏ qua khi engine trả `night-witch`; `PhaseView` hiện "Bước này có ở GĐ2" cho `night-witch` / `hunter`. `afterDawn` / `afterVoteResult` có thể trả `hunter` khi ván có Thợ săn.
+- Hồn ma (`ghostsSeeAll`), "Cho rời làng", màn "Luật chơi", nhật ký đầy đủ.
+- Bot ván thật nằm ở scratchpad của session GĐ1 (`game.mjs`, `bot.js`, `pairs.mjs`, `held.mjs`, `wwshots.mjs`, `cdp.mjs`, `grid.mjs`); cách làm ghi trong memory `avalon-ux-test-recipes`.
