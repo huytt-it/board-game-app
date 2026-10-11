@@ -253,7 +253,7 @@ interface WerewolfGameData extends BaseGameData {
 Lựa chọn có `round` để lựa chọn của đêm trước không bị tính nhầm sang đêm sau. Nhờ vậy không phải xoá chúng trong transaction đổi phase.
 
 ### 4.4 Cài đặt phòng
-- **Bộ vai:** preset theo số người. Chỉnh từng vai bằng nút −/+, có điểm cân bằng. Bắt đầu ván thì kiểm tra bằng `validateSetup` (rules §4, E28).
+- **Bộ vai:** preset theo số người. Chỉnh số Sói và từng vai đặc biệt bằng nút −/+. **Dân làng = phần còn lại**, tự tính, không có stepper (GĐ1, nhạc trưởng chấp nhận). Có điểm cân bằng, nhãn "cân" khi |điểm| ≤ 2, cảnh báo khi lệch quá ±6. Bắt đầu ván thì kiểm tra bằng `validateSetup` (rules §4, E28).
 - **Luật:** 4 hàng bật/tắt hoặc chọn (rules §8.2).
 - **Thời gian:** 6 stepper (rules §8.3). `TimedPhase = 'deal' | 'night' | 'night-witch' | 'hunter' | 'day-talk' | 'day-vote'`.
 - Người không phải chủ phòng thấy cài đặt ở dạng chỉ đọc.
@@ -392,6 +392,64 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 - Cặp ảnh riêng tư Đêm ② (Phù thủy / người khác) ≈ 0 khi không giữ.
 - **Mốc PR #1:** push `dev-werewolf`, mở PR → `main` (sau khi nhạc trưởng review).
 
+#### Bổ sung cho GĐ2 (nhạc trưởng, sau review GĐ1, 2026-10-11)
+
+0. **Commit đầu tiên: sửa adapter** (người dùng đồng ý 2026-10-11, file dùng chung).
+   - Trong `firebaseAdapter.casGameState`, chỉ gọi `tx.update(roomRef, …)` khi `patch` có ít nhất một khoá hoặc có `opts.status`.
+   - Khi chỉ ghi `playerData` thì vẫn **đọc** doc phòng để kiểm `expected`, nhưng không ghi nó. Không đổi chữ ký hàm. Thêm một dòng ghi chú trong `IGameStorage.ts`.
+   - Commit riêng: `fix(storage): GĐ2 — …`.
+   - Kiểm tra:
+     - `tsc` + build;
+     - một ván Avalon 5 cửa sổ bằng bot (memory `avalon-ux-test-recipes`), chạy qua ít nhất một quest có lá bài (`playQuestCard` đi đường này);
+     - ván Ma Sói 7 cửa sổ: cả bàn chọn cùng lúc ở Đêm ① vẫn 0 lỗi gửi.
+   - Giữ `retryOnContention`: acks và phiếu ngày vẫn ghi doc phòng.
+1. **Bỏ phần tạm của GĐ1:**
+   - `GD1_DISABLED_ROLES`, `GD1_DISABLED_PHASES`;
+   - phần ép Phù thủy / Thợ săn = 0 trong `lobbyCounts`;
+   - nhánh "Bước này có ở GĐ2" trong `PhaseView`;
+   - nhãn "GĐ2" ở sảnh.
+
+   Bộ mặc định lấy nguyên `presetFor`.
+2. **Đêm ② (`night-witch`):**
+   - **Chuyển phase:** `resolveNightPhase` nhận nhánh `night-witch` của `afterNight` và ghi `attack` + `log`, với `expect` như bảng mục 4 phần GĐ1. `night-witch → dawn` dùng `afterNightWitch`. Trong `playerData` ghi `potions` của Phù thủy và `guardLast` của Bảo vệ. Kết thúc sớm bằng `witchDone`.
+   - **Lưu lựa chọn:** vào `gameData.witchPick` của chính người đó (có `round`), giống `nightPick`.
+   - **Ràng buộc thiết kế màn:**
+     - (a) Khi không giữ thì màn giống hệt nhau với mọi người: cùng câu, cùng lưới mọi người còn sống, cùng nút Xác nhận, cùng dòng "Chưa / Đã xác nhận".
+     - (b) **Ai cũng Xác nhận được mà không cần chọn ai.** Vì thế "Phù thủy không làm gì" trông giống "người khác không đoán".
+     - (c) Người bị nhắm (`state.attack`), công tắc Cứu và việc chọn người để Độc **chỉ hiện và chỉ thao tác được khi giữ**. Không được để một lần chạm lưới lúc không giữ thành ra độc người.
+     - (d) Kiểm quyết định bằng `validateWitchPick`, lý do lỗi hiện trong thẻ giữ.
+     - (e) Người khác: chạm lưới là "đoán Sói nhắm ai" (`guessId`).
+   - Cặp ảnh riêng tư (Phù thủy so với người khác: chưa chọn / đã chọn / đã xác nhận, khi không giữ) phải ≈ 0.
+3. **Thợ săn (`hunter`):**
+   - Thêm timer cho phase `hunter` (`timeouts.hunter`). Hết giờ thì `afterHunter(…, null)`.
+   - Thợ săn chọn người trong lưới rồi bấm "Bắn" (có hộp xác nhận; bước này công khai nên không sao) hoặc "Không bắn".
+   - Lần bấm gọi thẳng CAS chuyển phase với `afterHunter(table, round, state.hunter, shotId)` và `expect { hunter, deaths }`. Không cần lưu lựa chọn riêng.
+   - Người khác thấy "Thợ săn {tên} đang ngắm…" và đồng hồ.
+   - `proceedAfterDawn` / `proceedAfterVoteResult` đã ghi `state.hunter` theo `Step`. Kiểm `PHASE_STATUS.hunter`.
+4. **Cho rời làng:**
+   - Nằm trong menu ⋯ của chủ phòng: chọn một người còn sống, có hộp xác nhận.
+   - **Không dùng `advance` / `applyStep`**, vì chúng đặt lại `phaseStartedAt` và làm đồng hồ của bước đang chạy bị reset. Dùng một `casGameState` riêng:
+     - `expected { phase, phaseStartedAt, deaths }`;
+     - patch `{ deaths, log }`, giữ nguyên `phase` / `phaseStartedAt`;
+     - nếu `applyLeave` trả `winner` thì patch thêm `phase: 'end'`, `phaseStartedAt: serverNow()`, `winner`, `endReason`, và `status: 'end'`.
+   - Người đã rời làng mà mở lại link thì thấy màn của người chết.
+5. **Hồn ma (`ghostsSeeAll`):**
+   - Bật: người chết (kể cả người rời làng) thấy vai trên mọi ô, lựa chọn đêm của mọi người theo thời gian thực (bầy Sói, Tiên tri, Bảo vệ, Phù thủy), và "Diễn biến ván" tới lúc hiện tại.
+   - Tắt: chỉ thông tin công khai và vai của mình.
+   - Người còn sống **không bao giờ** thấy các phần này.
+6. **Lộ vai khi chết tắt:** đã có (`revealedRole`). Rà lại mọi chỗ hiện vai: Bình minh, Kết quả, danh sách Thảo luận / Bỏ phiếu, menu, hồn ma.
+7. **Màn "Luật chơi":**
+   - Nằm trong menu ⋯, ai cũng mở được, kể cả ở sảnh.
+   - Tóm tắt rules §1–§3, vòng chơi §5 (thật ngắn) và §9. Không chép nguyên văn.
+   - Lấy tên vai và câu mô tả từ `ROLE_NAME` / `ROLE_BLURB`.
+8. **Đã biết, chấp nhận:**
+   - Sói đổi lựa chọn sau khi Xác nhận thì dòng "Đã xác nhận" của Sói đó thành "Chưa xác nhận". Chỉ Sói làm được việc này, và phải giữ thẻ, nên rất hiếm. Không cần sửa.
+   - Màn 1440px và dải nền của thanh nút đáy để GĐ3 lo.
+9. **Bot:**
+   - Chép bộ bot của GĐ1 từ scratchpad `049e3be0-69df-4392-807f-aad3c8e3e7d0/scratchpad` (`game.mjs`, `bot.js`, `cdp.mjs`, `pairs.mjs`, `held.mjs`, `grid.mjs`) sang scratchpad của mình.
+   - Ván 9–10 người: thêm origin `f`–`h.localhost`.
+   - Mỗi kịch bản ở phần Nghiệm thu là một lần chạy riêng, ≤ 3 phút.
+
 ---
 
 ## 8. GĐ3 — Bộ nhận diện và cảnh
@@ -477,7 +535,7 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 |---|---|---|---|
 | Kế hoạch | Xong | `d0fbb4db` → (commit này) | Nhạc trưởng viết plan.md + rules.md, 2026-10-11. |
 | GĐ0 | **Review đạt** (nhạc trưởng, 2026-10-11) | `6440892c` → `68af55e5` | Engine thuần + 132 test (22 nhóm), phủ đủ E1–E28. `tsc`, eslint werewolf, `build` sạch; không import react/firebase/`@/`. Chi tiết và các điểm lệch ở §12.1, review ở §12.2. |
-| GĐ1 | **Xong, chờ review** (người thực thi, 2026-10-11) | `08623054` → (commit docs này); code `15d0d159`, `13e33330`, `0f4da818`, `b51f226f` | Chơi được 4 vai trên điện thoại, không quản trò. Hook UI chuyển sang `games/shared/hooks`. Engine 136 test. Ván thật 7 cửa sổ: Dân thắng 11/11, Sói thắng 9/9 kiểm tra đạt. Cặp ảnh riêng tư Đêm ① + Xem vai 12/12 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.3. |
+| GĐ1 | **Review đạt** (nhạc trưởng, 2026-10-11) | `08623054` → `d3b1a59f`; code `15d0d159`, `13e33330`, `0f4da818`, `b51f226f` | Chơi được 4 vai trên điện thoại, không quản trò. Hook UI chuyển sang `games/shared/hooks`. Engine 136 test. Ván thật 7 cửa sổ: Dân thắng 11/11, Sói thắng 9/9 kiểm tra đạt. Cặp ảnh riêng tư Đêm ① + Xem vai 12/12 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.3, review ở §12.4. |
 | GĐ2 | Chưa bắt đầu | | |
 | GĐ3 | Chưa bắt đầu | | |
 | GĐ4 | Chưa bắt đầu | | |
@@ -592,3 +650,31 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 - `resolveNightPhase` hiện bỏ qua khi engine trả `night-witch`; `PhaseView` hiện "Bước này có ở GĐ2" cho `night-witch` / `hunter`. `afterDawn` / `afterVoteResult` có thể trả `hunter` khi ván có Thợ săn.
 - Hồn ma (`ghostsSeeAll`), "Cho rời làng", màn "Luật chơi", nhật ký đầy đủ.
 - Bot ván thật nằm ở scratchpad của session GĐ1 (`game.mjs`, `bot.js`, `pairs.mjs`, `held.mjs`, `wwshots.mjs`, `cdp.mjs`, `grid.mjs`); cách làm ghi trong memory `avalon-ux-test-recipes`.
+
+### 12.4 GĐ1 — review của nhạc trưởng (2026-10-11): **ĐẠT**
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 136/136.
+- `tsc` sạch. eslint thư mục werewolf + `gameRegistry.ts` sạch. `npx eslint src/components/games` 29 lỗi / 29 cảnh báo, bằng baseline.
+- `npm run build` exit 0.
+- Phần Avalon chỉ đổi dòng import (+1 dòng ghi chú). 5 hook là `git mv` nguyên vẹn (rename 100%).
+
+**Đọc code:**
+- `useWerewolf` gọi engine cho mọi quyết định, mỗi bước ghi đúng một CAS. `expect` đúng bảng mục 4 phần GĐ1, kèm `deaths` ở mọi lần chuyển. `updateInPhase` kiểm cả `round`.
+- `WerewolfBoard`: timer ở mọi máy, chủ phòng trước, máy khác +2,5 s; chưa đủ vai (`ready`) thì không quyết; chỉ kick ở sảnh; rời giữa ván không xoá doc.
+- `startGame` là một transaction duy nhất. `resetRoom` bỏ `phase` nên CAS `{ phase: null }` của ván sau vẫn khớp.
+- Màn Đêm ①: khi không giữ, chữ / lưới / nút / dòng xác nhận giống nhau với mọi vai. Bầy Sói, kết quả soi, lý do chạm sai chỉ render khi giữ. "Vai của tôi" cũng là thẻ giữ.
+
+**Bằng chứng của người thực thi:**
+- Đã xem ảnh 375px (sảnh, xem vai, đêm, bình minh, thảo luận, bỏ phiếu) và `checks.json` của hai ván thật (Dân thắng 11/11, Sói thắng 9/9).
+- Cặp ảnh riêng tư 12/12 = 0.000.
+- Giao diện mới ở mức tối thiểu, đúng phạm vi GĐ1.
+
+**Quyết định (người dùng, 2026-10-11):**
+- Sửa adapter `casGameState` ở đầu GĐ2 (bước 0 của "Bổ sung cho GĐ2").
+- Giữ nhãn "cân" khi |điểm| ≤ 2.
+- Dân làng tự tính, không có stepper: nhạc trưởng chấp nhận (ghi vào §4.4 và rules §8.1).
+
+**Đã biết, chấp nhận:** Sói đổi lựa chọn sau khi Xác nhận thì dòng xác nhận của Sói đó đổi (chỉ Sói làm được, phải giữ thẻ). Xem mục 8 của "Bổ sung cho GĐ2".
+
+**Chuyển sang GĐ2:** "Bổ sung cho GĐ2" ở §7.

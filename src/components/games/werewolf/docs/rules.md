@@ -165,7 +165,14 @@ Mỗi bước có đồng hồ. Thời lượng do chủ phòng đặt (mục 8.
 ## 8. Cài đặt phòng (chủ phòng, ở sảnh)
 
 ### 8.1 Bộ vai
-Bộ vai mặc định theo số người (mục 4). Chỉnh được số lượng từng vai, có điểm cân bằng.
+Bộ vai mặc định theo số người (mục 4). Chủ phòng chỉnh được số Sói và từng vai đặc biệt. Dân làng là phần còn lại, tự tính theo số người trong phòng.
+
+Sảnh luôn hiện điểm cân bằng kèm nhãn:
+- "cân" khi |điểm| ≤ 2;
+- "lợi Dân" khi điểm > +2;
+- "lợi Sói" khi điểm < −2.
+
+Lệch quá ±6 thì có thêm cảnh báo (người dùng chốt 2026-10-11).
 
 ### 8.2 Luật tuỳ chọn
 | Cài đặt | Mặc định | Lựa chọn |
