@@ -165,6 +165,8 @@ src/components/games/werewolf/
     win.ts               checkWinner
     flow.ts              afterNight / afterDawn / afterVote / afterHunter: quyết định phase kế
     log.ts               dựng mục "Diễn biến ván"
+    types.ts  table.ts  random.ts  testkit.ts   (thêm ở GĐ0: kiểu dùng chung, ai sống / ai là Sói,
+                         shuffle / pickOne, đồ nghề cho test)
   panel/                 mỗi phase một file: Lobby, Deal, Night, Witch, Dawn, Hunter, Talk, Vote, VoteResult, End
   ui/  assets/  scenes/  (GĐ3)
   docs/plan.md  docs/rules.md
@@ -315,6 +317,51 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 - **Cặp ảnh riêng tư màn Đêm ①** (Sói / Dân / Tiên tri / Bảo vệ, cùng thời điểm, không giữ): chênh lệch ≈ 0, đo như cách của Avalon.
 - Dọn mọi phòng thử khỏi Firestore.
 
+#### Bổ sung cho GĐ1 (nhạc trưởng, sau review GĐ0, 2026-10-11)
+
+1. **Dùng engine, không viết lại luật.**
+   - Mọi quyết định (ai được chọn ai, kết thúc sớm, phase kế, người chết, thắng thua, nhật ký) đều gọi API engine liệt kê ở §12.1.
+   - `useWerewolf` chỉ làm ba việc: đọc dữ liệu, gọi engine, ghi `Step` trả về trong **một** CAS.
+   - `werewolf/types.ts` import kiểu từ `engine/types.ts`, không định nghĩa lại.
+2. **Import engine:** nhạc trưởng đã thử bằng trang tạm. Turbopack build và prerender được với `import … from '@/components/games/werewolf/engine/flow.ts'` (alias + đuôi `.ts`). Code UI import theo đúng cách này.
+3. **Dựng `WwTable`:**
+   - `seatOrder` và `deaths` lấy từ state;
+   - `roles` dựng từ `players/<id>.gameData.role` của mọi ghế.
+   - GĐ1 **chỉ cho kick ở sảnh**. Giữa ván không xoá doc player nào: rời phòng giữa ván = đóng tab, như Avalon. Thiếu doc của một ghế thì `isWolf` sai và kiểm tra thắng sai, nên không được để xảy ra. GĐ2 thêm "Cho rời làng".
+4. **CAS của từng lần chuyển phase.** `expect` / `expectPlayerData` phải chứa đúng dữ liệu mà quyết định dựa vào:
+
+   | Chuyển | `expect` / `expectPlayerData` | Ghi |
+   |---|---|---|
+   | `deal → night` | `acks` (khi kết thúc sớm) | `round`, `acks: {}` |
+   | `night → dawn` (GĐ1 chưa có Phù thủy) | `nightPick` của **mọi người còn sống**, `guardLast` của Bảo vệ | `attack`, `deaths`, `dawnDeaths`, `log`. `playerData`: `guardLast` mới của Bảo vệ |
+   | `night → night-witch` (GĐ2) | như trên | `attack`, `log` |
+   | `night-witch → dawn` (GĐ2) | `nightPick` của Bảo vệ, `witchPick` của mọi người còn sống, `potions`, `guardLast` | `deaths`, `dawnDeaths`, `log`. `playerData`: `potions`, `guardLast` |
+   | `day-talk → day-vote` | `acks` (khi kết thúc sớm) | `acks: {}`, `dayVotes: {}` |
+   | `day-vote → vote-result` | `dayVotes` | `deaths`, `lastVote`, `log` |
+   | `dawn` / `vote-result` / `hunter → …` | `deaths` | theo `Step` |
+
+   - UI khoá lựa chọn khi đồng hồ về 0. Một lần ghi đến muộn làm CAS thất bại thì effect tự chạy lại với dữ liệu mới, như Avalon.
+   - **Lựa chọn của người chơi:**
+     - ghi vào `gameData` của chính người đó (`nightPick` có `round`);
+     - luôn đọc qua `pickFor`;
+     - không cần xoá giữa các đêm;
+     - chơi lại thì dùng `clearGameData`.
+5. **Bộ vai ở GĐ1 (4 vai):**
+   - `presetFor(n)` rồi đổi `witch` và `hunter` thành `villager`. Đây là hàm tạm trong UI, ghi chú "xoá ở GĐ2".
+   - Stepper Phù thủy và Thợ săn để mờ.
+   - Bắt đầu ván vẫn đi qua `startGame` (tức `validateSetup`).
+6. **Cảnh báo cân bằng** (người dùng chốt ±6): thêm `BALANCE_WARN = 6` và `balanceWarning(counts)` vào `engine/roles.ts`, kèm test. Được phép sửa engine cho việc này. Sảnh luôn hiện điểm và một nhãn "lợi Dân / cân / lợi Sói". Lệch quá ±6 thì hiện cảnh báo, không chặn.
+7. **Màn Đêm ① đồng nhất** (§2.3):
+   - Lưới là **mọi người còn sống**. Khi không giữ, màn giống hệt nhau với mọi vai: không làm mờ hay khoá ô theo vai.
+   - `validTargets` chỉ dùng khi chạm hoặc khi giữ. Chạm ô không hợp lệ thì không đổi gì, chỉ hiện một dòng nhỏ **trong khung giữ-để-xem**.
+   - Sau Xác nhận, mọi vai hiện cùng một trạng thái "Đã xác nhận". Sói muốn đổi thì giữ để mở khung bầy và đổi trong đó. Khung bầy gồm lựa chọn của đồng đội và "Bầy chưa thống nhất: …" (`wolfStatus`).
+   - "Chưa xác nhận" phải hiện rõ với mọi vai, vì Tiên tri và Bảo vệ chưa Xác nhận thì không có tác dụng (rules §5.2).
+8. **Tiên tri:** lúc Xác nhận thì gọi `seerLook` và ghi `seerLog` cùng một lần ghi với `nightPick.confirmed`. Kết quả chỉ hiện khi giữ, xem lại được trong "Vai của tôi".
+9. **Nhật ký `state.log`** chỉ hiện ở màn `end`. GĐ2 thêm hồn ma.
+10. **Kiểm thử:**
+    - thêm `npm run test:werewolf` vào mọi lần kiểm thử;
+    - với phần rút hook sang `shared/`: chạy `npx eslint src/components/games` so với baseline trước khi chuyển, và xem lại 3–4 màn `AvalonPreview` (vai, ban đêm, bỏ phiếu đội, kết thúc).
+
 ---
 
 ## 7. GĐ2 — Đủ bộ vai v1 và luật tuỳ chọn
@@ -429,7 +476,7 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 | GĐ | Trạng thái | Commit (đầu → cuối) | Ghi chú |
 |---|---|---|---|
 | Kế hoạch | Xong | `d0fbb4db` → (commit này) | Nhạc trưởng viết plan.md + rules.md, 2026-10-11. |
-| GĐ0 | Xong, chờ review | `6440892c` → (commit `feat(werewolf): GĐ0 …`) | Engine thuần + 132 test (22 nhóm), phủ đủ E1–E28. `tsc`, eslint werewolf, `build` sạch; không import react/firebase/`@/`. Chi tiết và các điểm lệch ở §12.1. |
+| GĐ0 | **Review đạt** (nhạc trưởng, 2026-10-11) | `6440892c` → `68af55e5` | Engine thuần + 132 test (22 nhóm), phủ đủ E1–E28. `tsc`, eslint werewolf, `build` sạch; không import react/firebase/`@/`. Chi tiết và các điểm lệch ở §12.1, review ở §12.2. |
 | GĐ1 | Chưa bắt đầu | | |
 | GĐ2 | Chưa bắt đầu | | |
 | GĐ3 | Chưa bắt đầu | | |
@@ -467,3 +514,33 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 **Lưu ý cho GĐ1**
 - `validTargets` khác nhau theo vai (Sói không chọn Sói; Bảo vệ không chọn `guardLast`; Tiên tri / người nghi không chọn mình). Lưới Đêm ① **không được** làm mờ hay khoá ô theo vai khi không giữ, nếu không sẽ lộ vai (§2.3). Chỉ báo "không chọn được" lúc đang giữ.
 - `afterNightWitch` đọc lại `nightPicks` (Bảo vệ) cùng `witchPicks`. Hãy đưa cả hai vào `expectPlayerData` của CAS `night-witch → dawn`.
+
+### 12.2 GĐ0 — review của nhạc trưởng (2026-10-11): **ĐẠT**
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf`: 132/132 xanh. Mỗi mã E1–E28 có ít nhất một test mang mã đó.
+- `npx tsc --noEmit` sạch. `npx eslint src/components/games/werewolf` sạch.
+- `npm run build` exit 0.
+- Grep `react|firebase|@/` trong `engine/` không ra gì. Không có `enum` / `namespace`.
+
+**Thử thêm:** một trang tạm import `engine/flow.ts`, `log.ts`, `types.ts` qua alias có đuôi `.ts`, gọi `startGame` / `afterDawn` / `describeLog`. Turbopack build và prerender được. Đã xoá trang tạm và `.next`, `tsc` vẫn sạch.
+
+**Đọc code:** bám đúng rules §2–§7 và bảng §4.2.
+- Thứ tự ở bình minh đúng: hết Sói → Thợ săn → Sói đủ số.
+- Kiểm tra thắng làm sau phát bắn.
+- Người chết công bố theo thứ tự ghế.
+- Bình thuốc mất kể cả khi người được cứu đã được che.
+- Lựa chọn có `round` nên không bị tính sang đêm khác.
+- Mọi giá trị dùng `null`, không `undefined`.
+- Không thấy lỗi logic.
+
+**Các lệch kế hoạch ở §12.1:** chấp nhận cả 4 (thêm 4 file phụ, tắt cảnh báo `MODULE_TYPELESS_PACKAGE_JSON`, `deal` là vòng 0, mục nhật ký `death` chỉ dùng cho người chết ban đêm).
+
+**Người dùng chốt các cách hiểu luật (2026-10-11), đã ghi vào `rules.md`:**
+- Bảo vệ chọn mà chưa Xác nhận khi hết giờ thì **không che**, giống Tiên tri và Phù thủy. Riêng Sói thì lựa chọn chưa Xác nhận vẫn được tính.
+- "Người mình nghi" không được chọn chính mình. "Đoán Sói nhắm ai" được chọn cả mình.
+- E5 lọt qua UI thì giữ phần cứu, bỏ phần độc, bình độc còn nguyên.
+- Bình chỉ mất khi dùng lên người còn sống lúc tính đêm.
+- Cảnh báo cân bằng khi điểm lệch quá ±6. Không chặn bắt đầu ván. Bộ mặc định không bao giờ bị cảnh báo.
+
+**Việc chuyển sang GĐ1:** xem "Bổ sung cho GĐ1" ở §6 (có thêm `BALANCE_WARN` + `balanceWarning` vào engine).

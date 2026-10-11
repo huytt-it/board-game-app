@@ -26,7 +26,7 @@ App là quản trò: tự gọi từng bước, đếm giờ, nhận lựa chọ
 | Vai | Phe | Ban đêm (bước ①) | Ghi chú |
 |---|---|---|---|
 | **Ma Sói** | Sói | Cả bầy chọn **một** người để cắn (mục 5.3). | Biết đồng đội từ đầu ván. Không được chọn Sói (kể cả mình). |
-| **Dân làng** | Dân | Chọn "người mình nghi". Lựa chọn này **không ảnh hưởng luật**, chỉ hiện trong tổng kết cuối ván. | Bước này có để màn hình ai cũng giống nhau. |
+| **Dân làng** | Dân | Chọn "người mình nghi" (người còn sống khác mình). Lựa chọn này **không ảnh hưởng luật**, chỉ hiện trong tổng kết cuối ván. | Bước này có để màn hình ai cũng giống nhau. |
 | **Tiên tri** | Dân | Soi một người còn sống khác mình, thấy ngay **"Là Sói" / "Không phải Sói"**. | Kết quả chỉ mình xem (giữ để xem). Xem lại được trong "Vai của tôi". |
 | **Bảo vệ** | Dân | Che một người còn sống, được tự che. | **Không được che cùng một người hai đêm liên tiếp.** Che chặn được Sói cắn, không chặn độc, không chặn treo hay phát bắn. |
 | **Phù thủy** | Dân | Bước ①: chọn "người mình nghi" như Dân. Bước ② là của Phù thủy (mục 5.4). | Cả ván có **1 bình cứu** và **1 bình độc**. Được tự cứu, không được tự độc. Được dùng cả hai bình trong một đêm. |
@@ -45,7 +45,7 @@ App là quản trò: tự gọi từng bước, đếm giờ, nhận lựa chọ
 | 9 | 3 | 1 | 1 | 1 | 1 | 2 | +1 |
 | 10 | 3 | 1 | 1 | 1 | 1 | 3 | +2 |
 
-- **Điểm cân bằng** (thang kiểu Ultimate Werewolf): Sói −6, Tiên tri +7, Phù thủy +4, Bảo vệ +3, Thợ săn +3, Dân +1. Gần 0 là cân, dương là lợi cho Dân, âm là lợi cho Sói. App chỉ cảnh báo khi điểm lệch nhiều, không chặn.
+- **Điểm cân bằng** (thang kiểu Ultimate Werewolf): Sói −6, Tiên tri +7, Phù thủy +4, Bảo vệ +3, Thợ săn +3, Dân +1. Gần 0 là cân, dương là lợi cho Dân, âm là lợi cho Sói. App luôn hiện điểm. App **cảnh báo khi điểm lệch quá ±6** (nhỏ hơn −6 hoặc lớn hơn +6), không chặn bắt đầu ván. Bộ mặc định cao nhất là +6 nên không bao giờ bị cảnh báo (người dùng chốt 2026-10-11).
 - Bảng trên là đề xuất, sẽ chỉnh lại sau khi chơi thử (GĐ5).
 - **Ràng buộc khi bắt đầu ván** (vi phạm thì không cho bắt đầu):
   - tổng số vai = số người;
@@ -71,7 +71,7 @@ Mỗi bước có đồng hồ. Thời lượng do chủ phòng đặt (mục 8.
 - **Mọi người còn sống** đều chọn một người rồi bấm **Xác nhận**. Ý nghĩa của lựa chọn tuỳ theo vai (bảng ở mục 3).
 - Bố cục màn hình và thời lượng như nhau với mọi vai, nên nhìn ai đang bấm thì không đoán ra vai. Phần riêng của vai (chữ hướng dẫn, đồng đội Sói, kết quả soi) phải giữ mới xem được.
 - Ai chưa bấm Xác nhận thì vẫn đổi được lựa chọn.
-  - Tiên tri, Bảo vệ, Dân: Xác nhận là chốt.
+  - Tiên tri, Bảo vệ, Dân: Xác nhận là chốt. **Chọn mà chưa Xác nhận khi hết giờ thì coi như chưa làm gì**: Tiên tri không soi, Bảo vệ không che (người dùng chốt 2026-10-11). Vì vậy màn phải hiện rõ "Chưa xác nhận".
   - Sói: sau khi Xác nhận vẫn **đổi được**; đổi thì mất Xác nhận và phải bấm lại.
 - **Kết thúc sớm** khi mọi người còn sống đã Xác nhận **và** bầy Sói đã thống nhất (mục 5.3). Nếu không thì chạy đến hết giờ.
 
@@ -91,14 +91,17 @@ Mỗi bước có đồng hồ. Thời lượng do chủ phòng đặt (mục 8.
   - **Cứu** người đó, nếu còn bình cứu và có người bị nhắm;
   - **Độc** một người còn sống khác mình, nếu còn bình độc. Không được độc người mình vừa chọn cứu;
   - **Không làm gì**.
-- Những người còn sống khác thấy màn **cùng bố cục**, "Đoán xem Sói nhắm ai". Lựa chọn này chỉ hiện trong tổng kết cuối ván.
+- Những người còn sống khác thấy màn **cùng bố cục**, "Đoán xem Sói nhắm ai" (người còn sống, được chọn cả mình). Lựa chọn này chỉ hiện trong tổng kết cuối ván.
+- Nếu UI để lọt một quyết định vừa cứu X vừa độc X (E5), engine giữ phần cứu, bỏ phần độc, bình độc còn nguyên.
 - Kết thúc sớm khi mọi người còn sống đã Xác nhận, hoặc hết giờ. Phù thủy hết giờ mà chưa Xác nhận thì coi như không làm gì.
 
 ### 5.5 Tính kết quả đêm (theo thứ tự)
 1. **Người bị nhắm** = kết quả của bầy Sói (mục 5.3), được chốt khi Đêm ① kết thúc.
 2. Người bị nhắm **sống sót** nếu được Bảo vệ che **hoặc** được Phù thủy cứu. Nếu không thì chết, nguyên nhân là "Sói".
 3. Người bị Phù thủy độc **chết**, nguyên nhân là "độc". Bảo vệ không chặn được. Nếu người đó cũng là người bị nhắm mà không được cứu thì chỉ chết một lần, nguyên nhân tính là "độc".
-4. Cập nhật bình của Phù thủy (bình đã dùng thì mất, kể cả khi người được cứu vốn đã được che) và người Bảo vệ đã che đêm nay.
+4. Cập nhật bình của Phù thủy và người Bảo vệ đã che đêm nay.
+   - Bình **mất khi được dùng lên một người còn sống lúc tính đêm**, kể cả khi người được cứu vốn đã được Bảo vệ che (E2).
+   - Nếu người đó đã rời làng trong đêm thì bình không có tác dụng và vẫn còn.
 
 ### 5.6 Bình minh
 - Công bố những người chết đêm qua, xếp **theo thứ tự ghế** chứ không theo nguyên nhân, và **không nói nguyên nhân**. Không ai chết thì công bố "Đêm qua bình yên".
@@ -149,7 +152,7 @@ Mỗi bước có đồng hồ. Thời lượng do chủ phòng đặt (mục 8.
 - Mất mạng hay tắt máy **không** làm người chơi chết. Mở lại link phòng là vào lại đúng chỗ.
 - Hết giờ mà một người chưa làm gì thì coi như **không hành động**:
   - Sói không chọn thì không được tính phiếu;
-  - Bảo vệ không chọn thì không che;
+  - Bảo vệ không chọn, hoặc chọn mà chưa Xác nhận, thì không che (Tiên tri và Phù thủy cũng vậy);
   - Tiên tri không chọn thì không soi;
   - Phù thủy không chọn thì không dùng bình;
   - Thợ săn không chọn thì không bắn;
@@ -198,7 +201,7 @@ Chỉnh bằng nút −/+, cố định khi bắt đầu ván (giống Avalon G�
 | E2 | Phù thủy cứu người đã được Bảo vệ che | Người đó sống, bình cứu vẫn **mất**. |
 | E3 | Phù thủy độc người được Bảo vệ che | Người đó **chết** (che không chặn độc). |
 | E4 | Phù thủy độc chính người bị nhắm (không cứu) | Chết một lần, nguyên nhân "độc". |
-| E5 | Phù thủy chọn cứu X rồi độc X | Không hợp lệ (engine từ chối, UI không cho chọn). |
+| E5 | Phù thủy chọn cứu X rồi độc X | Không hợp lệ (engine từ chối, UI không cho chọn). Nếu lọt qua UI thì chỉ cứu, bình độc còn nguyên. |
 | E6 | Phù thủy bị nhắm và tự cứu | Hợp lệ, sống. Tự độc thì không hợp lệ. |
 | E7 | Phù thủy dùng cả cứu và độc trong một đêm | Hợp lệ, cả hai có hiệu lực. |
 | E8 | Bảo vệ che cùng một người hai đêm liên tiếp | Không hợp lệ. Đêm trước không che ai thì đêm nay che ai cũng được. |
@@ -217,7 +220,7 @@ Chỉnh bằng nút −/+, cố định khi bắt đầu ván (giống Avalon G�
 | E21 | Hai người chết cùng đêm | Công bố theo thứ tự ghế, không theo nguyên nhân. |
 | E22 | Phiếu ngày: hoà M, hoặc B ≥ M, hoặc M = 0 | Không ai bị treo. |
 | E23 | Người không bầu | Tính là Bỏ qua. Không được tự bầu mình. |
-| E24 | Hết giờ, các vai chưa hành động | Coi như không hành động (mục 7). |
+| E24 | Hết giờ, các vai chưa hành động | Coi như không hành động (mục 7). Tiên tri, Bảo vệ, Phù thủy chọn mà chưa Xác nhận cũng vậy. Riêng Sói thì lựa chọn chưa Xác nhận vẫn được tính. |
 | E25 | Chủ phòng cho rời làng | Tính là chết, Thợ săn không bắn, kiểm tra thắng ngay. Nếu là Sói thì lựa chọn đêm nay của người đó không còn được tính. |
 | E26 | Phù thủy đã chết hoặc hết bình | Đêm ② vẫn diễn ra, kết thúc theo luật thường, không ai bị cứu hay độc. |
 | E27 | Mọi người cùng chết, không còn Sói | Dân thắng. |
