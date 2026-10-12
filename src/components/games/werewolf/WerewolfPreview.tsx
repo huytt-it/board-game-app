@@ -39,6 +39,12 @@ export const PREVIEW_SCENES = {
   'dawn-peaceful': 'Bình minh — bình yên',
   'hunter-dawn': 'Thợ săn — bị cắn, bắn sau bình minh',
   'hunter-vote': 'Thợ săn — bị treo, bắn sau kết quả',
+  'dawn-hunter': 'Bình minh — Thợ săn chết (chưa bắn: chưa phải hồn ma)',
+  'ghost-night': 'Hồn ma — Đêm ① (xem hết)',
+  'ghost-witch': 'Hồn ma — Đêm ② (xem hết)',
+  'ghost-talk': 'Hồn ma — Thảo luận (xem hết)',
+  'ghost-off': 'Người chết — Đêm ① (hồn ma tắt)',
+  'talk-hidden': 'Thảo luận — lộ vai khi chết tắt',
   'day-talk': 'Thảo luận',
   'day-vote': 'Bỏ phiếu',
   'vote-result-hanged': 'Kết quả — có người bị treo',
@@ -123,6 +129,8 @@ const SAMPLE_LOG: WwLogEntry[] = [
   { kind: 'vote', round: 2, ballots: { p1: 'p6', p4: 'p6', p6: 'p1', p8: 'p6', p9: 'p6' }, executedId: 'p6' },
 ];
 
+const ROUND1_LOG = SAMPLE_LOG.filter((e) => e.round === 1 && e.kind !== 'vote');
+
 interface Mock {
   state: WerewolfGameState | null;
   players: Player[];
@@ -201,6 +209,57 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
       const deaths = [{ id: hunterId, round: 1, cause: after === 'dawn' ? ('wolf' as const) : ('vote' as const) }];
       return { state: baseState('hunter', start, { deaths, hunter: { hunterId, after } }), players: makePlayers(roles) };
     }
+    case 'dawn-hunter': {
+      const hunterId = idOf('hunter');
+      return {
+        state: baseState('dawn', start, { deaths: [{ id: hunterId, round: 1, cause: 'wolf' }], dawnDeaths: [hunterId], log: ROUND1_LOG }),
+        players: makePlayers(roles),
+      };
+    }
+    case 'ghost-night':
+    case 'ghost-witch':
+    case 'ghost-off': {
+      // Người xem (ghế 1) chết đêm 1; đang là đêm 2. Mọi người đã chọn, vài người xác nhận.
+      const deaths = [{ id: ME, round: 1, cause: 'wolf' as const }];
+      const witchPhase = scene === 'ghost-witch';
+      const players = makePlayers(roles, (id, r) => {
+        if (id === ME) return {};
+        if (witchPhase) {
+          if (r === 'witch') return { witchPick: { round: 2, heal: true, poisonId: wolves[0], guessId: null, confirmed: false } };
+          return { witchPick: { round: 2, heal: false, poisonId: null, guessId: common, confirmed: r === 'seer' } };
+        }
+        if (r === 'werewolf') return { nightPick: { round: 2, targetId: id === wolves[0] ? common : otherVillager, confirmed: true } };
+        if (r === 'seer') return { nightPick: { round: 2, targetId: wolves[0], confirmed: true } };
+        if (r === 'guard') return { nightPick: { round: 2, targetId: common, confirmed: false } };
+        return { nightPick: { round: 2, targetId: wolves[1], confirmed: false } };
+      });
+      return {
+        state: baseState(witchPhase ? 'night-witch' : 'night', start, {
+          round: 2,
+          deaths,
+          attack: witchPhase ? common : null,
+          rules: { ...DEFAULT_RULES, ghostsSeeAll: scene !== 'ghost-off' },
+          log: ROUND1_LOG,
+        }),
+        players,
+      };
+    }
+    case 'ghost-talk':
+    case 'talk-hidden': {
+      const ghost = scene === 'ghost-talk';
+      return {
+        state: baseState('day-talk', start, {
+          deaths: [
+            { id: ghost ? ME : common, round: 1, cause: 'wolf' },
+            { id: otherVillager, round: 1, cause: 'poison' },
+          ],
+          rules: { ...DEFAULT_RULES, revealOnDeath: ghost },
+          acks: { [idOf('seer')]: true },
+          log: ROUND1_LOG,
+        }),
+        players: makePlayers(roles),
+      };
+    }
     case 'day-talk':
       return {
         state: baseState('day-talk', start, { deaths: [{ id: common, round: 1, cause: 'wolf' }], acks: { [idOf('seer')]: true, [wolves[1]]: true } }),
@@ -275,7 +334,9 @@ function Screen({ scene, role, start }: { scene: PreviewScene; role: WwRole; sta
     const room = { config: { roleCounts: initial.lobby.roleCounts } } as unknown as Room;
     return (
       <>
-        <TopBar menu={<RoomMenu ctx={null} isHost={initial.lobby.isHost} inGame={false} onLeave={() => {}} onDelete={() => {}} />} />
+        <TopBar
+          menu={<RoomMenu ctx={null} isHost={initial.lobby.isHost} inGame={false} rules={readConfig(room).rules} onLeave={() => {}} onDelete={() => {}} />}
+        />
         <LobbyPanel
           players={players}
           myId={ME}
@@ -326,7 +387,22 @@ function Screen({ scene, role, start }: { scene: PreviewScene; role: WwRole; sta
   const local = (fn: () => void) => async () => fn();
   return (
     <>
-      <TopBar menu={<RoomMenu ctx={ctx} isHost inGame onLeave={() => {}} onDelete={() => {}} />} />
+      <TopBar
+        menu={
+          <RoomMenu
+            ctx={ctx}
+            isHost
+            inGame
+            rules={state.rules}
+            leaveCandidates={state.phase === 'end' ? null : players.filter((p) => p.id !== ME && !table.deaths.some((d) => d.id === p.id))}
+            onLeaveVillage={(id) =>
+              setState((s) => s && { ...s, deaths: [...s.deaths, { id, round: s.round, cause: 'left' }], log: [...s.log, { kind: 'left', round: s.round, id, during: s.phase }] })
+            }
+            onLeave={() => {}}
+            onDelete={() => {}}
+          />
+        }
+      />
       <PhaseView
         ctx={ctx}
         handlers={{

@@ -2,10 +2,11 @@
 
 import type { HTMLAttributes, ReactNode } from 'react';
 import type { Player } from '@/types/player';
+import { describeLog } from '@/components/games/werewolf/engine/log.ts';
 import { ROLE_NAME } from '@/components/games/werewolf/engine/roles.ts';
 import { formatCountdown } from '../hooks/usePhaseClock';
 import { dataOf, isDead } from '../state';
-import type { WerewolfGameData, WerewolfGameState, WwRole, WwTable } from '../types';
+import type { WerewolfGameData, WerewolfGameState, WwLogEntry, WwRole, WwTable } from '../types';
 
 /** Những gì mọi panel trong ván cần biết. `me` là người đang xem màn này. */
 export interface PanelCtx {
@@ -29,6 +30,33 @@ export function nameOf(players: Player[], id: string | null | undefined): string
 export function revealedRole(ctx: Pick<PanelCtx, 'state' | 'players'>, id: string): WwRole | null {
   if (!ctx.state.rules.revealOnDeath || !isDead(ctx.state, id)) return null;
   return dataOf(ctx.players.find((p) => p.id === id)).role ?? null;
+}
+
+/**
+ * Thợ săn đã chết nhưng chưa tới / chưa xong lượt bắn: chưa phải hồn ma (thấy
+ * hết vai thì phát bắn mất ý nghĩa). Lượt bắn luôn để lại một mục 'hunter'
+ * trong nhật ký, kể cả khi không bắn hay hết giờ.
+ */
+function shotPending(ctx: Pick<PanelCtx, 'state' | 'me' | 'myData'>): boolean {
+  if (ctx.myData.role !== 'hunter') return false;
+  const death = ctx.state.deaths.find((d) => d.id === ctx.me.id);
+  if (!death || death.cause === 'left' || (death.cause === 'poison' && !ctx.state.rules.hunterShootsWhenPoisoned)) return false;
+  return !ctx.state.log.some((e) => e.kind === 'hunter' && e.hunterId === ctx.me.id);
+}
+
+/**
+ * Người xem là hồn ma được xem hết (luật "Hồn ma xem hết vai" bật): thấy vai
+ * của mọi người, lựa chọn đêm theo thời gian thực và nhật ký. Người còn sống
+ * KHÔNG BAO GIỜ thấy các phần này.
+ */
+export function ghostSeesAll(ctx: Pick<PanelCtx, 'state' | 'me' | 'myData'>): boolean {
+  return ctx.state.rules.ghostsSeeAll && isDead(ctx.state, ctx.me.id) && ctx.state.phase !== 'end' && !shotPending(ctx);
+}
+
+/** Vai hiện cạnh tên `id` trên màn người xem: hồn ma (luật cho phép) thấy mọi vai, còn lại chỉ vai đã lộ khi chết. */
+export function shownRole(ctx: Pick<PanelCtx, 'state' | 'players' | 'me' | 'myData'>, id: string): WwRole | null {
+  if (ghostSeesAll(ctx)) return dataOf(ctx.players.find((p) => p.id === id)).role ?? null;
+  return revealedRole(ctx, id);
 }
 
 /** Tiêu đề của bước: một câu, đồng hồ bên phải (nếu bước có giờ). */
@@ -71,6 +99,7 @@ export function PlayerTile({
   player,
   selected = false,
   mark,
+  role = null,
   onClick,
   onPointerDown,
   disabled = false,
@@ -78,6 +107,8 @@ export function PlayerTile({
 }: {
   player: Player;
   selected?: boolean;
+  /** Vai hiện dưới tên: chỉ khi người xem được thấy (shownRole). */
+  role?: WwRole | null;
   /** Dấu nhỏ góc phải (vd. "đã bầu"), công khai. */
   mark?: ReactNode;
   onClick?: () => void;
@@ -103,7 +134,14 @@ export function PlayerTile({
       }`}
     >
       <Avatar name={player.name} />
-      <span className="min-w-0 flex-1 truncate">{player.name}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block truncate">{player.name}</span>
+        {role && (
+          <span className={`block truncate text-[11px] font-semibold ${role === 'werewolf' ? 'text-rose-300' : 'text-emerald-300'}`} data-ww-tile-role={role}>
+            {ROLE_NAME[role]}
+          </span>
+        )}
+      </span>
       {mark && <span className="absolute -top-1.5 -right-1.5">{mark}</span>}
     </button>
   );
@@ -203,11 +241,40 @@ export function RoleTag({ role }: { role: WwRole }) {
 }
 
 /** Màn cho người đã chết ở các bước cần hành động. */
-export function DeadNote() {
+export function DeadNote({ ghost = false }: { ghost?: boolean }) {
   return (
-    <p className="rounded-xl bg-slate-800/70 px-4 py-3 text-center text-sm text-slate-300">
-      Bạn đã chết. Ngồi im lặng, không ra hiệu đến hết ván nhé.
+    <p className="rounded-xl bg-slate-800/70 px-4 py-3 text-center text-sm text-slate-300" data-ww-dead-note={ghost ? 'ghost' : 'plain'}>
+      {ghost
+        ? 'Bạn đã chết. Hồn ma thấy vai và lựa chọn của mọi người — giữ kín, ngồi im lặng đến hết ván nhé.'
+        : 'Bạn đã chết. Ngồi im lặng, không ra hiệu đến hết ván nhé.'}
     </p>
+  );
+}
+
+/** "Diễn biến ván": các câu của nhật ký, gom theo "Đêm N" / "Ngày N". */
+export function LogList({ log, players }: { log: readonly WwLogEntry[]; players: Player[] }) {
+  const lines = describeLog(log, (id) => nameOf(players, id));
+  const groups: Array<{ label: string; texts: string[] }> = [];
+  for (const line of lines) {
+    const label = `${line.part === 'night' ? 'Đêm' : 'Ngày'} ${line.round}`;
+    const last = groups[groups.length - 1];
+    if (last && last.label === label) last.texts.push(line.text);
+    else groups.push({ label, texts: [line.text] });
+  }
+  if (groups.length === 0) return <p className="text-sm text-slate-400">Chưa có gì.</p>;
+  return (
+    <ol className="space-y-3" data-ww-log="">
+      {groups.map((g, i) => (
+        <li key={i}>
+          <p className="mb-1 text-xs font-bold tracking-wide text-indigo-300 uppercase">{g.label}</p>
+          <ul className="space-y-1 text-sm text-slate-200">
+            {g.texts.map((t, j) => (
+              <li key={j}>{t}</li>
+            ))}
+          </ul>
+        </li>
+      ))}
+    </ol>
   );
 }
 

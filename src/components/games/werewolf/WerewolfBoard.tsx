@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useRoom, ACTIVE_ROOM_KEY } from '@/hooks/useRoom';
 import { useWakeLock } from '@/hooks/useWakeLock';
@@ -9,6 +9,7 @@ import { gameStorage } from '@/services/database/firebaseAdapter';
 import QRCodeDisplay from '@/components/core/QRCodeDisplay';
 import type { GameModuleProps } from '@/lib/gameRegistry';
 import { dealDone, nightDone, talkDone, voteDone, witchDone } from '@/components/games/werewolf/engine/flow.ts';
+import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import { useWerewolf, type PickResult, type WitchDraft, type WitchResult } from './useWerewolf';
 import { dataOf, nightPicksOf, witchPicksOf } from './state';
 import { phaseTimeoutMs, type DayBallot, type WerewolfGameState, type WerewolfRoomConfig, type WwTable } from './types';
@@ -26,7 +27,8 @@ import TalkPanel from './panel/TalkPanel';
 import VotePanel from './panel/VotePanel';
 import VoteResultPanel from './panel/VoteResultPanel';
 import EndPanel from './panel/EndPanel';
-import type { PanelCtx } from './panel/shared';
+import GhostPanel from './panel/GhostPanel';
+import { ghostSeesAll, type PanelCtx } from './panel/shared';
 
 // Máy khác chờ thêm chừng này rồi mới tự chuyển phase thay chủ phòng (chủ
 // phòng mất mạng / ngủ). CAS bảo đảm chỉ một lần ghi thắng.
@@ -52,11 +54,20 @@ export interface PhaseHandlers {
   onLeave: () => void;
 }
 
-/** Màn của phase hiện tại (dùng chung với WerewolfPreview). */
+/** Màn của phase hiện tại (dùng chung với WerewolfPreview). Hồn ma (luật cho phép) thấy thêm khung "Hồn ma". */
 export function PhaseView({ ctx, handlers }: { ctx: Omit<PanelCtx, 'remaining'>; handlers: PhaseHandlers }) {
   const remaining = usePhaseRemaining(ctx.state);
   const full: PanelCtx = { ...ctx, remaining };
-  switch (ctx.state.phase) {
+  return (
+    <>
+      <PhasePanel ctx={full} handlers={handlers} />
+      {ghostSeesAll(full) && <GhostPanel ctx={full} />}
+    </>
+  );
+}
+
+function PhasePanel({ ctx: full, handlers }: { ctx: PanelCtx; handlers: PhaseHandlers }) {
+  switch (full.state.phase) {
     case 'deal':
       return <DealPanel ctx={full} onAck={handlers.onAckDeal} />;
     case 'night':
@@ -109,6 +120,7 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     proceedAfterDawn,
     shootHunter,
     hunterTimeout,
+    leaveVillage,
     readyToVote,
     proceedAfterTalk,
     castDayVote,
@@ -258,6 +270,31 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     [ask, room.id]
   );
 
+  // Cho rời làng dùng state MỚI NHẤT lúc chủ phòng bấm xác nhận (hộp thoại có
+  // thể mở qua vài lần đổi phase).
+  const leaveRef = useRef(leaveVillage);
+  useEffect(() => {
+    leaveRef.current = leaveVillage;
+  }, [leaveVillage]);
+  const handleLeaveVillage = useCallback(
+    async (targetId: string, name: string) => {
+      const reveal = state?.rules.revealOnDeath ?? true;
+      const ok = await ask({
+        title: `Cho ${name} rời làng?`,
+        message: `${name} tính là đã chết (rời làng)${reveal ? ' và lộ vai' : ''}. Không hoàn tác được.`,
+        confirmLabel: 'Cho rời làng',
+        danger: true,
+      });
+      if (!ok) return;
+      try {
+        if (!(await leaveRef.current(targetId))) setNotice(`Chưa cho ${name} rời làng được (ván vừa đổi bước) — thử lại.`);
+      } catch {
+        setNotice('Không gửi được — kiểm tra kết nối mạng rồi thử lại.');
+      }
+    },
+    [ask, state?.rules.revealOnDeath]
+  );
+
   const handlePick = useCallback(
     (targetId: string): PickResult => {
       const res = pickNight(playerId, targetId);
@@ -289,7 +326,22 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
   const me = players.find((p) => p.id === playerId);
   const myData = dataOf(me);
   const menuCtx = state && table && me ? { me, myData, players: gamePlayers, table } : null;
-  const menu = <RoomMenu ctx={inGame ? menuCtx : null} isHost={isHost} inGame={inGame} onLeave={handleLeave} onDelete={handleDelete} />;
+  const leaveCandidates =
+    isHost && inGame && state && table && ready && state.phase !== 'end'
+      ? gamePlayers.filter((p) => p.id !== playerId && aliveIds(table).includes(p.id))
+      : null;
+  const menu = (
+    <RoomMenu
+      ctx={inGame ? menuCtx : null}
+      isHost={isHost}
+      inGame={inGame}
+      rules={state?.rules ?? config?.rules ?? null}
+      leaveCandidates={leaveCandidates}
+      onLeaveVillage={handleLeaveVillage}
+      onLeave={handleLeave}
+      onDelete={handleDelete}
+    />
+  );
 
   const shell = (body: React.ReactNode, attrs: Record<string, string | number> = {}) => (
     <div className="mx-auto w-full max-w-lg text-slate-100" data-ww-root="" {...attrs}>

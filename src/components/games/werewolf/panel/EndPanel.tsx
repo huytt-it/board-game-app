@@ -1,11 +1,12 @@
 'use client';
 
-import { describeLog, DEATH_CAUSE_TEXT } from '@/components/games/werewolf/engine/log.ts';
+import { DEATH_CAUSE_TEXT } from '@/components/games/werewolf/engine/log.ts';
 import { TEAM_NAME } from '@/components/games/werewolf/engine/roles.ts';
 import { WIN_REASON_TEXT } from '@/components/games/werewolf/engine/win.ts';
 import { dataOf } from '../state';
 import Button from '../ui/Button';
-import { Avatar, Dock, RoleTag, nameOf, type PanelCtx } from './shared';
+import type { WwDeath } from '../types';
+import { Avatar, Dock, LogList, RoleTag, type PanelCtx } from './shared';
 
 // Kết thúc (rules §5.10): phe thắng và lý do, lật vai của mọi người, "Diễn
 // biến ván" dạng danh sách (GĐ4 kể lại theo từng đêm), chủ phòng chơi lại.
@@ -21,15 +22,12 @@ export default function EndPanel({
   const { state, players } = ctx;
   const winner = state.winner;
   const myTeam = ctx.myData.team;
-  const lines = describeLog(state.log ?? [], (id) => nameOf(players, id));
-  // Gom các câu liền nhau cùng "Đêm N" / "Ngày N".
-  const groups: Array<{ label: string; texts: string[] }> = [];
-  for (const line of lines) {
-    const label = `${line.part === 'night' ? 'Đêm' : 'Ngày'} ${line.round}`;
-    const last = groups[groups.length - 1];
-    if (last && last.label === label) last.texts.push(line.text);
-    else groups.push({ label, texts: [line.text] });
-  }
+  // Rời làng lúc đêm (kể cả lúc xem vai) thì ghi "Đêm N", như nhật ký.
+  const partOf = (d: WwDeath) => {
+    if (d.cause === 'wolf' || d.cause === 'poison') return 'Đêm';
+    const left = d.cause === 'left' ? state.log.find((e) => e.kind === 'left' && e.id === d.id) : null;
+    return left && left.kind === 'left' && ['deal', 'night', 'night-witch'].includes(left.during) ? 'Đêm' : 'Ngày';
+  };
   return (
     <section data-phase-section="end">
       <header className="mb-4 rounded-2xl bg-slate-800/70 px-4 py-5 text-center" data-ww-winner={winner ?? 'none'}>
@@ -52,7 +50,7 @@ export default function EndPanel({
               <span className="min-w-0 flex-1">
                 <span className="block truncate font-semibold text-slate-100">{p.name}</span>
                 <span className="block text-xs text-slate-400">
-                  {death ? `${death.cause === 'wolf' || death.cause === 'poison' ? 'Đêm' : 'Ngày'} ${death.round}: ${DEATH_CAUSE_TEXT[death.cause]}` : 'Sống sót'}
+                  {death ? `${partOf(death)} ${death.round}: ${DEATH_CAUSE_TEXT[death.cause]}` : 'Sống sót'}
                 </span>
               </span>
               {role && <RoleTag role={role} />}
@@ -62,18 +60,7 @@ export default function EndPanel({
       </ul>
 
       <h3 className="mb-2 text-sm font-semibold text-slate-300">Diễn biến ván</h3>
-      <ol className="space-y-3" data-ww-log="">
-        {groups.map((g, i) => (
-          <li key={i}>
-            <p className="mb-1 text-xs font-bold tracking-wide text-indigo-300 uppercase">{g.label}</p>
-            <ul className="space-y-1 text-sm text-slate-200">
-              {g.texts.map((t, j) => (
-                <li key={j}>{t}</li>
-              ))}
-            </ul>
-          </li>
-        ))}
-      </ol>
+      <LogList log={state.log ?? []} players={players} />
 
       <Dock>
         {ctx.isHost ? (

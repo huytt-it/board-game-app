@@ -18,6 +18,7 @@ import {
   afterTalk,
   afterVote,
   afterVoteResult,
+  applyLeave,
   startGame as startEngineGame,
   type Step,
 } from '@/components/games/werewolf/engine/flow.ts';
@@ -550,6 +551,45 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
     await applyStep(afterHunter(table, state.round, state.hunter, null), { expect: { hunter: state.hunter } });
   }, [state, table, ready, applyStep]);
 
+  // ── Cho rời làng (rules §7, E25) ───────────────────────────────────────
+
+  /**
+   * Chủ phòng cho một người còn sống rời làng, ở bất kỳ bước nào. KHÔNG đi qua
+   * advance / applyStep: chúng đặt lại `phaseStartedAt`, đồng hồ của bước đang
+   * chạy sẽ bị reset. Một CAS riêng (expect phase, phaseStartedAt, deaths) chỉ
+   * thêm người chết và nhật ký; có phe thắng thì sang `end` luôn. Trả false
+   * nếu không làm được (người đó đã chết, hoặc ván vừa đổi — thử lại).
+   */
+  const leaveVillage = useCallback(
+    async (targetId: string) => {
+      if (!roomId || !state || !table || !ready) return false;
+      const res = applyLeave(table, state.round, state.phase, targetId);
+      if (!res) return false;
+      const patch: Partial<WerewolfGameState> = {
+        deaths: [...state.deaths, ...res.newDeaths],
+        log: [...state.log, ...res.log],
+      };
+      if (res.winner) {
+        Object.assign(patch, {
+          phase: 'end',
+          phaseStartedAt: serverNow(),
+          winner: res.winner.winner,
+          endReason: res.winner.reason,
+          hunter: null,
+        });
+      }
+      return retryOnContention(() =>
+        gameStorage.casGameState(
+          roomId,
+          { phase: state.phase, phaseStartedAt: state.phaseStartedAt, deaths: state.deaths },
+          patch,
+          { status: res.winner ? PHASE_STATUS.end : undefined }
+        )
+      );
+    },
+    [roomId, state, table, ready]
+  );
+
   // ── Kết thúc ───────────────────────────────────────────────────────────
 
   /** Chủ phòng chơi lại: xoá vai của mọi người, phòng về sảnh. */
@@ -578,6 +618,7 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
     proceedAfterDawn,
     shootHunter,
     hunterTimeout,
+    leaveVillage,
     readyToVote,
     proceedAfterTalk,
     castDayVote,

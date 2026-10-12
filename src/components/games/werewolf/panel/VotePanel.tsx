@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import type { DayBallot } from '../types';
 import Button from '../ui/Button';
-import { DeadNote, Dock, PhaseHeader, PlayerTile, type PanelCtx } from './shared';
+import { DeadNote, Dock, PhaseHeader, PlayerTile, ghostSeesAll, shownRole, type PanelCtx } from './shared';
 
 // Bỏ phiếu (rules §5.9): bầu một người còn sống khác mình, hoặc Bỏ qua. Đổi
 // được đến khi hết bước. Ai đã bầu thì mọi người thấy (dấu ✓), bầu ai thì ẩn.
@@ -40,6 +40,7 @@ export default function VotePanel({ ctx, onVote }: { ctx: PanelCtx; onVote: (bal
               player={p}
               label={self ? `${p.name} (bạn)` : `Bầu ${p.name}`}
               selected={mine === id}
+              role={shownRole(ctx, id)}
               disabled={!iAmAlive || self || !open}
               onClick={() => vote(id)}
               mark={typeof votes[id] === 'string' ? voted : undefined}
@@ -58,7 +59,7 @@ export default function VotePanel({ ctx, onVote }: { ctx: PanelCtx; onVote: (bal
         </Dock>
       ) : (
         <div className="mt-4">
-          <DeadNote />
+          <DeadNote ghost={ghostSeesAll(ctx)} />
         </div>
       )}
     </section>

@@ -4,15 +4,15 @@ import { useState } from 'react';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import { isDead } from '../state';
 import Button from '../ui/Button';
-import { Avatar, DeadNote, Dock, PhaseHeader, RoleTag, revealedRole, type PanelCtx } from './shared';
+import { Avatar, DeadNote, Dock, PhaseHeader, RoleTag, ghostSeesAll, shownRole, type PanelCtx } from './shared';
 
-/** Danh sách người còn sống / đã chết (công khai), dùng ở Thảo luận. */
+/** Danh sách người còn sống / đã chết (công khai; hồn ma thấy thêm vai), dùng ở Thảo luận. */
 export function Roster({ ctx, mark }: { ctx: PanelCtx; mark?: (id: string) => boolean }) {
   return (
     <ul className="grid grid-cols-1 gap-1.5 min-[360px]:grid-cols-2">
       {ctx.players.map((p) => {
         const dead = isDead(ctx.state, p.id);
-        const role = revealedRole(ctx, p.id);
+        const role = shownRole(ctx, p.id);
         return (
           <li
             key={p.id}
@@ -62,7 +62,7 @@ export default function TalkPanel({ ctx, onReady }: { ctx: PanelCtx; onReady: ()
         </Dock>
       ) : (
         <div className="mt-4">
-          <DeadNote />
+          <DeadNote ghost={ghostSeesAll(ctx)} />
         </div>
       )}
     </section>

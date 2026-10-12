@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import Button from '../ui/Button';
 import { useConfirm } from '../ui/Dialog';
-import { Dock, PhaseHeader, PlayerTile, nameOf, type PanelCtx } from './shared';
+import { Dock, PhaseHeader, PlayerTile, nameOf, shownRole, type PanelCtx } from './shared';
 
 // Thợ săn (rules §5.7): Thợ săn vừa chết chọn một người còn sống để bắn, hoặc
 // không bắn. Bước này công khai (vai Thợ săn lộ ra là đương nhiên), nên không
@@ -54,6 +54,7 @@ export default function HunterPanel({ ctx, onShoot }: { ctx: PanelCtx; onShoot: 
               player={p}
               label={isMe ? `Ngắm ${p.name}` : p.name}
               selected={isMe && aimId === id}
+              role={shownRole(ctx, id)}
               disabled={!isMe || !open || sending}
               onClick={() => setAim({ at: state.phaseStartedAt, id })}
             />

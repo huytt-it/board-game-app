@@ -7,7 +7,7 @@ import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import { EMPTY_WITCH_DRAFT, type WitchDraft, type WitchResult } from '../useWerewolf';
 import { potionsOf } from '../state';
 import Button from '../ui/Button';
-import { DeadNote, Dock, HoldCard, InHoldButton, PhaseHeader, PlayerTile, nameOf, type PanelCtx } from './shared';
+import { DeadNote, Dock, HoldCard, InHoldButton, PhaseHeader, PlayerTile, ghostSeesAll, nameOf, shownRole, type PanelCtx } from './shared';
 
 // Đêm ② — Phù thủy (rules §5.4, plan §7 "Bổ sung cho GĐ2" mục 2). Khi không
 // giữ thẻ, màn này GIỐNG HỆT NHAU với mọi người: cùng câu, cùng lưới mọi
@@ -175,6 +175,7 @@ export default function WitchPanel({
               player={p}
               label={`Chọn ${p.name}`}
               selected={iAmAlive && draft.guessId === id}
+              role={shownRole(ctx, id)}
               disabled={!iAmAlive}
               onPointerDown={() => {
                 heldAtDown.current = held;
@@ -219,7 +220,7 @@ export default function WitchPanel({
         </>
       ) : (
         <div className="mt-4">
-          <DeadNote />
+          <DeadNote ghost={ghostSeesAll(ctx)} />
         </div>
       )}
     </section>

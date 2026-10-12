@@ -8,7 +8,7 @@ import type { PickResult } from '../useWerewolf';
 import { dataOf } from '../state';
 import type { WwRole } from '../types';
 import Button from '../ui/Button';
-import { DeadNote, Dock, HoldCard, PhaseHeader, PlayerTile, nameOf, type PanelCtx } from './shared';
+import { DeadNote, Dock, HoldCard, PhaseHeader, PlayerTile, ghostSeesAll, nameOf, shownRole, type PanelCtx } from './shared';
 
 // Đêm ① (rules §5.2, plan §2.3 + "Bổ sung cho GĐ1" mục 7). Khi không giữ thẻ,
 // màn này GIỐNG HỆT NHAU với mọi vai: cùng câu, cùng lưới (mọi người còn
@@ -161,6 +161,7 @@ export default function NightPanel({
               player={p}
               label={`Chọn ${p.name}`}
               selected={iAmAlive && shownPick === id}
+              role={shownRole(ctx, id)}
               disabled={!iAmAlive}
               onPointerDown={() => {
                 heldAtDown.current = held;
@@ -193,7 +194,7 @@ export default function NightPanel({
         </>
       ) : (
         <div className="mt-4">
-          <DeadNote />
+          <DeadNote ghost={ghostSeesAll(ctx)} />
         </div>
       )}
     </section>
