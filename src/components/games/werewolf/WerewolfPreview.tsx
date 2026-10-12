@@ -37,6 +37,8 @@ export const PREVIEW_SCENES = {
   'witch-dead': 'Đêm ② — người xem đã chết',
   'dawn-deaths': 'Bình minh — có người chết',
   'dawn-peaceful': 'Bình minh — bình yên',
+  'hunter-dawn': 'Thợ săn — bị cắn, bắn sau bình minh',
+  'hunter-vote': 'Thợ săn — bị treo, bắn sau kết quả',
   'day-talk': 'Thảo luận',
   'day-vote': 'Bỏ phiếu',
   'vote-result-hanged': 'Kết quả — có người bị treo',
@@ -191,6 +193,14 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
       return { state: baseState('dawn', start, { deaths: [{ id: common, round: 1, cause: 'wolf' }], dawnDeaths: [common] }), players: makePlayers(roles) };
     case 'dawn-peaceful':
       return { state: baseState('dawn', start), players: makePlayers(roles) };
+    case 'hunter-dawn':
+    case 'hunter-vote': {
+      // Người xem chọn vai Thợ săn thì thấy màn bắn; vai khác thấy "đang ngắm".
+      const hunterId = idOf('hunter');
+      const after = scene === 'hunter-dawn' ? 'dawn' : 'vote';
+      const deaths = [{ id: hunterId, round: 1, cause: after === 'dawn' ? ('wolf' as const) : ('vote' as const) }];
+      return { state: baseState('hunter', start, { deaths, hunter: { hunterId, after } }), players: makePlayers(roles) };
+    }
     case 'day-talk':
       return {
         state: baseState('day-talk', start, { deaths: [{ id: common, round: 1, cause: 'wolf' }], acks: { [idOf('seer')]: true, [wolves[1]]: true } }),
@@ -328,6 +338,7 @@ function Screen({ scene, role, start }: { scene: PreviewScene; role: WwRole; sta
             setMine({ witchPick: { round: state.round, ...draft, confirmed: true } });
             return { outcome: 'ok', error: null };
           },
+          onShoot: async () => true,
           onReady: local(() => setState((s) => s && { ...s, acks: { ...s.acks, [ME]: true } })),
           onVote: async (b) => setState((s) => s && { ...s, dayVotes: { ...s.dayVotes, [ME]: b } }),
           onPlayAgain: () => {},

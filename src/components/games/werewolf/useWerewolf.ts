@@ -12,6 +12,7 @@ import type { Room, RoomStatus } from '@/types/room';
 import {
   afterDawn,
   afterDeal,
+  afterHunter,
   afterNight,
   afterNightWitch,
   afterTalk,
@@ -525,6 +526,30 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
     await applyStep(afterVoteResult(table, state.round, state.lastVote?.executedId ?? null));
   }, [state, table, ready, applyStep]);
 
+  // ── Thợ săn ────────────────────────────────────────────────────────────
+
+  /**
+   * Thợ săn bắn (`shotId`) hoặc không bắn (null): chuyển phase ngay bằng một
+   * CAS với expect { hunter, deaths }, không cần lưu lựa chọn riêng. Engine
+   * kiểm tra thắng sau phát bắn. Trả false nếu bước đã kết thúc (hết giờ, máy
+   * khác đã chuyển).
+   */
+  const shootHunter = useCallback(
+    async (playerId: string, shotId: string | null) => {
+      if (!state || state.phase !== 'hunter' || !state.hunter || !table || !ready) return false;
+      if (state.hunter.hunterId !== playerId || !phaseOpen('hunter')) return false;
+      if (shotId && !isValidTarget(table, playerId, 'shoot', shotId)) return false;
+      return applyStep(afterHunter(table, state.round, state.hunter, shotId), { expect: { hunter: state.hunter } });
+    },
+    [state, table, ready, phaseOpen, applyStep]
+  );
+
+  /** Hết giờ Thợ săn: coi như không bắn. */
+  const hunterTimeout = useCallback(async () => {
+    if (!state || state.phase !== 'hunter' || !state.hunter || !table || !ready) return;
+    await applyStep(afterHunter(table, state.round, state.hunter, null), { expect: { hunter: state.hunter } });
+  }, [state, table, ready, applyStep]);
+
   // ── Kết thúc ───────────────────────────────────────────────────────────
 
   /** Chủ phòng chơi lại: xoá vai của mọi người, phòng về sảnh. */
@@ -551,6 +576,8 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
     confirmWitch,
     resolveWitchPhase,
     proceedAfterDawn,
+    shootHunter,
+    hunterTimeout,
     readyToVote,
     proceedAfterTalk,
     castDayVote,

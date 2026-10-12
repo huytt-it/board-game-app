@@ -20,6 +20,7 @@ import LobbyPanel from './panel/LobbyPanel';
 import DealPanel from './panel/DealPanel';
 import NightPanel from './panel/NightPanel';
 import WitchPanel from './panel/WitchPanel';
+import HunterPanel from './panel/HunterPanel';
 import DawnPanel from './panel/DawnPanel';
 import TalkPanel from './panel/TalkPanel';
 import VotePanel from './panel/VotePanel';
@@ -43,6 +44,8 @@ export interface PhaseHandlers {
   onConfirmNight: (targetId: string) => Promise<unknown>;
   onPickWitch: (draft: WitchDraft) => WitchResult;
   onConfirmWitch: (draft: WitchDraft) => Promise<Pick<WitchResult, 'outcome' | 'error'>>;
+  /** Thợ săn bắn (`targetId`) / không bắn (null). false = bước đã qua. */
+  onShoot: (targetId: string | null) => Promise<boolean>;
   onReady: () => Promise<unknown>;
   onVote: (ballot: DayBallot) => Promise<unknown>;
   onPlayAgain: () => void;
@@ -62,6 +65,8 @@ export function PhaseView({ ctx, handlers }: { ctx: Omit<PanelCtx, 'remaining'>;
       return <WitchPanel ctx={full} onPick={handlers.onPickWitch} onConfirm={handlers.onConfirmWitch} />;
     case 'dawn':
       return <DawnPanel ctx={full} />;
+    case 'hunter':
+      return <HunterPanel ctx={full} onShoot={handlers.onShoot} />;
     case 'day-talk':
       return <TalkPanel ctx={full} onReady={handlers.onReady} />;
     case 'day-vote':
@@ -70,9 +75,6 @@ export function PhaseView({ ctx, handlers }: { ctx: Omit<PanelCtx, 'remaining'>;
       return <VoteResultPanel ctx={full} />;
     case 'end':
       return <EndPanel ctx={full} onPlayAgain={handlers.onPlayAgain} onLeave={handlers.onLeave} />;
-    default:
-      // Thợ săn: commit sau của GĐ2.
-      return <p className="text-center text-sm text-slate-400">Bước này có ở GĐ2.</p>;
   }
 }
 
@@ -105,6 +107,8 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     confirmWitch,
     resolveWitchPhase,
     proceedAfterDawn,
+    shootHunter,
+    hunterTimeout,
     readyToVote,
     proceedAfterTalk,
     castDayVote,
@@ -179,6 +183,8 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
         return arm(witchDone(table, witchPicksOf(state, players), state.round) ? 0 : timeout, resolveWitchPhase);
       case 'dawn':
         return arm(timeout, proceedAfterDawn);
+      case 'hunter':
+        return arm(timeout, hunterTimeout);
       case 'day-talk':
         return arm(talkDone(table, state.acks ?? {}) ? 0 : timeout, proceedAfterTalk);
       case 'day-vote':
@@ -196,6 +202,7 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     resolveNightPhase,
     resolveWitchPhase,
     proceedAfterDawn,
+    hunterTimeout,
     proceedAfterTalk,
     resolveDayVote,
     proceedAfterVoteResult,
@@ -342,6 +349,7 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
         onConfirmNight: (targetId: string) => confirmNight(playerId, targetId).catch(failed),
         onPickWitch: handlePickWitch,
         onConfirmWitch: (draft: WitchDraft) => confirmWitch(playerId, draft).catch(failed),
+        onShoot: (targetId: string | null) => shootHunter(playerId, targetId).catch(failed),
         onReady: () => readyToVote(playerId).catch(failed),
         onVote: (ballot: DayBallot) => castDayVote(playerId, ballot).catch(failed),
         onPlayAgain: handleNewGame,
