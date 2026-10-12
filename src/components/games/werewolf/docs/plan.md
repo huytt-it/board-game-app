@@ -536,7 +536,7 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 | Kế hoạch | Xong | `d0fbb4db` → (commit này) | Nhạc trưởng viết plan.md + rules.md, 2026-10-11. |
 | GĐ0 | **Review đạt** (nhạc trưởng, 2026-10-11) | `6440892c` → `68af55e5` | Engine thuần + 132 test (22 nhóm), phủ đủ E1–E28. `tsc`, eslint werewolf, `build` sạch; không import react/firebase/`@/`. Chi tiết và các điểm lệch ở §12.1, review ở §12.2. |
 | GĐ1 | **Review đạt** (nhạc trưởng, 2026-10-11) | `08623054` → `d3b1a59f`; code `15d0d159`, `13e33330`, `0f4da818`, `b51f226f` | Chơi được 4 vai trên điện thoại, không quản trò. Hook UI chuyển sang `games/shared/hooks`. Engine 136 test. Ván thật 7 cửa sổ: Dân thắng 11/11, Sói thắng 9/9 kiểm tra đạt. Cặp ảnh riêng tư Đêm ① + Xem vai 12/12 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.3, review ở §12.4. |
-| GĐ2 | Chưa bắt đầu | | |
+| GĐ2 | **Xong, chờ review** (2026-10-12) | `fe0343a0` → (commit docs này); code `35894afc`, `701f1009`, `b6ab022f`, `99cc7252`, `c4c0944f`, `3f13ff03` | Đủ 6 vai + 4 luật tuỳ chọn, cho rời làng, hồn ma, màn Luật chơi. Adapter `casGameState` không ghi doc phòng khi chỉ ghi `playerData`. Engine 138 test. Ván thật 7–10 cửa sổ: 7 kịch bản Ma Sói đạt + 1 ván Avalon 5 cửa sổ đạt. Cặp ảnh riêng tư Đêm ①, Xem vai, Đêm ② 40/40 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.5. |
 | GĐ3 | Chưa bắt đầu | | |
 | GĐ4 | Chưa bắt đầu | | |
 
@@ -678,3 +678,65 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 **Đã biết, chấp nhận:** Sói đổi lựa chọn sau khi Xác nhận thì dòng xác nhận của Sói đó đổi (chỉ Sói làm được, phải giữ thẻ). Xem mục 8 của "Bổ sung cho GĐ2".
 
 **Chuyển sang GĐ2:** "Bổ sung cho GĐ2" ở §7.
+
+### 12.5 GĐ2 — ghi chú của người thực thi (2026-10-12)
+
+**Commit** (đều trên `dev-werewolf`, chưa push; điểm bắt đầu `fe0343a0`):
+1. `35894afc` `fix(storage)`: `firebaseAdapter.casGameState` chỉ `tx.update(roomRef, …)` khi `patch` có khoá hoặc có `status`; vẫn đọc doc phòng để kiểm `expected`. Một dòng ghi chú trong `IGameStorage.ts`. Chữ ký không đổi.
+2. `701f1009` bỏ phần tạm GĐ1 (`GD1_DISABLED_ROLES`, `GD1_DISABLED_PHASES`, ép Phù thủy / Thợ săn = 0, nhãn "GĐ2") + Đêm ② (Phù thủy).
+3. `b6ab022f` Thợ săn.
+4. `99cc7252` Cho rời làng, hồn ma, lộ vai khi chết (rà lại), màn "Luật chơi", `LogList` dùng chung.
+5. `c4c0944f` +2 test engine: bình còn nguyên khi người được cứu / bị độc rời làng giữa Đêm ② (rules §5.5).
+6. `3f13ff03` sửa lỗi bot ván thật phát hiện: nút thời gian "Thợ săn" trùng `aria-label` với nút vai Thợ săn; thêm `data-ww-role-tag`.
+7. Commit docs này: §12.
+
+**Đã làm**
+- **Đêm ①**: `resolveNightPhase` nhận nhánh `night-witch` của `afterNight`, ghi `attack` + `log`, `expectPlayerData` = `nightPick` của mọi người còn sống + `guardLast` của Bảo vệ (đúng bảng mục 4 phần GĐ1).
+- **Đêm ② → Bình minh** (`resolveWitchPhase`): `afterNightWitch`; `expect { deaths, attack }`, `expectPlayerData` = `witchPick` của mọi người còn sống, `nightPick` + `guardLast` của Bảo vệ, `potions` của Phù thủy; `playerData` ghi `potions` và `guardLast` mới cùng transaction. Kết thúc sớm bằng `witchDone`. Lựa chọn ghi `gameData.witchPick` (có `round`), đọc qua `pickFor`, ghi qua hàng đợi + chống đụng như Đêm ①.
+- **`WitchPanel`**: không giữ thì màn giống hệt nhau (câu "Phù thủy dùng bình. Mọi người đoán Sói nhắm ai rồi bấm Xác nhận.", lưới mọi người còn sống, nút Xác nhận bấm được cả khi chưa chọn, dòng Chưa / Đã xác nhận). Chạm lưới khi không giữ = đoán (`guessId`; với Phù thủy chỉ là ô sáng, engine bỏ qua). Phù thủy giữ thẻ thấy "Sói nhắm: X" / "Đêm nay Sói không cắn ai", nút **Cứu X** trong thẻ, và **vừa giữ thẻ vừa chạm người ở lưới để độc** (chạm lại = bỏ độc; có nút "bỏ" trong thẻ). Kiểm bằng `validateWitchPick`, lý do lỗi (`WITCH_PICK_ERROR_TEXT`) chỉ hiện trong thẻ. Dấu "độc" trên ô chỉ hiện khi đang giữ.
+- **`HunterPanel`**: Thợ săn chọn ô rồi "Bắn {tên}" / "Không bắn" (hộp xác nhận); lần bấm gọi thẳng CAS `afterHunter(table, round, state.hunter, shotId)` với `expect { hunter, deaths }`; thua CAS thì báo "Hết giờ — lượt bắn đã qua". Người khác thấy "Thợ săn {tên} đang ngắm… Sau đó …" + đồng hồ. Timer `hunter` (`timeouts.hunter`), hết giờ = `afterHunter(…, null)`. `PHASE_STATUS.hunter = 'day'` (đã đúng từ GĐ1).
+- **Cho rời làng** (`leaveVillage`): menu ⋯ của chủ phòng giữa ván → "Cho rời làng…" → danh sách người còn sống (trừ chính chủ phòng) → hộp xác nhận. Một `casGameState` riêng, **không** qua `advance` / `applyStep`: `expected { phase, phaseStartedAt, deaths }`, patch `{ deaths, log }`; `applyLeave` có `winner` thì thêm `phase: 'end'`, `phaseStartedAt`, `winner`, `endReason`, `hunter: null` và `status: 'end'`. Board dùng `leaveVillage` mới nhất lúc chủ phòng bấm xác nhận (ref), vì hộp thoại có thể mở qua vài lần đổi phase.
+- **Hồn ma** (`ghostSeesAll`): người chết (kể cả người rời làng) thấy vai trên mọi ô / danh sách (`shownRole`), khung "Hồn ma" (`GhostPanel`) với lựa chọn Đêm ① / Đêm ② của mọi người theo thời gian thực và "Diễn biến ván đến giờ". Tắt thì chỉ thông tin công khai + vai của mình. Người còn sống không bao giờ render các phần này.
+- **Lộ vai khi chết**: mọi chỗ hiện vai đi qua `shownRole` (Bình minh, Kết quả, danh sách Thảo luận, các lưới). Tắt thì chỉ lật vai ở màn kết thúc.
+- **Màn "Luật chơi"** (`ui/RulesDialog`): trong menu ⋯, ai cũng mở được, kể cả ở sảnh. Tóm tắt rules §1–§3, vòng chơi §5, §9; tên vai + câu từ `ROLE_NAME` / `ROLE_BLURB`; thêm "Cài đặt của phòng" (4 luật).
+- **"Diễn biến ván" đầy đủ**: engine đã ghi cứu, độc, che, soi, đoán, nghi, chết, phiếu, Thợ săn, rời làng; `LogList` dùng chung cho màn kết thúc và hồn ma. Danh sách vai cuối ván ghi "Đêm N" cho người rời làng lúc đêm (theo `during` của mục `left`).
+- **`WerewolfPreview`**: bàn 9 người đủ 6 vai; thêm màn Đêm ② (6), Thợ săn (2), Bình minh có Thợ săn chờ bắn, hồn ma bật / tắt (4), lộ vai tắt; menu Preview có "Cho rời làng…" và "Luật chơi".
+
+**Lệch kế hoạch / cách hiểu cần nhạc trưởng (và người dùng) xác nhận**
+1. **Thợ săn đã chết nhưng chưa bắn thì chưa phải hồn ma** (`shotPending` trong `panel/shared.tsx`): từ lúc chết (bị cắn, bị treo, bị độc khi luật cho phép) tới khi có mục nhật ký `hunter` (bắn / không bắn / hết giờ), Thợ săn không thấy vai trên ô hay khung hồn ma, kể cả khi "Hồn ma xem hết vai" bật. Không làm vậy thì ở Bình minh / Kết quả phiếu Thợ săn đã thấy hết vai rồi mới bắn. rules §6 chưa nói ca này — **đề xuất thêm một dòng vào rules §6** (chưa sửa rules.md vì cần người dùng đồng ý).
+2. **Xác nhận ở Đêm ② là chốt với mọi người** (kể cả Phù thủy), giống Tiên tri / Bảo vệ ở Đêm ①. Brief không nói Phù thủy có đổi được sau khi Xác nhận không.
+3. **Chủ phòng không tự cho mình rời làng** (danh sách bỏ chính chủ phòng): tránh bấm nhầm; chủ phòng bỏ về thì cả bàn mất người điều khiển menu.
+4. **Hồn ma không phải giữ để xem** (làm đúng brief: vai hiện thẳng trên ô). Màn của người chết vì vậy lộ hết vai nếu người sống ngồi cạnh liếc sang (phép lịch sự §9 đã dặn không nhìn màn hình người khác). Nếu muốn chặt hơn, GĐ3 có thể đưa khung hồn ma vào thẻ giữ.
+5. **Cách thao tác của Phù thủy**: Cứu = nút trong thẻ (ngón thứ hai, máy tính: giữ Space + bấm chuột); Độc = vừa giữ thẻ vừa chạm ô (giống Sói đổi lựa chọn ở GĐ1). Nút trong thẻ là `InHoldButton` (chặn `pointerdown` / `pointerup` lan lên thẻ và `window`, không lấy tiêu điểm) nên thẻ không đóng. `confirmWitch` trả `{ outcome, error }` thay vì ném lỗi khi lựa chọn không còn hợp lệ (lý do hiện trong thẻ); chỉ ném khi gửi không được.
+6. Thêm file ngoài §4.1: `panel/GhostPanel.tsx`, `ui/RulesDialog.tsx` (`panel/WitchPanel.tsx`, `panel/HunterPanel.tsx` có trong §4.1). Helper mới trong `state.ts`: `witchPicksOf`, `holderOf`, `potionsOf`.
+7. **Lỗi tìm ra nhờ bot**: nút thời gian bước "Thợ săn" và nút số lượng vai "Thợ săn" cùng `aria-label` "Bớt / Thêm Thợ săn" → bot bấm nhầm (giảm số Thợ săn). Nút thời gian giờ là "Bớt / Thêm thời gian <bước>". Ai viết bot cho sảnh từ nay dùng tên mới.
+8. Thuộc tính cho kiểm thử: `data-ww-witch`, `data-ww-attack` (chỉ trong thẻ đang giữ), `data-ww-hunter`, `data-ww-ghost`, `data-ww-ghost-live`, `data-ww-dead-note`, `data-ww-tile-role`, `data-ww-role-tag`, `data-ww-leave-list`, `data-ww-rules`.
+
+**Kiểm thử (§11 + nghiệm thu GĐ2)**
+- `npm run test:werewolf` 138/138 (23 nhóm, +2). `npx tsc --noEmit` sạch. `npx eslint src/components/games/werewolf` sạch; `npx eslint src/components/games` 29 lỗi / 29 cảnh báo = baseline; `firebaseAdapter.ts` 2 lỗi / 2 cảnh báo **có sẵn từ trước** (y hệt bản `fe0343a0`, không ở đoạn đã sửa). `npm run build` qua (đã xoá trang harness và `.next`). Engine không import react / firebase / `@/`.
+- **Harness** (trang tạm, đã xoá): Phù thủy giữ thẻ + chạm 15/15 (chạm không giữ chỉ là đoán, không bao giờ độc; giữ + chạm = độc, chạm lại = bỏ; Cứu trong thẻ, thẻ không đóng; E5 / E6 / hết bình báo lý do trong thẻ; xác nhận không cần chọn; đã xác nhận thì khoá); menu 5/5 (Luật chơi ở sảnh + trong ván, "Cho rời làng…" chỉ chủ phòng, danh sách = người sống trừ mình); hồn ma theo từng màn đúng như thiết kế (10 màn). Ảnh 375px: 36 màn, không cuộn ngang, 0 lỗi console; 1440px: 6 màn (vẫn một cột giữa — GĐ3).
+- **Cặp ảnh riêng tư** (bản build production, cùng `start`, chụp cùng lúc, không giữ, thu 10%, trung bình |Δ|): Đêm ① chưa chọn / đã chọn / đã xác nhận + Xem vai, Sói so với 5 vai còn lại: **20/20 = 0.000**; Đêm ② chưa chọn / đã chọn (Phù thủy: cứu + độc) / đã xác nhận / Sói không cắn, Phù thủy so với 5 vai còn lại: **20/20 = 0.000**. Đối chứng: hai màn khác nhau 0.768 (Đêm ①) và 5.347 (Đêm ②); Phù thủy | Dân **khi đang giữ** 4.367.
+- **Ván thật** (bản build production, CDP, mỗi cửa sổ một origin `localhost`, `127.0.0.1`, `a`–`h.localhost`; bot nhận việc theo từng bước từ bộ điều phối; mỗi kịch bản một lần chạy ≤ 2,5 phút; phòng thử xoá bằng nút của chủ phòng):
+
+  | Kịch bản | Cửa sổ | Kết quả | Phủ |
+  |---|---|---|---|
+  | heal | 9 | 17/17 | Bảo vệ che X + Sói cắn X + Phù thủy cứu X → bình yên (E1: Phù thủy vẫn thấy "Sói nhắm: X"; E2: đêm sau thẻ ghi "Đã dùng bình cứu"); Phù thủy độc Sói; người chết công bố theo thứ tự ghế; nhật ký che / cứu / độc / đoán / nghi / soi; Dân thắng |
+  | hunterbite | 9 | 15/15 | Thợ săn bị cắn → bước Thợ săn ở cả 9 cửa sổ, người khác thấy "đang ngắm" → bắn Sói → Thảo luận (E16); Phù thủy độc Sói cuối → Dân thắng ở bình minh, không có bước Thợ săn thứ hai (E20) |
+  | hunterhang | 8 (+1 Thợ săn, "Không cắn") | 15/15 | Sói hoà → Đêm 1 chạy đủ 20,26 s, đêm bình yên (E11); Thợ săn bị treo → bước Thợ săn → bắn Sói → Đêm 2 (E18) |
+  | hidden | 10 (lộ vai tắt, hồn ma tắt) | 13/13 | Ba Sói chọn ba người → hết giờ → bốc ngẫu nhiên đúng một người trong ba (E11); lấy mẫu liên tục mọi cửa sổ: không cửa sổ nào thấy vai / khung hồn ma trước màn kết thúc; kết thúc lật vai đủ 10 người |
+  | ghostleave | 9 | 19/19 | Hồn ma thấy vai 9 người + lựa chọn đêm theo thời gian thực, người sống chỉ thấy vai người đã chết; cho rời làng giữa Đêm 2: cả 9 cửa sổ giữ nguyên `phaseStartedAt`, đồng hồ chạy tiếp; người rời làng thấy màn người chết; Thợ săn rời làng → không có bước Thợ săn, Thảo luận giữ đồng hồ; Sói cuối rời làng → Dân thắng ngay (E25). Một lần chạy khác chủ phòng là Sói cuối → bị treo → Dân thắng, 19/19 |
+  | hunterpoison | 9 ("bị độc vẫn bắn" bật) | 12/12 | Phù thủy độc Thợ săn → vẫn được bắn (E17); Thợ săn chờ bắn không thấy hồn ma ở Bình minh và lúc ngắm, bắn xong mới thấy |
+  | contention | 7 | 9/9 | Cả 7 người chọn ở +2,5 s và xác nhận ở +3,3 s cùng lúc: **0/15 commit bị từ chối**, Đêm ① kết thúc ở 3,77 s; Đêm ② cả bàn đoán + xác nhận cùng lúc: 0/15, 2,74 s |
+  | (đối chứng) contention, adapter **cũ** | 7 | — | Cùng kịch bản, build tạm với adapter của `fe0343a0`: **7/22 và 10/25 commit bị từ chối**, Đêm ① 6,51 s, Đêm ② 7,19 s (không có banner vì đã có `retryOnContention`) |
+  | Avalon | 5 | 8/8 | Ván đủ tới kết thúc (Sát Thủ đâm): 3 quest, 7 lá bài; mỗi `quest-play` kết thúc sớm sau 1,3–1,8 s (Board vẫn đọc `players` nên không cần doc phòng đổi); 0 banner, 0 lỗi JS |
+
+  - Mọi kịch bản Ma Sói: 0 banner "Không gửi được", 0 lỗi JS / `console.error`, mỗi lần chuyển phase được mọi cửa sổ thấy đúng một token (một lần ghi thắng).
+  - **Lệch phase giữa các cửa sổ**: trong các lần chạy cuối: heal 502 ms, hunterbite 98, hunterhang 102, hidden 702 (10 cửa sổ), ghostleave 97, hunterpoison 122, contention 94, Avalon ≤ 220. Lúc Chrome thử nghiệm dùng QUIC (h3, mặc định), thỉnh thoảng **một** cửa sổ trong lần chạy nhận snapshot Firestore chậm 0,4–2,1 s (độ trễ `Runtime.evaluate` của cửa sổ đó vẫn ~40 ms, cửa sổ chậm đổi theo lần chạy); với `--disable-quic` (h2) mọi bước ≤ 260 ms. Đây là đường truyền của môi trường thử (10 danh tính cùng một hồ sơ Chrome), không phải logic ván: CAS vẫn chỉ cho một lần ghi thắng và cửa sổ chậm theo kịp.
+  - Trong ván, ~15–20 % commit bị từ chối rồi tự thử lại thành công: đó là `acks` / phiếu ngày (vẫn ghi doc phòng, cả bàn bấm trong cùng 300 ms) và các CAS chuyển phase thua — đúng thiết kế (giữ `retryOnContention`).
+  - Phòng thử: mọi phòng tạo ra đều đã xoá (hai lần bot dừng giữa chừng: xoá lại bằng cách mở chủ phòng trên cùng origin).
+- Bot và kịch bản: scratchpad `495f146f-6914-424a-afdc-bdb5d3450d29/scratchpad` (`game2.mjs` + `bot2.js` cho Ma Sói, kịch bản `heal | hunterbite | hunterhang | hidden | ghostleave | hunterpoison | contention`; `avgame.mjs` + `avbot.js` cho Avalon; `pairs.mjs`, `witchheld.mjs`, `menus.mjs`, `ghostcheck.mjs`, `wwshots.mjs`, `grid.mjs`, `cleanup.mjs` / `checkroom.mjs`; trang harness ở `harness/wwtest`).
+
+**Việc chuyển tiếp**
+- Nhạc trưởng / người dùng xác nhận các mục 1–4 ở trên (đặc biệt mục 1: ghi vào rules §6).
+- Sau review: **mốc PR #1** (push `dev-werewolf`, PR → `main`).
+- GĐ3: màn 1440px (vẫn một cột), dải nền thanh nút đáy, cân nhắc đưa khung hồn ma vào thẻ giữ.
