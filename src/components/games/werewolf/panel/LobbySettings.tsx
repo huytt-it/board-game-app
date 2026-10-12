@@ -34,6 +34,7 @@ function formatDuration(s: number): string {
 
 function Stepper({
   label,
+  name = label,
   value,
   onStep,
   disabled,
@@ -41,6 +42,8 @@ function Stepper({
   canUp = true,
 }: {
   label: string;
+  /** Tên của nút cho trình đọc màn hình: "Bớt / Thêm {name}" (mặc định = label). */
+  name?: string;
   value: ReactNode;
   onStep?: (dir: 1 | -1) => void;
   disabled?: boolean;
@@ -54,13 +57,13 @@ function Stepper({
         {label}
       </span>
       {onStep && (
-        <button type="button" className={btn} aria-label={`Bớt ${label}`} disabled={disabled || !canDown} onClick={() => onStep(-1)}>
+        <button type="button" className={btn} aria-label={`Bớt ${name}`} disabled={disabled || !canDown} onClick={() => onStep(-1)}>
           −
         </button>
       )}
       <span className="w-20 text-center text-sm font-semibold tabular-nums text-slate-50">{value}</span>
       {onStep && (
-        <button type="button" className={btn} aria-label={`Thêm ${label}`} disabled={disabled || !canUp} onClick={() => onStep(1)}>
+        <button type="button" className={btn} aria-label={`Thêm ${name}`} disabled={disabled || !canUp} onClick={() => onStep(1)}>
           +
         </button>
       )}
@@ -215,6 +218,8 @@ export default function LobbySettings({
             <Stepper
               key={phase}
               label={PHASE_LABEL[phase]}
+              // "Thợ săn" là cả tên vai lẫn tên bước: nút thời gian phải khác tên.
+              name={`thời gian ${PHASE_LABEL[phase]}`}
               value={formatDuration(v)}
               disabled={!editable}
               onStep={editable ? (dir) => stepTime(phase, dir) : undefined}

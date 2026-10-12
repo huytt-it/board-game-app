@@ -234,7 +234,10 @@ export function InHoldButton({
 export function RoleTag({ role }: { role: WwRole }) {
   const wolf = role === 'werewolf';
   return (
-    <span className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${wolf ? 'bg-rose-500/20 text-rose-200' : 'bg-emerald-500/15 text-emerald-200'}`}>
+    <span
+      className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${wolf ? 'bg-rose-500/20 text-rose-200' : 'bg-emerald-500/15 text-emerald-200'}`}
+      data-ww-role-tag={role}
+    >
       {ROLE_NAME[role]}
     </span>
   );

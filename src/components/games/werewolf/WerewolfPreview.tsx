@@ -118,7 +118,6 @@ const SAMPLE_LOG: WwLogEntry[] = [
   { kind: 'guard', round: 1, guardId: 'p4', targetId: 'p7' },
   { kind: 'seer', round: 1, seerId: 'p3', targetId: 'p2', isWolf: true },
   { kind: 'suspects', round: 1, picks: { p1: 'p6', p7: 'p2' } },
-  { kind: 'witch', round: 1, witchId: 'p8', healedId: null, poisonId: null },
   { kind: 'guesses', round: 1, picks: { p1: 'p5', p3: 'p7', p9: 'p5' } },
   { kind: 'death', round: 1, id: 'p5', cause: 'wolf' },
   { kind: 'vote', round: 1, ballots: { p1: 'p2', p2: 'p7', p3: 'p2', p4: 'p2', p6: 'skip', p7: 'p2', p8: 'p2', p9: 'p2' }, executedId: 'p2' },
