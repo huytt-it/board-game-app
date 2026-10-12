@@ -31,6 +31,8 @@ export interface IGameStorage {
    * (not just the phase): a client whose view is stale — dead listener, slow
    * network — then fails the check instead of acting on old data. Values are
    * compared deeply; `expectPlayerData` does the same for per-player gameData.
+   * An empty `patch` with no `status` writes only `playerData` (the room doc is
+   * read for `expected` but not written), so per-player writes do not contend.
    * Throws when offline instead of queueing the write for later.
    */
   casGameState(
