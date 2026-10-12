@@ -368,4 +368,19 @@ describe('tính kết quả đêm (rules §5.5)', () => {
     assert.deepEqual(r.newDeaths, []);
     assert.equal(r.attack, null);
   });
+
+  test('Phù thủy cứu người bị nhắm nhưng người đó rời làng giữa Đêm ②: bình cứu còn nguyên', () => {
+    const t = table7([dead('v1', 1, 'left')]);
+    const r = resolveNight(nightInput({ table: t, attack: 'v1', witchPicks: { witch: witch(1, { heal: true }) } }));
+    assert.deepEqual(r.newDeaths, []);
+    assert.equal(r.witch, null);
+    assert.deepEqual(r.potions, FULL_POTIONS);
+  });
+
+  test('Phù thủy độc người đã rời làng giữa Đêm ②: không ai chết thêm, bình độc còn nguyên', () => {
+    const t = table7([dead('seer', 1, 'left')]);
+    const r = resolveNight(nightInput({ table: t, witchPicks: { witch: witch(1, { poisonId: 'seer' }) } }));
+    assert.deepEqual(r.newDeaths, []);
+    assert.deepEqual(r.potions, FULL_POTIONS);
+  });
 });
