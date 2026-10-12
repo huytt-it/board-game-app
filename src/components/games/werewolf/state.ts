@@ -5,11 +5,12 @@
 import type { Player } from '@/types/player';
 import type { Room } from '@/types/room';
 import { fullCounts, presetFor, MAX_PLAYERS, MIN_PLAYERS } from '@/components/games/werewolf/engine/roles.ts';
-import { DEFAULT_RULES } from '@/components/games/werewolf/engine/types.ts';
+import { DEFAULT_RULES, FULL_POTIONS } from '@/components/games/werewolf/engine/types.ts';
 import {
   PHASE_SECONDS_LIMITS,
   TIMED_PHASES,
   type NightPick,
+  type Potions,
   type RoleCounts,
   type TimedPhase,
   type WerewolfGameData,
@@ -17,6 +18,7 @@ import {
   type WwPhase,
   type WwRole,
   type WwRules,
+  type WitchPick,
   type WwTable,
 } from './types';
 
@@ -81,12 +83,6 @@ export function timeoutsFor(phaseSeconds: Record<TimedPhase, number>): Partial<R
 // ── Bộ vai ở sảnh ────────────────────────────────────────────────────────
 
 /**
- * GĐ1 chỉ có 4 vai: Phù thủy và Thợ săn đổi thành Dân làng. Hàm tạm trong UI —
- * XOÁ Ở GĐ2 (cùng với hằng này).
- */
-export const GD1_DISABLED_ROLES: readonly WwRole[] = ['witch', 'hunter'];
-
-/**
  * Bộ vai cho `n` người: số Sói và vai đặc biệt chủ phòng đã chỉnh (không có
  * thì theo bộ mặc định), Dân làng là phần còn lại. Bắt đầu ván vẫn kiểm tra
  * bằng validateSetup (E28).
@@ -94,7 +90,6 @@ export const GD1_DISABLED_ROLES: readonly WwRole[] = ['witch', 'hunter'];
 export function lobbyCounts(roleCounts: RoleCounts | null, n: number): Record<WwRole, number> {
   const clamped = Math.min(MAX_PLAYERS, Math.max(MIN_PLAYERS, n));
   const out = fullCounts(roleCounts ?? presetFor(clamped) ?? {});
-  for (const role of GD1_DISABLED_ROLES) out[role] = 0; // xoá ở GĐ2
   const others = out.werewolf + out.seer + out.guard + out.witch + out.hunter;
   out.villager = Math.max(0, n - others);
   return out;
@@ -122,6 +117,22 @@ export function tableOf(state: WerewolfGameState, players: Player[]): { table: W
 export function nightPicksOf(state: WerewolfGameState, players: Player[]): Record<string, NightPick | null> {
   const byId = new Map(players.map((p) => [p.id, p]));
   return Object.fromEntries(state.seatOrder.map((id) => [id, dataOf(byId.get(id)).nightPick ?? null]));
+}
+
+/** Lựa chọn Đêm ② của mọi ghế (thiếu = null), đọc thẳng từ gameData. */
+export function witchPicksOf(state: WerewolfGameState, players: Player[]): Record<string, WitchPick | null> {
+  const byId = new Map(players.map((p) => [p.id, p]));
+  return Object.fromEntries(state.seatOrder.map((id) => [id, dataOf(byId.get(id)).witchPick ?? null]));
+}
+
+/** Người giữ vai `role` trong ván (kể cả đã chết), hoặc null. Vai đặc biệt chỉ có tối đa 1 người. */
+export function holderOf(table: WwTable, role: WwRole): string | null {
+  return table.seatOrder.find((id) => table.roles[id] === role) ?? null;
+}
+
+/** Bình còn lại của Phù thủy. Bắt đầu ván luôn ghi đủ hai bình. */
+export function potionsOf(data: Partial<WerewolfGameData>): Potions {
+  return data.potions ?? FULL_POTIONS;
 }
 
 /** Người chơi theo thứ tự ghế (bỏ ghế không còn doc). */

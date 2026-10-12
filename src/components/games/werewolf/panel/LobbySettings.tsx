@@ -8,12 +8,12 @@ import {
   balanceScore,
   balanceWarning,
 } from '@/components/games/werewolf/engine/roles.ts';
-import { GD1_DISABLED_ROLES, lobbyCounts, type WwConfig } from '../state';
+import { lobbyCounts, type WwConfig } from '../state';
 import { PHASE_SECONDS_LIMITS, TIMED_PHASES, type RoleCounts, type TimedPhase, type WerewolfRoomConfig, type WwRole, type WwRules } from '../types';
 
 // Cài đặt phòng (plan §4.4, rules §8): bộ vai, luật tuỳ chọn, thời gian các
 // bước. Chủ phòng chỉnh bằng −/+; người khác xem ở dạng chỉ đọc. Mọi thứ cố
-// định khi bắt đầu ván. GĐ1 chưa có Phù thủy, Thợ săn, hồn ma: để mờ, ghi "GĐ2".
+// định khi bắt đầu ván.
 
 const PHASE_LABEL: Record<TimedPhase, string> = {
   deal: 'Xem vai',
@@ -23,9 +23,6 @@ const PHASE_LABEL: Record<TimedPhase, string> = {
   'day-talk': 'Thảo luận',
   'day-vote': 'Bỏ phiếu',
 };
-
-/** Các bước GĐ1 chưa có (xoá ở GĐ2). */
-const GD1_DISABLED_PHASES: readonly TimedPhase[] = ['night-witch', 'hunter'];
 
 const STEP_ROLES: readonly WwRole[] = ['werewolf', 'seer', 'guard', 'witch', 'hunter'];
 const ROLE_MAX: Record<WwRole, number> = { werewolf: 4, seer: 1, guard: 1, witch: 1, hunter: 1, villager: 10 };
@@ -40,7 +37,6 @@ function Stepper({
   value,
   onStep,
   disabled,
-  note,
   canDown = true,
   canUp = true,
 }: {
@@ -48,7 +44,6 @@ function Stepper({
   value: ReactNode;
   onStep?: (dir: 1 | -1) => void;
   disabled?: boolean;
-  note?: string;
   canDown?: boolean;
   canUp?: boolean;
 }) {
@@ -57,7 +52,6 @@ function Stepper({
     <div className={`flex items-center gap-2 py-1 ${disabled ? 'opacity-45' : ''}`}>
       <span className="min-w-0 flex-1 text-sm text-slate-100">
         {label}
-        {note && <span className="ml-1.5 rounded bg-slate-700 px-1 text-[10px] font-bold text-slate-300">{note}</span>}
       </span>
       {onStep && (
         <button type="button" className={btn} aria-label={`Bớt ${label}`} disabled={disabled || !canDown} onClick={() => onStep(-1)}>
@@ -80,20 +74,17 @@ function Choice({
   value,
   onChange,
   disabled,
-  note,
 }: {
   label: string;
   options: Array<{ value: string; text: string }>;
   value: string;
   onChange?: (v: string) => void;
   disabled?: boolean;
-  note?: string;
 }) {
   return (
     <div className={`py-1.5 ${disabled ? 'opacity-45' : ''}`}>
       <p className="mb-1 text-sm text-slate-100">
         {label}
-        {note && <span className="ml-1.5 rounded bg-slate-700 px-1 text-[10px] font-bold text-slate-300">{note}</span>}
       </p>
       <div className="flex gap-1.5" role="radiogroup" aria-label={label}>
         {options.map((o) => (
@@ -156,21 +147,17 @@ export default function LobbySettings({
             </button>
           )}
         </div>
-        {STEP_ROLES.map((role) => {
-          const off = GD1_DISABLED_ROLES.includes(role);
-          return (
-            <Stepper
-              key={role}
-              label={ROLE_NAME[role]}
-              value={counts[role]}
-              disabled={off || !editable}
-              note={off ? 'GĐ2' : undefined}
-              onStep={editable ? (dir) => stepRole(role, dir) : undefined}
-              canDown={counts[role] > 0}
-              canUp={counts[role] < ROLE_MAX[role]}
-            />
-          );
-        })}
+        {STEP_ROLES.map((role) => (
+          <Stepper
+            key={role}
+            label={ROLE_NAME[role]}
+            value={counts[role]}
+            disabled={!editable}
+            onStep={editable ? (dir) => stepRole(role, dir) : undefined}
+            canDown={counts[role] > 0}
+            canUp={counts[role] < ROLE_MAX[role]}
+          />
+        ))}
         <Stepper label={`${ROLE_NAME.villager} (phần còn lại)`} value={counts.villager} />
         <p className="mt-2 text-sm text-slate-300" data-ww-balance={score}>
           Điểm cân bằng: <span className="font-semibold tabular-nums text-slate-50">{score > 0 ? `+${score}` : score}</span> ·{' '}
@@ -201,30 +188,27 @@ export default function LobbySettings({
         />
         <Choice
           label="Hồn ma xem hết vai"
-          note="GĐ2"
-          disabled
           value={config.rules.ghostsSeeAll ? 'on' : 'off'}
           options={[
             { value: 'on', text: 'Bật' },
             { value: 'off', text: 'Tắt' },
           ]}
+          onChange={edit ? (v) => setRule('ghostsSeeAll', v === 'on') : undefined}
         />
         <Choice
           label="Thợ săn bị độc vẫn được bắn"
-          note="GĐ2"
-          disabled
           value={config.rules.hunterShootsWhenPoisoned ? 'on' : 'off'}
           options={[
             { value: 'on', text: 'Bật' },
             { value: 'off', text: 'Tắt' },
           ]}
+          onChange={edit ? (v) => setRule('hunterShootsWhenPoisoned', v === 'on') : undefined}
         />
       </section>
 
       <section>
         <h3 className="mb-1 text-base font-semibold text-slate-50">Thời gian</h3>
         {TIMED_PHASES.map((phase) => {
-          const off = GD1_DISABLED_PHASES.includes(phase);
           const { min, max } = PHASE_SECONDS_LIMITS[phase];
           const v = config.phaseSeconds[phase];
           return (
@@ -232,8 +216,7 @@ export default function LobbySettings({
               key={phase}
               label={PHASE_LABEL[phase]}
               value={formatDuration(v)}
-              disabled={off || !editable}
-              note={off ? 'GĐ2' : undefined}
+              disabled={!editable}
               onStep={editable ? (dir) => stepTime(phase, dir) : undefined}
               canDown={v > min}
               canUp={v < max}

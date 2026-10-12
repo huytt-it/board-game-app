@@ -13,18 +13,45 @@ import {
   afterDawn,
   afterDeal,
   afterNight,
+  afterNightWitch,
   afterTalk,
   afterVote,
   afterVoteResult,
   startGame as startEngineGame,
   type Step,
 } from '@/components/games/werewolf/engine/flow.ts';
-import { isValidTarget, pickFor, seerLook } from '@/components/games/werewolf/engine/night.ts';
+import {
+  isValidTarget,
+  pickFor,
+  seerLook,
+  validateWitchPick,
+  type WitchPickError,
+} from '@/components/games/werewolf/engine/night.ts';
 import { fullCounts, nightActionOf, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
 import { aliveIds, isAlive } from '@/components/games/werewolf/engine/table.ts';
 import { FULL_POTIONS } from '@/components/games/werewolf/engine/types.ts';
-import { dataOf, lobbyCounts, nightPicksOf, readConfig, readState, seated, tableOf, timeoutsFor } from './state';
-import { PHASE_STATUS, phaseTimeoutMs, type DayBallot, type WerewolfGameData, type WerewolfGameState, type WwPhase } from './types';
+import {
+  dataOf,
+  holderOf,
+  lobbyCounts,
+  nightPicksOf,
+  potionsOf,
+  readConfig,
+  readState,
+  seated,
+  tableOf,
+  timeoutsFor,
+  witchPicksOf,
+} from './state';
+import {
+  PHASE_STATUS,
+  phaseTimeoutMs,
+  type DayBallot,
+  type WerewolfGameData,
+  type WerewolfGameState,
+  type WitchPick,
+  type WwPhase,
+} from './types';
 
 type PlayerWrites = Array<{ playerId: string; data: Partial<BaseGameData> }>;
 
@@ -35,6 +62,20 @@ export type PickOutcome = 'ok' | 'invalid' | 'locked' | 'closed';
 export interface PickResult {
   outcome: PickOutcome;
   write: Promise<unknown> | null;
+}
+
+/**
+ * Lựa chọn Đêm ② đang hiện trên màn (kể cả khi lần ghi chưa về). Người khác
+ * chỉ có `guessId` (đoán Sói nhắm ai). Phù thủy có thêm `heal` / `poisonId`;
+ * `guessId` của Phù thủy chỉ là ô đang sáng, engine bỏ qua.
+ */
+export type WitchDraft = Pick<WitchPick, 'heal' | 'poisonId' | 'guessId'>;
+
+export const EMPTY_WITCH_DRAFT: WitchDraft = { heal: false, poisonId: null, guessId: null };
+
+/** `error`: lý do Phù thủy không dùng được bình như vậy (validateWitchPick). */
+export interface WitchResult extends PickResult {
+  error: WitchPickError | null;
 }
 
 // Nhiều người bấm cùng lúc thì các transaction trên doc phòng đụng nhau:
@@ -292,13 +333,13 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
 
   /**
    * Hết Đêm ① (mọi người đã Xác nhận và bầy thống nhất, hoặc hết giờ): chốt
-   * người bị nhắm, tính kết quả đêm, sang Bình minh. GĐ1 chưa có Phù thủy nên
-   * luôn sang thẳng `dawn`.
+   * người bị nhắm. Ván có Phù thủy thì sang Đêm ② (ghi `attack` + nhật ký);
+   * không thì tính luôn kết quả đêm và sang Bình minh.
    */
   const resolveNightPhase = useCallback(async () => {
     if (!state || state.phase !== 'night' || !table || !ready) return;
     const nightPicks = nightPicksOf(state, players);
-    const guardId = state.seatOrder.find((id) => table.roles[id] === 'guard') ?? null;
+    const guardId = holderOf(table, 'guard');
     const guardLast = guardId ? (dataOf(byId.get(guardId)).guardLast ?? null) : null;
     const step = afterNight(
       {
@@ -312,15 +353,120 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
       },
       Math.random
     );
-    if (step.phase !== 'dawn' || !step.night) return; // Đêm ② (Phù thủy) có ở GĐ2.
     // Quyết định dựa trên lựa chọn của mọi người còn sống và `guardLast` của Bảo vệ.
     const expected = new Map<string, Partial<BaseGameData>>();
     for (const id of aliveIds(table)) expected.set(id, { nightPick: nightPicks[id] ?? null });
     if (guardId) expected.set(guardId, { ...expected.get(guardId), guardLast });
+    const expectPlayerData = [...expected].map(([playerId, data]) => ({ playerId, data }));
+    if (step.phase === 'night-witch') {
+      await applyStep(step, { patch: { attack: step.attack }, expectPlayerData });
+      return;
+    }
+    if (!step.night) return;
     await applyStep(step, {
       patch: { attack: step.attack, dawnDeaths: step.night.dawnDeaths },
-      expectPlayerData: [...expected].map(([playerId, data]) => ({ playerId, data })),
+      expectPlayerData,
       playerData: guardId ? [{ playerId: guardId, data: { guardLast: step.night.guardLast } }] : undefined,
+    });
+  }, [state, table, ready, players, byId, applyStep]);
+
+  // ── Đêm ② (Phù thủy) ───────────────────────────────────────────────────
+
+  /**
+   * Người này để lựa chọn Đêm ② như `draft` được không (kiểm tra ngay, không
+   * ghi). Ai cũng đoán được (người còn sống, kể cả mình). Chỉ Phù thủy còn sống
+   * mới cứu / độc, kiểm bằng validateWitchPick (E5, E6). Xác nhận là chốt.
+   */
+  const witchCheck = useCallback(
+    (playerId: string, draft: WitchDraft): { outcome: PickOutcome; error: WitchPickError | null } => {
+      const closed = { outcome: 'closed' as const, error: null };
+      if (!state || !table || !phaseOpen('night-witch') || !isAlive(table, playerId)) return closed;
+      const me = dataOf(byId.get(playerId));
+      if (!me.role) return closed;
+      if (pickFor(me.witchPick, state.round)?.confirmed) return { outcome: 'locked', error: null };
+      if (draft.guessId && !isValidTarget(table, playerId, 'guess', draft.guessId)) return { outcome: 'invalid', error: null };
+      if (me.role === 'witch') {
+        const error = validateWitchPick(table, playerId, draft, state.attack, potionsOf(me));
+        if (error) return { outcome: 'invalid', error };
+      } else if (draft.heal || draft.poisonId) {
+        return { outcome: 'invalid', error: 'not-witch' };
+      }
+      return { outcome: 'ok', error: null };
+    },
+    [state, table, byId, phaseOpen]
+  );
+
+  const writeWitch = useCallback(
+    (playerId: string, draft: WitchDraft, confirmed: boolean): WitchResult => {
+      const { outcome, error } = witchCheck(playerId, draft);
+      if (outcome !== 'ok' || !state) return { outcome, error, write: null };
+      const round = state.round;
+      const pick: WitchPick = { round, heal: draft.heal, poisonId: draft.poisonId, guessId: draft.guessId, confirmed };
+      const current = pickFor(dataOf(byId.get(playerId)).witchPick, round);
+      const same =
+        !!current &&
+        current.heal === pick.heal &&
+        current.poisonId === pick.poisonId &&
+        current.guessId === pick.guessId &&
+        current.confirmed === pick.confirmed;
+      if (same && !sent.current.has('witch')) return { outcome, error, write: null };
+      const value = `${state.phaseStartedAt}:${pick.heal}:${pick.poisonId}:${pick.guessId}:${confirmed}`;
+      const write = enqueue('witch', value, () => updateInPhase('night-witch', round, {}, [{ playerId, data: { witchPick: pick } }]));
+      return { outcome, error, write };
+    },
+    [state, byId, witchCheck, enqueue, updateInPhase]
+  );
+
+  /** Chọn / đổi lựa chọn Đêm ② (đoán, cứu, độc). Ghi vào gameData của chính mình. */
+  const pickWitch = useCallback((playerId: string, draft: WitchDraft) => writeWitch(playerId, draft, false), [writeWitch]);
+
+  /**
+   * Xác nhận Đêm ②, kể cả khi chưa chọn gì ("không làm gì" trông như "không
+   * đoán"). Trả kết quả kiểm tra để màn báo lý do trong thẻ giữ; ném lỗi khi
+   * gửi không được.
+   */
+  const confirmWitch = useCallback(
+    async (playerId: string, draft: WitchDraft): Promise<Pick<WitchResult, 'outcome' | 'error'>> => {
+      const { outcome, error, write } = writeWitch(playerId, draft, true);
+      await write;
+      return { outcome, error };
+    },
+    [writeWitch]
+  );
+
+  /** Hết Đêm ② (mọi người còn sống đã Xác nhận, hoặc hết giờ): tính kết quả đêm, sang Bình minh. */
+  const resolveWitchPhase = useCallback(async () => {
+    if (!state || state.phase !== 'night-witch' || !table || !ready) return;
+    const nightPicks = nightPicksOf(state, players);
+    const witchPicks = witchPicksOf(state, players);
+    const guardId = holderOf(table, 'guard');
+    const witchId = holderOf(table, 'witch');
+    const guardData = guardId ? dataOf(byId.get(guardId)) : null;
+    const witchData = witchId ? dataOf(byId.get(witchId)) : null;
+    const guardLast = guardData?.guardLast ?? null;
+    const step = afterNightWitch({
+      table,
+      round: state.round,
+      attack: state.attack,
+      nightPicks,
+      witchPicks,
+      potions: witchData ? potionsOf(witchData) : { heal: false, poison: false },
+      guardLast,
+    });
+    // Quyết định dựa trên `witchPick` của mọi người còn sống, `nightPick` +
+    // `guardLast` của Bảo vệ và bình của Phù thủy.
+    const expected = new Map<string, Partial<BaseGameData>>();
+    for (const id of aliveIds(table)) expected.set(id, { witchPick: witchPicks[id] ?? null });
+    if (guardId) expected.set(guardId, { ...expected.get(guardId), nightPick: nightPicks[guardId] ?? null, guardLast });
+    if (witchId) expected.set(witchId, { ...expected.get(witchId), potions: witchData?.potions ?? null });
+    const playerData: PlayerWrites = [];
+    if (witchId) playerData.push({ playerId: witchId, data: { potions: step.night.potions } });
+    if (guardId) playerData.push({ playerId: guardId, data: { guardLast: step.night.guardLast } });
+    await applyStep(step, {
+      patch: { dawnDeaths: step.night.dawnDeaths },
+      expect: { attack: state.attack },
+      expectPlayerData: [...expected].map(([playerId, data]) => ({ playerId, data })),
+      playerData,
     });
   }, [state, table, ready, players, byId, applyStep]);
 
@@ -401,6 +547,9 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
     pickNight,
     confirmNight,
     resolveNightPhase,
+    pickWitch,
+    confirmWitch,
+    resolveWitchPhase,
     proceedAfterDawn,
     readyToVote,
     proceedAfterTalk,

@@ -150,6 +150,48 @@ export function HoldCard({
   );
 }
 
+/**
+ * Nút nằm TRONG thẻ giữ-để-xem (vd. Cứu / Bỏ độc của Phù thủy): bấm bằng ngón
+ * thứ hai khi ngón kia vẫn giữ thẻ (máy tính: giữ Space + bấm chuột). Chặn
+ * pointerdown / pointerup lan lên thẻ và `window`, và không lấy tiêu điểm, để
+ * thẻ không đóng lại (useHold).
+ */
+export function InHoldButton({
+  pressed,
+  tone = 'neutral',
+  disabled = false,
+  onPress,
+  children,
+}: {
+  pressed: boolean;
+  /** Màu khi đang bật: cứu (xanh) / độc (đỏ). */
+  tone?: 'neutral' | 'heal' | 'poison';
+  disabled?: boolean;
+  onPress: () => void;
+  children: ReactNode;
+}) {
+  const on = { neutral: 'bg-indigo-500/25 ring-indigo-400', heal: 'bg-emerald-500/20 ring-emerald-400', poison: 'bg-rose-500/25 ring-rose-400' }[tone];
+  return (
+    <button
+      type="button"
+      aria-pressed={pressed}
+      disabled={disabled}
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={(e) => {
+        e.stopPropagation();
+        onPress();
+      }}
+      className={`flex min-h-11 w-full items-center justify-center rounded-xl px-3 text-sm font-semibold disabled:opacity-50 ${
+        pressed ? `${on} text-white ring-2` : 'bg-slate-700 text-slate-100 ring-1 ring-slate-500'
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 /** Tên vai kèm phe, cho các danh sách công khai (vai đã lộ). */
 export function RoleTag({ role }: { role: WwRole }) {
   const wolf = role === 'werewolf';

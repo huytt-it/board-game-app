@@ -153,9 +153,9 @@ export interface WerewolfGameData extends BaseGameData {
   team: WwTeam;
   /** Đêm ①. Có `round`, nên lựa chọn đêm trước không bị tính sang đêm sau (đọc qua pickFor). */
   nightPick?: NightPick | null;
-  /** Đêm ② (GĐ2). */
+  /** Đêm ② (đọc qua pickFor như nightPick). Phù thủy: cứu / độc; người khác: đoán Sói nhắm ai. */
   witchPick?: WitchPick | null;
-  /** Phù thủy: bình còn lại (GĐ2). */
+  /** Phù thủy: bình còn lại (ghi lại khi Đêm ② kết thúc). */
   potions?: Potions | null;
   /** Bảo vệ: người đã che đêm trước. */
   guardLast?: string | null;

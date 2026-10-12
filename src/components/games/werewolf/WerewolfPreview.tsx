@@ -4,12 +4,12 @@ import { useMemo, useState } from 'react';
 import type { Player } from '@/types/player';
 import { serverNow } from '@/lib/serverClock';
 import { afterVote } from '@/components/games/werewolf/engine/flow.ts';
-import { isValidTarget, pickFor, seerLook } from '@/components/games/werewolf/engine/night.ts';
-import { nightActionOf, ROLE_NAME, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
-import { DEFAULT_RULES } from '@/components/games/werewolf/engine/types.ts';
+import { isValidTarget, pickFor, seerLook, validateWitchPick } from '@/components/games/werewolf/engine/night.ts';
+import { nightActionOf, ROLE_NAME, ROLE_ORDER, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
+import { DEFAULT_RULES, FULL_POTIONS } from '@/components/games/werewolf/engine/types.ts';
 import { PhaseView, TopBar } from './WerewolfBoard';
-import { dataOf, readConfig, tableOf } from './state';
-import type { PickResult } from './useWerewolf';
+import { dataOf, potionsOf, readConfig, tableOf } from './state';
+import type { PickResult, WitchDraft, WitchResult } from './useWerewolf';
 import type { DayBallot, WerewolfGameData, WerewolfGameState, WwLogEntry, WwPhase, WwRole } from './types';
 import LobbyPanel from './panel/LobbyPanel';
 import RoomMenu from './ui/RoomMenu';
@@ -29,6 +29,12 @@ export const PREVIEW_SCENES = {
   'night-confirmed': 'Đêm ① — đã xác nhận',
   'night-split': 'Đêm ① — bầy Sói chưa thống nhất',
   'night-dead': 'Đêm ① — người xem đã chết',
+  'witch-empty': 'Đêm ② — chưa chọn',
+  'witch-picked': 'Đêm ② — đã chọn (Phù thủy: cứu + độc), chưa xác nhận',
+  'witch-confirmed': 'Đêm ② — đã xác nhận',
+  'witch-no-attack': 'Đêm ② — Sói không cắn ai',
+  'witch-spent': 'Đêm ② — Phù thủy đã hết bình',
+  'witch-dead': 'Đêm ② — người xem đã chết',
   'dawn-deaths': 'Bình minh — có người chết',
   'dawn-peaceful': 'Bình minh — bình yên',
   'day-talk': 'Thảo luận',
@@ -40,11 +46,12 @@ export const PREVIEW_SCENES = {
 } as const;
 
 export type PreviewScene = keyof typeof PREVIEW_SCENES;
-export const PREVIEW_ROLES: readonly WwRole[] = ['werewolf', 'villager', 'seer', 'guard'];
+export const PREVIEW_ROLES: readonly WwRole[] = ROLE_ORDER;
 
-const NAMES = ['Lan', 'Minh', 'Hùng', 'Mai', 'Tú', 'Hoa', 'Khoa'];
-// Bộ 7 người của GĐ1: 2 Sói, Tiên tri, Bảo vệ, 3 Dân.
-const LINEUP: WwRole[] = ['villager', 'werewolf', 'seer', 'guard', 'villager', 'werewolf', 'villager'];
+const NAMES = ['Lan', 'Minh', 'Hùng', 'Mai', 'Tú', 'Hoa', 'Khoa', 'Quân', 'Vy'];
+// Bộ 9 người: 2 Sói, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, 3 Dân. Ghế 5 và 7
+// luôn là Dân (đổi vai người xem không chạm tới).
+const LINEUP: WwRole[] = ['villager', 'werewolf', 'seer', 'guard', 'villager', 'werewolf', 'villager', 'witch', 'hunter'];
 const ID = (i: number) => `p${i + 1}`;
 const ME = ID(0);
 
@@ -62,7 +69,16 @@ function makePlayers(roles: WwRole[], extra: (id: string, role: WwRole) => Parti
     isAlive: true,
     isHost: i === 0,
     joinedAt: new Date(0),
-    gameData: { role, team: ROLE_TEAM[role], nightPick: null, guardLast: null, seerLog: [], ...extra(ID(i), role) },
+    gameData: {
+      role,
+      team: ROLE_TEAM[role],
+      nightPick: null,
+      witchPick: null,
+      potions: role === 'witch' ? FULL_POTIONS : null,
+      guardLast: null,
+      seerLog: [],
+      ...extra(ID(i), role),
+    },
   }));
 }
 
@@ -72,7 +88,7 @@ function baseState(phase: WwPhase, start: number, over: Partial<WerewolfGameStat
     phaseStartedAt: start,
     round: 1,
     seatOrder: NAMES.map((_, i) => ID(i)),
-    roleCounts: { werewolf: 2, seer: 1, guard: 1, witch: 0, hunter: 0, villager: 3 },
+    roleCounts: { werewolf: 2, seer: 1, guard: 1, witch: 1, hunter: 1, villager: 3 },
     rules: DEFAULT_RULES,
     timeouts: {},
     deaths: [],
@@ -94,11 +110,15 @@ const SAMPLE_LOG: WwLogEntry[] = [
   { kind: 'guard', round: 1, guardId: 'p4', targetId: 'p7' },
   { kind: 'seer', round: 1, seerId: 'p3', targetId: 'p2', isWolf: true },
   { kind: 'suspects', round: 1, picks: { p1: 'p6', p7: 'p2' } },
+  { kind: 'witch', round: 1, witchId: 'p8', healedId: null, poisonId: null },
+  { kind: 'guesses', round: 1, picks: { p1: 'p5', p3: 'p7', p9: 'p5' } },
   { kind: 'death', round: 1, id: 'p5', cause: 'wolf' },
-  { kind: 'vote', round: 1, ballots: { p1: 'p2', p2: 'p7', p3: 'p2', p4: 'p2', p6: 'skip', p7: 'p2' }, executedId: 'p2' },
+  { kind: 'vote', round: 1, ballots: { p1: 'p2', p2: 'p7', p3: 'p2', p4: 'p2', p6: 'skip', p7: 'p2', p8: 'p2', p9: 'p2' }, executedId: 'p2' },
   { kind: 'wolves', round: 2, targetId: 'p3', how: 'majority' },
+  { kind: 'witch', round: 2, witchId: 'p8', healedId: null, poisonId: 'p7' },
   { kind: 'death', round: 2, id: 'p3', cause: 'wolf' },
-  { kind: 'vote', round: 2, ballots: { p1: 'p6', p4: 'p6', p6: 'p1', p7: 'p6' }, executedId: 'p6' },
+  { kind: 'death', round: 2, id: 'p7', cause: 'poison' },
+  { kind: 'vote', round: 2, ballots: { p1: 'p6', p4: 'p6', p6: 'p1', p8: 'p6', p9: 'p6' }, executedId: 'p6' },
 ];
 
 interface Mock {
@@ -147,6 +167,25 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
         if (look) (players[0].gameData as WerewolfGameData).seerLog = [{ round: 1, targetId: look.targetId, isWolf: look.isWolf }];
       }
       return { state: baseState('night', start, { deaths }), players };
+    }
+    case 'witch-empty':
+    case 'witch-picked':
+    case 'witch-confirmed':
+    case 'witch-no-attack':
+    case 'witch-spent':
+    case 'witch-dead': {
+      // Ai cũng đoán cùng một ô (ghế 5): cặp ảnh riêng tư chỉ khác vai.
+      const chosen = scene === 'witch-picked' || scene === 'witch-confirmed';
+      const witch = role === 'witch';
+      const mine = chosen
+        ? { round: 1, heal: witch, poisonId: witch ? wolves[0] : null, guessId: common, confirmed: scene === 'witch-confirmed' }
+        : null;
+      const deaths = scene === 'witch-dead' ? [{ id: ME, round: 1, cause: 'wolf' as const }] : [];
+      const players = makePlayers(roles, (id, r) => ({
+        ...(id === ME ? { witchPick: mine } : {}),
+        ...(r === 'witch' && scene === 'witch-spent' ? { potions: { heal: false, poison: false } } : {}),
+      }));
+      return { state: baseState('night-witch', start, { deaths, attack: scene === 'witch-no-attack' ? null : common }), players };
     }
     case 'dawn-deaths':
       return { state: baseState('dawn', start, { deaths: [{ id: common, round: 1, cause: 'wolf' }], dawnDeaths: [common] }), players: makePlayers(roles) };
@@ -263,6 +302,17 @@ function Screen({ scene, role, start }: { scene: PreviewScene; role: WwRole; sta
       ...(look ? { seerLog: [{ round: state.round, targetId: look.targetId, isWolf: look.isWolf }] } : {}),
     });
   };
+  const witchDraft = (draft: WitchDraft): WitchResult => {
+    const cur = pickFor(myData.witchPick, state.round);
+    if (cur?.confirmed) return { outcome: 'locked', error: null, write: null };
+    if (draft.guessId && !isValidTarget(table, ME, 'guess', draft.guessId)) return { outcome: 'invalid', error: null, write: null };
+    if (myData.role === 'witch') {
+      const error = validateWitchPick(table, ME, draft, state.attack, potionsOf(myData));
+      if (error) return { outcome: 'invalid', error, write: null };
+    }
+    setMine({ witchPick: { round: state.round, ...draft, confirmed: false } });
+    return { outcome: 'ok', error: null, write: Promise.resolve() };
+  };
   const local = (fn: () => void) => async () => fn();
   return (
     <>
@@ -273,6 +323,11 @@ function Screen({ scene, role, start }: { scene: PreviewScene; role: WwRole; sta
           onAckDeal: local(() => setState((s) => s && { ...s, acks: { ...s.acks, [ME]: true } })),
           onPick,
           onConfirmNight: onConfirm,
+          onPickWitch: witchDraft,
+          onConfirmWitch: async (draft) => {
+            setMine({ witchPick: { round: state.round, ...draft, confirmed: true } });
+            return { outcome: 'ok', error: null };
+          },
           onReady: local(() => setState((s) => s && { ...s, acks: { ...s.acks, [ME]: true } })),
           onVote: async (b) => setState((s) => s && { ...s, dayVotes: { ...s.dayVotes, [ME]: b } }),
           onPlayAgain: () => {},

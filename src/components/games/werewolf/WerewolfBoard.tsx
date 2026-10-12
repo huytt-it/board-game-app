@@ -8,9 +8,9 @@ import { serverNow } from '@/lib/serverClock';
 import { gameStorage } from '@/services/database/firebaseAdapter';
 import QRCodeDisplay from '@/components/core/QRCodeDisplay';
 import type { GameModuleProps } from '@/lib/gameRegistry';
-import { dealDone, nightDone, talkDone, voteDone } from '@/components/games/werewolf/engine/flow.ts';
-import { useWerewolf, type PickResult } from './useWerewolf';
-import { dataOf, nightPicksOf } from './state';
+import { dealDone, nightDone, talkDone, voteDone, witchDone } from '@/components/games/werewolf/engine/flow.ts';
+import { useWerewolf, type PickResult, type WitchDraft, type WitchResult } from './useWerewolf';
+import { dataOf, nightPicksOf, witchPicksOf } from './state';
 import { phaseTimeoutMs, type DayBallot, type WerewolfGameState, type WerewolfRoomConfig, type WwTable } from './types';
 import { usePhaseRemaining } from './hooks/usePhaseClock';
 import { useConfirm } from './ui/Dialog';
@@ -19,6 +19,7 @@ import Button from './ui/Button';
 import LobbyPanel from './panel/LobbyPanel';
 import DealPanel from './panel/DealPanel';
 import NightPanel from './panel/NightPanel';
+import WitchPanel from './panel/WitchPanel';
 import DawnPanel from './panel/DawnPanel';
 import TalkPanel from './panel/TalkPanel';
 import VotePanel from './panel/VotePanel';
@@ -40,6 +41,8 @@ export interface PhaseHandlers {
   onAckDeal: () => Promise<unknown>;
   onPick: (targetId: string) => PickResult;
   onConfirmNight: (targetId: string) => Promise<unknown>;
+  onPickWitch: (draft: WitchDraft) => WitchResult;
+  onConfirmWitch: (draft: WitchDraft) => Promise<Pick<WitchResult, 'outcome' | 'error'>>;
   onReady: () => Promise<unknown>;
   onVote: (ballot: DayBallot) => Promise<unknown>;
   onPlayAgain: () => void;
@@ -55,6 +58,8 @@ export function PhaseView({ ctx, handlers }: { ctx: Omit<PanelCtx, 'remaining'>;
       return <DealPanel ctx={full} onAck={handlers.onAckDeal} />;
     case 'night':
       return <NightPanel ctx={full} onPick={handlers.onPick} onConfirm={handlers.onConfirmNight} />;
+    case 'night-witch':
+      return <WitchPanel ctx={full} onPick={handlers.onPickWitch} onConfirm={handlers.onConfirmWitch} />;
     case 'dawn':
       return <DawnPanel ctx={full} />;
     case 'day-talk':
@@ -66,7 +71,7 @@ export function PhaseView({ ctx, handlers }: { ctx: Omit<PanelCtx, 'remaining'>;
     case 'end':
       return <EndPanel ctx={full} onPlayAgain={handlers.onPlayAgain} onLeave={handlers.onLeave} />;
     default:
-      // Đêm ② (Phù thủy) và Thợ săn có ở GĐ2.
+      // Thợ săn: commit sau của GĐ2.
       return <p className="text-center text-sm text-slate-400">Bước này có ở GĐ2.</p>;
   }
 }
@@ -96,6 +101,9 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     pickNight,
     confirmNight,
     resolveNightPhase,
+    pickWitch,
+    confirmWitch,
+    resolveWitchPhase,
     proceedAfterDawn,
     readyToVote,
     proceedAfterTalk,
@@ -167,6 +175,8 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
         return arm(dealDone(table, state.acks ?? {}) ? 0 : timeout, proceedAfterDeal);
       case 'night':
         return arm(nightDone(table, nightPicksOf(state, players), state.round) ? 0 : timeout, resolveNightPhase);
+      case 'night-witch':
+        return arm(witchDone(table, witchPicksOf(state, players), state.round) ? 0 : timeout, resolveWitchPhase);
       case 'dawn':
         return arm(timeout, proceedAfterDawn);
       case 'day-talk':
@@ -184,6 +194,7 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     arm,
     proceedAfterDeal,
     resolveNightPhase,
+    resolveWitchPhase,
     proceedAfterDawn,
     proceedAfterTalk,
     resolveDayVote,
@@ -247,6 +258,15 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
       return res;
     },
     [pickNight, playerId]
+  );
+
+  const handlePickWitch = useCallback(
+    (draft: WitchDraft): WitchResult => {
+      const res = pickWitch(playerId, draft);
+      res.write?.catch(() => setNotice('Không gửi được — kiểm tra kết nối mạng rồi thử lại.'));
+      return res;
+    },
+    [pickWitch, playerId]
   );
 
   // Lỗi của chính người chơi và cảnh báo mất kết nối, thay cho alert().
@@ -320,6 +340,8 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
         onAckDeal: () => ackDeal(playerId).catch(failed),
         onPick: handlePick,
         onConfirmNight: (targetId: string) => confirmNight(playerId, targetId).catch(failed),
+        onPickWitch: handlePickWitch,
+        onConfirmWitch: (draft: WitchDraft) => confirmWitch(playerId, draft).catch(failed),
         onReady: () => readyToVote(playerId).catch(failed),
         onVote: (ballot: DayBallot) => castDayVote(playerId, ballot).catch(failed),
         onPlayAgain: handleNewGame,
