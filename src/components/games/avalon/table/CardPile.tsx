@@ -6,7 +6,7 @@ import type { AvalonGameData, AvalonGameState } from '../types';
 import { seatPosition } from './seatPosition';
 import { questResultTimeline } from './timelines';
 import { useArrivals } from '../hooks/useArrivals';
-import { useCue } from '../hooks/useCue';
+import { useCue } from '@/components/games/shared/hooks/useCue';
 import { hashString } from '../scenes/journey';
 import { CardBack } from '../ui/QuestCard';
 

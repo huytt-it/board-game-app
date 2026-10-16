@@ -1,7 +1,7 @@
 'use client';
 
 import { useId, useRef, type ReactNode } from 'react';
-import { useDialog } from '../hooks/useDialog';
+import { useDialog } from '@/components/games/shared/hooks/useDialog';
 import AvIcon, { type IconName } from '../assets/AvIcon';
 import AvButton from './AvButton';
 import GlassPanel from './GlassPanel';

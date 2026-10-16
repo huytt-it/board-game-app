@@ -1,14 +1,14 @@
 'use client';
 
 import { useId, type ReactNode } from 'react';
-import { useDialog } from '../hooks/useDialog';
+import { useDialog } from '@/components/games/shared/hooks/useDialog';
 import AvIcon, { type IconName } from '../assets/AvIcon';
 import AvButton from './AvButton';
 import GlassPanel from './GlassPanel';
 
 // The lobby's modals (settings, the role guide): a labelled dialog that keeps
 // the keyboard focus inside and closes on Escape or a tap outside
-// (hooks/useDialog). A sheet at the bottom of a phone, centred from `md`; one
+// (shared/hooks/useDialog). A sheet at the bottom of a phone, centred from `md`; one
 // solid ink panel with the thin edge — the content inside draws no frames of
 // its own.
 export default function Modal({

@@ -8,7 +8,7 @@ import { TEAM_ICON_NAME, inDisplayOrder } from './presentation';
 import AvButton from './ui/AvButton';
 import GlassPanel from './ui/GlassPanel';
 import RoleEmblem from './ui/RoleEmblem';
-import { useDialog } from './hooks/useDialog';
+import { useDialog } from '@/components/games/shared/hooks/useDialog';
 
 interface RolePreviewPopupProps {
   state: AvalonGameState;

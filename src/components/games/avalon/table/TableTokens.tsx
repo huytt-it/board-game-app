@@ -5,7 +5,7 @@ import type { Player } from '@/types/player';
 import type { AvalonGameState } from '../types';
 import { SEAT_RADIUS_PCT, seatPosition } from './seatPosition';
 import { useArrivals } from '../hooks/useArrivals';
-import { useCue } from '../hooks/useCue';
+import { useCue } from '@/components/games/shared/hooks/useCue';
 import { LINEUP } from './timelines';
 import AvIcon from '../assets/AvIcon';
 import { TABLE_AVATAR_BOX } from '../ui/PlayerAvatar';

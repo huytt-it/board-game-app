@@ -3,8 +3,8 @@
 import type { AvalonRole } from '../types';
 import { ROLE_DESC_VI, ROLE_NAMES_VI, ROLE_TEAM, TEAM_NAME_VI } from '../constants';
 import { TEAM_ICON_NAME } from '../presentation';
-import { useHold } from '../hooks/useHold';
-import { useCue } from '../hooks/useCue';
+import { useHold } from '@/components/games/shared/hooks/useHold';
+import { useCue } from '@/components/games/shared/hooks/useCue';
 import AvIcon from '../assets/AvIcon';
 import AvButton from './AvButton';
 import RoleEmblem from './RoleEmblem';

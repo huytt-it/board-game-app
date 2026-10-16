@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test:werewolf": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON --test \"src/components/games/werewolf/engine/**/*.test.ts\""
   },
   "dependencies": {
     "firebase": "^12.12.1",

@@ -1,7 +1,7 @@
 'use client';
 
 import type { CSSProperties, ReactNode } from 'react';
-import { useCue } from '../hooks/useCue';
+import { useCue } from '@/components/games/shared/hooks/useCue';
 
 // An element whose CSS animation (from `className`) plays `at` ms into the
 // phase, on the server clock — see useCue. The delay is fixed when THIS

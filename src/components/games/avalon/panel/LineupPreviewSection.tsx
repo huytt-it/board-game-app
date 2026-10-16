@@ -5,7 +5,7 @@ import type { AvalonGameState, AvalonRole } from '../types';
 import { ROLE_TEAM } from '../constants';
 import { inDisplayOrder } from '../presentation';
 import { formatCountdown, isLowTime, usePhaseClock } from '../hooks/usePhaseClock';
-import { useCue } from '../hooks/useCue';
+import { useCue } from '@/components/games/shared/hooks/useCue';
 import { LINEUP } from '../table/timelines';
 import { DockStatus, LowTimeClock, RoleLineChip } from './shared';
 import AvIcon from '../assets/AvIcon';

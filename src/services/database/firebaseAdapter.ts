@@ -241,12 +241,19 @@ export class FirebaseAdapter implements IGameStorage {
         }
       }
 
-      const updates: Record<string, unknown> = { lastActivityAt: Date.now() };
-      for (const [key, value] of Object.entries(patch)) {
-        updates[`gameState.${key}`] = value;
+      // A write that only touches per-player data (empty patch, no status)
+      // leaves the room doc alone: the room doc was still read above for
+      // `expected`, but not writing it means several players writing their own
+      // docs at once no longer contend on it.
+      const patchEntries = Object.entries(patch);
+      if (patchEntries.length > 0 || opts.status) {
+        const updates: Record<string, unknown> = { lastActivityAt: Date.now() };
+        for (const [key, value] of patchEntries) {
+          updates[`gameState.${key}`] = value;
+        }
+        if (opts.status) updates.status = opts.status;
+        tx.update(roomRef, updates);
       }
-      if (opts.status) updates.status = opts.status;
-      tx.update(roomRef, updates);
 
       for (const { playerId, data } of opts.playerData ?? []) {
         const flat: Record<string, unknown> = {};

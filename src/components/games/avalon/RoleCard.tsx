@@ -4,7 +4,7 @@ import { AvalonRole } from './types';
 import GlassPanel from './ui/GlassPanel';
 import AvButton from './ui/AvButton';
 import RoleLetter from './ui/RoleLetter';
-import { useDialog } from './hooks/useDialog';
+import { useDialog } from '@/components/games/shared/hooks/useDialog';
 
 interface RoleCardProps {
   role: AvalonRole;

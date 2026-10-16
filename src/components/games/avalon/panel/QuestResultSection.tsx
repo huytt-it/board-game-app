@@ -1,8 +1,8 @@
 import type { CSSProperties } from 'react';
 import type { AvalonGameState } from '../types';
 import { questNeedsTwoFails } from '../constants';
-import { useCue } from '../hooks/useCue';
-import { usePhaseTimeline } from '../hooks/usePhaseTimeline';
+import { useCue } from '@/components/games/shared/hooks/useCue';
+import { usePhaseTimeline } from '@/components/games/shared/hooks/usePhaseTimeline';
 import { questResultTimeline, questRevealOrder } from '../table/timelines';
 import { TwoFailNote } from './shared';
 import AvIcon from '../assets/AvIcon';

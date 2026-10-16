@@ -1,7 +1,7 @@
 import type { Player } from '@/types/player';
 import { AvalonRole } from '../types';
 import { ROLE_TEAM } from '../constants';
-import { usePhaseTimeline } from '../hooks/usePhaseTimeline';
+import { usePhaseTimeline } from '@/components/games/shared/hooks/usePhaseTimeline';
 import { END } from '../table/timelines';
 import AvIcon from '../assets/AvIcon';
 import AvButton from '../ui/AvButton';
