@@ -452,6 +452,42 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 
 ---
 
+## 7b. GĐ2b — Hồn ma "giữ để xem" (thêm sau review GĐ2, 2026-10-16)
+
+**Lý do.** Ở GĐ2, hồn ma thấy vai của mọi người hiện thẳng trên ô và trong khung "Hồn ma". Ngồi chung bàn, người còn sống liếc sang máy người chết là thấy hết. Người dùng chọn sửa **trước PR #1** (rules §6).
+
+### Việc cần làm
+- **Mọi thông tin riêng của hồn ma chỉ render khi đang giữ thẻ**, gồm:
+  - vai của mọi người;
+  - lựa chọn ban đêm theo thời gian thực (bầy Sói, Tiên tri, Bảo vệ, Phù thủy, người nghi / đoán);
+  - "Diễn biến ván đến giờ".
+- **Ô trong lưới không hiện vai cho hồn ma nữa.** `shownRole` chỉ còn trả vai đã lộ khi chết (`revealedRole`).
+- Gom mọi thứ của hồn ma vào **một thẻ giữ** trong `GhostPanel`:
+  - danh sách vai gọn (tên + vai, theo ghế);
+  - lựa chọn của bước hiện tại;
+  - nhật ký: đọc được trên 375px khi đang giữ. Nếu dài thì chỉ hiện vòng hiện tại và vòng trước, đầy đủ ở màn kết thúc. Người thực thi tự chọn cách trình bày, ghi lại ở §12.
+- **Khi không giữ, màn của người chết luôn giống nhau**, dù vai gì, dù "Hồn ma xem hết vai" bật hay tắt:
+  - cùng câu `DeadNote` (bỏ câu riêng "Hồn ma thấy vai…" ra khỏi phần không giữ);
+  - cùng một thẻ "Nhấn giữ để xem".
+  - Giữ thẻ thì: luật bật → thông tin hồn ma; luật tắt → chỉ vai của mình.
+- Giữ nguyên `shotPending`: Thợ săn chưa xong lượt bắn thì giữ thẻ chỉ thấy vai của mình.
+- Thẻ giữ của người chết dùng chung ở mọi phase có người chết nhìn vào: Đêm ①, Đêm ②, Bình minh, Thợ săn, Thảo luận, Bỏ phiếu, Kết quả.
+
+### Không làm
+Không đổi luật, engine, logic chuyển phase hay giao diện của người còn sống. GĐ3 sẽ làm lại giao diện.
+
+### Nghiệm thu
+- `npm run test:werewolf`, `tsc`, eslint werewolf, `build` đều qua.
+- **Cặp ảnh riêng tư của người chết, khi không giữ**, ở mỗi phase trên:
+  - người chết là Sói so với người chết là Dân / Tiên tri / Thợ săn (đã bắn);
+  - và hồn ma bật so với tắt.
+  - Tất cả ≈ 0.
+- Ảnh 375px khi đang giữ: hồn ma bật (danh sách vai + lựa chọn đêm + nhật ký đọc được) và hồn ma tắt (chỉ vai của mình).
+- Một ván thật ngắn (kịch bản `ghostleave` của GĐ2, đổi bot cho phù hợp): lấy mẫu liên tục, **không cửa sổ nào render vai của người khác khi không giữ** cho tới màn kết thúc.
+- Sau review: **mốc PR #1** (người dùng đã đồng ý cho nhạc trưởng push `dev-werewolf` và mở PR vào `main`).
+
+---
+
 ## 8. GĐ3 — Bộ nhận diện và cảnh
 
 ### Việc cần làm
@@ -536,7 +572,8 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 | Kế hoạch | Xong | `d0fbb4db` → (commit này) | Nhạc trưởng viết plan.md + rules.md, 2026-10-11. |
 | GĐ0 | **Review đạt** (nhạc trưởng, 2026-10-11) | `6440892c` → `68af55e5` | Engine thuần + 132 test (22 nhóm), phủ đủ E1–E28. `tsc`, eslint werewolf, `build` sạch; không import react/firebase/`@/`. Chi tiết và các điểm lệch ở §12.1, review ở §12.2. |
 | GĐ1 | **Review đạt** (nhạc trưởng, 2026-10-11) | `08623054` → `d3b1a59f`; code `15d0d159`, `13e33330`, `0f4da818`, `b51f226f` | Chơi được 4 vai trên điện thoại, không quản trò. Hook UI chuyển sang `games/shared/hooks`. Engine 136 test. Ván thật 7 cửa sổ: Dân thắng 11/11, Sói thắng 9/9 kiểm tra đạt. Cặp ảnh riêng tư Đêm ① + Xem vai 12/12 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.3, review ở §12.4. |
-| GĐ2 | **Xong, chờ review** (2026-10-12) | `fe0343a0` → (commit docs này); code `35894afc`, `701f1009`, `b6ab022f`, `99cc7252`, `c4c0944f`, `3f13ff03` | Đủ 6 vai + 4 luật tuỳ chọn, cho rời làng, hồn ma, màn Luật chơi. Adapter `casGameState` không ghi doc phòng khi chỉ ghi `playerData`. Engine 138 test. Ván thật 7–10 cửa sổ: 7 kịch bản Ma Sói đạt + 1 ván Avalon 5 cửa sổ đạt. Cặp ảnh riêng tư Đêm ①, Xem vai, Đêm ② 40/40 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.5. |
+| GĐ2 | **Review đạt** (nhạc trưởng, 2026-10-16) | `fe0343a0` → `2bf4a5da`; code `35894afc`, `701f1009`, `b6ab022f`, `99cc7252`, `c4c0944f`, `3f13ff03` | Đủ 6 vai + 4 luật tuỳ chọn, cho rời làng, hồn ma, màn Luật chơi. Adapter `casGameState` không ghi doc phòng khi chỉ ghi `playerData`. Engine 138 test. Ván thật 7–10 cửa sổ: 7 kịch bản Ma Sói đạt + 1 ván Avalon 5 cửa sổ đạt. Cặp ảnh riêng tư Đêm ①, Xem vai, Đêm ② 40/40 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.5, review ở §12.6. |
+| GĐ2b | Chưa bắt đầu | | Hồn ma "giữ để xem" (§7b), trước PR #1. |
 | GĐ3 | Chưa bắt đầu | | |
 | GĐ4 | Chưa bắt đầu | | |
 
@@ -740,3 +777,31 @@ Phù thủy, Thợ săn, cho rời làng (GĐ2). Cảnh, icon, hoạt cảnh, m�
 - Nhạc trưởng / người dùng xác nhận các mục 1–4 ở trên (đặc biệt mục 1: ghi vào rules §6).
 - Sau review: **mốc PR #1** (push `dev-werewolf`, PR → `main`).
 - GĐ3: màn 1440px (vẫn một cột), dải nền thanh nút đáy, cân nhắc đưa khung hồn ma vào thẻ giữ.
+
+### 12.6 GĐ2 — review của nhạc trưởng (2026-10-16): **ĐẠT**
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 138/138.
+- `tsc` sạch. eslint werewolf + `gameRegistry.ts` sạch. `npx eslint src/components/games` 29 / 29 = baseline. `firebaseAdapter.ts` 2 lỗi / 2 cảnh báo có sẵn (dòng 581–582, ngoài đoạn sửa).
+- `npm run build` exit 0.
+
+**Đọc code:**
+- Adapter `casGameState`: đúng bước 0. Vẫn đọc doc phòng để kiểm `expected`, chỉ bỏ ghi khi `patch` rỗng và không có `status`. Chữ ký không đổi.
+- `resolveNightPhase` (nhánh `night-witch`) và `resolveWitchPhase`: `expect` / `expectPlayerData` / `playerData` đúng bảng.
+- `shootHunter` / `hunterTimeout`: CAS `expect { hunter, deaths }`.
+- `leaveVillage` là CAS riêng, giữ nguyên `phaseStartedAt`. Có `winner` thì sang `end`. Board dùng ref để lấy bản mới nhất.
+- `WitchPanel`: khi không giữ, màn giống hệt; chạm lưới khi không giữ chỉ là đoán, độc chỉ khi đang giữ; dấu "độc" chỉ hiện khi giữ; ai cũng Xác nhận được mà không cần chọn.
+- `shotPending` đúng ý luật mới.
+
+**Bằng chứng của người thực thi:**
+- Đã xem bảng ảnh 375px (Đêm ② các trạng thái, Thợ săn, hồn ma, kết thúc).
+- 7 kịch bản ván thật + ván Avalon đạt. Cặp ảnh riêng tư 40/40 = 0.000.
+- Adapter trước / sau: 7/22 và 10/25 → 0/15 commit bị từ chối.
+
+**Quyết định (người dùng, 2026-10-16), đã ghi vào `rules.md`:**
+- Thợ săn chưa xong lượt bắn thì chưa phải hồn ma (rules §6).
+- Thông tin của hồn ma chỉ hiện khi giữ thẻ (rules §6), làm ở **GĐ2b trước PR #1** (§7b).
+- Nhạc trưởng chấp nhận:
+  - Xác nhận ở Đêm ② là chốt với mọi người (rules §5.4);
+  - chủ phòng không tự cho mình rời làng (rules §7).
+- Sau GĐ2b, nhạc trưởng push `dev-werewolf` và mở PR #1 vào `main` (người dùng đồng ý, người dùng tự merge).

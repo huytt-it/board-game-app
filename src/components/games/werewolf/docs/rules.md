@@ -94,6 +94,7 @@ Mỗi bước có đồng hồ. Thời lượng do chủ phòng đặt (mục 8.
 - Những người còn sống khác thấy màn **cùng bố cục**, "Đoán xem Sói nhắm ai" (người còn sống, được chọn cả mình). Lựa chọn này chỉ hiện trong tổng kết cuối ván.
 - Nếu UI để lọt một quyết định vừa cứu X vừa độc X (E5), engine giữ phần cứu, bỏ phần độc, bình độc còn nguyên.
 - Kết thúc sớm khi mọi người còn sống đã Xác nhận, hoặc hết giờ. Phù thủy hết giờ mà chưa Xác nhận thì coi như không làm gì.
+- Ở Đêm ②, Xác nhận là chốt với **mọi người, kể cả Phù thủy** (như Tiên tri và Bảo vệ ở Đêm ①). Không cần chọn ai cũng Xác nhận được.
 
 ### 5.5 Tính kết quả đêm (theo thứ tự)
 1. **Người bị nhắm** = kết quả của bầy Sói (mục 5.3), được chốt khi Đêm ① kết thúc.
@@ -147,6 +148,8 @@ Mỗi bước có đồng hồ. Thời lượng do chủ phòng đặt (mục 8.
 - Cài đặt **"Hồn ma xem hết vai"** (chủ phòng bật/tắt, mặc định **bật**):
   - **Bật**: người chết thấy vai của mọi người và các lựa chọn ban đêm theo thời gian thực.
   - **Tắt**: người chết chỉ thấy thông tin công khai và vai của mình.
+- Những gì hồn ma được xem **chỉ hiện khi giữ thẻ**. Nhìn từ xa, màn của hồn ma giống màn của một người chết bình thường, để người còn sống ngồi cạnh không liếc thấy (người dùng chốt 2026-10-16).
+- **Thợ săn đã chết nhưng chưa xong lượt bắn thì chưa phải hồn ma.** Thợ săn chỉ thành hồn ma sau khi đã bắn, đã chọn không bắn, hoặc hết giờ. Nếu không, Thợ săn sẽ thấy hết vai rồi mới bắn (người dùng chốt 2026-10-16).
 
 ## 7. Mất kết nối, rời phòng
 - Mất mạng hay tắt máy **không** làm người chơi chết. Mở lại link phòng là vào lại đúng chỗ.
@@ -160,7 +163,8 @@ Mỗi bước có đồng hồ. Thời lượng do chủ phòng đặt (mục 8.
 - Chủ phòng có thể **"Cho rời làng"** một người bỏ về hẳn, ở bất kỳ bước nào:
   - người đó tính là chết, nguyên nhân "rời làng", lộ vai theo cài đặt;
   - Thợ săn rời làng thì **không** được bắn;
-  - áp dụng ngay và kiểm tra thắng ngay.
+  - áp dụng ngay và kiểm tra thắng ngay;
+  - chủ phòng không tự cho mình rời làng được (tránh bấm nhầm).
 
 ## 8. Cài đặt phòng (chủ phòng, ở sảnh)
 
