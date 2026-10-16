@@ -28,7 +28,7 @@ import VotePanel from './panel/VotePanel';
 import VoteResultPanel from './panel/VoteResultPanel';
 import EndPanel from './panel/EndPanel';
 import GhostPanel from './panel/GhostPanel';
-import { ghostSeesAll, type PanelCtx } from './panel/shared';
+import { hasGhostCard, type PanelCtx } from './panel/shared';
 
 // Máy khác chờ thêm chừng này rồi mới tự chuyển phase thay chủ phòng (chủ
 // phòng mất mạng / ngủ). CAS bảo đảm chỉ một lần ghi thắng.
@@ -54,14 +54,14 @@ export interface PhaseHandlers {
   onLeave: () => void;
 }
 
-/** Màn của phase hiện tại (dùng chung với WerewolfPreview). Hồn ma (luật cho phép) thấy thêm khung "Hồn ma". */
+/** Màn của phase hiện tại (dùng chung với WerewolfPreview). Người chết có thêm một thẻ giữ để xem (GhostPanel). */
 export function PhaseView({ ctx, handlers }: { ctx: Omit<PanelCtx, 'remaining'>; handlers: PhaseHandlers }) {
   const remaining = usePhaseRemaining(ctx.state);
   const full: PanelCtx = { ...ctx, remaining };
   return (
     <>
       <PhasePanel ctx={full} handlers={handlers} />
-      {ghostSeesAll(full) && <GhostPanel ctx={full} />}
+      {hasGhostCard(full) && <GhostPanel ctx={full} />}
     </>
   );
 }

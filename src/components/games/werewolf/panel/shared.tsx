@@ -45,18 +45,23 @@ function shotPending(ctx: Pick<PanelCtx, 'state' | 'me' | 'myData'>): boolean {
 }
 
 /**
- * Người xem là hồn ma được xem hết (luật "Hồn ma xem hết vai" bật): thấy vai
- * của mọi người, lựa chọn đêm theo thời gian thực và nhật ký. Người còn sống
- * KHÔNG BAO GIỜ thấy các phần này.
+ * Người chết (kể cả người rời làng) ở mọi bước trừ màn kết thúc có một thẻ giữ
+ * để xem (GhostPanel). Khi không giữ thì màn của họ giống hệt nhau, dù vai gì,
+ * dù luật "Hồn ma xem hết vai" bật hay tắt (rules §6).
  */
-export function ghostSeesAll(ctx: Pick<PanelCtx, 'state' | 'me' | 'myData'>): boolean {
-  return ctx.state.rules.ghostsSeeAll && isDead(ctx.state, ctx.me.id) && ctx.state.phase !== 'end' && !shotPending(ctx);
+export function hasGhostCard(ctx: Pick<PanelCtx, 'state' | 'me'>): boolean {
+  return ctx.state.phase !== 'end' && isDead(ctx.state, ctx.me.id);
 }
 
-/** Vai hiện cạnh tên `id` trên màn người xem: hồn ma (luật cho phép) thấy mọi vai, còn lại chỉ vai đã lộ khi chết. */
-export function shownRole(ctx: Pick<PanelCtx, 'state' | 'players' | 'me' | 'myData'>, id: string): WwRole | null {
-  if (ghostSeesAll(ctx)) return dataOf(ctx.players.find((p) => p.id === id)).role ?? null;
-  return revealedRole(ctx, id);
+/**
+ * Giữ thẻ của người chết thì thấy gì (chỉ khi đang giữ):
+ *  - 'all': hồn ma xem hết vai (luật bật): vai của mọi người, lựa chọn đêm, nhật ký.
+ *  - 'wait': luật bật nhưng Thợ săn chưa xong lượt bắn: chỉ vai của mình.
+ *  - 'own': luật tắt: chỉ vai của mình.
+ */
+export function ghostView(ctx: Pick<PanelCtx, 'state' | 'me' | 'myData'>): 'all' | 'wait' | 'own' {
+  if (!ctx.state.rules.ghostsSeeAll) return 'own';
+  return shotPending(ctx) ? 'wait' : 'all';
 }
 
 /** Tiêu đề của bước: một câu, đồng hồ bên phải (nếu bước có giờ). */
@@ -107,7 +112,7 @@ export function PlayerTile({
 }: {
   player: Player;
   selected?: boolean;
-  /** Vai hiện dưới tên: chỉ khi người xem được thấy (shownRole). */
+  /** Vai hiện dưới tên: chỉ vai đã lộ khi chết (revealedRole), không bao giờ vai ẩn. */
   role?: WwRole | null;
   /** Dấu nhỏ góc phải (vd. "đã bầu"), công khai. */
   mark?: ReactNode;
@@ -243,19 +248,20 @@ export function RoleTag({ role }: { role: WwRole }) {
   );
 }
 
-/** Màn cho người đã chết ở các bước cần hành động. */
-export function DeadNote({ ghost = false }: { ghost?: boolean }) {
+/**
+ * Màn cho người đã chết ở các bước cần hành động. Một câu duy nhất cho mọi
+ * người chết, dù vai gì, dù hồn ma bật hay tắt (rules §6).
+ */
+export function DeadNote() {
   return (
-    <p className="rounded-xl bg-slate-800/70 px-4 py-3 text-center text-sm text-slate-300" data-ww-dead-note={ghost ? 'ghost' : 'plain'}>
-      {ghost
-        ? 'Bạn đã chết. Hồn ma thấy vai và lựa chọn của mọi người — giữ kín, ngồi im lặng đến hết ván nhé.'
-        : 'Bạn đã chết. Ngồi im lặng, không ra hiệu đến hết ván nhé.'}
+    <p className="rounded-xl bg-slate-800/70 px-4 py-3 text-center text-sm text-slate-300" data-ww-dead-note="">
+      Bạn đã chết. Ngồi im lặng, không ra hiệu đến hết ván nhé.
     </p>
   );
 }
 
-/** "Diễn biến ván": các câu của nhật ký, gom theo "Đêm N" / "Ngày N". */
-export function LogList({ log, players }: { log: readonly WwLogEntry[]; players: Player[] }) {
+/** "Diễn biến ván": các câu của nhật ký, gom theo "Đêm N" / "Ngày N". `compact`: chữ nhỏ, khít (trong thẻ giữ của hồn ma). */
+export function LogList({ log, players, compact = false }: { log: readonly WwLogEntry[]; players: Player[]; compact?: boolean }) {
   const lines = describeLog(log, (id) => nameOf(players, id));
   const groups: Array<{ label: string; texts: string[] }> = [];
   for (const line of lines) {
@@ -264,13 +270,13 @@ export function LogList({ log, players }: { log: readonly WwLogEntry[]; players:
     if (last && last.label === label) last.texts.push(line.text);
     else groups.push({ label, texts: [line.text] });
   }
-  if (groups.length === 0) return <p className="text-sm text-slate-400">Chưa có gì.</p>;
+  if (groups.length === 0) return <p className={`${compact ? 'text-[13px]' : 'text-sm'} text-slate-400`}>Chưa có gì.</p>;
   return (
-    <ol className="space-y-3" data-ww-log="">
+    <ol className={compact ? 'space-y-2' : 'space-y-3'} data-ww-log="">
       {groups.map((g, i) => (
         <li key={i}>
-          <p className="mb-1 text-xs font-bold tracking-wide text-indigo-300 uppercase">{g.label}</p>
-          <ul className="space-y-1 text-sm text-slate-200">
+          <p className={`${compact ? 'mb-0.5' : 'mb-1'} text-xs font-bold tracking-wide text-indigo-300 uppercase`}>{g.label}</p>
+          <ul className={`${compact ? 'space-y-0.5 text-[13px] leading-snug' : 'space-y-1 text-sm'} text-slate-200`}>
             {g.texts.map((t, j) => (
               <li key={j}>{t}</li>
             ))}

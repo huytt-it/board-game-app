@@ -1,7 +1,7 @@
 'use client';
 
 import type { DayVoteOutcome } from '@/components/games/werewolf/engine/day.ts';
-import { PhaseHeader, RoleTag, nameOf, shownRole, type PanelCtx } from './shared';
+import { PhaseHeader, RoleTag, nameOf, revealedRole, type PanelCtx } from './shared';
 
 const NO_HANG: Record<Exclude<DayVoteOutcome, 'executed'>, string> = {
   'no-votes': 'Không ai bị bầu.',
@@ -17,7 +17,7 @@ export default function VoteResultPanel({ ctx }: { ctx: PanelCtx }) {
   const tally = new Map<string, number>();
   for (const [, to] of ballots) tally.set(to, (tally.get(to) ?? 0) + 1);
   const executed = last?.executedId ?? null;
-  const role = executed ? shownRole(ctx, executed) : null;
+  const role = executed ? revealedRole(ctx, executed) : null;
   return (
     <section data-phase-section="vote-result">
       <PhaseHeader title={`Ngày ${ctx.state.round} — Kết quả`} remaining={ctx.remaining} />
