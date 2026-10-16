@@ -505,6 +505,50 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 - Cặp ảnh riêng tư (Đêm ①, Đêm ②, Xem vai khi không giữ) ≈ 0.
 - Ghi kích thước chunk Ma Sói (gzip).
 
+#### Bổ sung cho GĐ3 (nhạc trưởng, sau PR #1, 2026-10-16)
+
+**Chia làm hai phần, giống Avalon GĐ7.**
+- **GĐ3a — Nền thiết kế + 4 màn mẫu.**
+  - Thứ tự làm: token màu / chữ / bo góc, rồi bộ UI nhỏ (nút, khung, chip, ô người chơi, thẻ giữ), rồi icon qua asset registry, rồi 2 cảnh (làng ban đêm, bình minh).
+  - Áp lên 4 màn mẫu: **Sảnh, Xem vai, Đêm ①, Bình minh**.
+  - Làm một **bảng phong cách** trong `WerewolfPreview`, kèm ảnh trước / sau ở 375px và 1440px.
+  - Xong thì **DỪNG lại, báo người dùng duyệt hướng hình ảnh**. Chưa duyệt thì không làm GĐ3b.
+- **GĐ3b — Áp cho mọi màn còn lại.**
+  - Gồm Đêm ②, Thợ săn, Thảo luận, Bỏ phiếu, Kết quả, Kết thúc, thẻ / tờ hồn ma, menu, Luật chơi, màn join riêng.
+  - Thêm các cảnh còn lại.
+  - Quét sạch lớp màu Tailwind lẻ.
+
+**Ràng buộc:**
+1. **Riêng tư phải giữ nguyên sau khi đổi giao diện.**
+   - Cảnh, màu nền, hoạt hoạ nhẹ và icon **giống nhau với mọi người xem**. Không có cảnh, màu, viền hay icon nào đổi theo vai.
+   - Chạy lại toàn bộ cặp ảnh riêng tư của GĐ1–GĐ2b sau mỗi phần (Đêm ①, Đêm ②, Xem vai, màn người chết khi không giữ, hồn ma bật / tắt): phải ≈ 0.
+   - Tờ hồn ma giữ đúng ba điều ở §12.7:
+     - không có DOM khi không giữ;
+     - chặn pointer nổi bọt lên thẻ;
+     - thẻ đóng giống hệt nhau.
+2. **Học từ Avalon GĐ7:**
+   - một màu nhấn, 3 mức bo góc;
+   - không dùng lớp màu palette lẻ của Tailwind; không dùng `text-[Npx]` (GĐ1–GĐ2b có vài chỗ `text-[13px]` / `text-[10px]`, thay bằng token);
+   - mỗi màn một câu, một việc;
+   - đo số chữ của từng màn trước và sau (cách đo trong memory `avalon-ux-test-recipes`, phần GĐ7a / 7b).
+3. **CSS riêng:** `werewolf.css`, chỉ `WerewolfBoard` (và trang harness) import, giống `avalon.css`. Token đặt tên `--ww-*`. Không sửa token hay component của Avalon.
+4. **Dùng lại phần vẽ của Avalon:**
+   - Được import các hàm vẽ thuần, không phụ thuộc dữ liệu Avalon. Ví dụ `avalon/scenes/paper.tsx`: chỉ phụ thuộc `mulberry32` của `journey.ts`.
+   - Nếu cần nhiều, hãy chuyển sang `games/shared/` bằng `git mv` và chỉ đổi đường import (như GĐ1), làm thành commit riêng. Ghi lại ở §12.
+   - Không thêm dependency.
+5. **Bàn tròn:**
+   - Ghế theo `seatOrder`. Người chết hiện mờ hoặc bia mộ.
+   - Dấu "đã xác nhận / đã bầu / sẵn sàng" công khai và **như nhau với mọi vai**.
+   - Kiểm va chạm ghế / nhãn ở 320–390px × 5–10 người (mẫu `collide7` của Avalon).
+   - Lưới chọn có thể giữ dạng lưới. Bàn tròn là phần trang trí công khai, không bắt buộc thay lưới.
+6. **1440px:** hết cảnh "một cột hẹp giữa màn hình", ví dụ hai cột (bàn / cảnh bên trái, panel bên phải). Điện thoại vẫn là ưu tiên số 1.
+7. **Màn join riêng:** thêm nhánh trong `page.tsx` giống `AvalonJoinScreen`. Import từ module `WerewolfBoard` (`.then(m => m.WerewolfJoinScreen)`) để dùng chung chunk.
+8. **Không làm hoạt cảnh của GĐ4.** Chỉ được dùng chuyển cảnh đơn giản (crossfade nền khi đổi phase) và phải tôn trọng `prefers-reduced-motion`.
+9. **Đo đạc:**
+   - Kích thước chunk Ma Sói (gzip), trước và sau, đo bằng build sạch không có trang harness.
+   - Tương phản chữ ≥ 4.5:1 đo trên pixel thật (bỏ qua nút đang khoá).
+   - Không cuộn ngang ở 320px.
+
 ---
 
 ## 9. GĐ4 — Hoạt cảnh và nhịp ván
@@ -574,7 +618,8 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 | GĐ1 | **Review đạt** (nhạc trưởng, 2026-10-11) | `08623054` → `d3b1a59f`; code `15d0d159`, `13e33330`, `0f4da818`, `b51f226f` | Chơi được 4 vai trên điện thoại, không quản trò. Hook UI chuyển sang `games/shared/hooks`. Engine 136 test. Ván thật 7 cửa sổ: Dân thắng 11/11, Sói thắng 9/9 kiểm tra đạt. Cặp ảnh riêng tư Đêm ① + Xem vai 12/12 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.3, review ở §12.4. |
 | GĐ2 | **Review đạt** (nhạc trưởng, 2026-10-16) | `fe0343a0` → `2bf4a5da`; code `35894afc`, `701f1009`, `b6ab022f`, `99cc7252`, `c4c0944f`, `3f13ff03` | Đủ 6 vai + 4 luật tuỳ chọn, cho rời làng, hồn ma, màn Luật chơi. Adapter `casGameState` không ghi doc phòng khi chỉ ghi `playerData`. Engine 138 test. Ván thật 7–10 cửa sổ: 7 kịch bản Ma Sói đạt + 1 ván Avalon 5 cửa sổ đạt. Cặp ảnh riêng tư Đêm ①, Xem vai, Đêm ② 40/40 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.5, review ở §12.6. |
 | GĐ2b | **Review đạt** (nhạc trưởng, 2026-10-16) | `c7eb0e2a` → `5a852dbe`; code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7, review ở §12.8. |
-| GĐ3 | Chưa bắt đầu | | |
+| GĐ3a | Chưa bắt đầu | | Nền thiết kế + 4 màn mẫu, dừng chờ người dùng duyệt. |
+| GĐ3b | Chưa bắt đầu | | Áp cho mọi màn còn lại. |
 | GĐ4 | Chưa bắt đầu | | |
 
 ### 12.1 GĐ0 — ghi chú của người thực thi (2026-10-11)
@@ -888,3 +933,8 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 **Còn mở, không chặn PR:** kéo bằng ngón đang giữ để cuộn tờ chưa kiểm trên cảm ứng thật. Tờ vừa khung từ 375×667, nên chỉ ảnh hưởng màn rất thấp. Kiểm khi chơi thật (GĐ5).
 
 **Tiếp theo:** nhạc trưởng push `dev-werewolf` và mở PR #1 vào `main` (người dùng đồng ý 2026-10-16). Sau khi người dùng squash-merge: `git merge -s ours origin/main` trên `dev-werewolf` (§0), rồi GĐ3.
+
+### 12.9 PR #1 (2026-10-16)
+- PR huytt-it/board-game-app#63 (`dev-werewolf` → `main`), CI 2/2. Người dùng nhờ nhạc trưởng squash-merge: `main` = `b768f09f`.
+- Tree của `main` trùng `dev-werewolf@bad4aea4` (diff rỗng). Đã chạy `git merge -s ours origin/main` trên `dev-werewolf` (`b7486a56`) và push.
+- Tiếp theo: GĐ3a (§8, "Bổ sung cho GĐ3").
