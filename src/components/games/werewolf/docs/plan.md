@@ -573,7 +573,7 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 | GĐ0 | **Review đạt** (nhạc trưởng, 2026-10-11) | `6440892c` → `68af55e5` | Engine thuần + 132 test (22 nhóm), phủ đủ E1–E28. `tsc`, eslint werewolf, `build` sạch; không import react/firebase/`@/`. Chi tiết và các điểm lệch ở §12.1, review ở §12.2. |
 | GĐ1 | **Review đạt** (nhạc trưởng, 2026-10-11) | `08623054` → `d3b1a59f`; code `15d0d159`, `13e33330`, `0f4da818`, `b51f226f` | Chơi được 4 vai trên điện thoại, không quản trò. Hook UI chuyển sang `games/shared/hooks`. Engine 136 test. Ván thật 7 cửa sổ: Dân thắng 11/11, Sói thắng 9/9 kiểm tra đạt. Cặp ảnh riêng tư Đêm ① + Xem vai 12/12 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.3, review ở §12.4. |
 | GĐ2 | **Review đạt** (nhạc trưởng, 2026-10-16) | `fe0343a0` → `2bf4a5da`; code `35894afc`, `701f1009`, `b6ab022f`, `99cc7252`, `c4c0944f`, `3f13ff03` | Đủ 6 vai + 4 luật tuỳ chọn, cho rời làng, hồn ma, màn Luật chơi. Adapter `casGameState` không ghi doc phòng khi chỉ ghi `playerData`. Engine 138 test. Ván thật 7–10 cửa sổ: 7 kịch bản Ma Sói đạt + 1 ván Avalon 5 cửa sổ đạt. Cặp ảnh riêng tư Đêm ①, Xem vai, Đêm ② 40/40 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.5, review ở §12.6. |
-| GĐ2b | **Xong, chờ review** (2026-10-16) | `c7eb0e2a` → (commit docs này); code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7. |
+| GĐ2b | **Review đạt** (nhạc trưởng, 2026-10-16) | `c7eb0e2a` → `5a852dbe`; code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7, review ở §12.8. |
 | GĐ3 | Chưa bắt đầu | | |
 | GĐ4 | Chưa bắt đầu | | |
 
@@ -859,3 +859,32 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 **Việc chuyển tiếp**
 - Nhạc trưởng review `git diff c7eb0e2a..HEAD`, rồi push `dev-werewolf` và mở PR #1 (người dùng đã đồng ý).
 - GĐ3: màn 1440 px (vẫn một cột), dải nền thanh nút đáy; tờ hồn ma dùng được lại khi thay giao diện (chỉ cần giữ ba điều: không DOM khi không giữ, chặn pointer nổi bọt lên thẻ, thẻ đóng giống hệt nhau).
+
+### 12.8 GĐ2b — review của nhạc trưởng (2026-10-16): **ĐẠT** → mốc PR #1
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 138/138.
+- `tsc` sạch. eslint werewolf sạch. `npx eslint src/components/games` 29 / 29 = baseline.
+- `npm run build` exit 0.
+
+**Đọc code:**
+- `hasGhostCard` (đã chết, `phase ≠ end`) và `ghostView` (`all` / `wait` / `own`, giữ `shotPending`).
+- Nội dung riêng của `GhostPanel` chỉ nằm trong `children` của `HoldCard`, nên không giữ thì không có DOM nào.
+- `DeadNote` chỉ còn một câu.
+- Mọi lưới / danh sách chỉ còn `revealedRole`.
+- Tờ `fixed` chặn `pointerdown` / `pointerup` / `pointercancel` / `lostpointercapture` nổi bọt lên thẻ.
+- Không đụng luật, engine, `useWerewolf`, giao diện của người còn sống.
+
+**Bằng chứng của người thực thi:**
+- Cặp ảnh của người chết khi không giữ 54/54 = 0.000.
+- Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15, với bộ lấy mẫu riêng tư 0 vi phạm trên hơn 8 000 mẫu (đối chứng âm bắt được rò rỉ tiêm vào).
+- Hồi quy giao diện người còn sống ≈ 0.
+
+**Chấp nhận các lệch:**
+- tờ `fixed` ở đáy màn hình;
+- cặp ảnh bước Thợ săn bỏ biến thể "đã bắn";
+- cặp Thảo luận chạy với lộ vai tắt.
+
+**Còn mở, không chặn PR:** kéo bằng ngón đang giữ để cuộn tờ chưa kiểm trên cảm ứng thật. Tờ vừa khung từ 375×667, nên chỉ ảnh hưởng màn rất thấp. Kiểm khi chơi thật (GĐ5).
+
+**Tiếp theo:** nhạc trưởng push `dev-werewolf` và mở PR #1 vào `main` (người dùng đồng ý 2026-10-16). Sau khi người dùng squash-merge: `git merge -s ours origin/main` trên `dev-werewolf` (§0), rồi GĐ3.
