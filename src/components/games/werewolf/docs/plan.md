@@ -573,7 +573,7 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 | GĐ0 | **Review đạt** (nhạc trưởng, 2026-10-11) | `6440892c` → `68af55e5` | Engine thuần + 132 test (22 nhóm), phủ đủ E1–E28. `tsc`, eslint werewolf, `build` sạch; không import react/firebase/`@/`. Chi tiết và các điểm lệch ở §12.1, review ở §12.2. |
 | GĐ1 | **Review đạt** (nhạc trưởng, 2026-10-11) | `08623054` → `d3b1a59f`; code `15d0d159`, `13e33330`, `0f4da818`, `b51f226f` | Chơi được 4 vai trên điện thoại, không quản trò. Hook UI chuyển sang `games/shared/hooks`. Engine 136 test. Ván thật 7 cửa sổ: Dân thắng 11/11, Sói thắng 9/9 kiểm tra đạt. Cặp ảnh riêng tư Đêm ① + Xem vai 12/12 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.3, review ở §12.4. |
 | GĐ2 | **Review đạt** (nhạc trưởng, 2026-10-16) | `fe0343a0` → `2bf4a5da`; code `35894afc`, `701f1009`, `b6ab022f`, `99cc7252`, `c4c0944f`, `3f13ff03` | Đủ 6 vai + 4 luật tuỳ chọn, cho rời làng, hồn ma, màn Luật chơi. Adapter `casGameState` không ghi doc phòng khi chỉ ghi `playerData`. Engine 138 test. Ván thật 7–10 cửa sổ: 7 kịch bản Ma Sói đạt + 1 ván Avalon 5 cửa sổ đạt. Cặp ảnh riêng tư Đêm ①, Xem vai, Đêm ② 40/40 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.5, review ở §12.6. |
-| GĐ2b | Chưa bắt đầu | | Hồn ma "giữ để xem" (§7b), trước PR #1. |
+| GĐ2b | **Xong, chờ review** (2026-10-16) | `c7eb0e2a` → (commit docs này); code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7. |
 | GĐ3 | Chưa bắt đầu | | |
 | GĐ4 | Chưa bắt đầu | | |
 
@@ -805,3 +805,57 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
   - Xác nhận ở Đêm ② là chốt với mọi người (rules §5.4);
   - chủ phòng không tự cho mình rời làng (rules §7).
 - Sau GĐ2b, nhạc trưởng push `dev-werewolf` và mở PR #1 vào `main` (người dùng đồng ý, người dùng tự merge).
+
+### 12.7 GĐ2b — ghi chú của người thực thi (2026-10-16)
+
+**Commit** (trên `dev-werewolf`, chưa push; điểm bắt đầu `c7eb0e2a`):
+1. `ad5dd181` code: `GhostPanel` thành thẻ giữ của người chết, `shared.tsx`, các panel, `WerewolfBoard`, `WerewolfPreview`.
+2. Commit docs này: §12.
+
+**Đã làm**
+- **Ô và danh sách không còn hiện vai của hồn ma.** Bỏ `shownRole` và `ghostSeesAll`; mọi chỗ hiện vai (lưới Đêm ① / Đêm ② / Thợ săn / Bỏ phiếu, danh sách Thảo luận, Bình minh, Kết quả phiếu) chỉ còn `revealedRole`, tức vai đã lộ công khai khi chết (luật "Lộ vai khi chết"). Người còn sống không bị đổi gì.
+- **Một thẻ giữ cho người chết** (`GhostPanel`, `data-ww-ghost-card`), render ở mọi bước trừ màn kết thúc (`hasGhostCard`: đã chết kể cả rời làng và `phase ≠ end`). Gồm Đêm ①, Đêm ②, Bình minh, Thợ săn, Thảo luận, Bỏ phiếu, Kết quả.
+- **Khi không giữ**: cùng một câu `DeadNote` ("Bạn đã chết. Ngồi im lặng, không ra hiệu đến hết ván nhé.", bỏ nhánh `ghost` / `plain`), cùng một thẻ cao cố định "Nhấn giữ để xem / Chỉ mình bạn xem được.", dù vai gì, dù hồn ma bật hay tắt. Không có DOM hồn ma nào được render.
+- **Khi giữ** (`ghostView`):
+  - `all` (luật bật, Thợ săn đã bắn hoặc không phải Thợ săn): tờ "Hồn ma" gồm lựa chọn của bước (Đêm ①: bầy Sói + từng người; Đêm ②: Sói nhắm + từng người, Phù thủy kèm bình còn), vai của mọi người, "Diễn biến ván đến giờ".
+  - `own` (luật tắt): `MyRoleBody` (vai của mình, đồng đội nếu là Sói) + một dòng giải thích luật.
+  - `wait` (luật bật nhưng Thợ săn chưa xong lượt bắn, `shotPending` giữ nguyên): như `own`, thêm dòng "Bắn xong (hoặc bỏ lượt), bạn mới xem được vai của mọi người."
+- **Cách trình bày** (plan §7b để người thực thi chọn):
+  - Tờ là một lớp `fixed` phủ lên đáy màn hình (`max-h` 88 % chiều cao, rộng ≤ 32 rem, căn giữa) nằm trong thẻ giữ. Ngón đang giữ vẫn nằm trên thẻ nhờ pointer capture của `useHold`. Thẻ hiện "Đang giữ — thả tay là che lại."
+  - Ban đêm gộp "vai" và "lựa chọn" thành một danh sách theo ghế ("Minh (Ma Sói): cắn Tú ✓"; người chết gạch tên, mờ). Các bước khác dùng lưới vai hai cột.
+  - **Nhật ký**: chỉ vòng hiện tại và vòng trước, tối đa 8 mục mới nhất (`MAX_LOG_ENTRIES`), kèm dòng "Các dòng cũ hơn: xem đầy đủ ở màn kết thúc." nếu có bớt. `LogList` thêm tham số `compact` (chỉ dùng trong tờ này; màn kết thúc giữ nguyên).
+  - Cao nhất đo được ở 375 px, 9 người: Đêm ① 438 px, Đêm ② 456 px, nhật ký dài 482 px, Thảo luận / Bỏ phiếu 337 px. Vừa khung ở 375×667 (cho phép 587 px) và 375×812; ở khung thấp hơn thì tờ cuộn được.
+- **Ngón thứ hai chạm tờ không làm thẻ đóng**: `useHold` đóng thẻ khi `pointerup` / `pointercancel` / `lostpointercapture` nổi bọt lên thẻ. Tờ chặn cả ba (và `pointerdown`) bằng `stopPropagation`. Thiếu `lostpointercapture` là lỗi tìm ra khi thử hai ngón thật qua CDP: ngón thứ hai nhả thì thẻ đóng.
+- **Cuộn tờ** khi dài hơn khung: kéo lên / xuống bằng chính ngón (hoặc chuột) đang giữ thẻ, hoặc bánh xe. Tờ đặt `touch-action: none`.
+- **`WerewolfPreview`**: cảnh người chết ở Bình minh / Thợ săn / Bỏ phiếu / Kết quả / nhật ký dài (`ghost-dawn`, `ghost-hunter`, `ghost-vote`, `ghost-result`, `ghost-long`), tham số `rules` để bật / tắt hồn ma và lộ vai khi chụp. Nhật ký của cảnh người chết có mục "Thợ săn đã không bắn" khi người xem là Thợ săn (thành hồn ma thật). Dấu ✓ công khai và phiếu của các cảnh này nằm ở ghế cố định, không đổi theo vai người xem.
+- Thuộc tính cho kiểm thử: `data-ww-ghost-card` (thẻ, luôn có với người chết), `data-ww-ghost="all|wait|own"` (tờ, chỉ khi giữ), `data-ww-ghost-role`, `data-ww-ghost-roles`, `data-ww-ghost-live`. `data-ww-dead-note` không còn giá trị `ghost` / `plain`.
+
+**Lệch kế hoạch / cần nhạc trưởng biết**
+1. **Tờ `fixed` thay vì thẻ giãn ra tại chỗ.** Thẻ ở cuối trang, giãn xuống sẽ tràn khỏi màn hình mà ngón đang giữ không cuộn được. Đánh đổi: tờ nằm ở đáy màn hình, tách khỏi vị trí thẻ.
+2. **Kéo bằng ngón để cuộn chưa kiểm được trên cảm ứng thật.** Trình giả lập cảm ứng của CDP không tôn trọng `touch-action` khi trang cuộn được (kể cả trang tối thiểu 10 dòng HTML): một ngón kéo là kết thúc luồng con trỏ. Nên không dựa vào việc cuộn: sau khi gộp danh sách, tờ vừa khung từ 375×667 trở lên. Cuộn bằng chuột kéo và bánh xe đã kiểm (6/6); chạm của ngón thứ hai kiểm bằng CDP (3/3). Nếu kéo bằng ngón không chạy trên máy thật thì chỉ mất tính năng cuộn ở màn hình rất thấp, hồn ma giữ lại là xem lại.
+3. **Cặp ảnh riêng tư ở bước Thợ săn bỏ biến thể "Thợ săn đã bắn".** Người xem là Thợ săn ở bước đó chính là người đang bắn (nút Bắn / Không bắn, công khai theo thiết kế), không thể đã bắn xong. Còn 5 cặp: Dân / Tiên tri × bật, Sói / Dân / Tiên tri × tắt.
+4. **Cặp ảnh Thảo luận chạy với "Lộ vai khi chết" tắt.** Bật thì danh sách Thảo luận hiện vai đã lộ của chính người chết, khác nhau theo vai: đúng luật (công khai), không phải rò rỉ. Đối chứng (bật): Sói | Dân 0.197.
+5. Câu hồn ma trong `DeadNote` ("Hồn ma thấy vai và lựa chọn của mọi người…") bỏ hẳn, thay bằng câu chung. Hồn ma bật hay tắt chỉ khác nhau khi giữ thẻ.
+6. Không động vào luật, engine (138 test không đổi), `rules.md`, logic chuyển phase hay `useWerewolf`. Không thêm dependency.
+
+**Kiểm thử (§11 + nghiệm thu §7b)**
+- `npm run test:werewolf` 138/138. `npx tsc --noEmit` sạch. `npx eslint src/components/games/werewolf` sạch; `npx eslint src/components/games` 29 lỗi / 29 cảnh báo = baseline. `npm run build` qua (đã xoá trang harness `src/app/wwtest`, `rm -rf .next` trước khi build). Engine không import react / firebase / `@/`.
+- **Cặp ảnh riêng tư của người chết, không giữ** (bản build production, 375×812, cùng `start`, chụp cùng lúc, thu 10 %, trung bình |Δ|): 7 bước (Đêm ①, Đêm ②, Bình minh, Thợ săn, Thảo luận, Bỏ phiếu, Kết quả) × Sói / bật so với Dân, Tiên tri, Thợ săn (đã bắn) / bật và Sói, Dân, Tiên tri, Thợ săn / tắt, kèm kiểm DOM mỗi bước (thẻ đóng, không DOM hồn ma, đúng 1 thẻ, không vai trên ô): **54/54 = 0.000**. Đối chứng: giữ thẻ, sói bật | sói tắt 10.459; giữ | không giữ 11.208.
+- **Ảnh 375px khi đang giữ** (`held-sheet-375.png`): hồn ma bật (Đêm ①, Đêm ②, nhật ký dài: danh sách vai + lựa chọn đêm + nhật ký đọc được, không cuộn ngang), hồn ma tắt (chỉ vai của mình, Sói thấy đồng đội), Thợ săn chưa bắn.
+- **Hồi quy giao diện người còn sống**: 26 cảnh của người còn sống so với ảnh 375px của GĐ2 (`2bf4a5da`): 0.067–0.165 (chỉ chữ đồng hồ). Ngoại lệ có chủ ý: cảnh người xem là Thợ săn đã chết (≈ 3.3) và các cảnh người chết. Màn kết thúc khác một dòng nhật ký chỉ vì ảnh cũ chụp từ dữ liệu giả cũ.
+- **Ván thật** (bản build production, CDP, mỗi cửa sổ một origin; bộ lấy mẫu riêng tư mới chạy ~mỗi 120 ms trên mọi cửa sổ: vai chỉ hiện trên người đã chết, không nội dung thẻ khi không giữ, người còn sống không có thẻ của người chết; đối chứng âm bằng cách tiêm rò rỉ giả: bắt được cả hai loại):
+
+  | Kịch bản | Cửa sổ | Kết quả | Phủ |
+  |---|---|---|---|
+  | ghostleave | 9 | **23/23** | Thẻ đóng của người chết: không DOM hồn ma, đúng 1 thẻ, đúng `DeadNote` chung, chỉ 1 vai công khai (của chính mình); giữ thẻ: vai ĐÚNG của cả 9 người (so với vai thật) + nhật ký; thả tay thì che hẳn; Đêm 2 giữ thẻ thấy "Bầy Sói đã thống nhất: …" theo thời gian thực; người còn sống không có thẻ; cho rời làng giữa Đêm 2 (đồng hồ không reset): người rời làng cùng thẻ, giữ thấy 9 vai; E25 Thợ săn rời làng; Sói cuối bị treo → Dân thắng. 2 501 lần lấy mẫu, 0 vi phạm. 0 banner, 0 lỗi JS, lệch phase lớn nhất 94 ms |
+  | hunterpoison | 9 ("bị độc vẫn bắn" bật) | **12/12** | Thợ săn chết chưa bắn (Bình minh, đến lượt bắn): thẻ đóng không lộ gì, giữ chỉ thấy vai của mình (`wait`); người chết khác giữ thấy 9 vai; bắn xong thì giữ thấy 9 vai. 511 lần lấy mẫu, 0 vi phạm |
+  | hidden | 10 (lộ vai tắt, hồn ma tắt) | **15/15** | Người chết: thẻ đóng không gì, giữ chỉ vai của mình (`own`, không danh sách vai); không cửa sổ nào thấy vai nào trước màn kết thúc. 5 095 lần lấy mẫu, 0 vi phạm. Lệch phase 633 ms (QUIC, như GĐ2) |
+  | (hồi quy) hunterhang, heal | 8, 9 | 15/15, 17/17 | Chạy trên bản build trước khi gộp danh sách của tờ; phần người còn sống không đổi từ đó. Lệch phase lớn nhất 645 ms, 86 ms |
+
+  Phòng thử: mọi phòng đã xoá bằng nút của chủ phòng.
+- **Cử chỉ** (CDP, `multitouch.mjs` / `mousedrag.mjs`): ngón thứ hai chạm tờ không đóng thẻ, nhả ngón giữ thì che hẳn (3/3); chuột: giữ, kéo lên / xuống cuộn tờ, bánh xe cuộn, thả thì che (6/6).
+- Bot và kịch bản: scratchpad `3572bd53-a259-4a6e-9358-e027f64fe8d5/scratchpad` (`game2.mjs` đã đổi kịch bản `ghostleave`, `hunterpoison`, `hidden` + bộ lấy mẫu riêng tư; `ghostpairs.mjs`, `ghostheld.mjs`, `multitouch.mjs`, `mousedrag.mjs`, `samplercontrol.mjs`, `regress.mjs`, `sheet.mjs`).
+
+**Việc chuyển tiếp**
+- Nhạc trưởng review `git diff c7eb0e2a..HEAD`, rồi push `dev-werewolf` và mở PR #1 (người dùng đã đồng ý).
+- GĐ3: màn 1440 px (vẫn một cột), dải nền thanh nút đáy; tờ hồn ma dùng được lại khi thay giao diện (chỉ cần giữ ba điều: không DOM khi không giữ, chặn pointer nổi bọt lên thẻ, thẻ đóng giống hệt nhau).
