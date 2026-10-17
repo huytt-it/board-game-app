@@ -6,8 +6,9 @@ import { pickFor, WITCH_PICK_ERROR_TEXT } from '@/components/games/werewolf/engi
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import { EMPTY_WITCH_DRAFT, type WitchDraft, type WitchResult } from '../useWerewolf';
 import { potionsOf } from '../state';
+import WwIcon from '../assets/WwIcon';
 import Button from '../ui/Button';
-import { DeadNote, Dock, HoldCard, InHoldButton, PhaseHeader, PlayerTile, nameOf, revealedRole, type PanelCtx } from './shared';
+import { DeadNote, Dock, HoldCard, InHoldButton, MeMark, nameOf, PhaseHeader, PhaseLayout, PlayerTile, revealedRole, StatusLine, type PanelCtx } from './shared';
 
 // Đêm ② — Phù thủy (rules §5.4, plan §7 "Bổ sung cho GĐ2" mục 2). Khi không
 // giữ thẻ, màn này GIỐNG HỆT NHAU với mọi người: cùng câu, cùng lưới mọi
@@ -45,28 +46,30 @@ function WitchBody({
       {potions.heal ? (
         attack ? (
           <InHoldButton pressed={draft.heal} tone="heal" disabled={locked} onPress={() => onDraft({ ...draft, heal: !draft.heal })}>
+            <WwIcon name="heal" size={18} className="mr-1.5" />
             {draft.heal ? `Sẽ cứu ${nameOf(ctx.players, attack)} — bấm để bỏ` : `Cứu ${nameOf(ctx.players, attack)}`}
           </InHoldButton>
         ) : (
-          <p className="text-xs text-slate-400">Còn bình cứu, đêm nay không có ai để cứu.</p>
+          <p className="text-xs text-(--ww-text-3)">Còn bình cứu, đêm nay không có ai để cứu.</p>
         )
       ) : (
-        <p className="text-xs text-slate-400">Đã dùng bình cứu.</p>
+        <p className="text-xs text-(--ww-text-3)">Đã dùng bình cứu.</p>
       )}
       {potions.poison ? (
         draft.poisonId ? (
           <InHoldButton pressed tone="poison" disabled={locked} onPress={() => onDraft({ ...draft, poisonId: null })}>
+            <WwIcon name="poison" size={18} className="mr-1.5" />
             Sẽ độc {nameOf(ctx.players, draft.poisonId)} — bấm để bỏ
           </InHoldButton>
         ) : (
-          <p className="text-xs text-slate-300">Độc: vẫn giữ thẻ, chạm một người ở lưới.</p>
+          <p className="text-xs text-(--ww-text-2)">Độc: vẫn giữ thẻ, chạm một người ở lưới.</p>
         )
       ) : (
-        <p className="text-xs text-slate-400">Đã dùng bình độc.</p>
+        <p className="text-xs text-(--ww-text-3)">Đã dùng bình độc.</p>
       )}
-      <p className="text-xs text-slate-400">Không dùng bình: cứ bấm Xác nhận.</p>
+      <p className="text-xs text-(--ww-text-3)">Không dùng bình: cứ bấm Xác nhận.</p>
       {note && (
-        <p className="text-xs font-semibold text-amber-300" data-ww-note="">
+        <p className="text-xs font-semibold text-(--ww-accent)" data-ww-note="">
           {note}
         </p>
       )}
@@ -78,9 +81,9 @@ function GuessBody({ note }: { note: string | null }) {
   return (
     <div className="space-y-1.5 text-left">
       <p className="font-bold">Đoán xem đêm nay Sói nhắm ai.</p>
-      <p className="text-xs text-slate-300">Chỉ để tổng kết cuối ván. Không đoán cũng được: cứ bấm Xác nhận.</p>
+      <p className="text-xs text-(--ww-text-2)">Chỉ để tổng kết cuối ván. Không đoán cũng được: cứ bấm Xác nhận.</p>
       {note && (
-        <p className="text-xs font-semibold text-amber-300" data-ww-note="">
+        <p className="text-xs font-semibold text-(--ww-accent)" data-ww-note="">
           {note}
         </p>
       )}
@@ -156,45 +159,50 @@ export default function WitchPanel({
   };
 
   const byId = new Map(players.map((p) => [p.id, p]));
-  // Ô người bị độc chỉ có dấu khi đang giữ.
-  const poisonMark = <span className="rounded-full bg-rose-600 px-1.5 text-[10px] font-bold text-white">độc</span>;
-  const selfMark = <span className="rounded-full bg-slate-600 px-1.5 text-[10px] font-bold text-slate-100">bạn</span>;
+  // Ô người bị độc chỉ có dấu khi đang giữ (ngoài ra mọi ô như nhau với mọi người).
+  const poisonMark = (
+    <span className="inline-flex h-5 items-center gap-1 rounded-full bg-(--ww-wolf-light) px-2 text-xs font-bold text-(--ww-ink)" data-ww-poison-mark="">
+      <WwIcon name="poison" size={12} />
+      độc
+    </span>
+  );
   return (
-    <section data-phase-section="night-witch">
-      <PhaseHeader title={`Đêm ${state.round} — Phù thủy`} remaining={ctx.remaining}>
-        Phù thủy dùng bình. Mọi người đoán Sói nhắm ai rồi bấm Xác nhận.
-      </PhaseHeader>
-
-      <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3" role="group" aria-label="Người còn sống">
-        {alive.map((id) => {
-          const p = byId.get(id);
-          if (!p) return null;
-          return (
-            <PlayerTile
-              key={id}
-              player={p}
-              label={`Chọn ${p.name}`}
-              selected={iAmAlive && draft.guessId === id}
-              role={revealedRole(ctx, id)}
-              disabled={!iAmAlive}
-              onPointerDown={() => {
-                heldAtDown.current = held;
-              }}
-              onClick={() => tap(id)}
-              mark={held && isWitch && draft.poisonId === id ? poisonMark : id === me.id ? selfMark : undefined}
-            />
-          );
-        })}
-      </div>
-
+    <PhaseLayout
+      section="night-witch"
+      header={
+        <PhaseHeader title={`Đêm ${state.round} — Phù thủy`} remaining={ctx.remaining}>
+          Phù thủy dùng bình. Mọi người đoán Sói nhắm ai rồi bấm Xác nhận.
+        </PhaseHeader>
+      }
+      stage={
+        <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3 lg:gap-3" role="group" aria-label="Người còn sống">
+          {alive.map((id) => {
+            const p = byId.get(id);
+            if (!p) return null;
+            return (
+              <PlayerTile
+                key={id}
+                player={p}
+                label={`Chọn ${p.name}`}
+                selected={iAmAlive && draft.guessId === id}
+                role={revealedRole(ctx, id)}
+                disabled={!iAmAlive}
+                onPointerDown={() => {
+                  heldAtDown.current = held;
+                }}
+                onClick={() => tap(id)}
+                mark={held && isWitch && draft.poisonId === id ? poisonMark : id === me.id ? <MeMark /> : undefined}
+              />
+            );
+          })}
+        </div>
+      }
+    >
       {iAmAlive ? (
         <>
-          <p
-            className={`mt-3 text-center text-sm font-semibold ${confirmed ? 'text-emerald-300' : 'text-amber-300'}`}
-            data-ww-confirmed={confirmed ? 'yes' : 'no'}
-          >
+          <StatusLine icon={confirmed ? 'check' : 'waiting'} accent={!confirmed} className="mt-3 lg:mt-0" data-ww-confirmed={confirmed ? 'yes' : 'no'}>
             {confirmed ? 'Đã xác nhận' : 'Chưa xác nhận'}
-          </p>
+          </StatusLine>
           <div className="mt-3">
             <HoldCard held={held} bind={bind} className="h-60">
               {() =>
@@ -213,16 +221,16 @@ export default function WitchPanel({
             </HoldCard>
           </div>
           <Dock>
-            <Button variant="primary" block disabled={!open || confirmed || confirming} onClick={confirm}>
+            <Button variant="primary" size="lg" block disabled={!open || confirmed || confirming} onClick={confirm}>
               {confirmed ? 'Đã xác nhận' : confirming ? 'Đang gửi…' : 'Xác nhận'}
             </Button>
           </Dock>
         </>
       ) : (
-        <div className="mt-4">
+        <div className="mt-4 lg:mt-0">
           <DeadNote />
         </div>
       )}
-    </section>
+    </PhaseLayout>
   );
 }

@@ -1,0 +1,393 @@
+/* Bộ nhận diện của Ma Sói (GĐ3a, plan §8). Chỉ WerewolfBoard import file này
+   (WerewolfPreview đi qua WerewolfBoard). Mọi class có tiền tố `ww-`, mọi token
+   là `--ww-*`, đặt dưới `.ww-root`. Dùng token qua giá trị tuỳ biến của
+   Tailwind, ví dụ `text-(--ww-text-2)`, `bg-(--ww-accent)`, `border-(--ww-line)`.
+
+   Bảng màu giao diện ("ít mà chất", học Avalon GĐ7; cảnh nền không áp):
+   - Nền trung tính đêm: --ww-ink (mực đêm), --ww-glass-bg (panel), --ww-raised
+     (mặt nổi đặc: ô người chơi, thẻ giữ), viền mảnh duy nhất --ww-line.
+   - Chữ ánh trăng 3 mức: --ww-text / --ww-text-2 / --ww-text-3 (màu đặc, không
+     dùng độ mờ, để tương phản không phụ thuộc cảnh phía sau).
+   - MỘT màu nhấn: đèn lồng --ww-accent = "chỗ cần chú ý bây giờ" (nút chính,
+     ô đang chọn, "Chưa xác nhận").
+   - Màu có nghĩa, ít diện tích, chỉ cho thông tin CÔNG KHAI (vai đã lộ, màn kết
+     thúc): --ww-wolf (phe Sói; kiêm "nguy hiểm": xoá phòng, sắp hết giờ) và
+     --ww-village (phe Dân). Không bao giờ đổi màu một bề mặt theo vai của người
+     xem (plan §2.3).
+   - Không dùng lớp màu Tailwind có bảng màu (slate-*, indigo-*…) ở các màn đã
+     làm lại; chỉ black / white kèm độ mờ cho bóng và lớp phủ.
+   Bán kính: rounded-full (avatar, chip), rounded-xl (nút, ô, thẻ nhỏ),
+   rounded-2xl (panel, thẻ giữ). Chữ: 12 / 14 / 16 / display ≥ 20, không có
+   `text-[Npx]`. */
+.ww-root {
+  --ww-ink: #0c0e1c; /* mực đêm: nền đặc, chữ trên nút đèn lồng */
+  --ww-glass-bg: rgba(12, 14, 28, 0.84);
+  --ww-raised: #1b1f33; /* mặt nổi đặc = mực + ~9 % ánh trăng */
+  --ww-raised-hi: #252a42; /* mặt nổi khi được chọn / hover */
+  --ww-line: rgba(220, 226, 244, 0.14); /* viền mảnh duy nhất */
+  --ww-bar-bg: rgba(10, 12, 24, 0.92);
+  /* Chữ ánh trăng (bạc lạnh), 3 mức. Trên --ww-raised: 13,6 / 8,3 / 6,0 : 1. */
+  --ww-text: #e8eaf4;
+  --ww-text-2: #b4b9cd;
+  --ww-text-3: #959cb4;
+  --ww-moon: #dfe4f5; /* trăng: icon trang trí, không cho chữ */
+  /* Màu nhấn duy nhất: ánh đèn lồng. Chữ mực trên nó 9,3 : 1. */
+  --ww-accent: #eaa84e;
+  /* Màu phe (công khai) + bản sáng cho CHỮ nhỏ trên nền tối. */
+  --ww-wolf: #d9534f;
+  --ww-wolf-light: #f3aba8;
+  --ww-village: #5fae7e;
+  --ww-village-light: #a9dcbb;
+}
+
+/* Font tiêu đề (Grenze: chữ nửa Gô-tích, có dấu tiếng Việt) — biến
+   --ww-font-display do next/font gắn lên .ww-root (assets/fonts.ts). Tối đa
+   MỘT tiêu đề display mỗi màn. */
+.ww-display {
+  font-family: var(--ww-font-display), Georgia, 'Times New Roman', serif;
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+/* WwIcon: preflight của Tailwind đặt svg/img thành display:block; icon phải
+   nằm được trong dòng chữ. */
+.ww-icon {
+  display: inline-block;
+  flex-shrink: 0;
+  vertical-align: -0.125em;
+}
+
+/* Vòng tiêu điểm chung cho mọi nút trong Ma Sói. */
+.ww-root :where(button, [role='button'], a):focus-visible {
+  outline: 2px solid var(--ww-accent);
+  outline-offset: 2px;
+}
+
+/* ─── Cảnh nền (scenes/SceneBackdrop.tsx) ─────────────────────────── */
+/* Sân khấu 1600×900 phủ kín màn hình, neo đáy-giữa (= SVG xMidYMax slice):
+   mọi lớp cảnh (SVG hay ảnh) và hạt hiệu ứng dùng chung khung này. Điện thoại
+   dọc thấy trọn chiều cao và khoảng x ≈ 590–1010 ở giữa. */
+.ww-scene {
+  container-type: size;
+}
+.ww-scene-stage {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: max(100cqw, 177.7778cqh);
+  height: max(100cqh, 56.25cqw);
+  transform: translateX(-50%);
+}
+
+/* Đổi cảnh: cảnh mới mờ dần lên trên cảnh cũ (chuyển cảnh duy nhất của GĐ3). */
+@keyframes ww-scene-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.ww-scene-enter {
+  animation: ww-scene-in 700ms ease-out both;
+}
+
+/* Vignette + lớp tối: cảnh chỉ là nền, chữ phía trên phải đọc được. */
+.ww-scene-shade {
+  background:
+    radial-gradient(ellipse 120% 95% at 50% 42%, transparent 50%, rgba(0, 0, 0, 0.55) 100%),
+    linear-gradient(rgba(0, 0, 0, 0.2), rgba(0, 0, 0, 0.2));
+}
+
+/* Hạt hiệu ứng: chỉ animate transform + opacity; màu lấy từ `color`. */
+.ww-particle {
+  position: absolute;
+  border-radius: 9999px;
+  background: currentColor;
+  will-change: transform, opacity;
+  animation-iteration-count: infinite;
+}
+.ww-particle-twinkle {
+  box-shadow: 0 0 4px currentColor;
+  animation-name: ww-twinkle;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+@keyframes ww-twinkle {
+  from {
+    opacity: 0.15;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.ww-particle-firefly {
+  box-shadow: 0 0 8px 2px currentColor;
+  animation-name: ww-firefly;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+@keyframes ww-firefly {
+  0% {
+    transform: translate(0, 0);
+    opacity: 0;
+  }
+  30% {
+    opacity: 0.85;
+  }
+  55% {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0.2;
+  }
+  80% {
+    opacity: 0.8;
+  }
+  100% {
+    transform: translate(calc(var(--dx) * -0.6), calc(var(--dy) * 1.4));
+    opacity: 0.1;
+  }
+}
+.ww-particle-mote {
+  animation-name: ww-mote;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+@keyframes ww-mote {
+  from {
+    transform: translate(0, 0);
+    opacity: 0.1;
+  }
+  to {
+    transform: translate(var(--dx), var(--dy));
+    opacity: 0.5;
+  }
+}
+.ww-particle-flicker {
+  background: radial-gradient(circle, currentColor 0%, transparent 68%);
+  animation-name: ww-flicker;
+  animation-timing-function: ease-in-out;
+  animation-direction: alternate;
+}
+@keyframes ww-flicker {
+  from {
+    transform: scale(0.92);
+    opacity: 0.2;
+  }
+  to {
+    transform: scale(1.06);
+    opacity: 0.4;
+  }
+}
+
+/* ─── Hoạt cảnh theo đồng hồ chung (GĐ4, scenes/timelines.ts) ────── */
+/* Quy ước (như Avalon GĐ3): style tĩnh của phần tử = KHUNG CUỐI; keyframes chỉ
+   tả đoạn trước đó (fill `both`, hoặc `backwards` với thứ biến mất khi xong).
+   animation-delay đặt inline bằng useCue: âm khi mốc đã qua, nên reload / vào
+   trễ thì nhảy đúng khung. Giảm chuyển động tắt mọi animation (khối cuối file)
+   → hiện ngay khung cuối. Chỉ animate transform + opacity; lớp phủ luôn
+   `pointer-events: none` để không chặn bước có giờ. Giống hệt nhau với mọi vai. */
+
+/* Hiện ra: trồi nhẹ lên (thẻ, dòng chữ, khung). */
+.ww-a-pop {
+  animation: ww-pop 450ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes ww-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+.ww-a-fade {
+  animation: ww-fade 450ms ease-out both;
+}
+@keyframes ww-fade {
+  from {
+    opacity: 0;
+  }
+}
+/* Biến mất (khung cuối: ẩn): avatar người sống tan đi, lộ bia mộ bên dưới. */
+.ww-a-gone {
+  opacity: 0;
+  animation: ww-gone 400ms ease-in both;
+}
+@keyframes ww-gone {
+  from {
+    opacity: 1;
+  }
+}
+/* Lật thẻ vai (phần tử phải là inline-flex / flex / block). */
+.ww-a-flip {
+  backface-visibility: hidden;
+  animation: ww-flip 500ms cubic-bezier(0.3, 0.7, 0.3, 1) both;
+}
+@keyframes ww-flip {
+  from {
+    opacity: 0;
+    transform: perspective(400px) rotateY(90deg);
+  }
+}
+/* Lá phiếu rơi vào hàng của người được bầu. */
+.ww-a-drop {
+  animation: ww-drop 350ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+@keyframes ww-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.7);
+  }
+}
+/* Giàn treo dập xuống. */
+.ww-a-thud {
+  animation: ww-thud 700ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+@keyframes ww-thud {
+  from {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.85);
+  }
+}
+/* Icon bình minh nhô lên; quầng nắng toả ra. */
+.ww-a-rise-sm {
+  animation: ww-rise-sm 800ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes ww-rise-sm {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+.ww-a-glow {
+  animation: ww-glow 600ms ease-out both;
+}
+@keyframes ww-glow {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+/* Tên phe thắng. */
+.ww-a-banner {
+  animation: ww-banner 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes ww-banner {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+}
+
+/* Cảnh nền: mặt trời / trăng lên sau đồi; trời sáng dần lúc bình minh. */
+.ww-a-rise {
+  animation: ww-rise 2400ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes ww-rise {
+  from {
+    transform: translateY(14%);
+  }
+}
+.ww-a-brighten {
+  opacity: 0;
+  background: rgba(8, 10, 28, 0.6);
+  animation: ww-brighten 2400ms ease-out both;
+}
+@keyframes ww-brighten {
+  from {
+    opacity: 1;
+  }
+}
+
+/* Vào đêm: màn sẫm lại, "Đêm N" giữa màn, rồi tan (1,2 s). Khung cuối: ẩn. */
+.ww-a-nightfall {
+  opacity: 0;
+  background: radial-gradient(ellipse 90% 70% at 50% 45%, rgba(10, 12, 30, 0.9), rgba(4, 5, 14, 0.97));
+  animation: ww-nightfall 1200ms ease-in-out both;
+}
+@keyframes ww-nightfall {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Thẻ phát bắn của Thợ săn: vào, đứng, rồi ra (hai animation, hai delay; cái sau
+   thắng khi đã chạy). Khung tĩnh: hiện — giảm chuyển động thì thẻ đứng yên cho
+   tới lúc được gỡ (4,2 s). */
+.ww-a-toast {
+  animation:
+    ww-toast-in 300ms ease-out both,
+    ww-toast-out 400ms ease-in forwards;
+}
+@keyframes ww-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+@keyframes ww-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+/* Hồng tâm khép lại trên người bị bắn, đứng một nhịp, mất khi bắn (khung tĩnh: ẩn). */
+.ww-a-aim {
+  opacity: 0;
+  animation: ww-aim 1100ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+}
+@keyframes ww-aim {
+  0% {
+    opacity: 0;
+    transform: scale(2.4) rotate(-60deg);
+  }
+  25% {
+    opacity: 1;
+  }
+  80%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Chớp của phát bắn (khung tĩnh: ẩn). */
+.ww-a-flash {
+  opacity: 0;
+  animation: ww-flash 350ms ease-out backwards;
+}
+@keyframes ww-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
+/* ─── Giảm chuyển động ───────────────────────────────────────────── */
+/* Tắt mọi animation / transition bên trong Ma Sói; hạt hiệu ứng (trang trí
+   thuần) ẩn hẳn. Cảnh đổi ngay, không crossfade. Hoạt cảnh GĐ4 hiện ngay khung
+   cuối (style tĩnh), chữ đầy đủ. */
+@media (prefers-reduced-motion: reduce) {
+  .ww-root *,
+  .ww-root *::before,
+  .ww-root *::after {
+    animation: none !important;
+    transition: none !important;
+  }
+  .ww-particle {
+    display: none;
+  }
+}

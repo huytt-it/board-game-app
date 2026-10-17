@@ -19,6 +19,16 @@ const AvalonJoinScreen = dynamic(() => import('@/components/games/avalon/AvalonB
   ),
 });
 
+// Ma Sói cũng có màn mời riêng (làng ban đêm, tiếng Việt), nạp từ module của board.
+const WerewolfJoinScreen = dynamic(() => import('@/components/games/werewolf/WerewolfBoard').then((m) => m.WerewolfJoinScreen), {
+  ssr: false,
+  loading: () => (
+    <div className="flex min-h-screen items-center justify-center">
+      <LoadingSpinner text="Entering room..." />
+    </div>
+  ),
+});
+
 export default function RoomPage({
   params,
 }: {
@@ -147,6 +157,12 @@ export default function RoomPage({
   if (!isPlayerInRoom && room && gameType === 'avalon') {
     return (
       <AvalonJoinScreen room={room} players={players} onJoin={(name) => joinRoomById(roomId, playerId, name)} />
+    );
+  }
+
+  if (!isPlayerInRoom && room && gameType === 'werewolf') {
+    return (
+      <WerewolfJoinScreen room={room} players={players} onJoin={(name) => joinRoomById(roomId, playerId, name)} />
     );
   }
 

@@ -6,6 +6,7 @@ import { describeLog } from '@/components/games/werewolf/engine/log.ts';
 import { ROLE_NAME } from '@/components/games/werewolf/engine/roles.ts';
 import { formatCountdown } from '../hooks/usePhaseClock';
 import { dataOf, isDead } from '../state';
+import WwIcon, { type IconName } from '../assets/WwIcon';
 import type { WerewolfGameData, WerewolfGameState, WwLogEntry, WwRole, WwTable } from '../types';
 
 /** Những gì mọi panel trong ván cần biết. `me` là người đang xem màn này. */
@@ -64,41 +65,120 @@ export function ghostView(ctx: Pick<PanelCtx, 'state' | 'me' | 'myData'>): 'all'
   return shotPending(ctx) ? 'wait' : 'all';
 }
 
-/** Tiêu đề của bước: một câu, đồng hồ bên phải (nếu bước có giờ). */
-export function PhaseHeader({ title, remaining, children }: { title: string; remaining?: number; children?: ReactNode }) {
+/** Tiêu đề của bước (chữ display, một mỗi màn) + đồng hồ bên phải nếu bước có giờ, rồi MỘT câu. */
+export function PhaseHeader({
+  title,
+  remaining,
+  warn = true,
+  children,
+}: {
+  title: string;
+  remaining?: number;
+  /** Đồng hồ đổi màu cảnh báo khi còn ≤ 10 giây. Tắt ở bước tự chạy không ai phải làm gì (Bình minh 8 giây). */
+  warn?: boolean;
+  children?: ReactNode;
+}) {
   return (
-    <header className="mb-4">
-      <div className="flex items-baseline justify-between gap-3">
-        <h2 className="text-2xl font-bold text-slate-50">{title}</h2>
+    <header className="mb-4" data-ww-header="">
+      <div className="flex items-center justify-between gap-3">
+        <h2 className="ww-display text-3xl leading-tight text-(--ww-text)">{title}</h2>
         {remaining !== undefined && (
           <span
-            className={`font-mono text-lg font-semibold tabular-nums ${remaining <= 10_000 ? 'text-amber-300' : 'text-slate-300'}`}
+            className={`inline-flex h-8 shrink-0 items-center gap-1.5 rounded-full bg-(--ww-raised) px-3 text-base font-semibold tabular-nums ${warn && remaining <= 10_000 ? 'text-(--ww-wolf-light)' : 'text-(--ww-text)'}`}
             aria-label="Thời gian còn lại"
             data-ww-clock=""
           >
+            <WwIcon name="clock" size={16} className="text-(--ww-text-3)" />
             {formatCountdown(remaining)}
           </span>
         )}
       </div>
-      {children && <p className="mt-1 text-sm text-slate-300">{children}</p>}
+      {children && <p className="mt-1.5 text-sm text-(--ww-text-2)">{children}</p>}
     </header>
   );
 }
 
-export function Avatar({ name, dim = false }: { name: string; dim?: boolean }) {
+/**
+ * Bố cục một bước: điện thoại xếp dọc (tiêu đề → "sân khấu" → phần còn lại);
+ * từ `lg` hai cột: sân khấu (người chơi trong làng) bên trái, tiêu đề + phần
+ * còn lại thành một khung kính bên phải. Thứ tự DOM giữ nguyên ở mọi cỡ.
+ * `stageOnPhone=false`: sân khấu chỉ hiện ở màn rộng (điện thoại đã có một câu tóm tắt).
+ */
+export function PhaseLayout({
+  section,
+  header,
+  stage,
+  stageOnPhone = true,
+  children,
+  ...attrs
+}: {
+  section: string;
+  header: ReactNode;
+  stage: ReactNode;
+  stageOnPhone?: boolean;
+  children: ReactNode;
+} & Record<`data-${string}`, string | undefined>) {
+  const side = 'lg:col-start-2 lg:border-(--ww-line) lg:bg-(color:--ww-glass-bg) lg:px-6';
+  return (
+    <section data-phase-section={section} {...attrs} className="lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:grid-rows-[auto_1fr] lg:gap-x-10">
+      <div className={`${side} lg:row-start-1 lg:rounded-t-2xl lg:border lg:border-b-0 lg:pt-6`}>{header}</div>
+      <div className={`lg:col-start-1 lg:row-span-2 lg:row-start-1 ${stageOnPhone ? '' : 'hidden lg:block'}`} data-ww-stage="">
+        {stage}
+      </div>
+      <div className={`${side} lg:row-start-2 lg:self-start lg:rounded-b-2xl lg:border lg:border-t-0 lg:pb-6 lg:shadow-lg lg:shadow-black/30`}>{children}</div>
+    </section>
+  );
+}
+
+// Màu nhận diện của từng người: băm id ra một bảng "giấy nhuộm" trầm, cùng độ
+// sáng (chữ trắng ≥ 5,7 : 1), không đỏ / xanh lá thuần để không lẫn màu phe.
+const AVATAR_COLORS = ['#5a5f8f', '#6a5585', '#7a5272', '#80584a', '#76643a', '#5e6a3e', '#3e6c66', '#3f6582', '#5c6470', '#7b5a5f'] as const;
+
+function hashString(s: string): number {
+  let h = 0x811c9dc5;
+  for (let i = 0; i < s.length; i++) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 0x01000193);
+  }
+  return h >>> 0;
+}
+
+export function avatarColor(key: string): string {
+  return AVATAR_COLORS[hashString(key) % AVATAR_COLORS.length];
+}
+
+/** Vòng tròn chữ cái đầu, màu theo người (`id`, thiếu thì theo tên). `dim`: người đã chết. */
+export function Avatar({ name, id, dim = false, size = 'sm' }: { name: string; id?: string; dim?: boolean; size?: 'sm' | 'md' }) {
   return (
     <span
       aria-hidden="true"
-      className={`flex size-8 shrink-0 items-center justify-center rounded-full text-sm font-bold ${dim ? 'bg-slate-800 text-slate-500' : 'bg-slate-700 text-slate-100'}`}
+      data-ww-avatar=""
+      className={`flex shrink-0 items-center justify-center rounded-full font-bold text-white ${size === 'md' ? 'size-10 text-base' : 'size-8 text-sm'} ${dim ? 'opacity-45 grayscale' : ''}`}
+      style={{ backgroundColor: avatarColor(id ?? name) }}
     >
-      {(name.trim()[0] ?? '?').toUpperCase()}
+      {(Array.from(name.trim())[0] ?? '?').toUpperCase()}
+    </span>
+  );
+}
+
+/** Vai đã lộ CÔNG KHAI của một người (luật "Lộ vai khi chết"): icon + tên vai, màu phe, chữ nhỏ. */
+export function RoleLine({ role }: { role: WwRole }) {
+  const wolf = role === 'werewolf';
+  return (
+    <span
+      className={`flex min-w-0 items-center gap-1 truncate text-xs font-semibold ${wolf ? 'text-(--ww-wolf-light)' : 'text-(--ww-village-light)'}`}
+      data-ww-tile-role={role}
+    >
+      <WwIcon name={role} size={13} />
+      {ROLE_NAME[role]}
     </span>
   );
 }
 
 /**
  * Ô một người trong lưới chọn. Ô nào cũng cùng một kiểu với mọi vai (plan §2.3):
- * không làm mờ hay khoá theo vai.
+ * không làm mờ hay khoá theo vai. Mặt nổi đặc, không viền; ô đang chọn có vòng
+ * đèn lồng.
  */
 export function PlayerTile({
   player,
@@ -114,7 +194,7 @@ export function PlayerTile({
   selected?: boolean;
   /** Vai hiện dưới tên: chỉ vai đã lộ khi chết (revealedRole), không bao giờ vai ẩn. */
   role?: WwRole | null;
-  /** Dấu nhỏ góc phải (vd. "đã bầu"), công khai. */
+  /** Dấu nhỏ góc phải (vd. "bạn", "đã bầu"), công khai. */
   mark?: ReactNode;
   onClick?: () => void;
   onPointerDown?: () => void;
@@ -134,39 +214,124 @@ export function PlayerTile({
       // (useHold đóng khi có pointerup ở window / khi thẻ mất tiêu điểm).
       onPointerUp={(e) => e.stopPropagation()}
       onMouseDown={(e) => e.preventDefault()}
-      className={`relative flex min-h-14 items-center gap-2 rounded-xl px-2 py-2 text-left text-sm font-semibold transition-colors select-none disabled:cursor-default ${
-        selected ? 'bg-indigo-500/25 text-white ring-2 ring-indigo-400' : 'bg-slate-800/80 text-slate-100 ring-1 ring-slate-700'
+      className={`relative flex min-h-14 items-center gap-2.5 rounded-xl px-2.5 py-2 text-left text-sm font-semibold shadow-md shadow-black/25 transition-colors select-none disabled:cursor-default ${
+        selected ? 'bg-(--ww-raised-hi) text-(--ww-text) ring-2 ring-(--ww-accent)' : 'bg-(--ww-raised) text-(--ww-text)'
       }`}
     >
-      <Avatar name={player.name} />
+      <Avatar name={player.name} id={player.id} />
       <span className="min-w-0 flex-1">
         <span className="block truncate">{player.name}</span>
-        {role && (
-          <span className={`block truncate text-[11px] font-semibold ${role === 'werewolf' ? 'text-rose-300' : 'text-emerald-300'}`} data-ww-tile-role={role}>
-            {ROLE_NAME[role]}
-          </span>
-        )}
+        {role && <RoleLine role={role} />}
       </span>
-      {mark && <span className="absolute -top-1.5 -right-1.5">{mark}</span>}
+      {mark && <span className="absolute -top-2 -right-1.5">{mark}</span>}
     </button>
+  );
+}
+
+/** Dấu "bạn" trên ô của chính người xem (công khai: ai cũng có trên ô của mình). */
+export function MeMark() {
+  return (
+    <span className="inline-flex h-5 items-center rounded-full bg-(--ww-text) px-2 text-xs font-bold text-(--ww-ink)" data-ww-me="">
+      bạn
+    </span>
+  );
+}
+
+/**
+ * Một người trong làng, chỉ để xem (sảnh, màn rộng của Xem vai / Bình minh):
+ * avatar (bia mộ nếu đã chết), tên, một dòng phụ, dấu công khai ở góc. Không phải nút.
+ */
+export function Seat({
+  player,
+  dead = false,
+  sub,
+  mark,
+  action,
+  onSelect,
+  selected = false,
+  fall,
+}: {
+  player: Player;
+  dead?: boolean;
+  /**
+   * Hoạt cảnh (GĐ4): người này chết NGAY trong bước này. Ghế hiện như người sống
+   * rồi thành bia mộ lúc `fall` (animation-delay từ useCue). Khung tĩnh = bia mộ.
+   */
+  fall?: string;
+  /** Dòng nhỏ dưới tên (vai đã lộ, "chủ phòng"…). */
+  sub?: ReactNode;
+  mark?: ReactNode;
+  /** Nút phụ bên phải (chủ phòng mời ra ở sảnh). */
+  action?: ReactNode;
+  /** Chạm vào ghế (chủ phòng ở sảnh: hiện nút mời ra). Phần avatar + tên thành một nút. */
+  onSelect?: () => void;
+  selected?: boolean;
+}) {
+  const body = (
+    <>
+      {dead ? (
+        <span className="flex size-8 shrink-0 items-center justify-center text-(--ww-text-3)" aria-hidden="true">
+          <WwIcon name="dead" size={26} />
+        </span>
+      ) : (
+        <Avatar name={player.name} id={player.id} />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className={`block truncate ${dead ? 'line-through decoration-1' : ''}`}>{player.name}</span>
+        {sub}
+      </span>
+    </>
+  );
+  return (
+    <div
+      data-player-id={player.id}
+      data-ww-dead-seat={dead ? '' : undefined}
+      className={`relative flex min-h-14 items-center gap-2.5 rounded-xl py-2 pl-2.5 text-sm font-semibold shadow-md shadow-black/25 ${action ? 'pr-1' : 'pr-2.5'} ${
+        dead ? 'bg-(--ww-ink) text-(--ww-text-3)' : selected ? 'bg-(--ww-raised-hi) text-(--ww-text)' : 'bg-(--ww-raised) text-(--ww-text)'
+      }`}
+    >
+      {onSelect ? (
+        <button type="button" aria-expanded={selected} aria-label={`Chọn ${player.name}`} onClick={onSelect} className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl text-left">
+          {body}
+        </button>
+      ) : (
+        body
+      )}
+      {dead && fall && (
+        // Lớp "còn sống" phủ lên ghế bia mộ, tan đi đúng lúc người này chết.
+        <span
+          aria-hidden="true"
+          className="ww-a-gone absolute inset-0 flex items-center gap-2.5 rounded-xl bg-(--ww-raised) py-2 pr-2.5 pl-2.5 text-(--ww-text)"
+          style={{ animationDelay: fall }}
+          data-ww-fall=""
+        >
+          <Avatar name={player.name} id={player.id} />
+          <span className="min-w-0 flex-1 truncate">{player.name}</span>
+        </span>
+      )}
+      {action}
+      {mark && <span className="absolute -top-2 -right-1.5">{mark}</span>}
+    </div>
   );
 }
 
 /**
  * Thẻ "giữ để xem" (useHold): khi không giữ, giống hệt nhau với mọi vai; phần
- * riêng chỉ render khi đang giữ. Chiều cao cố định để bố cục không đổi.
+ * riêng chỉ render khi đang giữ. Chiều cao cố định để bố cục không đổi. Mặt nổi
+ * đặc, không viền; nền như nhau dù đang giữ hay không.
  */
 export function HoldCard({
   held,
   bind,
   children,
-  hint = 'Ai cũng giữ — màn hình của mọi người như nhau.',
+  hint,
   className = 'h-40',
 }: {
   held: boolean;
   bind: HTMLAttributes<HTMLElement>;
   /** Phần riêng của vai, chỉ gọi khi đang giữ. */
   children: () => ReactNode;
+  /** Một dòng nhỏ dưới "Nhấn giữ để xem" (giống nhau với mọi vai); mặc định không có — câu của bước đã nói. */
   hint?: string;
   className?: string;
 }) {
@@ -177,16 +342,19 @@ export function HoldCard({
       aria-label="Giữ để xem"
       data-ww-hold={held ? 'open' : 'sealed'}
       {...bind}
-      className={`flex w-full touch-none flex-col items-center justify-center overflow-hidden rounded-2xl bg-slate-800/90 px-4 py-3 text-center ring-1 ring-slate-600 outline-none select-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] focus-visible:ring-2 focus-visible:ring-indigo-300 ${className}`}
+      className={`flex w-full touch-none flex-col items-center justify-center overflow-hidden rounded-2xl bg-(--ww-raised) px-4 py-3 text-center shadow-lg shadow-black/30 select-none [-webkit-touch-callout:none] [-webkit-tap-highlight-color:transparent] ${className}`}
     >
       {held ? (
-        <div className="w-full text-sm text-slate-100" data-ww-hold-panel="">
+        <div className="w-full text-sm text-(--ww-text)" data-ww-hold-panel="">
           {children()}
         </div>
       ) : (
         <>
-          <span className="text-base font-bold text-slate-100">Nhấn giữ để xem</span>
-          <span className="mt-1 text-xs text-slate-400">{hint}</span>
+          <span className="mb-2 flex size-11 items-center justify-center rounded-full bg-(--ww-ink) text-(--ww-moon)">
+            <WwIcon name="hold" size={24} />
+          </span>
+          <span className="text-base font-semibold text-(--ww-text)">Nhấn giữ để xem</span>
+          {hint && <span className="mt-1 text-xs text-(--ww-text-3)">{hint}</span>}
         </>
       )}
     </div>
@@ -207,13 +375,13 @@ export function InHoldButton({
   children,
 }: {
   pressed: boolean;
-  /** Màu khi đang bật: cứu (xanh) / độc (đỏ). */
+  /** Vòng khi đang bật: cứu (màu Dân) / độc (màu Sói) — chỉ hiện trong thẻ đang giữ. */
   tone?: 'neutral' | 'heal' | 'poison';
   disabled?: boolean;
   onPress: () => void;
   children: ReactNode;
 }) {
-  const on = { neutral: 'bg-indigo-500/25 ring-indigo-400', heal: 'bg-emerald-500/20 ring-emerald-400', poison: 'bg-rose-500/25 ring-rose-400' }[tone];
+  const on = { neutral: 'ring-(--ww-accent)', heal: 'ring-(--ww-village)', poison: 'ring-(--ww-wolf)' }[tone];
   return (
     <button
       type="button"
@@ -226,8 +394,8 @@ export function InHoldButton({
         e.stopPropagation();
         onPress();
       }}
-      className={`flex min-h-11 w-full items-center justify-center rounded-xl px-3 text-sm font-semibold disabled:opacity-50 ${
-        pressed ? `${on} text-white ring-2` : 'bg-slate-700 text-slate-100 ring-1 ring-slate-500'
+      className={`flex min-h-11 w-full items-center justify-center rounded-xl px-3 text-sm font-semibold text-(--ww-text) disabled:opacity-50 ${
+        pressed ? `bg-(--ww-raised-hi) ring-2 ${on}` : 'bg-(--ww-ink) ring-1 ring-(--ww-line)'
       }`}
     >
       {children}
@@ -240,11 +408,36 @@ export function RoleTag({ role }: { role: WwRole }) {
   const wolf = role === 'werewolf';
   return (
     <span
-      className={`rounded-md px-1.5 py-0.5 text-xs font-semibold ${wolf ? 'bg-rose-500/20 text-rose-200' : 'bg-emerald-500/15 text-emerald-200'}`}
+      className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-xs font-semibold ${wolf ? 'bg-(--ww-wolf)/15 text-(--ww-wolf-light)' : 'bg-(--ww-village)/15 text-(--ww-village-light)'}`}
       data-ww-role-tag={role}
     >
+      <WwIcon name={role} size={14} />
       {ROLE_NAME[role]}
     </span>
+  );
+}
+
+/**
+ * Một dòng trạng thái công khai (đếm người đã xong, Chưa / Đã xác nhận…): viên
+ * kính tối, để đọc được trên mọi cảnh (dải mây sáng của ban ngày). `accent`:
+ * việc còn chờ chính người xem.
+ */
+export function StatusLine({
+  icon,
+  accent = false,
+  className = '',
+  children,
+  ...attrs
+}: { icon: IconName; accent?: boolean; className?: string; children: ReactNode } & Record<`data-${string}`, string | undefined>) {
+  return (
+    <p className={`flex justify-center ${className}`} {...attrs}>
+      <span
+        className={`inline-flex min-h-8 items-center gap-1.5 rounded-full bg-(color:--ww-glass-bg) px-3 text-sm ${accent ? 'font-semibold text-(--ww-accent)' : 'text-(--ww-text-2)'}`}
+      >
+        <WwIcon name={icon} size={16} className={accent ? '' : 'text-(--ww-text-3)'} />
+        {children}
+      </span>
+    </p>
   );
 }
 
@@ -254,13 +447,17 @@ export function RoleTag({ role }: { role: WwRole }) {
  */
 export function DeadNote() {
   return (
-    <p className="rounded-xl bg-slate-800/70 px-4 py-3 text-center text-sm text-slate-300" data-ww-dead-note="">
+    <p
+      className="flex items-center justify-center gap-2 rounded-2xl border border-(--ww-line) bg-(color:--ww-glass-bg) px-4 py-3 text-center text-sm text-(--ww-text-2)"
+      data-ww-dead-note=""
+    >
+      <WwIcon name="dead" size={18} className="shrink-0 text-(--ww-text-3)" />
       Bạn đã chết. Ngồi im lặng, không ra hiệu đến hết ván nhé.
     </p>
   );
 }
 
-/** "Diễn biến ván": các câu của nhật ký, gom theo "Đêm N" / "Ngày N". `compact`: chữ nhỏ, khít (trong thẻ giữ của hồn ma). */
+/** "Diễn biến ván": các câu của nhật ký, gom theo "Đêm N" / "Ngày N". `compact`: dòng khít (trong thẻ giữ của hồn ma). */
 export function LogList({ log, players, compact = false }: { log: readonly WwLogEntry[]; players: Player[]; compact?: boolean }) {
   const lines = describeLog(log, (id) => nameOf(players, id));
   const groups: Array<{ label: string; texts: string[] }> = [];
@@ -270,13 +467,16 @@ export function LogList({ log, players, compact = false }: { log: readonly WwLog
     if (last && last.label === label) last.texts.push(line.text);
     else groups.push({ label, texts: [line.text] });
   }
-  if (groups.length === 0) return <p className={`${compact ? 'text-[13px]' : 'text-sm'} text-slate-400`}>Chưa có gì.</p>;
+  if (groups.length === 0) return <p className="text-sm text-(--ww-text-3)">Chưa có gì.</p>;
   return (
     <ol className={compact ? 'space-y-2' : 'space-y-3'} data-ww-log="">
       {groups.map((g, i) => (
         <li key={i}>
-          <p className={`${compact ? 'mb-0.5' : 'mb-1'} text-xs font-bold tracking-wide text-indigo-300 uppercase`}>{g.label}</p>
-          <ul className={`${compact ? 'space-y-0.5 text-[13px] leading-snug' : 'space-y-1 text-sm'} text-slate-200`}>
+          <p className={`${compact ? 'mb-0.5' : 'mb-1'} flex items-center gap-1.5 text-xs font-bold text-(--ww-text-2)`}>
+            <WwIcon name={g.label.startsWith('Đêm') ? 'night' : 'day'} size={13} className="text-(--ww-text-3)" />
+            {g.label}
+          </p>
+          <ul className={`${compact ? 'space-y-0.5 leading-snug' : 'space-y-1'} text-sm text-(--ww-text)`}>
             {g.texts.map((t, j) => (
               <li key={j}>{t}</li>
             ))}
@@ -287,10 +487,10 @@ export function LogList({ log, players, compact = false }: { log: readonly WwLog
   );
 }
 
-/** Thanh nút cố định ở đáy màn điện thoại. */
+/** Thanh nút cố định ở đáy màn điện thoại (dải mực mờ dần); từ `lg` nằm yên cuối khung bên phải. */
 export function Dock({ children }: { children: ReactNode }) {
   return (
-    <div className="sticky bottom-0 z-20 -mx-4 mt-4 bg-gradient-to-t from-slate-950 via-slate-950/95 to-transparent px-4 pt-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+    <div className="sticky bottom-0 z-20 -mx-4 mt-4 bg-linear-to-t from-(--ww-ink) from-40% to-transparent px-4 pt-6 pb-[max(1rem,env(safe-area-inset-bottom))] lg:static lg:mx-0 lg:bg-none lg:px-0 lg:pt-2 lg:pb-0">
       {children}
     </div>
   );

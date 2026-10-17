@@ -1,4 +1,4 @@
-import { gameIcon } from './gameIcon';
+import { gameIcon } from '@/components/games/shared/icons/gameIcon';
 
 // "Templar shield" by Delapouite — https://game-icons.net/1x1/delapouite/templar-shield.html (CC BY 3.0)
 export default gameIcon(

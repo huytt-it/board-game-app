@@ -1,4 +1,4 @@
-import { gameIcon } from './gameIcon';
+import { gameIcon } from '@/components/games/shared/icons/gameIcon';
 
 // "Visored helm" by Lorc — https://game-icons.net/1x1/lorc/visored-helm.html (CC BY 3.0)
 export default gameIcon(

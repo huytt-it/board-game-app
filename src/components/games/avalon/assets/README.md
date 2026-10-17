@@ -53,7 +53,8 @@ Muốn quay lại SVG thì đảo ngược bước 3.
 ## Thêm một icon mới từ game-icons.net
 
 1. Hỏi người dùng trước khi tải (tên icon, tác giả, URL).
-2. Tạo `icons/<ten-icon>.tsx` theo mẫu các file sẵn có: `export default gameIcon('TenIcon', '<path d>')`,
+2. Tạo `icons/<ten-icon>.tsx` theo mẫu các file sẵn có: `export default gameIcon('TenIcon', '<path d>')`
+   (`gameIcon` và các icon dùng chung với Ma Sói nằm ở `src/components/games/shared/icons/`),
    ghi tác giả và URL ở dòng chú thích đầu file. Path nên làm tròn còn 1 chữ số thập phân.
 3. Thêm một dòng vào `ICONS` trong `registry.ts` và một dòng vào `CREDITS.md`.
 

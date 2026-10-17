@@ -8,6 +8,9 @@ import { isValidTarget, pickFor, seerLook, validateWitchPick } from '@/component
 import { nightActionOf, ROLE_NAME, ROLE_ORDER, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
 import { DEFAULT_RULES, FULL_POTIONS } from '@/components/games/werewolf/engine/types.ts';
 import { PhaseView, TopBar } from './WerewolfBoard';
+import WwShell from './WwShell';
+import StyleBoard from './StyleBoard';
+import WerewolfJoinScreen from './WerewolfJoinScreen';
 import { dataOf, potionsOf, readConfig, tableOf } from './state';
 import type { PickResult, WitchDraft, WitchResult } from './useWerewolf';
 import type { DayBallot, WerewolfGameData, WerewolfGameState, WwLogEntry, WwPhase, WwRole, WwRules } from './types';
@@ -20,6 +23,9 @@ import type { Room } from '@/types/room';
 // vai đó, nên bộ vai trên bàn không đổi (cặp ảnh riêng tư).
 
 export const PREVIEW_SCENES = {
+  style: 'Bảng phong cách',
+  join: 'Vào phòng — mời vào làng',
+  'join-closed': 'Vào phòng — ván đang diễn ra',
   'lobby-host': 'Sảnh — chủ phòng',
   'lobby-guest': 'Sảnh — người chơi (chỉ đọc)',
   'lobby-warn': 'Sảnh — bộ vai lệch (cảnh báo)',
@@ -29,6 +35,8 @@ export const PREVIEW_SCENES = {
   'night-confirmed': 'Đêm ① — đã xác nhận',
   'night-split': 'Đêm ① — bầy Sói chưa thống nhất',
   'night-dead': 'Đêm ① — người xem đã chết',
+  'night-2': 'Đêm 2 — vào đêm, trăng lên',
+  'night-after-hunter': 'Đêm 2 — sau phát bắn của Thợ săn (bị treo)',
   'witch-empty': 'Đêm ② — chưa chọn',
   'witch-picked': 'Đêm ② — đã chọn (Phù thủy: cứu + độc), chưa xác nhận',
   'witch-confirmed': 'Đêm ② — đã xác nhận',
@@ -37,6 +45,7 @@ export const PREVIEW_SCENES = {
   'witch-dead': 'Đêm ② — người xem đã chết',
   'dawn-deaths': 'Bình minh — có người chết',
   'dawn-peaceful': 'Bình minh — bình yên',
+  'dawn-two': 'Bình minh — hai người chết',
   'hunter-dawn': 'Thợ săn — bị cắn, bắn sau bình minh',
   'hunter-vote': 'Thợ săn — bị treo, bắn sau kết quả',
   'dawn-hunter': 'Bình minh — Thợ săn chết (chưa bắn: chưa phải hồn ma)',
@@ -51,25 +60,31 @@ export const PREVIEW_SCENES = {
   'ghost-off': 'Người chết — Đêm ① (hồn ma tắt)',
   'talk-hidden': 'Thảo luận — lộ vai khi chết tắt',
   'day-talk': 'Thảo luận',
+  'talk-after-hunter': 'Thảo luận — sau phát bắn của Thợ săn (bị cắn)',
+  'talk-hunter-skip': 'Thảo luận — Thợ săn không bắn',
   'day-vote': 'Bỏ phiếu',
   'vote-result-hanged': 'Kết quả — có người bị treo',
   'vote-result-tie': 'Kết quả — hoà, không ai bị treo',
   'end-village': 'Kết thúc — Dân thắng',
   'end-wolves': 'Kết thúc — Sói thắng',
+  'end-hunter': 'Kết thúc — Thợ săn bắn Sói cuối cùng',
 } as const;
 
 export type PreviewScene = keyof typeof PREVIEW_SCENES;
 export const PREVIEW_ROLES: readonly WwRole[] = ROLE_ORDER;
 
-const NAMES = ['Lan', 'Minh', 'Hùng', 'Mai', 'Tú', 'Hoa', 'Khoa', 'Quân', 'Vy'];
-// Bộ 9 người: 2 Sói, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, 3 Dân. Ghế 5 và 7
-// luôn là Dân (đổi vai người xem không chạm tới).
-const LINEUP: WwRole[] = ['villager', 'werewolf', 'seer', 'guard', 'villager', 'werewolf', 'villager', 'witch', 'hunter'];
+const NAMES = ['Lan', 'Minh', 'Hùng', 'Mai', 'Tú', 'Hoa', 'Khoa', 'Quân', 'Vy', 'Đức'];
+// Bộ mặc định 9 người: 2 Sói, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, 3 Dân. Ghế
+// 5 và 7 luôn là Dân (đổi vai người xem không chạm tới). `count` 5–10 lấy n ghế
+// đầu (để kiểm bố cục với 5–10 người; vài màn của Phù thủy / Thợ săn / hồn ma
+// cần đủ 9).
+const LINEUP: WwRole[] = ['villager', 'werewolf', 'seer', 'guard', 'villager', 'werewolf', 'villager', 'witch', 'hunter', 'villager'];
+const DEFAULT_COUNT = 9;
 const ID = (i: number) => `p${i + 1}`;
 const ME = ID(0);
 
-function lineupFor(role: WwRole): WwRole[] {
-  const roles = [...LINEUP];
+function lineupFor(role: WwRole, n: number): WwRole[] {
+  const roles = LINEUP.slice(0, n);
   const j = roles.findIndex((r, i) => i > 0 && r === role);
   if (roles[0] !== role && j > 0) [roles[0], roles[j]] = [roles[j], roles[0]];
   return roles;
@@ -95,13 +110,15 @@ function makePlayers(roles: WwRole[], extra: (id: string, role: WwRole) => Parti
   }));
 }
 
-function baseState(phase: WwPhase, start: number, over: Partial<WerewolfGameState> = {}): WerewolfGameState {
+function baseStateN(phase: WwPhase, start: number, over: Partial<WerewolfGameState> = {}, n = DEFAULT_COUNT): WerewolfGameState {
+  const roleCounts: Record<WwRole, number> = { werewolf: 0, villager: 0, seer: 0, guard: 0, witch: 0, hunter: 0 };
+  for (const r of LINEUP.slice(0, n)) roleCounts[r] += 1;
   return {
     phase,
     phaseStartedAt: start,
     round: 1,
-    seatOrder: NAMES.map((_, i) => ID(i)),
-    roleCounts: { werewolf: 2, seer: 1, guard: 1, witch: 1, hunter: 1, villager: 3 },
+    seatOrder: NAMES.slice(0, n).map((_, i) => ID(i)),
+    roleCounts,
     rules: DEFAULT_RULES,
     timeouts: {},
     deaths: [],
@@ -144,10 +161,13 @@ interface Mock {
   state: WerewolfGameState | null;
   players: Player[];
   lobby?: { isHost: boolean; roleCounts: Record<string, number> | null };
+  style?: boolean;
+  join?: 'open' | 'closed';
 }
 
-function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
-  const roles = lineupFor(role);
+function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAULT_COUNT): Mock {
+  const roles = lineupFor(role, n);
+  const baseState = (phase: WwPhase, at: number, over: Partial<WerewolfGameState> = {}) => baseStateN(phase, at, over, n);
   const idOf = (r: WwRole, nth = 0) => ID(roles.map((x, i) => (x === r ? i : -1)).filter((i) => i >= 0)[nth]);
   const wolves = roles.map((r, i) => (r === 'werewolf' ? ID(i) : null)).filter(Boolean) as string[];
   // Người ai cũng chọn được (ghế 5 và 7 luôn là Dân, đổi vai không chạm tới):
@@ -155,6 +175,11 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
   const common = ID(4);
   const otherVillager = ID(6);
   switch (scene) {
+    case 'style':
+      return { state: null, players: [], style: true };
+    case 'join':
+    case 'join-closed':
+      return { state: null, players: makePlayers(roles).map((p) => ({ ...p, gameData: {} })), join: scene === 'join' ? 'open' : 'closed' };
     case 'lobby-host':
     case 'lobby-guest':
     case 'lobby-warn':
@@ -187,6 +212,33 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
       }
       return { state: baseState('night', start, { deaths }), players };
     }
+    case 'night-2':
+    case 'night-after-hunter': {
+      // Đêm 2: cảnh vừa đổi từ giàn treo, trăng lên. Ngày 1 treo Sói (night-2) hoặc
+      // treo Thợ săn, Thợ săn bắn ghế 7 (night-after-hunter, diễn lại phát bắn).
+      const shot = scene === 'night-after-hunter';
+      const hunterId = idOf('hunter');
+      const hanged = shot ? hunterId : wolves[1];
+      const ballots: Record<string, DayBallot> = Object.fromEntries(
+        roles.map((_, i) => ID(i)).filter((id) => id !== common).map((id) => [id, id === hanged ? 'skip' : hanged])
+      );
+      return {
+        state: baseState('night', start, {
+          round: 2,
+          deaths: [
+            { id: common, round: 1, cause: 'wolf' },
+            { id: hanged, round: 1, cause: 'vote' },
+            ...(shot ? [{ id: otherVillager, round: 1, cause: 'hunter' as const }] : []),
+          ],
+          log: [
+            ...ROUND1_LOG,
+            { kind: 'vote', round: 1, ballots, executedId: hanged },
+            ...(shot ? [{ kind: 'hunter' as const, round: 1, hunterId, targetId: otherVillager }] : []),
+          ],
+        }),
+        players: makePlayers(roles),
+      };
+    }
     case 'witch-empty':
     case 'witch-picked':
     case 'witch-confirmed':
@@ -210,6 +262,17 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
       return { state: baseState('dawn', start, { deaths: [{ id: common, round: 1, cause: 'wolf' }], dawnDeaths: [common] }), players: makePlayers(roles) };
     case 'dawn-peaceful':
       return { state: baseState('dawn', start), players: makePlayers(roles) };
+    case 'dawn-two':
+      return {
+        state: baseState('dawn', start, {
+          deaths: [
+            { id: common, round: 1, cause: 'wolf' },
+            { id: otherVillager, round: 1, cause: 'poison' },
+          ],
+          dawnDeaths: [common, otherVillager],
+        }),
+        players: makePlayers(roles),
+      };
     case 'hunter-dawn':
     case 'hunter-vote': {
       // Người xem chọn vai Thợ săn thì thấy màn bắn; vai khác thấy "đang ngắm".
@@ -329,6 +392,23 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
         state: baseState('day-talk', start, { deaths: [{ id: common, round: 1, cause: 'wolf' }], acks: { [idOf('seer')]: true, [wolves[1]]: true } }),
         players: makePlayers(roles),
       };
+    case 'talk-after-hunter':
+    case 'talk-hunter-skip': {
+      // Thợ săn bị cắn đêm 1, bắn ghế 7 (hoặc không bắn) sau bình minh: Thảo luận diễn lại phát bắn.
+      const hunterId = idOf('hunter');
+      const target = scene === 'talk-after-hunter' ? otherVillager : null;
+      return {
+        state: baseState('day-talk', start, {
+          deaths: [{ id: hunterId, round: 1, cause: 'wolf' }, ...(target ? [{ id: target, round: 1, cause: 'hunter' as const }] : [])],
+          log: [
+            { kind: 'wolves', round: 1, targetId: hunterId, how: 'consensus' },
+            { kind: 'death', round: 1, id: hunterId, cause: 'wolf' },
+            { kind: 'hunter', round: 1, hunterId, targetId: target },
+          ],
+        }),
+        players: makePlayers(roles),
+      };
+    }
     case 'day-vote':
       return {
         state: baseState('day-vote', start, {
@@ -358,6 +438,30 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
         players,
       };
     }
+    case 'end-hunter': {
+      // Thợ săn (ghế 9) bị cắn đêm 2, bắn Sói cuối cùng (ghế 6): phát bắn diễn trước, rồi mới lộ phe thắng.
+      const base = LINEUP.slice(0, n);
+      return {
+        state: baseState('end', start, {
+          round: 2,
+          deaths: [
+            { id: 'p5', round: 1, cause: 'wolf' },
+            { id: 'p2', round: 1, cause: 'vote' },
+            { id: 'p9', round: 2, cause: 'wolf' },
+            { id: 'p6', round: 2, cause: 'hunter' },
+          ],
+          winner: 'village',
+          endReason: 'no-wolves',
+          log: [
+            ...SAMPLE_LOG.slice(0, 7),
+            { kind: 'wolves', round: 2, targetId: 'p9', how: 'consensus' },
+            { kind: 'death', round: 2, id: 'p9', cause: 'wolf' },
+            { kind: 'hunter', round: 2, hunterId: 'p9', targetId: 'p6' },
+          ],
+        }),
+        players: makePlayers(base),
+      };
+    }
     case 'end-village':
     case 'end-wolves': {
       const village = scene === 'end-village';
@@ -381,23 +485,58 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
           endReason: village ? 'no-wolves' : 'wolf-parity',
           log: SAMPLE_LOG,
         }),
-        players: makePlayers(LINEUP),
+        players: makePlayers(LINEUP.slice(0, n)),
       };
     }
   }
 }
 
-function Screen({ scene, role, start, rules }: { scene: PreviewScene; role: WwRole; start: number; rules?: Partial<WwRules> }) {
-  const initial = useMemo(() => buildScene(scene, role, start), [scene, role, start]);
+function Screen({
+  scene,
+  role,
+  start,
+  rules,
+  count,
+  chrome,
+}: {
+  scene: PreviewScene;
+  role: WwRole;
+  start: number;
+  rules?: Partial<WwRules>;
+  count: number;
+  /** Thanh chọn màn / vai của Preview (nằm trong khung để cảnh nền phủ cả nó). */
+  chrome: React.ReactNode;
+}) {
+  const initial = useMemo(() => buildScene(scene, role, start, count), [scene, role, start, count]);
   const [players, setPlayers] = useState(initial.players);
   const [state, setState] = useState(() => (initial.state && rules ? { ...initial.state, rules: { ...initial.state.rules, ...rules } } : initial.state));
   const setMine = (data: Partial<WerewolfGameData>) =>
     setPlayers((ps) => ps.map((p) => (p.id === ME ? { ...p, gameData: { ...p.gameData, ...data } } : p)));
 
+  const attrs = { 'data-ww-preview': scene, 'data-ww-viewer-role': role };
+  if (initial.join) {
+    // Màn vào phòng có khung (và cảnh) riêng; thanh chọn của Preview không hiện ở đây — đổi màn bằng URL.
+    const room = { roomCode: 'ABC123', status: initial.join === 'open' ? 'lobby' : 'night', config: { maxPlayers: 10 } } as unknown as Room;
+    return (
+      <div {...attrs}>
+        <WerewolfJoinScreen room={room} players={players} onJoin={async () => {}} />
+      </div>
+    );
+  }
+  if (initial.style) {
+    return (
+      <WwShell state={null} {...attrs}>
+        {chrome}
+        <TopBar menu={null} />
+        <StyleBoard />
+      </WwShell>
+    );
+  }
   if (initial.lobby) {
     const room = { config: { roleCounts: initial.lobby.roleCounts } } as unknown as Room;
     return (
-      <>
+      <WwShell state={null} {...attrs}>
+        {chrome}
         <TopBar
           menu={<RoomMenu ctx={null} isHost={initial.lobby.isHost} inGame={false} rules={readConfig(room).rules} onLeave={() => {}} onDelete={() => {}} />}
         />
@@ -407,12 +546,12 @@ function Screen({ scene, role, start, rules }: { scene: PreviewScene; role: WwRo
           hostId={ME}
           isHost={initial.lobby.isHost}
           config={readConfig(room)}
-          invite={<p className="text-center font-mono text-2xl tracking-widest text-slate-100">ABC123</p>}
+          invite={<p className="text-center font-mono text-2xl tracking-widest text-(--ww-text)">ABC123</p>}
           onKick={() => {}}
           onUpdateConfig={() => {}}
           onStart={() => {}}
         />
-      </>
+      </WwShell>
     );
   }
   if (!state) return null;
@@ -450,7 +589,8 @@ function Screen({ scene, role, start, rules }: { scene: PreviewScene; role: WwRo
   };
   const local = (fn: () => void) => async () => fn();
   return (
-    <>
+    <WwShell state={state} {...attrs}>
+      {chrome}
       <TopBar
         menu={
           <RoomMenu
@@ -485,7 +625,7 @@ function Screen({ scene, role, start, rules }: { scene: PreviewScene; role: WwRo
           onLeave: () => {},
         }}
       />
-    </>
+    </WwShell>
   );
 }
 
@@ -495,7 +635,10 @@ export default function WerewolfPreview({
   start,
   chrome = true,
   rules,
+  count = DEFAULT_COUNT,
 }: {
+  /** Số người trên bàn (5–10, mặc định 9): kiểm bố cục với ít / nhiều người. */
+  count?: number;
   initialScene?: PreviewScene;
   initialRole?: WwRole;
   /** Ghi đè luật của màn (vd. tắt "Hồn ma xem hết vai" để chụp ảnh). */
@@ -509,33 +652,34 @@ export default function WerewolfPreview({
   const [role, setRole] = useState<WwRole>(initialRole);
   const [opened] = useState(() => serverNow());
   const startAt = start ?? opened;
-  return (
-    <div className="mx-auto w-full max-w-lg text-slate-100" data-ww-root="" data-ww-preview={scene} data-ww-viewer-role={role}>
-      {chrome && (
-        <div className="mb-4 space-y-2 rounded-xl bg-slate-900 p-3 ring-1 ring-amber-500/40">
-          <p className="text-xs font-bold text-amber-300 uppercase">Xem trước Ma Sói — dữ liệu giả</p>
-          <select
-            aria-label="Màn"
-            className="w-full rounded-lg bg-slate-800 px-2 py-2 text-sm"
-            value={scene}
-            onChange={(e) => setScene(e.target.value as PreviewScene)}
-          >
-            {Object.entries(PREVIEW_SCENES).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <select aria-label="Vai người xem" className="w-full rounded-lg bg-slate-800 px-2 py-2 text-sm" value={role} onChange={(e) => setRole(e.target.value as WwRole)}>
-            {PREVIEW_ROLES.map((r) => (
-              <option key={r} value={r}>
-                Người xem: {ROLE_NAME[r]}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      <Screen key={`${scene}:${role}:${startAt}`} scene={scene} role={role} start={startAt} rules={rules} />
+  const bar = chrome ? (
+    <div className="mb-4 space-y-2 rounded-xl border border-(--ww-accent)/40 bg-(--ww-ink) p-3">
+      <p className="text-xs font-bold text-(--ww-accent) uppercase">Xem trước Ma Sói — dữ liệu giả</p>
+      <select
+        aria-label="Màn"
+        className="w-full rounded-xl bg-(--ww-raised) px-2 py-2 text-sm text-(--ww-text)"
+        value={scene}
+        onChange={(e) => setScene(e.target.value as PreviewScene)}
+      >
+        {Object.entries(PREVIEW_SCENES).map(([k, v]) => (
+          <option key={k} value={k}>
+            {v}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Vai người xem"
+        className="w-full rounded-xl bg-(--ww-raised) px-2 py-2 text-sm text-(--ww-text)"
+        value={role}
+        onChange={(e) => setRole(e.target.value as WwRole)}
+      >
+        {PREVIEW_ROLES.map((r) => (
+          <option key={r} value={r}>
+            Người xem: {ROLE_NAME[r]}
+          </option>
+        ))}
+      </select>
     </div>
-  );
+  ) : null;
+  return <Screen key={`${scene}:${role}:${startAt}`} scene={scene} role={role} start={startAt} rules={rules} count={count} chrome={bar} />;
 }

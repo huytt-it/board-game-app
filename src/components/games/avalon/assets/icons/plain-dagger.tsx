@@ -1,4 +1,4 @@
-import { gameIcon } from './gameIcon';
+import { gameIcon } from '@/components/games/shared/icons/gameIcon';
 
 // "Plain dagger" by Lorc — https://game-icons.net/1x1/lorc/plain-dagger.html (CC BY 3.0)
 export default gameIcon(

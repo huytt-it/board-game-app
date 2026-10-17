@@ -14,6 +14,7 @@ import { useWerewolf, type PickResult, type WitchDraft, type WitchResult } from 
 import { dataOf, nightPicksOf, witchPicksOf } from './state';
 import { phaseTimeoutMs, type DayBallot, type WerewolfGameState, type WerewolfRoomConfig, type WwTable } from './types';
 import { usePhaseRemaining } from './hooks/usePhaseClock';
+import { useCueSync } from './hooks/useCueSync';
 import { useConfirm } from './ui/Dialog';
 import RoomMenu from './ui/RoomMenu';
 import Button from './ui/Button';
@@ -28,7 +29,15 @@ import VotePanel from './panel/VotePanel';
 import VoteResultPanel from './panel/VoteResultPanel';
 import EndPanel from './panel/EndPanel';
 import GhostPanel from './panel/GhostPanel';
+import Nightfall from './panel/Nightfall';
+import HunterShot from './panel/HunterShot';
 import { hasGhostCard, type PanelCtx } from './panel/shared';
+import WwIcon from './assets/WwIcon';
+import WwShell from './WwShell';
+import './werewolf.css';
+
+// Màn vào phòng riêng của Ma Sói: page.tsx nạp nó từ module này để dùng chung chunk.
+export { default as WerewolfJoinScreen } from './WerewolfJoinScreen';
 
 // Máy khác chờ thêm chừng này rồi mới tự chuyển phase thay chủ phòng (chủ
 // phòng mất mạng / ngủ). CAS bảo đảm chỉ một lần ghi thắng.
@@ -54,14 +63,29 @@ export interface PhaseHandlers {
   onLeave: () => void;
 }
 
-/** Màn của phase hiện tại (dùng chung với WerewolfPreview). Người chết có thêm một thẻ giữ để xem (GhostPanel). */
+/**
+ * Màn của phase hiện tại (dùng chung với WerewolfPreview). Người chết có thêm một
+ * thẻ giữ để xem (GhostPanel). Lớp hoạt cảnh chung của bước (GĐ4, giống hệt
+ * nhau với mọi người xem, `pointer-events: none`): vào đêm, phát bắn của Thợ
+ * săn ở bước ngay sau bước Thợ săn (màn kết thúc tự diễn phát bắn của nó).
+ * useCueSync bù độ trễ dựng cho mọi hoạt cảnh của bước (cả cảnh nền).
+ */
 export function PhaseView({ ctx, handlers }: { ctx: Omit<PanelCtx, 'remaining'>; handlers: PhaseHandlers }) {
+  useCueSync(ctx.state.phaseStartedAt);
   const remaining = usePhaseRemaining(ctx.state);
   const full: PanelCtx = { ...ctx, remaining };
+  const phase = full.state.phase;
   return (
     <>
+      {phase === 'night' && <Nightfall state={full.state} />}
+      {(phase === 'night' || phase === 'day-talk') && <HunterShot ctx={full} />}
       <PhasePanel ctx={full} handlers={handlers} />
-      {hasGhostCard(full) && <GhostPanel ctx={full} />}
+      {/* Màn rộng (PhaseLayout hai cột): thẻ của người chết nằm dưới khung bên phải. */}
+      {hasGhostCard(full) && (
+        <div className="lg:ml-auto lg:w-96">
+          <GhostPanel ctx={full} />
+        </div>
+      )}
     </>
   );
 }
@@ -92,8 +116,11 @@ function PhasePanel({ ctx: full, handlers }: { ctx: PanelCtx; handlers: PhaseHan
 /** Thanh trên: tên trò chơi, menu ⋯ (giống nhau với mọi vai). */
 export function TopBar({ menu }: { menu: React.ReactNode }) {
   return (
-    <div className="mb-4 flex items-center justify-between">
-      <p className="text-sm font-bold tracking-wide text-indigo-200 uppercase">Ma Sói</p>
+    <div className="mb-4 flex items-center justify-between" data-ww-topbar="">
+      <p className="flex items-center gap-2 text-(--ww-text-2)">
+        <WwIcon name="game" size={22} className="text-(--ww-moon)" />
+        <span className="ww-display text-xl text-(--ww-text)">Ma Sói</span>
+      </p>
       {menu}
     </div>
   );
@@ -317,7 +344,8 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
   const banner =
     offline || notice ? (
       <div className="fixed inset-x-0 top-0 z-40 px-4 pt-2" role={offline ? 'status' : 'alert'} data-banner="">
-        <div className="mx-auto max-w-md rounded-xl bg-slate-900 px-4 py-2 text-center text-sm font-semibold text-slate-100 shadow-lg ring-1 ring-rose-500/60">
+        <div className="mx-auto flex max-w-md items-start justify-center gap-2 rounded-xl border border-(--ww-wolf)/60 bg-(--ww-ink) px-4 py-2 text-center text-sm font-semibold text-(--ww-text) shadow-lg shadow-black/50">
+          <WwIcon name={offline ? 'offline' : 'warning'} size={18} className="mt-px text-(--ww-wolf-light)" />
           {offline ? 'Mất kết nối — đang thử kết nối lại. Thao tác của bạn chưa được gửi.' : notice}
         </div>
       </div>
@@ -343,13 +371,13 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     />
   );
 
-  const shell = (body: React.ReactNode, attrs: Record<string, string | number> = {}) => (
-    <div className="mx-auto w-full max-w-lg text-slate-100" data-ww-root="" {...attrs}>
+  const shell = (body: React.ReactNode, attrs: Record<`data-${string}`, string | number> = {}) => (
+    <WwShell state={room.status === 'lobby' ? null : state} {...attrs}>
       {banner}
       <TopBar menu={menu} />
       {body}
       {confirmDialog}
-    </div>
+    </WwShell>
   );
 
   if (room.status === 'lobby') {
@@ -371,14 +399,14 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
     );
   }
 
-  if (!state) return shell(<p className="py-16 text-center text-sm text-slate-400">Đang tải ván…</p>);
+  if (!state) return shell(<p className="py-16 text-center text-sm text-(--ww-text-2)">Đang tải ván…</p>);
 
   const attrs = { 'data-ww-phase': state.phase, 'data-ww-started': state.phaseStartedAt, 'data-ww-round': state.round };
 
   if (!state.seatOrder.includes(playerId)) {
     return shell(
       <div className="py-16 text-center">
-        <p className="text-sm text-slate-300">Ván đang diễn ra. Bạn sẽ chơi từ ván sau.</p>
+        <p className="text-sm text-(--ww-text-2)">Ván đang diễn ra. Bạn sẽ chơi từ ván sau.</p>
         <Button className="mt-4" onClick={handleLeave}>
           Thoát
         </Button>
@@ -388,7 +416,7 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
   }
 
   if (!me || !myData.role || !table || !ready) {
-    return shell(<p className="py-16 text-center text-sm text-slate-400">Đang chia vai…</p>, attrs);
+    return shell(<p className="py-16 text-center text-sm text-(--ww-text-2)">Đang chia vai…</p>, attrs);
   }
 
   const ctx: Omit<PanelCtx, 'remaining'> = { state, me, myData, players: gamePlayers, table: table as WwTable, isHost };

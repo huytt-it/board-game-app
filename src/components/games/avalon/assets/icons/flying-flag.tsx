@@ -1,4 +1,4 @@
-import { gameIcon } from './gameIcon';
+import { gameIcon } from '@/components/games/shared/icons/gameIcon';
 
 // "Flying flag" by Lorc — https://game-icons.net/1x1/lorc/flying-flag.html (CC BY 3.0)
 export default gameIcon(

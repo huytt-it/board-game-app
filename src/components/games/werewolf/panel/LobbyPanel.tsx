@@ -1,15 +1,20 @@
 'use client';
 
+import { useState } from 'react';
 import type { Player } from '@/types/player';
 import { validateSetup, MAX_PLAYERS, MIN_PLAYERS } from '@/components/games/werewolf/engine/roles.ts';
 import { lobbyCounts, type WwConfig } from '../state';
 import type { WerewolfRoomConfig } from '../types';
+import WwIcon from '../assets/WwIcon';
 import Button from '../ui/Button';
+import Panel from '../ui/Panel';
 import LobbySettings from './LobbySettings';
-import { Avatar, Dock } from './shared';
+import { Dock, PhaseHeader, PhaseLayout, Seat, StatusLine } from './shared';
 
 // Sảnh: ghế, cài đặt, nút Bắt đầu chỉ cho chủ phòng. Mời ra chỉ có ở sảnh
-// (giữa ván không xoá doc người chơi nào — plan §6 "Bổ sung cho GĐ1" mục 3).
+// (giữa ván không xoá doc người chơi nào — plan §6 "Bổ sung cho GĐ1" mục 3):
+// chủ phòng chạm vào một ghế thì ghế đó mới hiện nút mời ra (không rải ✕ lên
+// mọi ghế). Màn rộng: người trong phòng + mã mời bên trái, cài đặt + nút bên phải.
 export default function LobbyPanel({
   players,
   myId,
@@ -36,61 +41,79 @@ export default function LobbyPanel({
   const errors = validateSetup(n, lobbyCounts(config.roleCounts, n));
   const countOk = n >= MIN_PLAYERS && n <= MAX_PLAYERS;
   const blocking = errors.filter((e) => e.code !== 'player-count');
+  // Ghế chủ phòng vừa chạm (hiện nút mời ra); người đó rời phòng thì tự bỏ.
+  const [armed, setArmed] = useState<string | null>(null);
   return (
-    <section data-phase-section="lobby" className="space-y-6">
-      <header>
-        <h2 className="text-2xl font-bold text-slate-50">Phòng chờ</h2>
-        <p className="mt-1 text-sm text-slate-300">
+    <PhaseLayout
+      section="lobby"
+      header={
+        <PhaseHeader title="Phòng chờ">
           {n} người · cần {MIN_PLAYERS}–{MAX_PLAYERS} người
-        </p>
-      </header>
-
-      <ul className="grid grid-cols-1 gap-1.5 min-[360px]:grid-cols-2" aria-label="Người trong phòng">
-        {players.map((p) => (
-          <li key={p.id} data-player-id={p.id} className="flex min-h-11 items-center gap-2 rounded-xl bg-slate-800/80 px-2 py-1.5 text-sm">
-            <Avatar name={p.name} />
-            <span className="min-w-0 flex-1 truncate font-semibold text-slate-100">
-              {p.name}
-              {p.id === myId && <span className="ml-1 text-xs font-normal text-slate-400">(bạn)</span>}
-              {p.id === hostId && <span className="ml-1 text-xs font-normal text-indigo-300">chủ phòng</span>}
-            </span>
-            {isHost && p.id !== myId && (
-              <button
-                type="button"
-                aria-label={`Mời ${p.name} ra`}
-                className="flex size-11 items-center justify-center rounded-lg text-slate-400 hover:bg-slate-700 hover:text-rose-300"
-                onClick={() => onKick(p.id, p.name)}
-              >
-                ✕
-              </button>
-            )}
-          </li>
-        ))}
-      </ul>
-
-      <div className="rounded-2xl bg-slate-900/70 p-4 ring-1 ring-slate-800">{invite}</div>
-
-      <div className="rounded-2xl bg-slate-900/70 p-4 ring-1 ring-slate-800">
+        </PhaseHeader>
+      }
+      stage={
+        <div className="space-y-4">
+          <ul className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 lg:grid-cols-3 lg:gap-3" aria-label="Người trong phòng">
+            {players.map((p) => (
+              <li key={p.id} data-player-id={p.id} data-ww-self={p.id === myId ? '' : undefined}>
+                <Seat
+                  player={p}
+                  selected={armed === p.id}
+                  onSelect={isHost && p.id !== myId ? () => setArmed((a) => (a === p.id ? null : p.id)) : undefined}
+                  sub={
+                    p.id === hostId || p.id === myId ? (
+                      <span className="flex items-center gap-1 text-xs font-normal text-(--ww-text-3)">
+                        {p.id === hostId && <WwIcon name="host" size={12} />}
+                        {[p.id === myId ? 'bạn' : null, p.id === hostId ? 'chủ phòng' : null].filter(Boolean).join(' · ')}
+                      </span>
+                    ) : undefined
+                  }
+                  action={
+                    isHost && armed === p.id ? (
+                      <Button
+                        variant="ghost"
+                        danger
+                        icon="close"
+                        aria-label={`Mời ${p.name} ra`}
+                        onClick={() => {
+                          setArmed(null);
+                          onKick(p.id, p.name);
+                        }}
+                      />
+                    ) : undefined
+                  }
+                />
+              </li>
+            ))}
+          </ul>
+          <Panel className="p-4">{invite}</Panel>
+        </div>
+      }
+    >
+      <div className="mt-4 rounded-2xl border border-(--ww-line) bg-(color:--ww-glass-bg) p-4 shadow-lg shadow-black/30 lg:mt-0 lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
         <LobbySettings config={config} playerCount={n} editable={isHost} onUpdateConfig={onUpdateConfig} />
       </div>
 
       {countOk && blocking.length > 0 && (
-        <ul className="space-y-1 rounded-xl bg-rose-500/10 px-4 py-3 text-sm text-rose-200 ring-1 ring-rose-500/30" data-ww-setup-errors="">
+        <ul className="mt-4 space-y-1 text-sm text-(--ww-wolf-light)" data-ww-setup-errors="">
           {blocking.map((e) => (
-            <li key={e.code}>{e.message}</li>
+            <li key={e.code} className="flex items-start gap-2">
+              <WwIcon name="warning" size={16} className="mt-0.5" />
+              {e.message}
+            </li>
           ))}
         </ul>
       )}
 
       <Dock>
         {isHost ? (
-          <Button variant="primary" block disabled={errors.length > 0} onClick={onStart}>
+          <Button variant="primary" size="lg" block disabled={errors.length > 0} onClick={onStart}>
             {!countOk ? `Cần ${MIN_PLAYERS}–${MAX_PLAYERS} người (đang có ${n})` : errors.length > 0 ? 'Bộ vai chưa hợp lệ' : 'Bắt đầu ván Ma Sói'}
           </Button>
         ) : (
-          <p className="text-center text-sm text-slate-400">Chờ chủ phòng bắt đầu…</p>
+          <StatusLine icon="waiting">Chờ chủ phòng bắt đầu…</StatusLine>
         )}
       </Dock>
-    </section>
+    </PhaseLayout>
   );
 }

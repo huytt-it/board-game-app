@@ -1,4 +1,4 @@
-import { gameIcon } from './gameIcon';
+import { gameIcon } from '@/components/games/shared/icons/gameIcon';
 
 // "Up card" by Delapouite — https://game-icons.net/1x1/delapouite/up-card.html (CC BY 3.0)
 export default gameIcon(
