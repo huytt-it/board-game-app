@@ -658,7 +658,7 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 | GĐ2b | **Review đạt** (nhạc trưởng, 2026-10-16) | `c7eb0e2a` → `5a852dbe`; code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7, review ở §12.8. |
 | GĐ3a | **Người dùng đã duyệt hướng hình ảnh** (2026-10-17) | `336349ec` → (commit này); code `9867bcef`, `f35c2a70` | Token `--ww-*` (đêm xanh tím, chữ ánh trăng, một màu nhấn đèn lồng, font Grenze), bộ UI nhỏ, 29 icon qua registry (14 mới, người dùng duyệt tải), 2 cảnh cắt giấy (làng ban đêm, bình minh), 4 màn mẫu (Sảnh, Xem vai, Đêm ①, Bình minh) có bố cục hai cột ở 1440 px, bảng phong cách. Cặp ảnh riêng tư 114/114 = 0.000, tương phản 777/777 ≥ 4,5 : 1, không cuộn ngang ở 320 px. Gói Ma Sói +22,5 KB gzip. Chi tiết ở §12.10. |
 | GĐ3b | **Review đạt** (nhạc trưởng, 2026-10-17; GĐ3a cùng review) | `05feb3bd` → `7fece5ea`; code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11, review ở §12.12. |
-| GĐ4 | Chưa bắt đầu | | |
+| GĐ4 | **Xong, chờ review** (2026-10-17) | `e0ffa324` → (commit này); code `13d5e3fe` | Hoạt cảnh theo đồng hồ chung (`scenes/timelines.ts`): vào đêm, trăng / mặt trời lên, bình minh lần lượt theo ghế, kết quả phiếu dạng cột đếm, phát bắn của Thợ săn ở bước kế tiếp, kết thúc kể theo từng đêm / ngày; bù độ trễ dựng (`useCueSync`). Riêng tư 675/675 cặp = 0.000 ở 5 khung hình. Ván thật production 3 kịch bản 52/52, các cửa sổ lệch ≤ 5,3 ms ở 166 mốc, reload giữa hoạt cảnh lệch ≤ 1,1 ms. Gói Ma Sói 60,2 → 64,0 KB gzip. Chi tiết ở §12.13. |
 
 ### 12.1 GĐ0 — ghi chú của người thực thi (2026-10-11)
 
@@ -1097,3 +1097,68 @@ Người dùng duyệt hướng hình ảnh GĐ3a (màu nhấn đèn lồng, fon
 **Ghi nhận:** người dùng đã duyệt hướng hình ảnh GĐ3a (đèn lồng hổ phách, Grenze) trong session thực thi, trước GĐ3b.
 
 **Sửa nhỏ chuyển sang GĐ4:** hạt sao 4 cánh đè chữ ở màn vào phòng ("Bổ sung cho GĐ4" mục 10).
+
+### 12.13 GĐ4 — ghi chú của người thực thi (2026-10-17)
+
+**Commit** (trên `dev-werewolf`, chưa push; điểm bắt đầu `e0ffa324`):
+1. `13d5e3fe` `feat(werewolf): GĐ4` — hoạt cảnh theo đồng hồ chung.
+2. Commit docs này: §12.
+
+**Đã làm**
+- **Đồng hồ chung.** Mọi mốc ở `scenes/timelines.ts` (`NIGHTFALL`, `DAWN`, `VOTE_RESULT`, `HUNTER_SHOT`, `END`, các mảng stage, `hunterShotOf`, `endTimeline`). Thời điểm của từng phần tử = `useCue` (animation-delay theo `phaseStartedAt`), DOM đổi theo stage = `usePhaseTimeline` (cả hai trong `games/shared/hooks`, không sửa). Quy ước như Avalon: style tĩnh = khung cuối, keyframes chỉ tả đoạn trước, nên giảm chuyển động (khối có sẵn trong `werewolf.css`) chỉ thấy khung cuối. Lớp `ww-a-*` mới trong `werewolf.css`, chỉ `transform` / `opacity`.
+- **Hook mới (werewolf):**
+  - `hooks/useCueSync.ts`: **bù độ trễ dựng**. `useCue` lấy mốc lúc render, còn CSS animation bắt đầu ở khung vẽ đầu tiên sau đó: đo được ~0,2–0,3 s khi reload giữa hoạt cảnh, và ≤ 42 ms lệch giữa các cửa sổ khi đổi bước. Ngay sau khung đầu (2 khung + 0,3 s), hook kéo mọi animation cued vừa tạo (có delay inline, không lặp vô hạn, không đang tạm dừng) về đúng mốc render, tính theo giờ của dòng thời gian tài liệu. Gọi một lần trong `PhaseView`.
+  - `hooks/usePhaseMoment.ts`: "đã qua mốc T chưa" theo đồng hồ chung, **không** nhảy tới cuối khi giảm chuyển động. Dùng để gỡ lớp "trời tối" (1,2 s) và thẻ phát bắn (4,2 s).
+- **Vào đêm** (`panel/Nightfall.tsx`, trong `PhaseView` ở `night`): 0–1,2 s màn sẫm lại, giữa màn "Đêm N / Cả làng đi ngủ…" rồi tan. Lớp `fixed`, `pointer-events: none`, `z-30`: lưới và nút bấm xuyên qua được từ T = 0 (kiểm bằng `elementFromPoint` trong ván thật). Như nhau với người sống, người chết, mọi vai. Từ đêm 2, **trăng lên** sau đồi 0–2,4 s (lớp cảnh `NightMoon` tách khỏi `NightSky`, `motion: 'rise'`). Đêm 1 nối tiếp màn xem vai cùng cảnh nên trăng đứng yên. Giảm chuyển động: không có lớp này.
+- **Cảnh nền chuyển động** (`SceneBackdrop`, `getSceneMotion`): lớp có `motion: 'rise'` mount lại theo mốc của bước và nhô lên 2,4 s; `intro: 'brighten'` (bình minh) là lớp tối mờ dần 2,4 s. Chỉ cảnh đang lên trên cùng nhận mốc. Registry: `SceneLayerDef = AssetSource & { motion? }`, ảnh thay lớp vẫn giữ được `motion` (ghi trong `assets/README.md`). `DawnSky` tách thành `DawnSky` / `DawnSun` / `DawnClouds` (khung tĩnh giống hệt cũ).
+- **Bình minh** (`DawnPanel`): mặt trời lên + trời sáng 0–2,4 s; khung công bố 0,8 s; người chết thứ i **theo thứ tự ghế** hiện ở ô cố định 1,6 s / 2,8 s; vai lật cùng một mốc 3,8 s (+150 ms mỗi lá); khung cuối 4,6 s. Màn rộng: ghế của người chết thành bia mộ đúng lúc tên họ hiện (`Seat` prop `fall`: lớp "còn sống" tan đi). "Đêm qua bình yên": icon nhô lên ở ô 0, câu ở ô 1, quầng nắng ở mốc lật vai — cùng các ô, cùng mốc xong.
+- **Kết quả phiếu** (`VoteResultPanel`, **gom thành cột đếm**, chọn vì đọc được ở 375 px): mỗi người được bầu (theo ghế) và "Bỏ qua" là một hàng; tên người bầu rơi vào hàng theo thứ tự ghế của người bầu (0,7 s + 0,18 s × k, ≤ 9 phiếu xong 2,5 s); số phiếu của hàng hiện khi lá cuối của hàng chạm; "Đang kiểm phiếu…" trong khung kết quả tới 3 s; 3 s phán quyết: hàng của người bị treo có vòng đèn lồng, giàn treo dập xuống, tên; 3,8 s lật vai (theo luật). Không ai bị treo: câu lý do cũ. Khung cuối 4,6 s. Bỏ danh sách "→ người bầu" và dòng đếm cũ (hàng đã nói đủ ai bầu ai).
+- **Thợ săn** (`panel/HunterShot.tsx`): lượt bắn vẫn chỉ là một CAS; **bước kế tiếp** (Thảo luận, Đêm hoặc Kết thúc) đọc mục `hunter` của nhật ký (`hunterShotOf`: mỗi ván ≤ 1 Thợ săn; Thảo luận vòng r ← bắn sau bình minh r; Đêm r ← mục nằm sau phiếu của vòng r − 1; Kết thúc ← mục cuối của nhật ký) và diễn: thẻ nhỏ "Thợ săn X / bắn Y" 0–4,2 s, hồng tâm khép lại trên avatar Y (0,3–1,4 s), chớp 1,25 s, bia mộ 1,4 s, lật vai 1,9 s (theo luật). "Không bắn ai" cùng thẻ, không hồng tâm. Điện thoại: thẻ trên tiêu đề (`top-16`), không che lưới; màn rộng: trên khung bên phải. Ghế người bị bắn ở Thảo luận / Kết thúc thành bia mộ cùng lúc. Giảm chuyển động: thẻ đứng yên đủ chữ tới 4,2 s rồi gỡ.
+- **Kết thúc** (`EndPanel`, `panel/EndStory.tsx`): mốc R = 0, hoặc R = 4,2 s nếu chính phát bắn kết thúc ván (phát bắn diễn trước). R: phe thắng hiện ra; R + 0,5 s lật vai từng ghế theo thứ tự ghế, cách 150 ms; R + 0,6 s "Phe bạn thắng / thua"; R + 2 s "Diễn biến ván" **kể theo từng đêm / ngày** (mỗi trang một "Đêm N" / "Ngày N", icon theo loại mục, nút Trước / Tiếp, "k/n"); khung cuối R + 2,6 s. **Chạm bất cứ đâu** (hoặc nút "Bỏ qua") thì máy đó nhảy tới khung cuối, máy khác không đổi. Nút ở thanh đáy bấm được suốt hoạt cảnh.
+- **Sửa từ review GĐ3** (mục 10): sao 4 cánh (640, 313) → (470, 230), ngoài cột chữ ở mọi cỡ; sao nhấp nháy của cảnh đêm và cảnh Sói thắng chỉ ở hai bên trời (không ở cột giữa), cùng số hạt (11, 9); bụi nắng của cảnh ban ngày / Dân thắng thấp xuống (y ≥ 330). Hạt không thêm, không bớt.
+- **WerewolfPreview:** `night-2`, `night-after-hunter`, `dawn-two`, `talk-after-hunter`, `talk-hunter-skip`, `end-hunter`. Thuộc tính cho kiểm thử: `data-ww-anim-stage` (Bình minh, Kết quả, Kết thúc), `data-ww-nightfall`, `data-ww-hunter-shot`, `data-ww-fall`, `data-ww-tally`, `data-ww-ballot`, `data-ww-tally-count`, `data-ww-story`, `data-ww-end-skipped`, `data-ww-skip`.
+
+**Lệch kế hoạch / cần nhạc trưởng biết**
+1. **Thêm `useCueSync`** (ngoài brief, làm vì nghiệm thu "reload tiếp tục đúng khung"): không có nó, cửa sổ reload giữa Bình minh / Kết quả trễ đều ~291 ms; có nó ≤ 1,1 ms, và các cửa sổ khớp nhau từ ≤ 42 ms xuống ≤ 5,3 ms. Hook chỉ chạm animation có animation-delay inline (cued), không chạm hạt trang trí hay chuyển động cục bộ.
+2. **"Ngắm" của Thợ săn chỉ diễn ở bước kế tiếp** (hồng tâm khép lại trên người bị bắn). Trong chính bước Thợ săn không có hoạt cảnh mới: lựa chọn ngắm của Thợ săn không được ghi (đúng brief: không làm chậm lần ghi).
+3. **"Cùng tổng thời lượng" ở Bình minh** hiểu là: mọi biến thể dùng chung các mốc stage (`lead` 0 / `reveal` 1,6 / `flip` 3,8 / `done` 4,6 s) và chuyển động cuối kết thúc trong 4,3–4,45 s (bình yên, 1 hay 2 người chết, lộ vai bật). Khi "Lộ vai khi chết" tắt, chuyển động cuối là lá cuối (2,05 / 3,25 s) — số người chết và luật là công khai.
+4. **"Diễn biến ván"** đổi từ `<details>` (cả danh sách) sang trang theo từng đêm / ngày: mỗi lúc chỉ một trang. Bot đọc nhật ký phải bấm "Tiếp ›" qua các trang (`game4.mjs` làm vậy).
+5. **Thẻ phát bắn che tiêu đề + đồng hồ** của bước kế tiếp trong ≤ 4,2 s (điện thoại); không che lưới, không nhận chạm.
+6. **Lớp "trời tối" ở mọi đêm** (cả đêm 1); trăng lên chỉ từ đêm 2.
+7. **Điện thoại dọc không còn sao nhấp nháy** ở cảnh đêm (cột giữa là chỗ của chữ); còn sao tĩnh, đom đóm, quầng đèn.
+8. `ww-toast-in` dùng fill `both` (thay `backwards`): nhìn y hệt, nhưng animation còn trong `getAnimations()` sau khi xong nên harness tua lại được khung T < 0,3 s.
+9. Không đổi luật, engine (138 test không đổi), `useWerewolf`, `rules.md`, file dùng chung hay Avalon. Không thêm dependency, không âm thanh.
+
+**Kiểm thử (§11 + nghiệm thu GĐ4)**
+- `npm run test:werewolf` 138/138. `npx tsc --noEmit` sạch. `npx eslint src/components/games/werewolf` sạch; `npx eslint src/components/games` 29 lỗi / 29 cảnh báo = mốc. `npm run build` qua (đã xoá trang harness `src/app/wwtest`, `rm -rf .next` trước khi build). Engine không import react / firebase / `@/`.
+- **Cách chụp đúng khung T** (mới, dùng lại được): harness với `frozen=1` + script chèn đầu trang đặt `Date.now()` = `start` và trả `/api/time` = `start` (nên `serverNow()` đứng yên, mọi `cue(at)` = `at` đúng y ở mọi cửa sổ), rồi `currentTime = T` cho mọi animation. Không có nó, cặp ảnh lệch 0,3–0,7 vì độ trễ dựng mỗi cửa sổ một khác (hồng tâm đang xoay).
+- **Cặp ảnh riêng tư ở 5 khung hình** (T = 0 / 0,5 / 1,5 / 4 s / cuối; bản production; không giữ; thu 10 %, trung bình |Δ|): Xem vai, Đêm ① chưa chọn / đã chọn / đã xác nhận, Đêm 2 (trời tối + trăng lên), Đêm 2 sau phát bắn, Đêm ② chưa chọn / đã chọn / đã xác nhận, Bình minh 1 người / 2 người / bình yên, Kết quả có người bị treo / hoà, Thảo luận sau phát bắn, người chết (Đêm ①, Bình minh, Kết quả) × hồn ma bật / tắt, ở 375 px; 7 màn ở 1440 px: **675/675 = 0.000**. Đối chứng (cùng vai, khác khung): 0.069 (trăng còn nhích sau thẻ giữ) – 17.3 (đang trời tối); Bình minh 2 người | bình yên 3.655. Ngoài lề: ở `vote-result-hanged`, người xem là Sói trùng người bị treo trong dữ liệu giả (đổi vai = đổi chỗ) nên màn khác (4.2) — loại khỏi cặp như GĐ2b.
+- **Ván thật** (bản production, CDP, mỗi cửa sổ một origin; cửa sổ cuối là điện thoại 320×568; bộ ghi chèn vào mỗi cửa sổ: thời điểm local time = 0 của từng animation cued theo đồng hồ máy, đổi stage, khung > 50 ms, `scrollWidth`):
+
+  | Kịch bản | Cửa sổ | Kết quả | Phủ |
+  |---|---|---|---|
+  | anim1 | 9 | **19/19** | Thợ săn bị cắn → bắn Sói (Thảo luận diễn phát bắn ở cả 9 cửa sổ, ghế thành bia mộ); phiếu hoà; Đêm 2 trăng lên; Sói cắn + Phù thủy độc → bình minh hai người theo ghế; treo Sói cuối. **Reload** cửa sổ w3 ở 2,0 s của Bình minh 2 và w4 ở 1,5 s của Kết quả 2: lệch so với trung vị ≤ 1,1 ms |
+  | anim2 (CPU4 chủ phòng) | 8 | **17/17** | Bình minh bình yên ở mọi cửa sổ; treo Thợ săn → bắn Sói → Đêm 2 có phát bắn + trời tối + trăng lên; lưới nhận chạm ngay dưới lớp trời tối; Phù thủy độc Sói cuối. Chủ phòng CPU chậm 4×: Bình minh / Kết quả vẫn chuyển đúng 8 250–8 256 ms |
+  | anim3 | 8 | **16/16** | Kết thúc bằng phát bắn: mọi cửa sổ ở stage `shot` trước, rồi `done` sau R + 2,6 s; một cửa sổ chạm để bỏ qua → chỉ cửa sổ đó `done`, các cửa sổ khác vẫn `shot` |
+
+  - **Lệch giữa các cửa sổ ở mốc hoạt cảnh: ≤ 5,3 ms** (166 mốc: Đêm, Bình minh, Thảo luận, Kết quả, Kết thúc). Mỗi cửa sổ lệch một hằng số = sai số `serverNow` của nó (vd. −10 ms). Stage DOM đổi đúng mốc ±4 ms, lệch giữa cửa sổ ≤ 9 ms.
+  - Thời lượng Bình minh / Kết quả phiếu (giữa hai `phaseStartedAt`): 8 250–8 256 ms ở cả 10 lần (8 s + 250 ms của timer).
+  - 0 lần trang rộng ra (cả cửa sổ 320 px), 0 banner lỗi, 0 lỗi JS, riêng tư liên tục 0 vi phạm, mọi bước được mọi cửa sổ thấy. Phòng thử đã xoá bằng nút của chủ phòng.
+  - Khung > 50 ms trong ván thật: chỉ ở lúc màn bước mới được dựng (250–400 ms sau khi đổi bước, khi snapshot về), ở mọi cửa sổ kể cả cửa sổ không giảm tốc, 1–3 khung liền, dài nhất 104 ms (8–9 cửa sổ trên một máy). Không có khung dài nào trong lúc hoạt cảnh chạy.
+- **CPU 4×, harness** (bản production, hoạt cảnh bắt đầu khi màn đã dựng xong, rAF đo từng khung −0,5 → 6,5 s): 9 chuỗi (Đêm 2, Đêm sau phát bắn, Bình minh 2 người / bình yên, Kết quả treo / hoà, Thảo luận sau phát bắn, Kết thúc phát bắn / Dân thắng): **0 khung > 50 ms**, dài nhất 7,7 ms. Giảm tốc có tác dụng (vòng lặp JS 19 → 111 ms).
+- **Không cuộn ngang suốt chuỗi**: 9 chuỗi ở 320 px và 375 px, lấy mẫu `scrollWidth` mỗi khung: 0 lần rộng ra. Ván thật: 0.
+- **Giảm chuyển động** (9 màn mở ở T ≈ 0): 0 animation, stage = `done`, không lớp trời tối, 0 hạt, 0 chữ trong suốt; chữ trong màn **giống hệt** khung cuối khi có chuyển động; thẻ phát bắn đứng yên đủ chữ: **9/9**.
+- **Tương phản trên điểm ảnh thật** (khung cuối và khung thẻ phát bắn T = 2,5 s, 375 / 1440): **332/332 ≥ 4,5 : 1**, thấp nhất 5,67 ("Phe bạn thắng!"). Chữ trên lớp trời tối (aria-hidden, tính tay): "Đêm N" ≈ 16 : 1, "Cả làng đi ngủ…" ≈ 9,7 : 1.
+- **Hạt không nằm trên vùng chữ** (sao 4 cánh + mọi hạt vs. hộp từng dòng chữ không có nền đục phía sau): 16 màn (vào phòng, sảnh, xem vai, đêm, Đêm ②, bình minh, thảo luận, bỏ phiếu, kết quả, Thợ săn, kết thúc ×2) × 7 cỡ (320×568 … 1920×1080): **112/112 không đè**. Trước khi sửa: màn vào phòng đè ở 320, 375, 390, 1024, 1440 (sao 4 cánh trên "… mời bạn vào làng", sao nhấp nháy trên "Ma Sói").
+- **Kích thước gói** (build sạch không harness; một lần import theo `react-loadable-manifest` của trang phòng; gzip mức 6):
+
+  | | Trước (`e0ffa324`) | Sau |
+  |---|---|---|
+  | Ma Sói | 174 539 / 60 172 B | 188 641 / 63 981 B (+3,8 KB gzip) |
+  | Avalon (để so) | 317 698 / 104 449 B | 317 626 / 104 483 B (chia lại chunk, code không đổi) |
+- Ảnh: `.claude/ww-gd4-shots/` (bị git bỏ qua): `seq/` (chuỗi khung hình 375 px của 9 hoạt cảnh, 1440 px của 4), `join/` (màn vào phòng trước / sau ở 1440 px).
+- Script: scratchpad `0d3ebcf8-1ff3-452e-a9e4-e54a18651df0/scratchpad` (`frames.mjs` đồng hồ đứng yên, `seq.mjs`, `pairs4.mjs`, `ctrl4.mjs`, `game4.mjs` + `anim4.js` + `bot2.js`, `perf4.mjs`, `reduced4.mjs`, `contrast4.mjs`, `stars.mjs`, `latemount.mjs`, `bundle.mjs`, harness `harness/wwtest-final.tsx`).
+
+**Việc chuyển tiếp**
+- Nhạc trưởng review `git diff e0ffa324..HEAD`, rồi hỏi người dùng về mốc PR #2.
+- GĐ5 (chơi thật): xem nhịp 8 giây của Bình minh / Kết quả có vừa không; thẻ phát bắn che tiêu đề 4 s có phiền không; kéo bằng ngón để cuộn tờ hồn ma (còn mở từ GĐ2b).
