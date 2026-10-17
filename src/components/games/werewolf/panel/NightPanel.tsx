@@ -7,8 +7,9 @@ import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import type { PickResult } from '../useWerewolf';
 import { dataOf } from '../state';
 import type { WwRole } from '../types';
+import WwIcon from '../assets/WwIcon';
 import Button from '../ui/Button';
-import { DeadNote, Dock, HoldCard, PhaseHeader, PlayerTile, nameOf, revealedRole, type PanelCtx } from './shared';
+import { DeadNote, Dock, HoldCard, MeMark, PhaseHeader, PhaseLayout, PlayerTile, nameOf, revealedRole, type PanelCtx } from './shared';
 
 // Đêm ① (rules §5.2, plan §2.3 + "Bổ sung cho GĐ1" mục 7). Khi không giữ thẻ,
 // màn này GIỐNG HỆT NHAU với mọi vai: cùng câu, cùng lưới (mọi người còn
@@ -37,7 +38,7 @@ function WolfPack({ ctx }: { ctx: PanelCtx }) {
   const nightPicks = Object.fromEntries(ctx.players.map((p) => [p.id, dataOf(p).nightPick ?? null]));
   const status = wolfStatus(ctx.table, nightPicks, ctx.state.round);
   return (
-    <div className="mt-1.5 space-y-1 text-xs" data-ww-pack={status.agreed ? 'agreed' : 'split'}>
+    <div className="mt-1.5 space-y-1 text-xs text-(--ww-text-2)" data-ww-pack={status.agreed ? 'agreed' : 'split'}>
       <ul className="space-y-0.5">
         {status.wolves.map((id) => (
           <li key={id}>
@@ -45,7 +46,7 @@ function WolfPack({ ctx }: { ctx: PanelCtx }) {
           </li>
         ))}
       </ul>
-      <p className={`font-semibold ${status.agreed ? 'text-emerald-300' : 'text-amber-300'}`}>
+      <p className={`font-semibold ${status.agreed ? 'text-(--ww-text)' : 'text-(--ww-accent)'}`}>
         {status.agreedId
           ? `Bầy đã thống nhất: ${nameOf(ctx.players, status.agreedId)}.`
           : status.counts.length === 0
@@ -66,22 +67,23 @@ function PrivateBody({ ctx, note }: { ctx: PanelCtx; note: string | null }) {
       {role === 'werewolf' && (
         <>
           <WolfPack ctx={ctx} />
-          {pick?.confirmed && <p className="mt-1 text-xs text-slate-400">Muốn đổi: vẫn giữ thẻ này, chạm người khác ở lưới.</p>}
+          {pick?.confirmed && <p className="mt-1 text-xs text-(--ww-text-3)">Muốn đổi: vẫn giữ thẻ này, chạm người khác ở lưới.</p>}
         </>
       )}
       {role === 'seer' &&
         (look ? (
           <p className="mt-1.5 text-base font-bold" data-ww-seer-result={look.isWolf ? 'wolf' : 'not-wolf'}>
-            {nameOf(ctx.players, look.targetId)}: {look.isWolf ? 'LÀ SÓI' : 'không phải Sói'}
+            {nameOf(ctx.players, look.targetId)}:{' '}
+            <span className={look.isWolf ? 'text-(--ww-wolf-light)' : 'text-(--ww-village-light)'}>{look.isWolf ? 'LÀ SÓI' : 'không phải Sói'}</span>
           </p>
         ) : (
-          <p className="mt-1 text-xs text-slate-400">Xác nhận xong, kết quả soi hiện ở đây.</p>
+          <p className="mt-1 text-xs text-(--ww-text-3)">Xác nhận xong, kết quả soi hiện ở đây.</p>
         ))}
       {role === 'guard' && ctx.myData.guardLast && (
-        <p className="mt-1 text-xs text-slate-300">Đêm trước bạn che {nameOf(ctx.players, ctx.myData.guardLast)}: đêm nay không che lại được.</p>
+        <p className="mt-1 text-xs text-(--ww-text-2)">Đêm trước bạn che {nameOf(ctx.players, ctx.myData.guardLast)}: đêm nay không che lại được.</p>
       )}
       {note && (
-        <p className="mt-1.5 text-xs font-semibold text-amber-300" data-ww-note="">
+        <p className="mt-1.5 text-xs font-semibold text-(--ww-accent)" data-ww-note="">
           {note}
         </p>
       )}
@@ -146,39 +148,44 @@ export default function NightPanel({
 
   const byId = new Map(players.map((p) => [p.id, p]));
   return (
-    <section data-phase-section="night">
-      <PhaseHeader title={`Đêm ${state.round}`} remaining={ctx.remaining}>
-        Ai cũng chọn một người rồi bấm Xác nhận.
-      </PhaseHeader>
-
-      <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3" role="group" aria-label="Người còn sống">
-        {alive.map((id) => {
-          const p = byId.get(id);
-          if (!p) return null;
-          return (
-            <PlayerTile
-              key={id}
-              player={p}
-              label={`Chọn ${p.name}`}
-              selected={iAmAlive && shownPick === id}
-              role={revealedRole(ctx, id)}
-              disabled={!iAmAlive}
-              onPointerDown={() => {
-                heldAtDown.current = held;
-              }}
-              onClick={() => tap(id)}
-              mark={id === me.id ? <span className="rounded-full bg-slate-600 px-1.5 text-[10px] font-bold text-slate-100">bạn</span> : undefined}
-            />
-          );
-        })}
-      </div>
-
+    <PhaseLayout
+      section="night"
+      header={
+        <PhaseHeader title={`Đêm ${state.round}`} remaining={ctx.remaining}>
+          Ai cũng chọn một người rồi bấm Xác nhận.
+        </PhaseHeader>
+      }
+      stage={
+        <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3 lg:gap-3" role="group" aria-label="Người còn sống">
+          {alive.map((id) => {
+            const p = byId.get(id);
+            if (!p) return null;
+            return (
+              <PlayerTile
+                key={id}
+                player={p}
+                label={`Chọn ${p.name}`}
+                selected={iAmAlive && shownPick === id}
+                role={revealedRole(ctx, id)}
+                disabled={!iAmAlive}
+                onPointerDown={() => {
+                  heldAtDown.current = held;
+                }}
+                onClick={() => tap(id)}
+                mark={id === me.id ? <MeMark /> : undefined}
+              />
+            );
+          })}
+        </div>
+      }
+    >
       {iAmAlive ? (
         <>
           <p
-            className={`mt-3 text-center text-sm font-semibold ${confirmed ? 'text-emerald-300' : 'text-amber-300'}`}
+            className={`mt-3 flex items-center justify-center gap-1.5 text-sm font-semibold lg:mt-0 ${confirmed ? 'text-(--ww-text-2)' : 'text-(--ww-accent)'}`}
             data-ww-confirmed={confirmed ? 'yes' : 'no'}
           >
+            <WwIcon name={confirmed ? 'check' : 'waiting'} size={16} />
             {confirmed ? 'Đã xác nhận' : 'Chưa xác nhận'}
           </p>
           <div className="mt-3">
@@ -187,16 +194,16 @@ export default function NightPanel({
             </HoldCard>
           </div>
           <Dock>
-            <Button variant="primary" block disabled={!open || !shownPick || confirmed || confirming} onClick={confirm}>
+            <Button variant="primary" size="lg" block disabled={!open || !shownPick || confirmed || confirming} onClick={confirm}>
               {confirmed ? 'Đã xác nhận' : confirming ? 'Đang gửi…' : 'Xác nhận'}
             </Button>
           </Dock>
         </>
       ) : (
-        <div className="mt-4">
+        <div className="mt-4 lg:mt-0">
           <DeadNote />
         </div>
       )}
-    </section>
+    </PhaseLayout>
   );
 }

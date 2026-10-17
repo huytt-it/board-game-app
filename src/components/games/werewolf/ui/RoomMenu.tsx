@@ -106,15 +106,7 @@ export default function RoomMenu({
   const item = 'flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-slate-800';
   return (
     <>
-      <button
-        type="button"
-        aria-label="Menu"
-        aria-haspopup="dialog"
-        className="flex size-11 items-center justify-center rounded-xl text-xl text-slate-200 hover:bg-slate-800"
-        onClick={() => setOpen(true)}
-      >
-        ⋯
-      </button>
+      <Button variant="ghost" icon="more" aria-label="Menu" aria-haspopup="dialog" onClick={() => setOpen(true)} />
       {open && (
         <Modal title="Menu" onClose={() => setOpen(false)} initialFocus="panel">
           <div className="space-y-1">

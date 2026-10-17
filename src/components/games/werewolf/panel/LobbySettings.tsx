@@ -10,6 +10,7 @@ import {
 } from '@/components/games/werewolf/engine/roles.ts';
 import { lobbyCounts, type WwConfig } from '../state';
 import { PHASE_SECONDS_LIMITS, TIMED_PHASES, type RoleCounts, type TimedPhase, type WerewolfRoomConfig, type WwRole, type WwRules } from '../types';
+import WwIcon, { type IconName } from '../assets/WwIcon';
 
 // Cài đặt phòng (plan §4.4, rules §8): bộ vai, luật tuỳ chọn, thời gian các
 // bước. Chủ phòng chỉnh bằng −/+; người khác xem ở dạng chỉ đọc. Mọi thứ cố
@@ -34,6 +35,7 @@ function formatDuration(s: number): string {
 
 function Stepper({
   label,
+  icon,
   name = label,
   value,
   onStep,
@@ -42,6 +44,7 @@ function Stepper({
   canUp = true,
 }: {
   label: string;
+  icon?: IconName;
   /** Tên của nút cho trình đọc màn hình: "Bớt / Thêm {name}" (mặc định = label). */
   name?: string;
   value: ReactNode;
@@ -50,10 +53,12 @@ function Stepper({
   canDown?: boolean;
   canUp?: boolean;
 }) {
-  const btn = 'flex size-11 shrink-0 items-center justify-center rounded-xl bg-slate-800 text-xl font-bold text-slate-100 ring-1 ring-slate-600 disabled:opacity-30';
+  const btn =
+    'flex size-11 shrink-0 items-center justify-center rounded-xl border border-(--ww-line) bg-(--ww-raised) text-xl font-bold text-(--ww-text) enabled:hover:bg-(--ww-raised-hi) disabled:opacity-30';
   return (
-    <div className={`flex items-center gap-2 py-1 ${disabled ? 'opacity-45' : ''}`}>
-      <span className="min-w-0 flex-1 text-sm text-slate-100">
+    <div className="flex items-center gap-2 py-1">
+      <span className="flex min-w-0 flex-1 items-center gap-2 text-sm text-(--ww-text)">
+        {icon && <WwIcon name={icon} size={18} className="text-(--ww-text-3)" />}
         {label}
       </span>
       {onStep && (
@@ -61,7 +66,7 @@ function Stepper({
           −
         </button>
       )}
-      <span className="w-20 text-center text-sm font-semibold tabular-nums text-slate-50">{value}</span>
+      <span className="w-20 text-center text-sm font-semibold text-(--ww-text) tabular-nums">{value}</span>
       {onStep && (
         <button type="button" className={btn} aria-label={`Thêm ${name}`} disabled={disabled || !canUp} onClick={() => onStep(1)}>
           +
@@ -85,11 +90,10 @@ function Choice({
   disabled?: boolean;
 }) {
   return (
-    <div className={`py-1.5 ${disabled ? 'opacity-45' : ''}`}>
-      <p className="mb-1 text-sm text-slate-100">
-        {label}
-      </p>
-      <div className="flex gap-1.5" role="radiogroup" aria-label={label}>
+    <div className="py-1.5">
+      <p className="mb-1.5 text-sm text-(--ww-text)">{label}</p>
+      {/* Một khối chọn, không viền từng ô: ô đang chọn là mặt nổi sáng hơn (không dùng màu nhấn). */}
+      <div className="flex gap-1 rounded-xl bg-(--ww-ink) p-1" role="radiogroup" aria-label={label}>
         {options.map((o) => (
           <button
             key={o.value}
@@ -98,10 +102,11 @@ function Choice({
             aria-checked={value === o.value}
             disabled={disabled || !onChange}
             onClick={() => onChange?.(o.value)}
-            className={`min-h-11 flex-1 rounded-xl px-2 text-sm font-semibold ${
-              value === o.value ? 'bg-indigo-500/25 text-white ring-2 ring-indigo-400' : 'bg-slate-800 text-slate-300 ring-1 ring-slate-700'
-            } disabled:cursor-default`}
+            className={`flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-xl px-2 text-sm font-semibold disabled:cursor-default ${
+              value === o.value ? 'bg-(--ww-raised-hi) text-(--ww-text) shadow-md shadow-black/30' : 'text-(--ww-text-3)'
+            }`}
           >
+            {value === o.value && <WwIcon name="check" size={14} />}
             {o.text}
           </button>
         ))}
@@ -142,10 +147,14 @@ export default function LobbySettings({
   return (
     <div className="space-y-5" data-ww-settings={editable ? 'host' : 'read-only'}>
       <section>
-        <div className="mb-1 flex items-baseline justify-between">
-          <h3 className="text-base font-semibold text-slate-50">Bộ vai</h3>
+        <div className="mb-1 flex min-h-11 items-center justify-between">
+          <h3 className="text-base font-semibold text-(--ww-text)">Bộ vai</h3>
           {editable && config.roleCounts && (
-            <button type="button" className="min-h-11 px-2 text-xs font-semibold text-indigo-300" onClick={() => onUpdateConfig({ roleCounts: null })}>
+            <button
+              type="button"
+              className="min-h-11 rounded-xl px-2 text-xs font-semibold text-(--ww-text-2) underline underline-offset-4 hover:text-(--ww-text)"
+              onClick={() => onUpdateConfig({ roleCounts: null })}
+            >
               Về mặc định
             </button>
           )}
@@ -154,6 +163,7 @@ export default function LobbySettings({
           <Stepper
             key={role}
             label={ROLE_NAME[role]}
+            icon={role}
             value={counts[role]}
             disabled={!editable}
             onStep={editable ? (dir) => stepRole(role, dir) : undefined}
@@ -161,16 +171,21 @@ export default function LobbySettings({
             canUp={counts[role] < ROLE_MAX[role]}
           />
         ))}
-        <Stepper label={`${ROLE_NAME.villager} (phần còn lại)`} value={counts.villager} />
-        <p className="mt-2 text-sm text-slate-300" data-ww-balance={score}>
-          Điểm cân bằng: <span className="font-semibold tabular-nums text-slate-50">{score > 0 ? `+${score}` : score}</span> ·{' '}
+        <Stepper label={`${ROLE_NAME.villager} (phần còn lại)`} icon="villager" value={counts.villager} />
+        <p className="mt-2 text-sm text-(--ww-text-2)" data-ww-balance={score}>
+          Điểm cân bằng: <span className="font-semibold text-(--ww-text) tabular-nums">{score > 0 ? `+${score}` : score}</span> ·{' '}
           {BALANCE_LEAN_TEXT[balanceLean(score)]}
         </p>
-        {warning && <p className="mt-1 text-sm font-semibold text-amber-300">{warning}</p>}
+        {warning && (
+          <p className="mt-1 flex items-start gap-1.5 text-sm font-semibold text-(--ww-wolf-light)">
+            <WwIcon name="warning" size={16} className="mt-0.5" />
+            {warning}
+          </p>
+        )}
       </section>
 
       <section>
-        <h3 className="mb-1 text-base font-semibold text-slate-50">Luật</h3>
+        <h3 className="mb-1 text-base font-semibold text-(--ww-text)">Luật</h3>
         <Choice
           label="Lộ vai khi chết"
           value={config.rules.revealOnDeath ? 'on' : 'off'}
@@ -210,7 +225,7 @@ export default function LobbySettings({
       </section>
 
       <section>
-        <h3 className="mb-1 text-base font-semibold text-slate-50">Thời gian</h3>
+        <h3 className="mb-1 text-base font-semibold text-(--ww-text)">Thời gian</h3>
         {TIMED_PHASES.map((phase) => {
           const { min, max } = PHASE_SECONDS_LIMITS[phase];
           const v = config.phaseSeconds[phase];
@@ -228,7 +243,7 @@ export default function LobbySettings({
             />
           );
         })}
-        <p className="mt-1 text-xs text-slate-400">Bình minh và Kết quả phiếu: 8 giây (cố định).</p>
+        <p className="mt-1 text-xs text-(--ww-text-3)">Bình minh và Kết quả phiếu: 8 giây (cố định).</p>
       </section>
     </div>
   );

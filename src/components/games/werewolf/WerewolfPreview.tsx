@@ -7,7 +7,8 @@ import { afterVote } from '@/components/games/werewolf/engine/flow.ts';
 import { isValidTarget, pickFor, seerLook, validateWitchPick } from '@/components/games/werewolf/engine/night.ts';
 import { nightActionOf, ROLE_NAME, ROLE_ORDER, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
 import { DEFAULT_RULES, FULL_POTIONS } from '@/components/games/werewolf/engine/types.ts';
-import { PhaseView, TopBar } from './WerewolfBoard';
+import { PhaseView, TopBar, WwShell } from './WerewolfBoard';
+import StyleBoard from './StyleBoard';
 import { dataOf, potionsOf, readConfig, tableOf } from './state';
 import type { PickResult, WitchDraft, WitchResult } from './useWerewolf';
 import type { DayBallot, WerewolfGameData, WerewolfGameState, WwLogEntry, WwPhase, WwRole, WwRules } from './types';
@@ -20,6 +21,7 @@ import type { Room } from '@/types/room';
 // vai đó, nên bộ vai trên bàn không đổi (cặp ảnh riêng tư).
 
 export const PREVIEW_SCENES = {
+  style: 'Bảng phong cách (GĐ3a)',
   'lobby-host': 'Sảnh — chủ phòng',
   'lobby-guest': 'Sảnh — người chơi (chỉ đọc)',
   'lobby-warn': 'Sảnh — bộ vai lệch (cảnh báo)',
@@ -144,6 +146,7 @@ interface Mock {
   state: WerewolfGameState | null;
   players: Player[];
   lobby?: { isHost: boolean; roleCounts: Record<string, number> | null };
+  style?: boolean;
 }
 
 function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
@@ -155,6 +158,8 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
   const common = ID(4);
   const otherVillager = ID(6);
   switch (scene) {
+    case 'style':
+      return { state: null, players: [], style: true };
     case 'lobby-host':
     case 'lobby-guest':
     case 'lobby-warn':
@@ -387,17 +392,41 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
   }
 }
 
-function Screen({ scene, role, start, rules }: { scene: PreviewScene; role: WwRole; start: number; rules?: Partial<WwRules> }) {
+function Screen({
+  scene,
+  role,
+  start,
+  rules,
+  chrome,
+}: {
+  scene: PreviewScene;
+  role: WwRole;
+  start: number;
+  rules?: Partial<WwRules>;
+  /** Thanh chọn màn / vai của Preview (nằm trong khung để cảnh nền phủ cả nó). */
+  chrome: React.ReactNode;
+}) {
   const initial = useMemo(() => buildScene(scene, role, start), [scene, role, start]);
   const [players, setPlayers] = useState(initial.players);
   const [state, setState] = useState(() => (initial.state && rules ? { ...initial.state, rules: { ...initial.state.rules, ...rules } } : initial.state));
   const setMine = (data: Partial<WerewolfGameData>) =>
     setPlayers((ps) => ps.map((p) => (p.id === ME ? { ...p, gameData: { ...p.gameData, ...data } } : p)));
 
+  const attrs = { 'data-ww-preview': scene, 'data-ww-viewer-role': role };
+  if (initial.style) {
+    return (
+      <WwShell state={null} {...attrs}>
+        {chrome}
+        <TopBar menu={null} />
+        <StyleBoard />
+      </WwShell>
+    );
+  }
   if (initial.lobby) {
     const room = { config: { roleCounts: initial.lobby.roleCounts } } as unknown as Room;
     return (
-      <>
+      <WwShell state={null} {...attrs}>
+        {chrome}
         <TopBar
           menu={<RoomMenu ctx={null} isHost={initial.lobby.isHost} inGame={false} rules={readConfig(room).rules} onLeave={() => {}} onDelete={() => {}} />}
         />
@@ -412,7 +441,7 @@ function Screen({ scene, role, start, rules }: { scene: PreviewScene; role: WwRo
           onUpdateConfig={() => {}}
           onStart={() => {}}
         />
-      </>
+      </WwShell>
     );
   }
   if (!state) return null;
@@ -450,7 +479,8 @@ function Screen({ scene, role, start, rules }: { scene: PreviewScene; role: WwRo
   };
   const local = (fn: () => void) => async () => fn();
   return (
-    <>
+    <WwShell state={state} {...attrs}>
+      {chrome}
       <TopBar
         menu={
           <RoomMenu
@@ -485,7 +515,7 @@ function Screen({ scene, role, start, rules }: { scene: PreviewScene; role: WwRo
           onLeave: () => {},
         }}
       />
-    </>
+    </WwShell>
   );
 }
 
@@ -509,33 +539,34 @@ export default function WerewolfPreview({
   const [role, setRole] = useState<WwRole>(initialRole);
   const [opened] = useState(() => serverNow());
   const startAt = start ?? opened;
-  return (
-    <div className="mx-auto w-full max-w-lg text-slate-100" data-ww-root="" data-ww-preview={scene} data-ww-viewer-role={role}>
-      {chrome && (
-        <div className="mb-4 space-y-2 rounded-xl bg-slate-900 p-3 ring-1 ring-amber-500/40">
-          <p className="text-xs font-bold text-amber-300 uppercase">Xem trước Ma Sói — dữ liệu giả</p>
-          <select
-            aria-label="Màn"
-            className="w-full rounded-lg bg-slate-800 px-2 py-2 text-sm"
-            value={scene}
-            onChange={(e) => setScene(e.target.value as PreviewScene)}
-          >
-            {Object.entries(PREVIEW_SCENES).map(([k, v]) => (
-              <option key={k} value={k}>
-                {v}
-              </option>
-            ))}
-          </select>
-          <select aria-label="Vai người xem" className="w-full rounded-lg bg-slate-800 px-2 py-2 text-sm" value={role} onChange={(e) => setRole(e.target.value as WwRole)}>
-            {PREVIEW_ROLES.map((r) => (
-              <option key={r} value={r}>
-                Người xem: {ROLE_NAME[r]}
-              </option>
-            ))}
-          </select>
-        </div>
-      )}
-      <Screen key={`${scene}:${role}:${startAt}`} scene={scene} role={role} start={startAt} rules={rules} />
+  const bar = chrome ? (
+    <div className="mb-4 space-y-2 rounded-xl border border-(--ww-accent)/40 bg-(--ww-ink) p-3">
+      <p className="text-xs font-bold text-(--ww-accent) uppercase">Xem trước Ma Sói — dữ liệu giả</p>
+      <select
+        aria-label="Màn"
+        className="w-full rounded-lg bg-(--ww-raised) px-2 py-2 text-sm text-(--ww-text)"
+        value={scene}
+        onChange={(e) => setScene(e.target.value as PreviewScene)}
+      >
+        {Object.entries(PREVIEW_SCENES).map(([k, v]) => (
+          <option key={k} value={k}>
+            {v}
+          </option>
+        ))}
+      </select>
+      <select
+        aria-label="Vai người xem"
+        className="w-full rounded-lg bg-(--ww-raised) px-2 py-2 text-sm text-(--ww-text)"
+        value={role}
+        onChange={(e) => setRole(e.target.value as WwRole)}
+      >
+        {PREVIEW_ROLES.map((r) => (
+          <option key={r} value={r}>
+            Người xem: {ROLE_NAME[r]}
+          </option>
+        ))}
+      </select>
     </div>
-  );
+  ) : null;
+  return <Screen key={`${scene}:${role}:${startAt}`} scene={scene} role={role} start={startAt} rules={rules} chrome={bar} />;
 }
