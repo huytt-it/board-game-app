@@ -569,6 +569,44 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 - Trang không bị rộng ra (không cuộn ngang ở 320px).
 - **Mốc PR #2.**
 
+#### Bổ sung cho GĐ4 (nhạc trưởng, sau review GĐ3, 2026-10-17)
+
+1. **Đồng hồ chung.**
+   - Mọi hoạt cảnh là hàm thuần của `state` + `phaseStartedAt` + `serverNow()`. Dùng `useCue` / `usePhaseTimeline` trong `games/shared/hooks` và mẫu `Cued` / `timelines.ts` của Avalon.
+   - Đặt mốc thời gian vào một file (ví dụ `werewolf/scenes/timelines.ts`) để kiểm tra và chụp ảnh theo T.
+   - Reload hay vào trễ thì nhảy vào đúng khung hình, không phát lại từ đầu.
+2. **Không chặn bước có giờ.**
+   - Ở Đêm ①, Đêm ②, Thợ săn, Bỏ phiếu, lưới và nút phải bấm được ngay từ T = 0. Màn "trời tối" là lớp trang trí `pointer-events: none`, hoặc ngắn ≤ 1,2 s và không che lưới.
+   - Bình minh và Kết quả phiếu (cố định 8 s): chuỗi hoạt cảnh xong trong ≤ 6,5 s, khung hình cuối đứng yên tới hết bước.
+3. **Riêng tư.**
+   - Hoạt cảnh **giống hệt nhau với mọi người xem**. Không có rung, nháy, glow hay chuyển động nào riêng cho một vai.
+   - Không có tín hiệu "đến lượt bạn" ban đêm (§2.3), vì ai cũng có lượt.
+   - Mọi thứ riêng vẫn chỉ nằm trong thẻ giữ.
+   - Chạy lại các cặp ảnh riêng tư ở **nhiều khung hình** (T = 0, 0,5 s, 1,5 s, 4 s, cuối), đóng băng animation như GĐ3a. Phải ≈ 0.
+4. **Bình minh:**
+   - mặt trời lên;
+   - người chết hiện **lần lượt theo thứ tự ghế**, lật vai chỉ khi luật "Lộ vai khi chết" bật;
+   - "Đêm qua bình yên" có hoạt cảnh riêng nhưng **cùng tổng thời lượng**, để không đoán được gì từ nhịp.
+5. **Kết quả phiếu:**
+   - phiếu bay từ ô người bầu tới ô người bị bầu, hoặc gom thành cột đếm. Người thực thi chọn cách đọc được trên 375px, ghi lại lựa chọn ở §12;
+   - người bị treo: giàn treo + lật vai theo luật;
+   - không ai bị treo: câu lý do.
+6. **Thợ săn:** ngắm (công khai) rồi phát bắn. Hoạt cảnh chạy sau khi CAS chuyển phase, ở bước kế tiếp, dựa vào mục `hunter` cuối của nhật ký. Không làm chậm lần ghi.
+7. **Kết thúc:**
+   - lộ phe thắng, lật toàn bàn theo ghế;
+   - "Diễn biến ván" kể theo từng đêm / ngày (có thể là các bước bấm qua);
+   - chạm để bỏ qua hoạt cảnh chỉ có tác dụng trên máy mình.
+8. **Hiệu năng:**
+   - CPU giảm tốc 4× không có khung hình dài > 50 ms kéo dài;
+   - hạt trang trí ≤ số lượng hiện có;
+   - các cửa sổ prod lệch nhau ≤ 50 ms ở mốc hoạt cảnh;
+   - không cuộn ngang ở 320px suốt chuỗi hoạt cảnh (đo `scrollWidth` trong cả chuỗi, bài học Avalon GĐ5);
+   - đo lại kích thước gói.
+9. **Giảm chuyển động:** khung hình cuối tĩnh, chữ đầy đủ.
+10. **Sửa nhỏ từ review GĐ3:** ngôi sao 4 cánh (hạt trang trí) đè lên dòng "… mời bạn vào làng" ở màn vào phòng 1440px (và sát chữ ở 375px). Hạt không được nằm trên vùng chữ.
+11. Không âm thanh. Không đổi luật / engine / `useWerewolf`, trừ khi cần đọc thêm dữ liệu công khai (hỏi trước nếu phải đổi state).
+12. Sau review GĐ4: **mốc PR #2**. Nhạc trưởng hỏi người dùng trước khi push / mở PR.
+
 ---
 
 ## 10. GĐ5 — Chơi thật và mở rộng (chưa lên lịch)
@@ -619,7 +657,7 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 | GĐ2 | **Review đạt** (nhạc trưởng, 2026-10-16) | `fe0343a0` → `2bf4a5da`; code `35894afc`, `701f1009`, `b6ab022f`, `99cc7252`, `c4c0944f`, `3f13ff03` | Đủ 6 vai + 4 luật tuỳ chọn, cho rời làng, hồn ma, màn Luật chơi. Adapter `casGameState` không ghi doc phòng khi chỉ ghi `playerData`. Engine 138 test. Ván thật 7–10 cửa sổ: 7 kịch bản Ma Sói đạt + 1 ván Avalon 5 cửa sổ đạt. Cặp ảnh riêng tư Đêm ①, Xem vai, Đêm ② 40/40 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.5, review ở §12.6. |
 | GĐ2b | **Review đạt** (nhạc trưởng, 2026-10-16) | `c7eb0e2a` → `5a852dbe`; code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7, review ở §12.8. |
 | GĐ3a | **Người dùng đã duyệt hướng hình ảnh** (2026-10-17) | `336349ec` → (commit này); code `9867bcef`, `f35c2a70` | Token `--ww-*` (đêm xanh tím, chữ ánh trăng, một màu nhấn đèn lồng, font Grenze), bộ UI nhỏ, 29 icon qua registry (14 mới, người dùng duyệt tải), 2 cảnh cắt giấy (làng ban đêm, bình minh), 4 màn mẫu (Sảnh, Xem vai, Đêm ①, Bình minh) có bố cục hai cột ở 1440 px, bảng phong cách. Cặp ảnh riêng tư 114/114 = 0.000, tương phản 777/777 ≥ 4,5 : 1, không cuộn ngang ở 320 px. Gói Ma Sói +22,5 KB gzip. Chi tiết ở §12.10. |
-| GĐ3b | **Xong, chờ review** (2026-10-17) | `05feb3bd` → (commit này); code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11. |
+| GĐ3b | **Review đạt** (nhạc trưởng, 2026-10-17; GĐ3a cùng review) | `05feb3bd` → `7fece5ea`; code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11, review ở §12.12. |
 | GĐ4 | Chưa bắt đầu | | |
 
 ### 12.1 GĐ0 — ghi chú của người thực thi (2026-10-11)
@@ -1031,3 +1069,31 @@ Người dùng duyệt hướng hình ảnh GĐ3a (màu nhấn đèn lồng, fon
 **Kiểm thử:** test 138/138, `tsc`, eslint werewolf sạch, eslint games 29/29 = mốc, build qua. Riêng tư (mã cuối): Đêm ① + Xem vai 375 20/20, 1440 20/20, Đêm ② 20/20, người chết 54/54 = 0.000 (đối chứng 1.246 / 0.166 / 8.003 / giữ 4.486, hồn ma giữ 12.454). Tương tác giữ: 11/11, 15/15, hai ngón 3/3. Tương phản pixel thật 375 px 1 387/1 387 + 1440 px 658/658 (cả lớp phủ, bảng phong cách). Va chạm ô / dấu 320–390 px × 5–10 người × 7 màn: 210/210 (đối chứng âm bắt được). Không cuộn ngang ở 320 px: 38/38. Mật độ 32 màn (GĐ2b → GĐ3b): chữ 1 435 → 1 208, khung có viền 187 → 30, tối đa 3 → 2 sắc nhấn; Kết thúc 135 → 71 chữ, cao 1 404 → 812 px. Gói một lần import Ma Sói: 101 166 / 31 165 B (GĐ2b) → 152 769 / 53 665 (GĐ3a) → 174 539 / 60 172 B gzip. Ván thật production 9 cửa sổ: heal 17/17, ghostleave 22/22, hunterbite 15/15 (vào phòng qua màn mới, lệch phase ≤ 273 ms, 0 banner, 0 lỗi JS, phòng thử đã xoá). Ảnh: `.claude/ww-gd3b-shots/`.
 
 **Còn lại:** nhạc trưởng review `05feb3bd..HEAD`, rồi mốc PR #2 sau GĐ4.
+
+### 12.12 GĐ3a + GĐ3b — review của nhạc trưởng (2026-10-17): **ĐẠT**
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 138/138.
+- `tsc` sạch. eslint werewolf sạch. `npx eslint src/components/games` 29 / 29 = baseline.
+- `page.tsx` 6 lỗi, bằng bản `336349ec` (kiểm bằng `--stdin`).
+- `npm run build` exit 0.
+- Lớp màu Tailwind lẻ và `text-[Npx]` trong `*.tsx` của werewolf (trừ Preview / StyleBoard): **0 / 0**.
+
+**Đọc code:**
+- Avalon trong `9867bcef`: chỉ đổi dòng import và cột File của `CREDITS.md` / `README.md`. 16 file là rename 100%.
+- `getScene` chỉ dựa vào `phase` / `hunter` / `winner` (công khai).
+- `werewolf.css`: mọi selector có tiền tố `.ww-`, khối giảm chuyển động gói trong `.ww-root`. Không ảnh hưởng game khác.
+- Nhánh `WerewolfJoinScreen` trong `page.tsx` giống Avalon, dùng chung chunk của Board.
+
+**Ảnh:** đã xem so sánh trước / sau 375px (Đêm ②, Thợ săn, Thảo luận, Bỏ phiếu, Kết quả, Kết thúc), 1440px (Bỏ phiếu, Kết quả, màn vào phòng, Thợ săn) và màn vào phòng 375px. Bộ nhận diện thống nhất, chữ đọc được trên cảnh, màn kết thúc gọn hơn nhiều.
+
+**Bằng chứng của người thực thi:**
+- Riêng tư 114/114 = 0.000.
+- Tương phản 2 045/2 045.
+- Va chạm 210/210.
+- Ván thật 54/54.
+- Gói một lần import Ma Sói 31 → 60 KB gzip (Avalon ≈ 104 KB).
+
+**Ghi nhận:** người dùng đã duyệt hướng hình ảnh GĐ3a (đèn lồng hổ phách, Grenze) trong session thực thi, trước GĐ3b.
+
+**Sửa nhỏ chuyển sang GĐ4:** hạt sao 4 cánh đè chữ ở màn vào phòng ("Bổ sung cho GĐ4" mục 10).
