@@ -658,7 +658,7 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 | GĐ2b | **Review đạt** (nhạc trưởng, 2026-10-16) | `c7eb0e2a` → `5a852dbe`; code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7, review ở §12.8. |
 | GĐ3a | **Người dùng đã duyệt hướng hình ảnh** (2026-10-17) | `336349ec` → (commit này); code `9867bcef`, `f35c2a70` | Token `--ww-*` (đêm xanh tím, chữ ánh trăng, một màu nhấn đèn lồng, font Grenze), bộ UI nhỏ, 29 icon qua registry (14 mới, người dùng duyệt tải), 2 cảnh cắt giấy (làng ban đêm, bình minh), 4 màn mẫu (Sảnh, Xem vai, Đêm ①, Bình minh) có bố cục hai cột ở 1440 px, bảng phong cách. Cặp ảnh riêng tư 114/114 = 0.000, tương phản 777/777 ≥ 4,5 : 1, không cuộn ngang ở 320 px. Gói Ma Sói +22,5 KB gzip. Chi tiết ở §12.10. |
 | GĐ3b | **Review đạt** (nhạc trưởng, 2026-10-17; GĐ3a cùng review) | `05feb3bd` → `7fece5ea`; code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11, review ở §12.12. |
-| GĐ4 | **Xong, chờ review** (2026-10-17) | `e0ffa324` → (commit này); code `13d5e3fe` | Hoạt cảnh theo đồng hồ chung (`scenes/timelines.ts`): vào đêm, trăng / mặt trời lên, bình minh lần lượt theo ghế, kết quả phiếu dạng cột đếm, phát bắn của Thợ săn ở bước kế tiếp, kết thúc kể theo từng đêm / ngày; bù độ trễ dựng (`useCueSync`). Riêng tư 675/675 cặp = 0.000 ở 5 khung hình. Ván thật production 3 kịch bản 52/52, các cửa sổ lệch ≤ 5,3 ms ở 166 mốc, reload giữa hoạt cảnh lệch ≤ 1,1 ms. Gói Ma Sói 60,2 → 64,0 KB gzip. Chi tiết ở §12.13. |
+| GĐ4 | **Review đạt** (nhạc trưởng, 2026-10-17) | `e0ffa324` → `e336a9e1`; code `13d5e3fe` | Hoạt cảnh theo đồng hồ chung (`scenes/timelines.ts`): vào đêm, trăng / mặt trời lên, bình minh lần lượt theo ghế, kết quả phiếu dạng cột đếm, phát bắn của Thợ săn ở bước kế tiếp, kết thúc kể theo từng đêm / ngày; bù độ trễ dựng (`useCueSync`). Riêng tư 675/675 cặp = 0.000 ở 5 khung hình. Ván thật production 3 kịch bản 52/52, các cửa sổ lệch ≤ 5,3 ms ở 166 mốc, reload giữa hoạt cảnh lệch ≤ 1,1 ms. Gói Ma Sói 60,2 → 64,0 KB gzip. Chi tiết ở §12.13, review ở §12.14. |
 
 ### 12.1 GĐ0 — ghi chú của người thực thi (2026-10-11)
 
@@ -1162,3 +1162,42 @@ Người dùng duyệt hướng hình ảnh GĐ3a (màu nhấn đèn lồng, fon
 **Việc chuyển tiếp**
 - Nhạc trưởng review `git diff e0ffa324..HEAD`, rồi hỏi người dùng về mốc PR #2.
 - GĐ5 (chơi thật): xem nhịp 8 giây của Bình minh / Kết quả có vừa không; thẻ phát bắn che tiêu đề 4 s có phiền không; kéo bằng ngón để cuộn tờ hồn ma (còn mở từ GĐ2b).
+
+### 12.14 GĐ4 — review của nhạc trưởng (2026-10-17): **ĐẠT** → mốc PR #2
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 138/138.
+- `tsc` sạch. eslint werewolf sạch. `npx eslint src/components/games` 29 / 29 = baseline.
+- Lớp màu lẻ / `text-[Npx]`: 0 / 0.
+- `npm run build` exit 0.
+- Không đổi engine, `useWerewolf`, luật, file dùng chung hay Avalon.
+
+**Đọc code:**
+- `useCueSync` chỉ kéo các animation có `animation-delay` inline, không lặp vô hạn, không đang dừng, và bắt đầu sau mốc render của bước. Hạt trang trí, animation cũ và chuyển động cục bộ không bị đụng. Chạy 3 lượt (2 khung + 0,3 s), lượt lặp không đổi gì.
+- `usePhaseMoment`: một timeout, không nhảy cuối khi giảm chuyển động. Đúng chỗ dùng (lớp trời tối, thẻ phát bắn).
+- `hunterShotOf` phân biệt đúng:
+  - phát bắn sau bình minh (Thảo luận cùng vòng);
+  - phát bắn sau khi treo (Đêm vòng kế, mục `vote` cùng vòng nằm trước mục `hunter`);
+  - phát bắn kết thúc ván (mục cuối nhật ký).
+- Lớp trời tối `pointer-events: none`. Mọi hoạt cảnh như nhau với mọi vai. Bỏ qua ở màn kết thúc chỉ có tác dụng trên máy mình.
+
+**Ảnh:** đã xem chuỗi khung hình 375px:
+- Bình minh 2 người: mặt trời lên → khung công bố → từng người theo ghế → lật vai.
+- Kết quả có người bị treo: phiếu rơi vào hàng → "Đang kiểm phiếu…" → phán quyết + giàn treo → lật vai.
+- Đêm sau phát bắn: trời tối + thẻ "Thợ săn Vy bắn Khoa" + hồng tâm → bia mộ → lật vai.
+
+**Bằng chứng của người thực thi:**
+- Riêng tư 675/675 = 0.000 ở 5 khung hình.
+- Ván thật 52/52; các cửa sổ lệch ≤ 5,3 ms; reload giữa hoạt cảnh lệch ≤ 1,1 ms.
+- CPU 4×: 0 khung > 50 ms trong hoạt cảnh.
+- Không cuộn ngang, kể cả suốt chuỗi.
+- Hạt không đè chữ 112/112.
+- Gói 60,2 → 64,0 KB gzip.
+
+**Chấp nhận các lệch:** `useCueSync`; hoạt cảnh "ngắm" chỉ ở bước kế tiếp; cách hiểu "cùng tổng thời lượng"; "Diễn biến ván" dạng trang; trời tối ở mọi đêm; không còn sao nhấp nháy ở cột giữa trên điện thoại.
+
+**Để GĐ5 (chơi thật), không chặn PR:**
+- Thẻ phát bắn che tiêu đề + đồng hồ ≤ 4,2 s trên điện thoại (ở khung 3,9 s tiêu đề "Đêm 2" lộ mờ dưới thẻ, hơi rối).
+- Ở Kết quả, khoảng 3,0–3,3 s câu "Minh bị treo" chồng lên "Đang kiểm phiếu…" lúc crossfade.
+- Nhịp 8 s của Bình minh / Kết quả.
+- Kéo bằng ngón để cuộn tờ hồn ma (còn mở từ GĐ2b).
