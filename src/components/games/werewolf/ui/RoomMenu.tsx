@@ -22,16 +22,17 @@ function MyRoleDialog({ ctx, onClose }: { ctx: Pick<PanelCtx, 'me' | 'myData' | 
             <MyRoleBody ctx={ctx} />
             {ctx.myData.role === 'seer' && (
               <ul className="mt-2 space-y-0.5 text-xs">
-                {looks.length === 0 && <li className="text-slate-400">Chưa soi ai.</li>}
+                {looks.length === 0 && <li className="text-(--ww-text-3)">Chưa soi ai.</li>}
                 {looks.map((l) => (
                   <li key={l.round}>
-                    Đêm {l.round}: {nameOf(ctx.players, l.targetId)} — {l.isWolf ? 'LÀ SÓI' : 'không phải Sói'}
+                    Đêm {l.round}: {nameOf(ctx.players, l.targetId)} —{' '}
+                    <span className={l.isWolf ? 'text-(--ww-wolf-light)' : 'text-(--ww-village-light)'}>{l.isWolf ? 'LÀ SÓI' : 'không phải Sói'}</span>
                   </li>
                 ))}
               </ul>
             )}
             {ctx.myData.role === 'guard' && ctx.myData.guardLast && (
-              <p className="mt-2 text-xs text-slate-300">Đêm trước bạn che {nameOf(ctx.players, ctx.myData.guardLast)}.</p>
+              <p className="mt-2 text-xs text-(--ww-text-2)">Đêm trước bạn che {nameOf(ctx.players, ctx.myData.guardLast)}.</p>
             )}
           </div>
         )}
@@ -47,11 +48,11 @@ function MyRoleDialog({ ctx, onClose }: { ctx: Pick<PanelCtx, 'me' | 'myData' | 
 function LeaveDialog({ candidates, onPick, onClose }: { candidates: Player[]; onPick: (p: Player) => void; onClose: () => void }) {
   return (
     <Modal title="Cho rời làng" onClose={onClose} initialFocus="panel">
-      <p className="mb-3 text-sm text-slate-300">
+      <p className="mb-3 text-sm text-(--ww-text-2)">
         Dành cho người bỏ về hẳn. Người đó tính là đã chết (rời làng), lộ vai theo cài đặt; Thợ săn rời làng thì không được bắn.
       </p>
       {candidates.length === 0 ? (
-        <p className="text-sm text-slate-400">Không còn ai khác trong làng.</p>
+        <p className="text-sm text-(--ww-text-3)">Không còn ai khác trong làng.</p>
       ) : (
         <ul className="space-y-1.5" data-ww-leave-list="">
           {candidates.map((p) => (
@@ -59,10 +60,10 @@ function LeaveDialog({ candidates, onPick, onClose }: { candidates: Player[]; on
               <button
                 type="button"
                 data-player-id={p.id}
-                className="flex min-h-11 w-full items-center gap-2 rounded-xl bg-slate-800 px-3 text-left text-sm font-semibold text-slate-100 hover:bg-slate-700"
+                className="flex min-h-12 w-full items-center gap-2.5 rounded-xl bg-(--ww-raised) px-3 text-left text-sm font-semibold text-(--ww-text) hover:bg-(--ww-raised-hi)"
                 onClick={() => onPick(p)}
               >
-                <Avatar name={p.name} />
+                <Avatar name={p.name} id={p.id} />
                 <span className="min-w-0 flex-1 truncate">{p.name}</span>
               </button>
             </li>
@@ -103,7 +104,6 @@ export default function RoomMenu({
   const [showRole, setShowRole] = useState(false);
   const [showRules, setShowRules] = useState(false);
   const [showLeave, setShowLeave] = useState(false);
-  const item = 'flex min-h-11 w-full items-center rounded-xl px-3 text-left text-sm font-semibold hover:bg-slate-800';
   return (
     <>
       <Button variant="ghost" icon="more" aria-label="Menu" aria-haspopup="dialog" onClick={() => setOpen(true)} />
@@ -111,62 +111,73 @@ export default function RoomMenu({
         <Modal title="Menu" onClose={() => setOpen(false)} initialFocus="panel">
           <div className="space-y-1">
             {ctx && ctx.myData.role && (
-              <button
-                type="button"
-                className={`${item} text-slate-100`}
+              <Button
+                variant="ghost"
+                block
+                align="start"
+                icon="hold"
                 onClick={() => {
                   setOpen(false);
                   setShowRole(true);
                 }}
               >
                 Vai của tôi
-              </button>
+              </Button>
             )}
-            <button
-              type="button"
-              className={`${item} text-slate-100`}
+            <Button
+              variant="ghost"
+              block
+              align="start"
+              icon="rules"
               onClick={() => {
                 setOpen(false);
                 setShowRules(true);
               }}
             >
               Luật chơi
-            </button>
+            </Button>
             {leaveCandidates && onLeaveVillage && (
-              <button
-                type="button"
-                className={`${item} text-slate-100`}
+              <Button
+                variant="ghost"
+                block
+                align="start"
+                icon="dead"
                 onClick={() => {
                   setOpen(false);
                   setShowLeave(true);
                 }}
               >
                 Cho rời làng…
-              </button>
+              </Button>
             )}
             {!isHost && (
-              <button
-                type="button"
-                className={`${item} text-slate-100`}
+              <Button
+                variant="ghost"
+                block
+                align="start"
+                icon="leave"
                 onClick={() => {
                   setOpen(false);
                   onLeave();
                 }}
               >
                 {inGame ? 'Thoát khỏi ván' : 'Rời phòng'}
-              </button>
+              </Button>
             )}
             {isHost && (
-              <button
-                type="button"
-                className={`${item} text-rose-300`}
+              <Button
+                variant="ghost"
+                block
+                align="start"
+                icon="delete"
+                danger
                 onClick={() => {
                   setOpen(false);
                   onDelete();
                 }}
               >
                 Xoá phòng
-              </button>
+              </Button>
             )}
           </div>
         </Modal>

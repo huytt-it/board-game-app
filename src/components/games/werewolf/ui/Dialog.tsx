@@ -31,9 +31,9 @@ export function Modal({
         aria-labelledby={titleId}
         tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
-        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl bg-slate-900 p-5 text-slate-100 shadow-2xl ring-1 ring-slate-700 outline-none sm:rounded-2xl pb-[max(1.25rem,env(safe-area-inset-bottom))]"
+        className="max-h-[90dvh] w-full max-w-md overflow-y-auto rounded-t-2xl border border-(--ww-line) bg-(--ww-ink) p-5 pb-[max(1.25rem,env(safe-area-inset-bottom))] text-(--ww-text) shadow-2xl shadow-black/60 outline-none sm:rounded-2xl"
       >
-        <h2 id={titleId} className="mb-3 text-lg font-bold">
+        <h2 id={titleId} className="mb-3 text-lg font-bold text-(--ww-text)">
           {title}
         </h2>
         {children}
@@ -54,7 +54,7 @@ function ConfirmDialog({ options, onAnswer }: { options: ConfirmOptions; onAnswe
   const cancelRef = useRef<HTMLButtonElement>(null);
   return (
     <Modal title={options.title} onClose={() => onAnswer(false)} role="alertdialog" initialFocus={cancelRef}>
-      {options.message && <p className="mb-4 text-sm text-slate-300">{options.message}</p>}
+      {options.message && <p className="mb-4 text-sm text-(--ww-text-2)">{options.message}</p>}
       <div className="flex gap-2">
         <Button ref={cancelRef} block onClick={() => onAnswer(false)}>
           Huỷ

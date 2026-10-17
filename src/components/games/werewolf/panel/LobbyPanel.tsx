@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { Player } from '@/types/player';
 import { validateSetup, MAX_PLAYERS, MIN_PLAYERS } from '@/components/games/werewolf/engine/roles.ts';
 import { lobbyCounts, type WwConfig } from '../state';
@@ -8,11 +9,12 @@ import WwIcon from '../assets/WwIcon';
 import Button from '../ui/Button';
 import Panel from '../ui/Panel';
 import LobbySettings from './LobbySettings';
-import { Dock, PhaseHeader, PhaseLayout, Seat } from './shared';
+import { Dock, PhaseHeader, PhaseLayout, Seat, StatusLine } from './shared';
 
 // Sảnh: ghế, cài đặt, nút Bắt đầu chỉ cho chủ phòng. Mời ra chỉ có ở sảnh
-// (giữa ván không xoá doc người chơi nào — plan §6 "Bổ sung cho GĐ1" mục 3).
-// Màn rộng: người trong phòng + mã mời bên trái, cài đặt + nút bên phải.
+// (giữa ván không xoá doc người chơi nào — plan §6 "Bổ sung cho GĐ1" mục 3):
+// chủ phòng chạm vào một ghế thì ghế đó mới hiện nút mời ra (không rải ✕ lên
+// mọi ghế). Màn rộng: người trong phòng + mã mời bên trái, cài đặt + nút bên phải.
 export default function LobbyPanel({
   players,
   myId,
@@ -39,6 +41,8 @@ export default function LobbyPanel({
   const errors = validateSetup(n, lobbyCounts(config.roleCounts, n));
   const countOk = n >= MIN_PLAYERS && n <= MAX_PLAYERS;
   const blocking = errors.filter((e) => e.code !== 'player-count');
+  // Ghế chủ phòng vừa chạm (hiện nút mời ra); người đó rời phòng thì tự bỏ.
+  const [armed, setArmed] = useState<string | null>(null);
   return (
     <PhaseLayout
       section="lobby"
@@ -51,9 +55,11 @@ export default function LobbyPanel({
         <div className="space-y-4">
           <ul className="grid grid-cols-1 gap-2 min-[360px]:grid-cols-2 lg:grid-cols-3 lg:gap-3" aria-label="Người trong phòng">
             {players.map((p) => (
-              <li key={p.id}>
+              <li key={p.id} data-player-id={p.id} data-ww-self={p.id === myId ? '' : undefined}>
                 <Seat
                   player={p}
+                  selected={armed === p.id}
+                  onSelect={isHost && p.id !== myId ? () => setArmed((a) => (a === p.id ? null : p.id)) : undefined}
                   sub={
                     p.id === hostId || p.id === myId ? (
                       <span className="flex items-center gap-1 text-xs font-normal text-(--ww-text-3)">
@@ -63,8 +69,17 @@ export default function LobbyPanel({
                     ) : undefined
                   }
                   action={
-                    isHost && p.id !== myId ? (
-                      <Button variant="ghost" icon="close" aria-label={`Mời ${p.name} ra`} onClick={() => onKick(p.id, p.name)} />
+                    isHost && armed === p.id ? (
+                      <Button
+                        variant="ghost"
+                        danger
+                        icon="close"
+                        aria-label={`Mời ${p.name} ra`}
+                        onClick={() => {
+                          setArmed(null);
+                          onKick(p.id, p.name);
+                        }}
+                      />
                     ) : undefined
                   }
                 />
@@ -96,10 +111,7 @@ export default function LobbyPanel({
             {!countOk ? `Cần ${MIN_PLAYERS}–${MAX_PLAYERS} người (đang có ${n})` : errors.length > 0 ? 'Bộ vai chưa hợp lệ' : 'Bắt đầu ván Ma Sói'}
           </Button>
         ) : (
-          <p className="flex items-center justify-center gap-1.5 text-sm text-(--ww-text-2)">
-            <WwIcon name="waiting" size={16} />
-            Chờ chủ phòng bắt đầu…
-          </p>
+          <StatusLine icon="waiting">Chờ chủ phòng bắt đầu…</StatusLine>
         )}
       </Dock>
     </PhaseLayout>

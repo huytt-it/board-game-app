@@ -61,7 +61,6 @@ function SceneView({ id, fadeIn, onShown }: { id: SceneId; fadeIn: boolean; onSh
       className={`absolute inset-0 ${fadeIn ? 'ww-scene-enter' : ''}`}
       style={{ backgroundColor: def.palette.base }}
       data-ww-scene-view={id}
-      data-ww-placeholder={def.placeholder ? '' : undefined}
       onAnimationEnd={(e) => {
         if (e.target === e.currentTarget) onShown();
       }}

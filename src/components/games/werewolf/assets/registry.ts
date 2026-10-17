@@ -5,6 +5,10 @@ import type { ComponentType, SVGProps } from 'react';
 import type { ParticleGroup, SceneId, ScenePalette } from '../scenes/types';
 import { NightFront, NightHills, NightSky, NightVillage, VILLAGE_NIGHT_PALETTE, VILLAGE_NIGHT_PARTICLES } from '../scenes/layers/village-night';
 import { DawnFront, DawnHills, DawnSky, DawnVillage, DAWN_PALETTE, DAWN_PARTICLES } from '../scenes/layers/dawn';
+import { DayFront, DayHills, DaySky, DayVillage, DAY_PALETTE, DAY_PARTICLES } from '../scenes/layers/day';
+import { GallowsCrowd, GallowsSky, GallowsStage, GallowsVillage, GALLOWS_PALETTE, GALLOWS_PARTICLES } from '../scenes/layers/gallows';
+import { EndVillageFront, EndVillageSky, EndVillageTown, END_VILLAGE_PALETTE, END_VILLAGE_PARTICLES } from '../scenes/layers/end-village';
+import { EndWolvesFront, EndWolvesHill, EndWolvesSky, EndWolvesVillage, END_WOLVES_PALETTE, END_WOLVES_PARTICLES } from '../scenes/layers/end-wolves';
 // Icon riêng của Ma Sói (game-icons.net, xem CREDITS.md).
 import WolfHead from './icons/wolf-head';
 import Farmer from './icons/farmer';
@@ -88,15 +92,13 @@ export type IconName = keyof typeof ICONS;
 // ─── Cảnh ───────────────────────────────────────────────────────────
 // Mỗi cảnh là một chồng lớp phủ kín khung (ảnh 1600×900 phủ màn hình, neo
 // đáy-giữa; xem scenes/SceneBackdrop.tsx). Lớp nào cũng đổi được sang ảnh:
-//   layers: [image('/werewolf/scenes/dawn-sky.webp'), svg(DawnHills), …]
-// Cảnh `placeholder` chưa vẽ (GĐ3b): chỉ tô màu nền.
+//   layers: [{ kind: 'image', src: '/werewolf/scenes/dawn-sky.webp' }, svg(DawnHills), …]
 
 export interface SceneDef {
   /** Xa → gần. */
   layers: AssetSource[];
   palette: ScenePalette;
   particles?: readonly ParticleGroup[];
-  placeholder?: boolean;
 }
 
 export const SCENES: Record<SceneId, SceneDef> = {
@@ -110,9 +112,24 @@ export const SCENES: Record<SceneId, SceneDef> = {
     palette: DAWN_PALETTE,
     particles: DAWN_PARTICLES,
   },
-  // GĐ3b vẽ nốt; tạm thời chỉ là nền màu chủ đạo của cảnh.
-  day: { layers: [], palette: { base: '#1f2440', accent: '#f1d08a' }, placeholder: true },
-  gallows: { layers: [], palette: { base: '#1d1a30', accent: '#c9a26a' }, placeholder: true },
-  'end-village': { layers: [], palette: { base: '#1d2a33', accent: '#f1d08a' }, placeholder: true },
-  'end-wolves': { layers: [], palette: { base: '#1c1426', accent: '#d9534f' }, placeholder: true },
+  day: {
+    layers: [svg(DaySky), svg(DayHills), svg(DayVillage), svg(DayFront)],
+    palette: DAY_PALETTE,
+    particles: DAY_PARTICLES,
+  },
+  gallows: {
+    layers: [svg(GallowsSky), svg(GallowsVillage), svg(GallowsStage), svg(GallowsCrowd)],
+    palette: GALLOWS_PALETTE,
+    particles: GALLOWS_PARTICLES,
+  },
+  'end-village': {
+    layers: [svg(EndVillageSky), svg(EndVillageTown), svg(EndVillageFront)],
+    palette: END_VILLAGE_PALETTE,
+    particles: END_VILLAGE_PARTICLES,
+  },
+  'end-wolves': {
+    layers: [svg(EndWolvesSky), svg(EndWolvesHill), svg(EndWolvesVillage), svg(EndWolvesFront)],
+    palette: END_WOLVES_PALETTE,
+    particles: END_WOLVES_PARTICLES,
+  },
 };

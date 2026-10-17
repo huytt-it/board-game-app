@@ -7,9 +7,8 @@ import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import type { PickResult } from '../useWerewolf';
 import { dataOf } from '../state';
 import type { WwRole } from '../types';
-import WwIcon from '../assets/WwIcon';
 import Button from '../ui/Button';
-import { DeadNote, Dock, HoldCard, MeMark, PhaseHeader, PhaseLayout, PlayerTile, nameOf, revealedRole, type PanelCtx } from './shared';
+import { DeadNote, Dock, HoldCard, MeMark, nameOf, PhaseHeader, PhaseLayout, PlayerTile, revealedRole, StatusLine, type PanelCtx } from './shared';
 
 // Đêm ① (rules §5.2, plan §2.3 + "Bổ sung cho GĐ1" mục 7). Khi không giữ thẻ,
 // màn này GIỐNG HỆT NHAU với mọi vai: cùng câu, cùng lưới (mọi người còn
@@ -181,13 +180,9 @@ export default function NightPanel({
     >
       {iAmAlive ? (
         <>
-          <p
-            className={`mt-3 flex items-center justify-center gap-1.5 text-sm font-semibold lg:mt-0 ${confirmed ? 'text-(--ww-text-2)' : 'text-(--ww-accent)'}`}
-            data-ww-confirmed={confirmed ? 'yes' : 'no'}
-          >
-            <WwIcon name={confirmed ? 'check' : 'waiting'} size={16} />
+          <StatusLine icon={confirmed ? 'check' : 'waiting'} accent={!confirmed} className="mt-3 lg:mt-0" data-ww-confirmed={confirmed ? 'yes' : 'no'}>
             {confirmed ? 'Đã xác nhận' : 'Chưa xác nhận'}
-          </p>
+          </StatusLine>
           <div className="mt-3">
             <HoldCard held={held} bind={bind} className="h-48">
               {() => <PrivateBody ctx={ctx} note={shownNote} />}

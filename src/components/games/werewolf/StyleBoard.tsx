@@ -15,7 +15,7 @@ import type { WwRole } from './types';
 
 // Bảng phong cách của GĐ3a (WerewolfPreview → "Bảng phong cách"): token, thang
 // chữ, mọi biến thể của bộ UI nhỏ, ô người chơi, thẻ giữ, icon và cảnh trên một
-// trang — chuẩn để GĐ3b làm theo.
+// trang — chuẩn cho mọi màn của Ma Sói.
 
 const TOKENS: { name: string; note: string }[] = [
   { name: '--ww-ink', note: 'mực đêm: nền đặc, chữ trên nút' },
@@ -61,7 +61,6 @@ function SceneThumb({ id }: { id: SceneId }) {
           const Svg = l.Component;
           return <Svg key={i} className="absolute inset-0 h-full w-full" />;
         })}
-        {def.placeholder && <span className="absolute inset-0 flex items-center justify-center text-xs text-(--ww-text-3)">chưa vẽ (GĐ3b)</span>}
       </div>
       <figcaption className="text-xs text-(--ww-text-2)">{SCENE_NAMES_VI[id]}</figcaption>
     </figure>
@@ -74,7 +73,7 @@ export default function StyleBoard() {
   const ps = NAMES.map((_, i) => player(i));
   return (
     // Lớp tối phủ cảnh: bảng phong cách là trang tham chiếu, không phải một màn của ván.
-    <div className="space-y-8 rounded-2xl bg-black/60 p-4 pb-16" data-ww-style-board="">
+    <div className="space-y-8 rounded-2xl bg-(--ww-ink)/90 p-4 pb-16" data-ww-style-board="">
       <Panel className="space-y-1 p-4">
         <h2 className="ww-display text-3xl text-(--ww-text)">Bảng phong cách</h2>
         <p className="text-sm text-(--ww-text-2)">

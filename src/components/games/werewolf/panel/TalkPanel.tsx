@@ -4,28 +4,27 @@ import { useState } from 'react';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import { isDead } from '../state';
 import Button from '../ui/Button';
-import { Avatar, DeadNote, Dock, PhaseHeader, RoleTag, revealedRole, type PanelCtx } from './shared';
+import { DoneMark } from './DealPanel';
+import { DeadNote, Dock, PhaseHeader, PhaseLayout, revealedRole, RoleLine, Seat, StatusLine, type PanelCtx } from './shared';
 
-/** Danh sách người còn sống / đã chết (công khai; vai chỉ hiện khi đã lộ lúc chết), dùng ở Thảo luận. */
-export function Roster({ ctx, mark }: { ctx: PanelCtx; mark?: (id: string) => boolean }) {
+/**
+ * Cả làng (công khai): người còn sống, người đã chết (bia mộ; vai chỉ hiện khi
+ * đã lộ lúc chết), dấu ✓ khi `mark` đúng (vd. sẵn sàng bỏ phiếu). Dùng ở Thảo luận.
+ */
+export function Roster({ ctx, mark, markLabel }: { ctx: PanelCtx; mark?: (id: string) => boolean; markLabel?: string }) {
   return (
-    <ul className="grid grid-cols-1 gap-1.5 min-[360px]:grid-cols-2">
+    <ul className="grid grid-cols-2 gap-2 lg:grid-cols-3 lg:gap-3" aria-label="Người trong làng">
       {ctx.players.map((p) => {
         const dead = isDead(ctx.state, p.id);
         const role = revealedRole(ctx, p.id);
         return (
-          <li
-            key={p.id}
-            data-player-id={p.id}
-            className={`flex min-h-11 items-center gap-2 rounded-xl px-2 py-1.5 text-sm ${dead ? 'bg-slate-900/40 text-slate-500' : 'bg-slate-800/80 text-slate-100'}`}
-          >
-            <Avatar name={p.name} dim={dead} />
-            <span className={`min-w-0 flex-1 truncate ${dead ? 'line-through' : 'font-semibold'}`}>
-              {p.name}
-              {p.id === ctx.me.id && <span className="ml-1 text-xs font-normal text-slate-400">(bạn)</span>}
-            </span>
-            {role && <RoleTag role={role} />}
-            {!dead && mark?.(p.id) && <span className="text-xs font-bold text-emerald-300">✓</span>}
+          <li key={p.id} data-player-id={p.id}>
+            <Seat
+              player={p}
+              dead={dead}
+              sub={role ? <RoleLine role={role} /> : p.id === ctx.me.id ? <span className="block text-xs font-normal text-(--ww-text-3)">bạn</span> : undefined}
+              mark={!dead && mark?.(p.id) ? <DoneMark label={markLabel} /> : undefined}
+            />
           </li>
         );
       })}
@@ -46,17 +45,21 @@ export default function TalkPanel({ ctx, onReady }: { ctx: PanelCtx; onReady: ()
   };
   const readyCount = alive.filter((id) => ctx.state.acks?.[id]).length;
   return (
-    <section data-phase-section="day-talk">
-      <PhaseHeader title={`Ngày ${ctx.state.round} — Thảo luận`} remaining={ctx.remaining}>
-        Nói chuyện ngoài đời, tìm ra Sói.
-      </PhaseHeader>
-      <Roster ctx={ctx} mark={(id) => !!ctx.state.acks?.[id]} />
-      <p className="mt-3 text-center text-sm text-slate-400">
+    <PhaseLayout
+      section="day-talk"
+      header={
+        <PhaseHeader title={`Ngày ${ctx.state.round} — Thảo luận`} remaining={ctx.remaining}>
+          Nói chuyện ngoài đời, tìm ra Sói.
+        </PhaseHeader>
+      }
+      stage={<Roster ctx={ctx} mark={(id) => !!ctx.state.acks?.[id]} markLabel="Sẵn sàng bỏ phiếu" />}
+    >
+      <StatusLine icon="check" className="mt-3 lg:mt-0">
         {readyCount}/{alive.length} người sẵn sàng bỏ phiếu
-      </p>
+      </StatusLine>
       {iAmAlive ? (
         <Dock>
-          <Button variant="primary" block disabled={ready || ctx.remaining <= 0} onClick={send}>
+          <Button variant="primary" size="lg" block disabled={ready || ctx.remaining <= 0} onClick={send}>
             {ready ? 'Đã sẵn sàng — chờ mọi người' : 'Sẵn sàng bỏ phiếu'}
           </Button>
         </Dock>
@@ -65,6 +68,6 @@ export default function TalkPanel({ ctx, onReady }: { ctx: PanelCtx; onReady: ()
           <DeadNote />
         </div>
       )}
-    </section>
+    </PhaseLayout>
   );
 }

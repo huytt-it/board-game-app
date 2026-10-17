@@ -46,4 +46,4 @@ URL ở dòng đầu file, path làm tròn 1 chữ số thập phân; thêm mộ
 - Cảnh chọn theo phase (`scenes/getScene.ts`), **không bao giờ theo vai** của người xem.
 - Thay một lớp bằng ảnh: `layers: [{ kind: 'image', src: '/werewolf/scenes/dawn-sky.webp' }, svg(DawnHills), …]`
   (ảnh 1600×900 hoặc 3200×1800, cùng khung).
-- Cảnh còn `placeholder: true` (chưa vẽ, GĐ3b): `day`, `gallows`, `end-village`, `end-wolves`.
+- 6 cảnh: `village-night` (sảnh, xem vai, đêm), `dawn`, `day` (thảo luận, bỏ phiếu, Thợ săn sau bình minh), `gallows` (kết quả phiếu, Thợ săn sau khi treo), `end-village`, `end-wolves`.

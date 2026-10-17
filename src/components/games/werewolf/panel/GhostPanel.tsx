@@ -6,6 +6,7 @@ import { pickFor, wolfStatus } from '@/components/games/werewolf/engine/night.ts
 import { nightActionOf, ROLE_NAME } from '@/components/games/werewolf/engine/roles.ts';
 import { dataOf, isDead, nightPicksOf, potionsOf } from '../state';
 import type { WerewolfGameData, WwRole } from '../types';
+import WwIcon from '../assets/WwIcon';
 import { MyRoleBody } from './DealPanel';
 import { HoldCard, LogList, ghostView, nameOf, type PanelCtx } from './shared';
 
@@ -25,25 +26,25 @@ const MAX_LOG_ENTRIES = 8;
 function Section({ title, children }: { title: string; children: ReactNode }) {
   return (
     <section className="mt-3">
-      <h3 className="mb-1 text-xs font-bold tracking-wide text-indigo-300 uppercase">{title}</h3>
+      <h3 className="mb-1 text-xs font-bold text-(--ww-text-2)">{title}</h3>
       {children}
     </section>
   );
 }
 
-const roleColor = (role: WwRole) => (role === 'werewolf' ? 'text-rose-300' : 'text-emerald-300');
+const roleColor = (role: WwRole) => (role === 'werewolf' ? 'text-(--ww-wolf-light)' : 'text-(--ww-village-light)');
 
 /** Vai của mọi người theo ghế, hai cột (các bước không có lựa chọn đêm). */
 function Roles({ ctx }: { ctx: PanelCtx }) {
   return (
-    <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-[13px] leading-snug" data-ww-ghost-roles="">
+    <ul className="grid grid-cols-2 gap-x-3 gap-y-0.5 text-sm leading-snug" data-ww-ghost-roles="">
       {ctx.players.map((p) => {
         const role = dataOf(p).role;
         if (!role) return null;
         const dead = isDead(ctx.state, p.id);
         return (
-          <li key={p.id} className={`flex min-w-0 items-baseline justify-between gap-1.5 ${dead ? 'opacity-60' : ''}`}>
-            <span className={`truncate ${dead ? 'line-through' : 'text-slate-100'}`}>{p.name}</span>
+          <li key={p.id} className="flex min-w-0 items-baseline justify-between gap-1.5">
+            <span className={`truncate ${dead ? 'text-(--ww-text-3) line-through' : 'text-(--ww-text)'}`}>{p.name}</span>
             <span className={`shrink-0 font-semibold ${roleColor(role)}`} data-ww-ghost-role={role}>
               {ROLE_NAME[role]}
             </span>
@@ -54,10 +55,10 @@ function Roles({ ctx }: { ctx: PanelCtx }) {
   );
 }
 
-/** Ban đêm: gộp "vai" và "lựa chọn đang có" thành một danh sách theo ghế. Người đã chết chỉ có tên (gạch) và vai. */
+/** Ban đêm: gộp "vai" và "lựa chọn đang có" thành một danh sách theo ghế. Người đã chết chỉ có tên (gạch, chữ mức 3) và vai. */
 function PickRows({ ctx, pick }: { ctx: PanelCtx; pick: (role: WwRole, data: Partial<WerewolfGameData>) => { text: string; confirmed: boolean } }) {
   return (
-    <ul className="space-y-0.5 text-[13px] leading-snug text-slate-200" data-ww-ghost-roles="">
+    <ul className="space-y-0.5 text-sm leading-snug text-(--ww-text-2)" data-ww-ghost-roles="">
       {ctx.players.map((p) => {
         const data = dataOf(p);
         const role = data.role;
@@ -65,15 +66,15 @@ function PickRows({ ctx, pick }: { ctx: PanelCtx; pick: (role: WwRole, data: Par
         const dead = isDead(ctx.state, p.id);
         const choice = dead ? null : pick(role, data);
         return (
-          <li key={p.id} className={dead ? 'opacity-60' : ''}>
-            <span className={dead ? 'line-through' : 'text-slate-100'}>{p.name}</span>{' '}
+          <li key={p.id}>
+            <span className={dead ? 'text-(--ww-text-3) line-through' : 'text-(--ww-text)'}>{p.name}</span>{' '}
             <span className={`font-semibold ${roleColor(role)}`} data-ww-ghost-role={role}>
               ({ROLE_NAME[role]})
             </span>
             {choice && (
               <>
                 : {choice.text}
-                {choice.confirmed && <span className="text-emerald-300"> ✓</span>}
+                {choice.confirmed && <span className="text-(--ww-text)"> ✓</span>}
               </>
             )}
           </li>
@@ -89,7 +90,7 @@ function NightLive({ ctx }: { ctx: PanelCtx }) {
   return (
     <Section title={`Đêm ${state.round}: vai và lựa chọn đang có`}>
       <div data-ww-ghost-live="night">
-        <p className="mb-1 text-[13px] leading-snug font-semibold text-rose-200">
+        <p className="mb-1 text-sm leading-snug font-semibold text-(--ww-wolf-light)">
           {pack.agreedId
             ? `Bầy Sói đã thống nhất: ${nameOf(players, pack.agreedId)}`
             : pack.counts.length === 0
@@ -113,7 +114,7 @@ function WitchLive({ ctx }: { ctx: PanelCtx }) {
   return (
     <Section title={`Đêm ${state.round} (Phù thủy): vai và lựa chọn đang có`}>
       <div data-ww-ghost-live="night-witch">
-        <p className="mb-1 text-[13px] leading-snug font-semibold text-rose-200">
+        <p className="mb-1 text-sm leading-snug font-semibold text-(--ww-wolf-light)">
           {state.attack ? `Sói nhắm: ${nameOf(players, state.attack)}` : 'Đêm nay Sói không cắn ai.'}
         </p>
         <PickRows
@@ -141,7 +142,10 @@ function AllBody({ ctx }: { ctx: PanelCtx }) {
   const night = state.phase === 'night' || state.phase === 'night-witch';
   return (
     <>
-      <p className="text-xs font-bold tracking-wide text-slate-400 uppercase">Hồn ma · chỉ mình bạn thấy</p>
+      <p className="flex items-center gap-1.5 text-xs font-bold text-(--ww-text-3)">
+        <WwIcon name="ghost" size={16} />
+        Hồn ma · chỉ mình bạn thấy
+      </p>
       {state.phase === 'night' && <NightLive ctx={ctx} />}
       {state.phase === 'night-witch' && <WitchLive ctx={ctx} />}
       {!night && (
@@ -151,7 +155,7 @@ function AllBody({ ctx }: { ctx: PanelCtx }) {
       )}
       <Section title="Diễn biến ván đến giờ">
         <LogList log={shown} players={players} compact />
-        {shown.length < log.length && <p className="mt-1.5 text-xs text-slate-400">Các dòng cũ hơn: xem đầy đủ ở màn kết thúc.</p>}
+        {shown.length < log.length && <p className="mt-1.5 text-xs text-(--ww-text-3)">Các dòng cũ hơn: xem đầy đủ ở màn kết thúc.</p>}
       </Section>
     </>
   );
@@ -162,7 +166,7 @@ function OwnBody({ ctx, view }: { ctx: PanelCtx; view: 'wait' | 'own' }) {
   return (
     <>
       <MyRoleBody ctx={ctx} />
-      <p className="mt-2 text-xs text-slate-400">
+      <p className="mt-2 text-xs text-(--ww-text-3)">
         {view === 'wait'
           ? 'Bắn xong (hoặc bỏ lượt), bạn mới xem được vai của mọi người.'
           : 'Phòng này tắt “Hồn ma xem hết vai”: người chết chỉ thấy vai của mình.'}
@@ -206,7 +210,7 @@ export default function GhostPanel({ ctx }: { ctx: PanelCtx }) {
           const view = ghostView(ctx);
           return (
             <>
-              <p className="text-xs text-slate-400">Đang giữ — thả tay là che lại. Kéo lên / xuống để cuộn.</p>
+              <p className="text-xs text-(--ww-text-3)">Đang giữ — thả tay là che lại. Kéo lên / xuống để cuộn.</p>
               {/*
                 Tờ giấy phủ lên cả màn hình (fixed) để đủ chỗ cho danh sách vai,
                 lựa chọn và nhật ký trên 375px. Ngón đang giữ vẫn nằm trên thẻ
@@ -217,7 +221,7 @@ export default function GhostPanel({ ctx }: { ctx: PanelCtx }) {
               <div
                 ref={sheet}
                 data-ww-ghost={view}
-                className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto max-h-[min(88dvh,40rem)] max-w-lg touch-none overflow-y-auto overscroll-contain rounded-2xl bg-slate-900 p-3 text-left text-slate-100 shadow-2xl ring-1 ring-slate-500"
+                className="fixed inset-x-3 bottom-[max(0.75rem,env(safe-area-inset-bottom))] z-40 mx-auto max-h-[min(88dvh,40rem)] max-w-lg touch-none overflow-y-auto overscroll-contain rounded-2xl border border-(--ww-line) bg-(--ww-ink) p-3 text-left text-(--ww-text) shadow-2xl shadow-black/60"
                 onPointerDown={(e) => e.stopPropagation()}
                 onPointerUp={(e) => e.stopPropagation()}
                 onPointerCancel={(e) => e.stopPropagation()}

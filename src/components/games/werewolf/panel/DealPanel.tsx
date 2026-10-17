@@ -6,7 +6,7 @@ import { ROLE_BLURB, ROLE_NAME } from '@/components/games/werewolf/engine/roles.
 import { wolfIds } from '@/components/games/werewolf/engine/table.ts';
 import WwIcon from '../assets/WwIcon';
 import Button from '../ui/Button';
-import { Dock, HoldCard, PhaseHeader, PhaseLayout, Seat, nameOf, type PanelCtx } from './shared';
+import { Dock, HoldCard, nameOf, PhaseHeader, PhaseLayout, Seat, StatusLine, type PanelCtx } from './shared';
 
 /**
  * Nội dung riêng của "vai của tôi" (chỉ render khi đang giữ): huy hiệu vai trung
@@ -39,11 +39,11 @@ export function MyRoleBody({ ctx }: { ctx: Pick<PanelCtx, 'me' | 'myData' | 'pla
   );
 }
 
-/** Dấu "đã xem / đã xong" trên ghế: công khai, như nhau với mọi vai. */
-export function DoneMark() {
+/** Dấu "đã xem / sẵn sàng / đã bầu" trên ghế: công khai, như nhau với mọi vai. */
+export function DoneMark({ label = 'Đã xong' }: { label?: string }) {
   return (
     <span className="flex size-5 items-center justify-center rounded-full bg-(--ww-text-2) text-(--ww-ink)" data-ww-done="">
-      <WwIcon name="check" size={13} title="Đã xong" />
+      <WwIcon name="check" size={13} title={label} />
     </span>
   );
 }
@@ -84,10 +84,9 @@ export default function DealPanel({ ctx, onAck }: { ctx: PanelCtx; onAck: () => 
       <HoldCard held={held} bind={bind} className="h-48">
         {() => <MyRoleBody ctx={ctx} />}
       </HoldCard>
-      <p className="mt-3 flex items-center justify-center gap-1.5 text-sm text-(--ww-text-2)">
-        <WwIcon name="check" size={16} className="text-(--ww-text-3)" />
+      <StatusLine icon="check" className="mt-3">
         {ackCount}/{ctx.players.length} người đã xem
-      </p>
+      </StatusLine>
       <Dock>
         <Button variant="primary" size="lg" block disabled={acked} onClick={ack}>
           {acked ? 'Đã xem — chờ mọi người' : 'Đã xem'}

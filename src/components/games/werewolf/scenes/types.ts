@@ -5,10 +5,10 @@
 export const SCENE_IDS = [
   'village-night', // sảnh, xem vai, Đêm ①, Đêm ②
   'dawn', // bình minh
-  'day', // thảo luận, bỏ phiếu, Thợ săn sau bình minh (GĐ3b)
-  'gallows', // kết quả phiếu, Thợ săn sau khi treo (GĐ3b)
-  'end-village', // Dân thắng (GĐ3b)
-  'end-wolves', // Sói thắng (GĐ3b)
+  'day', // thảo luận, bỏ phiếu, Thợ săn sau bình minh
+  'gallows', // kết quả phiếu, Thợ săn sau khi treo
+  'end-village', // Dân thắng
+  'end-wolves', // Sói thắng
 ] as const;
 
 export type SceneId = (typeof SCENE_IDS)[number];

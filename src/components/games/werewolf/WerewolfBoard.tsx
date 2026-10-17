@@ -30,10 +30,11 @@ import EndPanel from './panel/EndPanel';
 import GhostPanel from './panel/GhostPanel';
 import { hasGhostCard, type PanelCtx } from './panel/shared';
 import WwIcon from './assets/WwIcon';
-import { werewolfDisplayFont } from './assets/fonts';
-import SceneBackdrop from './scenes/SceneBackdrop';
-import { getScene } from './scenes/getScene';
+import WwShell from './WwShell';
 import './werewolf.css';
+
+// Màn vào phòng riêng của Ma Sói: page.tsx nạp nó từ module này để dùng chung chunk.
+export { default as WerewolfJoinScreen } from './WerewolfJoinScreen';
 
 // Máy khác chờ thêm chừng này rồi mới tự chuyển phase thay chủ phòng (chủ
 // phòng mất mạng / ngủ). CAS bảo đảm chỉ một lần ghi thắng.
@@ -59,23 +60,16 @@ export interface PhaseHandlers {
   onLeave: () => void;
 }
 
-// Các bước đã làm lại giao diện (GĐ3a) dùng bố cục hai cột ở màn rộng
-// (PhaseLayout); các bước còn lại giữ một cột giữa màn tới GĐ3b.
-const WIDE_PHASES: ReadonlySet<WerewolfGameState['phase']> = new Set(['deal', 'night', 'dawn']);
-
 /** Màn của phase hiện tại (dùng chung với WerewolfPreview). Người chết có thêm một thẻ giữ để xem (GhostPanel). */
 export function PhaseView({ ctx, handlers }: { ctx: Omit<PanelCtx, 'remaining'>; handlers: PhaseHandlers }) {
   const remaining = usePhaseRemaining(ctx.state);
   const full: PanelCtx = { ...ctx, remaining };
-  const wide = WIDE_PHASES.has(full.state.phase);
   return (
     <>
-      <div className={wide ? '' : 'mx-auto max-w-lg'}>
-        <PhasePanel ctx={full} handlers={handlers} />
-      </div>
-      {/* Màn rộng: thẻ của người chết nằm dưới khung bên phải. */}
+      <PhasePanel ctx={full} handlers={handlers} />
+      {/* Màn rộng (PhaseLayout hai cột): thẻ của người chết nằm dưới khung bên phải. */}
       {hasGhostCard(full) && (
-        <div className={wide ? 'lg:ml-auto lg:w-96' : 'mx-auto max-w-lg'}>
+        <div className="lg:ml-auto lg:w-96">
           <GhostPanel ctx={full} />
         </div>
       )}
@@ -115,24 +109,6 @@ export function TopBar({ menu }: { menu: React.ReactNode }) {
         <span className="ww-display text-xl text-(--ww-text)">Ma Sói</span>
       </p>
       {menu}
-    </div>
-  );
-}
-
-/**
- * Khung chung của Ma Sói (Board và Preview): token + font (`.ww-root`), cảnh nền
- * theo phase (giống nhau với mọi vai), bề rộng nội dung (một cột ở điện thoại,
- * tới 6xl ở màn rộng).
- */
-export function WwShell({
-  state,
-  children,
-  ...attrs
-}: { state: Pick<WerewolfGameState, 'phase' | 'hunter' | 'winner'> | null; children: React.ReactNode } & Record<`data-${string}`, string | number | undefined>) {
-  return (
-    <div className={`ww-root ${werewolfDisplayFont.variable} mx-auto w-full max-w-lg text-(--ww-text) lg:max-w-6xl`} data-ww-root="" {...attrs}>
-      <SceneBackdrop sceneId={getScene(state)} />
-      {children}
     </div>
   );
 }

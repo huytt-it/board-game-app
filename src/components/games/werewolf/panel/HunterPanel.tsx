@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import Button from '../ui/Button';
 import { useConfirm } from '../ui/Dialog';
-import { Dock, PhaseHeader, PlayerTile, nameOf, revealedRole, type PanelCtx } from './shared';
+import { Dock, MeMark, nameOf, PhaseHeader, PhaseLayout, PlayerTile, revealedRole, StatusLine, type PanelCtx } from './shared';
 
 // Thợ săn (rules §5.7): Thợ săn vừa chết chọn một người còn sống để bắn, hoặc
 // không bắn. Bước này công khai (vai Thợ săn lộ ra là đương nhiên), nên không
@@ -39,46 +39,58 @@ export default function HunterPanel({ ctx, onShoot }: { ctx: PanelCtx; onShoot: 
   const byId = new Map(players.map((p) => [p.id, p]));
   const after = state.hunter?.after === 'vote' ? 'Sau đó trời tối.' : 'Sau đó cả làng thảo luận.';
   return (
-    <section data-phase-section="hunter" data-ww-hunter={hunterId ?? ''}>
-      <PhaseHeader title="Thợ săn" remaining={ctx.remaining}>
-        {isMe ? `Bạn là Thợ săn và đã chết. Bắn một người, hoặc không bắn. ${after}` : `Thợ săn ${nameOf(players, hunterId)} đang ngắm… ${after}`}
-      </PhaseHeader>
-
-      <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3" role="group" aria-label="Người còn sống">
-        {alive.map((id) => {
-          const p = byId.get(id);
-          if (!p) return null;
-          return (
-            <PlayerTile
-              key={id}
-              player={p}
-              label={isMe ? `Ngắm ${p.name}` : p.name}
-              selected={isMe && aimId === id}
-              role={revealedRole(ctx, id)}
-              disabled={!isMe || !open || sending}
-              onClick={() => setAim({ at: state.phaseStartedAt, id })}
-            />
-          );
-        })}
-      </div>
-
-      {late === state.phaseStartedAt && <p className="mt-3 text-center text-sm font-semibold text-amber-300">Hết giờ — lượt bắn đã qua.</p>}
+    <PhaseLayout
+      section="hunter"
+      data-ww-hunter={hunterId ?? ''}
+      header={
+        <PhaseHeader title="Thợ săn" remaining={ctx.remaining}>
+          {isMe ? `Bạn là Thợ săn và đã chết. Bắn một người, hoặc không bắn. ${after}` : `Thợ săn ${nameOf(players, hunterId)} đang ngắm… ${after}`}
+        </PhaseHeader>
+      }
+      stage={
+        <div className="grid grid-cols-2 gap-2 min-[360px]:grid-cols-3 lg:gap-3" role="group" aria-label="Người còn sống">
+          {alive.map((id) => {
+            const p = byId.get(id);
+            if (!p) return null;
+            return (
+              <PlayerTile
+                key={id}
+                player={p}
+                label={isMe ? `Ngắm ${p.name}` : p.name}
+                selected={isMe && aimId === id}
+                role={revealedRole(ctx, id)}
+                disabled={!isMe || !open || sending}
+                onClick={() => setAim({ at: state.phaseStartedAt, id })}
+                mark={id === me.id ? <MeMark /> : undefined}
+              />
+            );
+          })}
+        </div>
+      }
+    >
+      {late === state.phaseStartedAt && (
+        <StatusLine icon="clock" accent className="mt-3 lg:mt-0">
+          Hết giờ — lượt bắn đã qua.
+        </StatusLine>
+      )}
 
       {isMe ? (
         <Dock>
           <div className="flex gap-2">
-            <Button block disabled={!open || sending} onClick={() => fire(null)}>
+            <Button block size="lg" disabled={!open || sending} onClick={() => fire(null)}>
               Không bắn
             </Button>
-            <Button block variant="danger" disabled={!open || sending || !aimId} onClick={() => aimId && fire(aimId)}>
+            <Button block size="lg" variant="danger" icon="hunter" disabled={!open || sending || !aimId} onClick={() => aimId && fire(aimId)}>
               {sending ? 'Đang gửi…' : aimId ? `Bắn ${nameOf(players, aimId)}` : 'Chọn người để bắn'}
             </Button>
           </div>
         </Dock>
       ) : (
-        <p className="mt-4 text-center text-sm text-slate-400">Chờ Thợ săn quyết định…</p>
+        <StatusLine icon="waiting" className="mt-4 lg:mt-0">
+          Chờ Thợ săn quyết định…
+        </StatusLine>
       )}
       {dialog}
-    </section>
+    </PhaseLayout>
   );
 }

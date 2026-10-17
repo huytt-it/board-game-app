@@ -6,7 +6,7 @@ import { describeLog } from '@/components/games/werewolf/engine/log.ts';
 import { ROLE_NAME } from '@/components/games/werewolf/engine/roles.ts';
 import { formatCountdown } from '../hooks/usePhaseClock';
 import { dataOf, isDead } from '../state';
-import WwIcon from '../assets/WwIcon';
+import WwIcon, { type IconName } from '../assets/WwIcon';
 import type { WerewolfGameData, WerewolfGameState, WwLogEntry, WwRole, WwTable } from '../types';
 
 /** Những gì mọi panel trong ván cần biết. `me` là người đang xem màn này. */
@@ -110,16 +110,17 @@ export function PhaseLayout({
   stage,
   stageOnPhone = true,
   children,
+  ...attrs
 }: {
   section: string;
   header: ReactNode;
   stage: ReactNode;
   stageOnPhone?: boolean;
   children: ReactNode;
-}) {
+} & Record<`data-${string}`, string | undefined>) {
   const side = 'lg:col-start-2 lg:border-(--ww-line) lg:bg-(color:--ww-glass-bg) lg:px-6';
   return (
-    <section data-phase-section={section} className="lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:grid-rows-[auto_1fr] lg:gap-x-10">
+    <section data-phase-section={section} {...attrs} className="lg:grid lg:grid-cols-[minmax(0,1fr)_24rem] lg:grid-rows-[auto_1fr] lg:gap-x-10">
       <div className={`${side} lg:row-start-1 lg:rounded-t-2xl lg:border lg:border-b-0 lg:pt-6`}>{header}</div>
       <div className={`lg:col-start-1 lg:row-span-2 lg:row-start-1 ${stageOnPhone ? '' : 'hidden lg:block'}`} data-ww-stage="">
         {stage}
@@ -246,6 +247,8 @@ export function Seat({
   sub,
   mark,
   action,
+  onSelect,
+  selected = false,
 }: {
   player: Player;
   dead?: boolean;
@@ -254,13 +257,12 @@ export function Seat({
   mark?: ReactNode;
   /** Nút phụ bên phải (chủ phòng mời ra ở sảnh). */
   action?: ReactNode;
+  /** Chạm vào ghế (chủ phòng ở sảnh: hiện nút mời ra). Phần avatar + tên thành một nút. */
+  onSelect?: () => void;
+  selected?: boolean;
 }) {
-  return (
-    <div
-      data-player-id={player.id}
-      data-ww-dead-seat={dead ? '' : undefined}
-      className={`relative flex min-h-14 items-center gap-2.5 rounded-xl py-2 pl-2.5 text-sm font-semibold shadow-md shadow-black/25 ${action ? 'pr-1' : 'pr-2.5'} ${dead ? 'bg-(--ww-raised)/60 text-(--ww-text-3)' : 'bg-(--ww-raised) text-(--ww-text)'}`}
-    >
+  const body = (
+    <>
       {dead ? (
         <span className="flex size-8 shrink-0 items-center justify-center text-(--ww-text-3)" aria-hidden="true">
           <WwIcon name="dead" size={26} />
@@ -272,6 +274,23 @@ export function Seat({
         <span className={`block truncate ${dead ? 'line-through decoration-1' : ''}`}>{player.name}</span>
         {sub}
       </span>
+    </>
+  );
+  return (
+    <div
+      data-player-id={player.id}
+      data-ww-dead-seat={dead ? '' : undefined}
+      className={`relative flex min-h-14 items-center gap-2.5 rounded-xl py-2 pl-2.5 text-sm font-semibold shadow-md shadow-black/25 ${action ? 'pr-1' : 'pr-2.5'} ${
+        dead ? 'bg-(--ww-ink) text-(--ww-text-3)' : selected ? 'bg-(--ww-raised-hi) text-(--ww-text)' : 'bg-(--ww-raised) text-(--ww-text)'
+      }`}
+    >
+      {onSelect ? (
+        <button type="button" aria-expanded={selected} aria-label={`Chọn ${player.name}`} onClick={onSelect} className="flex min-h-11 min-w-0 flex-1 items-center gap-2.5 rounded-xl text-left">
+          {body}
+        </button>
+      ) : (
+        body
+      )}
       {action}
       {mark && <span className="absolute -top-2 -right-1.5">{mark}</span>}
     </div>
@@ -381,6 +400,30 @@ export function RoleTag({ role }: { role: WwRole }) {
 }
 
 /**
+ * Một dòng trạng thái công khai (đếm người đã xong, Chưa / Đã xác nhận…): viên
+ * kính tối, để đọc được trên mọi cảnh (dải mây sáng của ban ngày). `accent`:
+ * việc còn chờ chính người xem.
+ */
+export function StatusLine({
+  icon,
+  accent = false,
+  className = '',
+  children,
+  ...attrs
+}: { icon: IconName; accent?: boolean; className?: string; children: ReactNode } & Record<`data-${string}`, string | undefined>) {
+  return (
+    <p className={`flex justify-center ${className}`} {...attrs}>
+      <span
+        className={`inline-flex min-h-8 items-center gap-1.5 rounded-full bg-(color:--ww-glass-bg) px-3 text-sm ${accent ? 'font-semibold text-(--ww-accent)' : 'text-(--ww-text-2)'}`}
+      >
+        <WwIcon name={icon} size={16} className={accent ? '' : 'text-(--ww-text-3)'} />
+        {children}
+      </span>
+    </p>
+  );
+}
+
+/**
  * Màn cho người đã chết ở các bước cần hành động. Một câu duy nhất cho mọi
  * người chết, dù vai gì, dù hồn ma bật hay tắt (rules §6).
  */
@@ -396,7 +439,7 @@ export function DeadNote() {
   );
 }
 
-/** "Diễn biến ván": các câu của nhật ký, gom theo "Đêm N" / "Ngày N". `compact`: chữ nhỏ, khít (trong thẻ giữ của hồn ma). */
+/** "Diễn biến ván": các câu của nhật ký, gom theo "Đêm N" / "Ngày N". `compact`: dòng khít (trong thẻ giữ của hồn ma). */
 export function LogList({ log, players, compact = false }: { log: readonly WwLogEntry[]; players: Player[]; compact?: boolean }) {
   const lines = describeLog(log, (id) => nameOf(players, id));
   const groups: Array<{ label: string; texts: string[] }> = [];
@@ -406,13 +449,16 @@ export function LogList({ log, players, compact = false }: { log: readonly WwLog
     if (last && last.label === label) last.texts.push(line.text);
     else groups.push({ label, texts: [line.text] });
   }
-  if (groups.length === 0) return <p className={`${compact ? 'text-[13px]' : 'text-sm'} text-slate-400`}>Chưa có gì.</p>;
+  if (groups.length === 0) return <p className="text-sm text-(--ww-text-3)">Chưa có gì.</p>;
   return (
     <ol className={compact ? 'space-y-2' : 'space-y-3'} data-ww-log="">
       {groups.map((g, i) => (
         <li key={i}>
-          <p className={`${compact ? 'mb-0.5' : 'mb-1'} text-xs font-bold tracking-wide text-indigo-300 uppercase`}>{g.label}</p>
-          <ul className={`${compact ? 'space-y-0.5 text-[13px] leading-snug' : 'space-y-1 text-sm'} text-slate-200`}>
+          <p className={`${compact ? 'mb-0.5' : 'mb-1'} flex items-center gap-1.5 text-xs font-bold text-(--ww-text-2)`}>
+            <WwIcon name={g.label.startsWith('Đêm') ? 'night' : 'day'} size={13} className="text-(--ww-text-3)" />
+            {g.label}
+          </p>
+          <ul className={`${compact ? 'space-y-0.5 leading-snug' : 'space-y-1'} text-sm text-(--ww-text)`}>
             {g.texts.map((t, j) => (
               <li key={j}>{t}</li>
             ))}

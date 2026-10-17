@@ -7,8 +7,10 @@ import { afterVote } from '@/components/games/werewolf/engine/flow.ts';
 import { isValidTarget, pickFor, seerLook, validateWitchPick } from '@/components/games/werewolf/engine/night.ts';
 import { nightActionOf, ROLE_NAME, ROLE_ORDER, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
 import { DEFAULT_RULES, FULL_POTIONS } from '@/components/games/werewolf/engine/types.ts';
-import { PhaseView, TopBar, WwShell } from './WerewolfBoard';
+import { PhaseView, TopBar } from './WerewolfBoard';
+import WwShell from './WwShell';
 import StyleBoard from './StyleBoard';
+import WerewolfJoinScreen from './WerewolfJoinScreen';
 import { dataOf, potionsOf, readConfig, tableOf } from './state';
 import type { PickResult, WitchDraft, WitchResult } from './useWerewolf';
 import type { DayBallot, WerewolfGameData, WerewolfGameState, WwLogEntry, WwPhase, WwRole, WwRules } from './types';
@@ -21,7 +23,9 @@ import type { Room } from '@/types/room';
 // vai đó, nên bộ vai trên bàn không đổi (cặp ảnh riêng tư).
 
 export const PREVIEW_SCENES = {
-  style: 'Bảng phong cách (GĐ3a)',
+  style: 'Bảng phong cách',
+  join: 'Vào phòng — mời vào làng',
+  'join-closed': 'Vào phòng — ván đang diễn ra',
   'lobby-host': 'Sảnh — chủ phòng',
   'lobby-guest': 'Sảnh — người chơi (chỉ đọc)',
   'lobby-warn': 'Sảnh — bộ vai lệch (cảnh báo)',
@@ -63,15 +67,18 @@ export const PREVIEW_SCENES = {
 export type PreviewScene = keyof typeof PREVIEW_SCENES;
 export const PREVIEW_ROLES: readonly WwRole[] = ROLE_ORDER;
 
-const NAMES = ['Lan', 'Minh', 'Hùng', 'Mai', 'Tú', 'Hoa', 'Khoa', 'Quân', 'Vy'];
-// Bộ 9 người: 2 Sói, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, 3 Dân. Ghế 5 và 7
-// luôn là Dân (đổi vai người xem không chạm tới).
-const LINEUP: WwRole[] = ['villager', 'werewolf', 'seer', 'guard', 'villager', 'werewolf', 'villager', 'witch', 'hunter'];
+const NAMES = ['Lan', 'Minh', 'Hùng', 'Mai', 'Tú', 'Hoa', 'Khoa', 'Quân', 'Vy', 'Đức'];
+// Bộ mặc định 9 người: 2 Sói, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, 3 Dân. Ghế
+// 5 và 7 luôn là Dân (đổi vai người xem không chạm tới). `count` 5–10 lấy n ghế
+// đầu (để kiểm bố cục với 5–10 người; vài màn của Phù thủy / Thợ săn / hồn ma
+// cần đủ 9).
+const LINEUP: WwRole[] = ['villager', 'werewolf', 'seer', 'guard', 'villager', 'werewolf', 'villager', 'witch', 'hunter', 'villager'];
+const DEFAULT_COUNT = 9;
 const ID = (i: number) => `p${i + 1}`;
 const ME = ID(0);
 
-function lineupFor(role: WwRole): WwRole[] {
-  const roles = [...LINEUP];
+function lineupFor(role: WwRole, n: number): WwRole[] {
+  const roles = LINEUP.slice(0, n);
   const j = roles.findIndex((r, i) => i > 0 && r === role);
   if (roles[0] !== role && j > 0) [roles[0], roles[j]] = [roles[j], roles[0]];
   return roles;
@@ -97,13 +104,15 @@ function makePlayers(roles: WwRole[], extra: (id: string, role: WwRole) => Parti
   }));
 }
 
-function baseState(phase: WwPhase, start: number, over: Partial<WerewolfGameState> = {}): WerewolfGameState {
+function baseStateN(phase: WwPhase, start: number, over: Partial<WerewolfGameState> = {}, n = DEFAULT_COUNT): WerewolfGameState {
+  const roleCounts: Record<WwRole, number> = { werewolf: 0, villager: 0, seer: 0, guard: 0, witch: 0, hunter: 0 };
+  for (const r of LINEUP.slice(0, n)) roleCounts[r] += 1;
   return {
     phase,
     phaseStartedAt: start,
     round: 1,
-    seatOrder: NAMES.map((_, i) => ID(i)),
-    roleCounts: { werewolf: 2, seer: 1, guard: 1, witch: 1, hunter: 1, villager: 3 },
+    seatOrder: NAMES.slice(0, n).map((_, i) => ID(i)),
+    roleCounts,
     rules: DEFAULT_RULES,
     timeouts: {},
     deaths: [],
@@ -147,10 +156,12 @@ interface Mock {
   players: Player[];
   lobby?: { isHost: boolean; roleCounts: Record<string, number> | null };
   style?: boolean;
+  join?: 'open' | 'closed';
 }
 
-function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
-  const roles = lineupFor(role);
+function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAULT_COUNT): Mock {
+  const roles = lineupFor(role, n);
+  const baseState = (phase: WwPhase, at: number, over: Partial<WerewolfGameState> = {}) => baseStateN(phase, at, over, n);
   const idOf = (r: WwRole, nth = 0) => ID(roles.map((x, i) => (x === r ? i : -1)).filter((i) => i >= 0)[nth]);
   const wolves = roles.map((r, i) => (r === 'werewolf' ? ID(i) : null)).filter(Boolean) as string[];
   // Người ai cũng chọn được (ghế 5 và 7 luôn là Dân, đổi vai không chạm tới):
@@ -160,6 +171,9 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
   switch (scene) {
     case 'style':
       return { state: null, players: [], style: true };
+    case 'join':
+    case 'join-closed':
+      return { state: null, players: makePlayers(roles).map((p) => ({ ...p, gameData: {} })), join: scene === 'join' ? 'open' : 'closed' };
     case 'lobby-host':
     case 'lobby-guest':
     case 'lobby-warn':
@@ -386,7 +400,7 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number): Mock {
           endReason: village ? 'no-wolves' : 'wolf-parity',
           log: SAMPLE_LOG,
         }),
-        players: makePlayers(LINEUP),
+        players: makePlayers(LINEUP.slice(0, n)),
       };
     }
   }
@@ -397,22 +411,33 @@ function Screen({
   role,
   start,
   rules,
+  count,
   chrome,
 }: {
   scene: PreviewScene;
   role: WwRole;
   start: number;
   rules?: Partial<WwRules>;
+  count: number;
   /** Thanh chọn màn / vai của Preview (nằm trong khung để cảnh nền phủ cả nó). */
   chrome: React.ReactNode;
 }) {
-  const initial = useMemo(() => buildScene(scene, role, start), [scene, role, start]);
+  const initial = useMemo(() => buildScene(scene, role, start, count), [scene, role, start, count]);
   const [players, setPlayers] = useState(initial.players);
   const [state, setState] = useState(() => (initial.state && rules ? { ...initial.state, rules: { ...initial.state.rules, ...rules } } : initial.state));
   const setMine = (data: Partial<WerewolfGameData>) =>
     setPlayers((ps) => ps.map((p) => (p.id === ME ? { ...p, gameData: { ...p.gameData, ...data } } : p)));
 
   const attrs = { 'data-ww-preview': scene, 'data-ww-viewer-role': role };
+  if (initial.join) {
+    // Màn vào phòng có khung (và cảnh) riêng; thanh chọn của Preview không hiện ở đây — đổi màn bằng URL.
+    const room = { roomCode: 'ABC123', status: initial.join === 'open' ? 'lobby' : 'night', config: { maxPlayers: 10 } } as unknown as Room;
+    return (
+      <div {...attrs}>
+        <WerewolfJoinScreen room={room} players={players} onJoin={async () => {}} />
+      </div>
+    );
+  }
   if (initial.style) {
     return (
       <WwShell state={null} {...attrs}>
@@ -436,7 +461,7 @@ function Screen({
           hostId={ME}
           isHost={initial.lobby.isHost}
           config={readConfig(room)}
-          invite={<p className="text-center font-mono text-2xl tracking-widest text-slate-100">ABC123</p>}
+          invite={<p className="text-center font-mono text-2xl tracking-widest text-(--ww-text)">ABC123</p>}
           onKick={() => {}}
           onUpdateConfig={() => {}}
           onStart={() => {}}
@@ -525,7 +550,10 @@ export default function WerewolfPreview({
   start,
   chrome = true,
   rules,
+  count = DEFAULT_COUNT,
 }: {
+  /** Số người trên bàn (5–10, mặc định 9): kiểm bố cục với ít / nhiều người. */
+  count?: number;
   initialScene?: PreviewScene;
   initialRole?: WwRole;
   /** Ghi đè luật của màn (vd. tắt "Hồn ma xem hết vai" để chụp ảnh). */
@@ -544,7 +572,7 @@ export default function WerewolfPreview({
       <p className="text-xs font-bold text-(--ww-accent) uppercase">Xem trước Ma Sói — dữ liệu giả</p>
       <select
         aria-label="Màn"
-        className="w-full rounded-lg bg-(--ww-raised) px-2 py-2 text-sm text-(--ww-text)"
+        className="w-full rounded-xl bg-(--ww-raised) px-2 py-2 text-sm text-(--ww-text)"
         value={scene}
         onChange={(e) => setScene(e.target.value as PreviewScene)}
       >
@@ -556,7 +584,7 @@ export default function WerewolfPreview({
       </select>
       <select
         aria-label="Vai người xem"
-        className="w-full rounded-lg bg-(--ww-raised) px-2 py-2 text-sm text-(--ww-text)"
+        className="w-full rounded-xl bg-(--ww-raised) px-2 py-2 text-sm text-(--ww-text)"
         value={role}
         onChange={(e) => setRole(e.target.value as WwRole)}
       >
@@ -568,5 +596,5 @@ export default function WerewolfPreview({
       </select>
     </div>
   ) : null;
-  return <Screen key={`${scene}:${role}:${startAt}`} scene={scene} role={role} start={startAt} rules={rules} chrome={bar} />;
+  return <Screen key={`${scene}:${role}:${startAt}`} scene={scene} role={role} start={startAt} rules={rules} count={count} chrome={bar} />;
 }
