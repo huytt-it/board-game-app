@@ -1201,3 +1201,8 @@ Người dùng duyệt hướng hình ảnh GĐ3a (màu nhấn đèn lồng, fon
 - Ở Kết quả, khoảng 3,0–3,3 s câu "Minh bị treo" chồng lên "Đang kiểm phiếu…" lúc crossfade.
 - Nhịp 8 s của Bình minh / Kết quả.
 - Kéo bằng ngón để cuộn tờ hồn ma (còn mở từ GĐ2b).
+
+### 12.15 PR #2 (2026-10-17)
+- PR huytt-it/board-game-app#64 (`dev-werewolf` → `main`), CI 2/2. Người dùng nhờ nhạc trưởng push + squash-merge: `main` = `709a29d8`.
+- Tree của `main` trùng `dev-werewolf@99bcf67a`. `git merge -s ours origin/main` trên `dev-werewolf` (`13546c22`), đã push.
+- Tiếp theo: **GĐ5**. Người dùng chơi thật 2–3 ván với nhóm bạn, gửi phản hồi. Nhạc trưởng viết brief GĐ5 từ phản hồi đó cùng các mục "Để GĐ5" ở §12.8 và §12.14.
