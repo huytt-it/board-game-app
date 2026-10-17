@@ -618,7 +618,7 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 | GĐ1 | **Review đạt** (nhạc trưởng, 2026-10-11) | `08623054` → `d3b1a59f`; code `15d0d159`, `13e33330`, `0f4da818`, `b51f226f` | Chơi được 4 vai trên điện thoại, không quản trò. Hook UI chuyển sang `games/shared/hooks`. Engine 136 test. Ván thật 7 cửa sổ: Dân thắng 11/11, Sói thắng 9/9 kiểm tra đạt. Cặp ảnh riêng tư Đêm ① + Xem vai 12/12 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.3, review ở §12.4. |
 | GĐ2 | **Review đạt** (nhạc trưởng, 2026-10-16) | `fe0343a0` → `2bf4a5da`; code `35894afc`, `701f1009`, `b6ab022f`, `99cc7252`, `c4c0944f`, `3f13ff03` | Đủ 6 vai + 4 luật tuỳ chọn, cho rời làng, hồn ma, màn Luật chơi. Adapter `casGameState` không ghi doc phòng khi chỉ ghi `playerData`. Engine 138 test. Ván thật 7–10 cửa sổ: 7 kịch bản Ma Sói đạt + 1 ván Avalon 5 cửa sổ đạt. Cặp ảnh riêng tư Đêm ①, Xem vai, Đêm ② 40/40 = 0.000. Chi tiết, lệch kế hoạch và số đo ở §12.5, review ở §12.6. |
 | GĐ2b | **Review đạt** (nhạc trưởng, 2026-10-16) | `c7eb0e2a` → `5a852dbe`; code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7, review ở §12.8. |
-| GĐ3a | Chưa bắt đầu | | Nền thiết kế + 4 màn mẫu, dừng chờ người dùng duyệt. |
+| GĐ3a | **Xong, chờ người dùng duyệt hướng hình ảnh** (2026-10-17) | `336349ec` → (commit này); code `9867bcef`, `f35c2a70` | Token `--ww-*` (đêm xanh tím, chữ ánh trăng, một màu nhấn đèn lồng, font Grenze), bộ UI nhỏ, 29 icon qua registry (14 mới, người dùng duyệt tải), 2 cảnh cắt giấy (làng ban đêm, bình minh), 4 màn mẫu (Sảnh, Xem vai, Đêm ①, Bình minh) có bố cục hai cột ở 1440 px, bảng phong cách. Cặp ảnh riêng tư 114/114 = 0.000, tương phản 777/777 ≥ 4,5 : 1, không cuộn ngang ở 320 px. Gói Ma Sói +22,5 KB gzip. Chi tiết ở §12.10. |
 | GĐ3b | Chưa bắt đầu | | Áp cho mọi màn còn lại. |
 | GĐ4 | Chưa bắt đầu | | |
 
@@ -938,3 +938,84 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 - PR huytt-it/board-game-app#63 (`dev-werewolf` → `main`), CI 2/2. Người dùng nhờ nhạc trưởng squash-merge: `main` = `b768f09f`.
 - Tree của `main` trùng `dev-werewolf@bad4aea4` (diff rỗng). Đã chạy `git merge -s ours origin/main` trên `dev-werewolf` (`b7486a56`) và push.
 - Tiếp theo: GĐ3a (§8, "Bổ sung cho GĐ3").
+
+### 12.10 GĐ3a — ghi chú của người thực thi (2026-10-17)
+
+**Commit** (trên `dev-werewolf`, chưa push; điểm bắt đầu `336349ec`):
+1. `9867bcef` `refactor(games)`: `git mv` 15 icon game-icons.net + `gameIcon` từ `avalon/assets/icons/` sang `src/components/games/shared/icons/` (mặt trăng, quả cầu, lá phiếu, mắt, dấu tích, đồng hồ cát, chìa khoá, menu, đóng, thoát, xoá, sách, mất mạng, cảnh báo, đồng hồ). Avalon chỉ đổi đường import (`registry.ts` + dòng import `gameIcon` của 33 icon còn lại) và cột File của `CREDITS.md`, một dòng `README.md`. Kiểm: `tsc`, `npx eslint src/components/games` = mốc, mở `AvalonPreview` 6 màn (bảng phong cách, bỏ phiếu đội, sảnh, lộ vai ×2, đêm Phe Quỷ): mọi `svg.av-icon` vẽ được (37/37, 22/22, 3/3, 10/10, 10/10, 22/22).
+2. `f35c2a70` `feat(werewolf): GĐ3a` — token, bộ UI nhỏ, icon, 2 cảnh, 4 màn mẫu, bảng phong cách.
+3. Commit docs này: §12.
+
+**Đã làm**
+- **Token** (`werewolf.css`, chỉ `WerewolfBoard` import; Preview đi qua Board): `.ww-root { --ww-* }`.
+  - Nền đêm: `--ww-ink #0c0e1c`, `--ww-glass-bg` (kính tối 84 %), `--ww-raised #1b1f33` (mặt nổi đặc), `--ww-raised-hi`, viền duy nhất `--ww-line`.
+  - Chữ ánh trăng 3 mức (màu đặc): `--ww-text #e8eaf4` / `--ww-text-2 #b4b9cd` / `--ww-text-3 #959cb4` = 13,6 / 8,3 / 6,0 : 1 trên mặt nổi.
+  - **Một màu nhấn**: đèn lồng `--ww-accent #eaa84e` (chữ mực trên nó 9,3 : 1) — nút chính, ô đang chọn, "Chưa xác nhận".
+  - Màu phe, chỉ cho thông tin công khai: `--ww-wolf` (kiêm nguy hiểm / sắp hết giờ) + `--ww-wolf-light`, `--ww-village` + `--ww-village-light`. `--ww-moon` chỉ cho icon trang trí.
+  - 3 bán kính (`full` / `xl` / `2xl`), thang chữ 12 / 14 / 16 / display ≥ 20, một tiêu đề display mỗi màn. Font tiêu đề **Grenze** (`assets/fonts.ts`, next/font, có subset `vietnamese`; chữ thân vẫn Inter). Vòng tiêu điểm chung màu nhấn. `prefers-reduced-motion`: tắt mọi animation, ẩn hạt hiệu ứng.
+- **Bộ UI nhỏ**: `ui/Button` (primary / secondary / danger / ghost, cỡ md 44 / lg 52 px, `icon`; khoá = mặt nổi trung tính, không mờ màu nhấn), `ui/Panel` (kính + một viền; tone neutral / accent / wolf / village), `ui/Chip`. Trong `panel/shared.tsx`: `PhaseHeader` (display + đồng hồ dạng chip, đổi màu cảnh báo khi ≤ 10 s, `warn={false}` cho bước tự chạy), `PhaseLayout` (điện thoại xếp dọc; từ `lg` hai cột: "sân khấu" người chơi bên trái, tiêu đề + phần còn lại thành một khung kính 24 rem bên phải; thứ tự DOM giữ nguyên), `Avatar` (màu "giấy nhuộm" theo id, 10 màu cùng độ sáng, chữ trắng ≥ 5,7 : 1, không đỏ / xanh lá thuần), `PlayerTile` (mặt nổi đặc, không viền, ô chọn có vòng đèn lồng; giữ nguyên chặn `pointerup` / `mousedown`), `Seat` (ghế chỉ xem: avatar hoặc bia mộ, dòng phụ, dấu góc), `MeMark`, `RoleLine` / `RoleTag` (icon + vai đã lộ, màu phe), `HoldCard` (mặt nổi, icon mắt, nền như nhau khi giữ / không giữ), `InHoldButton`, `DeadNote`, `Dock` (dải mực ở điện thoại, nằm yên trong khung phải từ `lg`). `DealPanel`: `MyRoleBody` (huy hiệu vai trung tính, phe bằng chữ nhỏ), `DoneMark`.
+- **Icon qua asset registry** (`assets/registry.ts`, `assets/WwIcon.tsx`, mỗi tên một nghĩa): 6 vai, `team-village`, `game`, `night`, `dawn`, `day`, `vote`, `hanged`, `dead`, `ghost`, `heal`, `poison`, `check`, `waiting`, `hold`, `host` + 8 icon giao diện. 14 icon mới tải từ game-icons.net **sau khi người dùng duyệt** (2026-10-17): wolf-head, farmer, checked-shield, cauldron, crossbow (Carl Olsen), village, wolf-howl, sunrise, sun, gibbet, tombstone, ghost, health-potion, poison-bottle; path làm tròn 1 chữ số (khác bản gốc ≤ 53 / ~100 000 điểm ảnh ở 512²). `assets/CREDITS.md`, `assets/README.md` (thay icon / lớp cảnh bằng ảnh: sửa một dòng).
+- **Cảnh** (`scenes/`): `SceneBackdrop` (lớp `fixed` phía sau, crossfade 700 ms, đổi trong 1,5 s đầu sau khi mount thì hiện ngay; giảm chuyển động: đổi ngay, không hạt), `getScene(state)` (chỉ theo phase / phe thắng), `village.ts` (một bóng làng chung: nhà thờ, 10 mái nhà, cối xay gió ở rìa trái), 2 cảnh vẽ cắt giấy bằng hàm của `avalon/scenes/paper.tsx`:
+  - **Làng ban đêm** (sảnh, xem vai, Đêm ①, Đêm ②): trời xanh tím, sao, trăng tròn bạc thấp sau tháp chuông, đồi, làng sáng đèn, bìa rừng hai bên (có đôi mắt ở rìa trái, chỉ màn rộng thấy). 17 hạt (sao, đom đóm, quầng đèn cửa sổ).
+  - **Bình minh**: dải trời tím → cam ấm (đỉnh vẫn tối cho chữ), mặt trời nửa vành sau nhà thờ, mây mảnh, chim, khói bếp hai nhà, sương. 7 hạt bụi nắng.
+  - Cảnh của các bước khác (`day`, `gallows`, `end-village`, `end-wolves`) là **placeholder** màu phẳng trong registry, GĐ3b vẽ.
+  - Ở điện thoại, vật sáng không nằm sau chữ: trăng nằm sau thẻ giữ / nút, mặt trời dưới khung công bố.
+- **4 màn mẫu**:
+  - **Sảnh**: tiêu đề + "9 người · cần 5–10"; người trong phòng là `Seat` (dòng phụ "bạn · chủ phòng", nút ✕ mời ra là `Button` ghost), mã mời trong `Panel`; cài đặt: stepper có icon vai, luật là khối chọn liền (ô đang chọn = mặt nổi sáng + dấu tích, không dùng màu nhấn), cảnh báo bằng icon + chữ màu Sói. Người không phải chủ phòng thấy cài đặt **không còn mờ 45 %** (để đạt tương phản). Màn rộng: người + mã mời bên trái, cài đặt + nút bên phải.
+  - **Xem vai**: tiêu đề + đồng hồ, một câu, thẻ giữ, "2/9 người đã xem", nút lg. Màn rộng thêm cả làng bên trái (ghế, dấu ✓ ai đã xem — công khai).
+  - **Đêm ①**: lưới ô người còn sống (dấu "bạn"), "Chưa / Đã xác nhận" (icon + chữ, chưa = màu nhấn), thẻ giữ, nút Xác nhận. Màn rộng: lưới bên trái, phần còn lại trong khung phải. Phần riêng khi giữ đổi sang token (bầy chưa thống nhất = màu nhấn; kết quả soi "LÀ SÓI" / "không phải Sói" màu phe — chỉ trong thẻ đang giữ).
+  - **Bình minh**: tiêu đề + đồng hồ (không đổi màu cảnh báo), khung công bố (bia mộ + tên + vai đã lộ) hoặc "Đêm qua bình yên" với icon bình minh. Màn rộng thêm cả làng bên trái (người chết: bia mộ, tên gạch, vai đã lộ).
+- **Khung chung** `WwShell` (Board + Preview): `.ww-root` + font + cảnh theo phase; rộng `max-w-lg`, từ `lg` tới `6xl`. Thanh trên: icon `game` + "Ma Sói" (display) + nút ⋯ (ghost). Banner lỗi / mất kết nối đổi sang token + icon.
+- **Bảng phong cách**: `StyleBoard.tsx`, mục đầu tiên của `WerewolfPreview` (`style`): token, avatar, chữ, tiêu đề + đồng hồ, nút, nhãn, khung, ô / ghế mọi trạng thái, thẻ giữ đóng / mở, toàn bộ icon, 6 cảnh (2 đã vẽ + 4 placeholder), dòng credit. Preview giờ bọc trong `WwShell` nên mọi màn có cảnh nền.
+
+**Lệch kế hoạch / cần người dùng và nhạc trưởng xem**
+1. **Hướng hình ảnh chờ duyệt**: màu nhấn là **đèn lồng hổ phách** (không phải ánh trăng bạc — bạc đã là màu chữ, làm nhấn sẽ không nổi) và font tiêu đề **Grenze** (khác Cormorant của Avalon, để Ma Sói có giọng riêng). Đổi màu nhấn chỉ cần sửa một token.
+2. Chuyển 15 icon dùng chung sang `games/shared/icons/` (ràng buộc 4, commit riêng). `paper.tsx` và `hashString` của Avalon được import thẳng (hàm thuần), không chuyển.
+3. **Bia mộ đã chỉnh sửa**: sáu vạch chữ khắc của icon gốc ở cỡ 26 px trông như mặt ma; thay bằng một chữ thập khắc (ghi trong CREDITS).
+4. **Bỏ dòng gợi ý mặc định trong thẻ giữ** ("Ai cũng giữ — màn hình của mọi người như nhau."): câu của bước đã nói việc phải làm (mỗi màn một câu). Thẻ của người chết và "Vai của tôi" vẫn có gợi ý riêng.
+5. **Màn rộng**: chưa làm bàn tròn; "sân khấu" là lưới ô / ghế công khai (ràng buộc 5 cho phép). Các bước chưa làm lại vẫn một cột giữa (`WIDE_PHASES` tạm trong `PhaseView`, xoá ở GĐ3b); thẻ của người chết nằm dưới khung phải ở các bước hai cột.
+6. Sân khấu của Xem vai / Bình minh chỉ hiện từ `lg` (ẩn bằng CSS ở điện thoại). DOM ẩn đó chỉ có thông tin công khai (dấu ✓, vai đã lộ của người chết). Bộ kiểm DOM của cặp ảnh người chết (`ghostpairs`) sửa cho đúng ý: vai trên ô chỉ được nằm trên ghế của người đã chết.
+7. Chủ phòng vẫn thấy nút ✕ trên mọi ghế ở sảnh (như cũ); Avalon GĐ7b chỉ hiện khi chạm vào ghế — để GĐ3b quyết.
+8. Ảnh chụp cả trang (`full`) kéo giãn cảnh `fixed` theo chiều cao trang (trăng to ở ảnh sảnh / bảng phong cách): là giới hạn của cách chụp, không phải giao diện; có thêm ảnh đúng một khung nhìn (`vp375`, `vp1440`).
+9. **Gói JS tăng ~22,5 KB gzip** (chủ yếu icon và cảnh), xem số đo.
+
+**Kiểm thử (§11 + nghiệm thu GĐ3)**
+- `npm run test:werewolf` 138/138. `npx tsc --noEmit` sạch. `npx eslint src/components/games/werewolf` sạch; `npx eslint src/components/games` 29 lỗi / 29 cảnh báo = mốc. `npm run build` qua (đã xoá trang harness và `.next`). Không đụng engine, `useWerewolf`, luật.
+- **Cặp ảnh riêng tư** (mã cuối, chụp cùng lúc, không giữ, mọi animation đóng băng ở cùng `currentTime` — cảnh có hạt nhấp nháy —, thu 10 %, trung bình |Δ| 0–255):
+  - Đêm ① chưa chọn / đã chọn / đã xác nhận + Xem vai, Sói so với 5 vai còn lại, 375 px: **20/20 = 0.000**; 1440 px (Đêm ① chưa chọn / đã xác nhận, Xem vai, Đêm ② đã chọn): **20/20 = 0.000**.
+  - Đêm ② chưa chọn / đã chọn (Phù thủy cứu + độc) / đã xác nhận / Sói không cắn, Phù thủy so với 5 vai: **20/20 = 0.000**.
+  - Người chết, không giữ, 7 bước × (Sói / Dân / Tiên tri / Thợ săn đã bắn) × hồn ma bật / tắt, kèm kiểm DOM: **54/54 = 0.000**.
+  - Đối chứng: Đêm ① chưa chọn | đã xác nhận 1.122 (375) / 0.232 (1440); Đêm ② chưa chọn | đã xác nhận 6.333; Phù thủy | Dân **khi giữ** 3.002; hồn ma giữ bật | tắt 11.106, giữ | không giữ 13.845.
+- **Tương tác giữ thẻ** (chạy lại bộ của GĐ1–2b): Đêm ① 11/11, Phù thủy 15/15, tờ hồn ma (bật / tắt / Thợ săn chờ bắn) hiện đúng.
+- **Tương phản trên điểm ảnh thật** (đi từng khung nhìn, chụp lại với chữ trong suốt để lấy nền thật, bỏ nút khoá và chữ bị che): 375 px **299/299 ≥ 4,5 : 1** (thấp nhất 5,96), 1440 px **478/478** (thấp nhất 5,96 ở màn chơi, 5,37 ở bảng phong cách). Gồm thẻ giữ đang mở (Sói, Tiên tri, bầy chưa thống nhất) và người chết.
+- **Không cuộn ngang ở 320 px**: 37 màn của Preview + bảng phong cách. 0 lỗi console.
+- **Giảm chuyển động**: bật thì 0/17 hạt hiện, 0 animation chạy, đổi cảnh đêm → bình minh tức thì; tắt thì crossfade 700 ms rồi bỏ cảnh cũ.
+- **Mật độ** (375 px, thanh trên + `[data-phase-section]`, không tính tên người chơi; cách đo của Avalon GĐ7):
+
+  | Màn | Từ trước → sau | Khung có viền | Sắc màu nhấn |
+  |---|---|---|---|
+  | Sảnh (chủ phòng / người chơi) | 115 → 115 | 10 → 2 | 1 → 1 / 1 → 0 |
+  | Xem vai | 38 → 28 | 1 → 0 | 1 → 1 |
+  | Đêm ① chưa chọn / đã chọn / đã xác nhận | 34 / 34 / 35 → 24 / 24 / 25 | 10 → 0 / 1 / 1 | 2 → 1 / 1 / 0 |
+  | Bình minh có người chết / bình yên | 13 / 13 → 13 / 13 | 0 → 1 | 3 → 0 / 2 → 0 |
+
+  Lớp màu Tailwind có bảng màu trong `*.tsx` của werewolf (trừ Preview / StyleBoard): 36 lớp / 208 lần → 22 / 88; 0 ở các file của 4 màn mẫu, `ui/`, `WerewolfBoard`. Phần còn lại (và 9 `text-[Npx]`) nằm ở các panel của GĐ3b và `LogList`.
+- **Kích thước gói** (build sạch không harness; một lần import Ma Sói theo `react-loadable-manifest` của trang phòng; gzip mức 6):
+
+  | | Trước (`9867bcef`, Ma Sói như `336349ec`) | Sau |
+  |---|---|---|
+  | Chunk riêng của Ma Sói | 79 771 / 23 218 B | 109 551 / 36 031 B |
+  | Chunk dùng chung kèm theo (hook, icon chung, `paper.tsx`) | 21 395 / 7 947 B | 38 667 / 16 120 B |
+  | `werewolf.css` | — | 4 551 / 1 514 B |
+  | **Tổng một lần import** | **101 166 / 31 165 B** | **152 769 / 53 665 B (+22,5 KB gzip)** |
+  | Avalon (để so) | 312 947 / 103 282 B | 317 698 / 104 503 B (+1,2 KB: Turbopack chia lại chunk dùng chung, code Avalon không đổi) |
+
+  Path của 29 icon ≈ 22 KB raw / 9,9 KB gzip. Font Grenze là font biến thiên, một file cho cả 600 và 700: latin 37 976 B + vietnamese 9 552 B (preload), latin-ext 27 748 B (chỉ tải khi cần).
+- Ảnh: `.claude/ww-gd3a-shots/` (bị git bỏ qua): `before375` / `after375` (37 màn), `before1440` / `after1440`, `after320`, `vp375` / `vp1440` (một khung nhìn), `report/` (so sánh trước / sau, bảng phong cách 375 / 1440), các file `contrast*.json`, `metrics-*.json`.
+- Script: scratchpad `efce92b2-924b-48f7-9a99-61549d6d56a3/scratchpad` (`wwshots.mjs` có `FULL=0`, `pairs.mjs` có `WIDTH=` và đóng băng animation, `ghostpairs.mjs`, `contrast.mjs`, `metrics.mjs`, `motion.mjs`, `avcheck.mjs`, `scripts/mkicons.mjs` + `verifyicons.mjs`, harness `harness/final/`).
+
+**Việc chuyển sang GĐ3b** (sau khi người dùng duyệt hướng hình ảnh)
+- Áp `PhaseLayout` + bộ UI cho Đêm ②, Thợ săn, Thảo luận, Bỏ phiếu, Kết quả (`warn={false}`), Kết thúc, tờ hồn ma, menu / hộp thoại / Luật chơi (thêm dòng credit icon), màn join riêng (`WerewolfJoinScreen` xuất từ module `WerewolfBoard`, nhánh trong `page.tsx`).
+- Vẽ 4 cảnh còn lại (`day`, `gallows`, `end-village`, `end-wolves`), bỏ `placeholder`. Xoá `WIDE_PHASES` khi mọi bước dùng `PhaseLayout`.
+- Quét nốt lớp màu Tailwind và `text-[Npx]` (GhostPanel, LogList, VotePanel, WitchPanel). Quyết nút ✕ ở sảnh.
+- Nếu thêm bàn tròn: kiểm va chạm ghế / nhãn 320–390 px × 5–10 người.
