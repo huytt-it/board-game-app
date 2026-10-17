@@ -20,6 +20,7 @@ App là quản trò: tự gọi từng bước, đếm giờ, nhận lựa chọ
 
 - Kiểm tra thắng thua sau **mỗi lượt có người chết**: ở bình minh, sau khi treo, sau phát bắn của Thợ săn, và khi chủ phòng cho một người rời làng.
 - Nếu Sói đã hết thì Dân thắng, kể cả khi không còn ai sống.
+- Khi ván có vai mở rộng, có thêm phe **Kẻ chán đời** và phe **Tình nhân**. Thứ tự kiểm tra thắng thua lúc đó theo mục 11.8.
 
 ## 3. Các vai (v1)
 
@@ -34,7 +35,7 @@ App là quản trò: tự gọi từng bước, đếm giờ, nhận lựa chọ
 
 ## 4. Phân vai
 
-**Số người: 5–10.** Mặc định như bảng dưới. Chủ phòng có thể chỉnh số lượng từng vai, app hiện điểm cân bằng.
+**Số người: 5–12.** (v1 là 5–10; người dùng nâng lên 12 ngày 2026-10-17, cùng lúc thêm vai mở rộng ở mục 11.) Mặc định như bảng dưới. Chủ phòng có thể chỉnh số lượng từng vai, app hiện điểm cân bằng.
 
 | Người | Sói | Tiên tri | Bảo vệ | Phù thủy | Thợ săn | Dân | Điểm |
 |---|---|---|---|---|---|---|---|
@@ -44,14 +45,16 @@ App là quản trò: tự gọi từng bước, đếm giờ, nhận lựa chọ
 | 8 | 2 | 1 | 1 | 1 | – | 3 | +5 |
 | 9 | 3 | 1 | 1 | 1 | 1 | 2 | +1 |
 | 10 | 3 | 1 | 1 | 1 | 1 | 3 | +2 |
+| 11 | 3 | 1 | 1 | 1 | 1 | 4 | +3 |
+| 12 | 3 | 1 | 1 | 1 | 1 | 5 | +4 |
 
 - **Điểm cân bằng** (thang kiểu Ultimate Werewolf): Sói −6, Tiên tri +7, Phù thủy +4, Bảo vệ +3, Thợ săn +3, Dân +1. Gần 0 là cân, dương là lợi cho Dân, âm là lợi cho Sói. App luôn hiện điểm. App **cảnh báo khi điểm lệch quá ±6** (nhỏ hơn −6 hoặc lớn hơn +6), không chặn bắt đầu ván. Bộ mặc định cao nhất là +6 nên không bao giờ bị cảnh báo (người dùng chốt 2026-10-11).
-- Bảng trên là đề xuất, sẽ chỉnh lại sau khi chơi thử (GĐ5).
+- Bảng trên là đề xuất, sẽ chỉnh lại sau khi chơi thử (GĐ6). Bộ mặc định chỉ dùng 6 vai gốc. Vai mở rộng (mục 11) do chủ phòng bật thêm.
 - **Ràng buộc khi bắt đầu ván** (vi phạm thì không cho bắt đầu):
   - tổng số vai = số người;
-  - có ít nhất 1 Sói;
+  - có ít nhất 1 Sói (Sói = Ma Sói + Sói con, mục 11.1);
   - 2 × số Sói < số người, vì nếu không thì Sói thắng ngay từ đầu;
-  - mỗi vai đặc biệt (Tiên tri, Bảo vệ, Phù thủy, Thợ săn) có tối đa 1 người.
+  - mỗi vai đặc biệt có tối đa 1 người: Tiên tri, Bảo vệ, Phù thủy, Thợ săn và cả 6 vai mở rộng (Già làng, Người hoá sói, Tay sai, Kẻ chán đời, Cupid, Sói con).
 - Ghế ngồi được xáo ngẫu nhiên mỗi ván. Danh sách vai trong ván chỉ lưu **số lượng** từng vai, **không lưu theo thứ tự ghế**.
 
 ## 5. Diễn biến một ván
@@ -178,6 +181,11 @@ Sảnh luôn hiện điểm cân bằng kèm nhãn:
 
 Lệch quá ±6 thì có thêm cảnh báo (người dùng chốt 2026-10-11).
 
+**Vai mở rộng** (mục 11):
+- mặc định tắt;
+- chủ phòng thêm từng vai ở mục "Vai mở rộng", mỗi vai tối đa 1 người;
+- Dân làng tự giảm tương ứng, điểm cân bằng tự cập nhật.
+
 ### 8.2 Luật tuỳ chọn
 | Cài đặt | Mặc định | Lựa chọn |
 |---|---|---|
@@ -236,3 +244,116 @@ Chỉnh bằng nút −/+, cố định khi bắt đầu ván (giống Avalon G�
 | E26 | Phù thủy đã chết hoặc hết bình | Đêm ② vẫn diễn ra, kết thúc theo luật thường, không ai bị cứu hay độc. |
 | E27 | Mọi người cùng chết, không còn Sói | Dân thắng. |
 | E28 | Bộ vai vi phạm ràng buộc ở mục 4 | Không cho bắt đầu ván, báo lỗi bằng tiếng Việt. |
+| E29–E55 | Vai mở rộng | Xem mục 11.9. |
+
+## 11. Vai mở rộng (v2)
+
+Người dùng chọn 2026-10-17. Mặc định **tắt**; chủ phòng bật từng vai ở sảnh. Ván có tối đa 12 người. Những điểm ghi "(đề xuất)" là cách hiểu của nhạc trưởng, người dùng có thể đổi trước GĐ5a.
+
+| Vai | Phe | Điểm (tạm) | Ban đêm (Đêm ①) |
+|---|---|---|---|
+| **Già làng** | Dân | +3 | Chọn "người mình nghi" |
+| **Người hoá sói** | Dân | −1 | Chọn "người mình nghi" |
+| **Tay sai** | Sói | −6 | Chọn "người mình nghi" (không cắn, không ở trong bầy) |
+| **Kẻ chán đời** | Riêng | −2 | Chọn "người mình nghi" |
+| **Cupid** | Dân | −3 | Đêm 1: ghép cặp đôi (11.5). Các đêm sau: chọn "người mình nghi" |
+| **Sói con** | Sói | −8 | Cắn cùng bầy như Ma Sói |
+
+Điểm theo thang kiểu Ultimate Werewolf, tạm tính, chỉnh sau khi chơi thật. Mọi vai mở rộng đều làm "người mình nghi" ở Đêm ① (trừ Sói con), nên màn ban đêm vẫn giống hệt nhau. Phần riêng chỉ hiện khi giữ thẻ.
+
+### 11.1 "Sói" và "phe Sói"
+- **Sói** = Ma Sói và Sói con. Họ cắn cùng bầy, Tiên tri soi ra "Là Sói", được đếm khi xét "Sói đủ số", và còn ít nhất một Sói thì làng chưa thắng.
+- **Phe Sói** = Sói + Tay sai. Tay sai thắng khi phe Sói thắng.
+
+### 11.2 Già làng
+- Có một **mạng phụ**, chỉ dùng với Sói cắn. Lần đầu bị cắn **trúng** (không được Bảo vệ che, không được Phù thủy cứu) thì không chết, nhưng mất mạng phụ. Lần bị cắn trúng sau thì chết.
+- Được che hoặc được cứu thì mạng phụ còn nguyên (bình cứu vẫn mất, như E2).
+- Bị độc, bị treo, bị bắn, chết theo người yêu hoặc rời làng thì chết ngay; mạng phụ không có tác dụng.
+- Đêm Già làng mất mạng phụ, bình minh công bố "Đêm qua bình yên" (không ai biết). Già làng thấy "Bạn đã mất mạng phụ" trong thẻ giữ.
+
+### 11.3 Người hoá sói
+Phe Dân, giống Dân làng ở mọi mặt, trừ một điểm: Tiên tri soi ra **"Là Sói"**.
+
+### 11.4 Tay sai
+- Thuộc phe Sói. Từ bước Xem vai đã biết ai là Sói (Ma Sói, Sói con) qua thẻ giữ. Ngược lại, Sói **không** biết Tay sai là ai.
+- Không cắn, không ở trong bầy. Ban đêm chọn "người mình nghi" như Dân. Sói có thể cắn Tay sai.
+- Tiên tri soi ra **"Không phải Sói"**.
+- Khi xét "Sói đủ số", Tay sai không tính là Sói mà tính vào "người còn lại". Tay sai còn sống cũng không ngăn làng thắng.
+
+### 11.5 Cupid
+- Thuộc phe Dân.
+- **Ghép đôi (Đêm 1, trong Đêm ①):**
+  - Cupid chọn **2 người khác nhau** còn sống làm cặp đôi, được chọn cả chính mình, rồi Xác nhận.
+  - Màn của Cupid giống mọi người: chạm lưới khi không giữ là "người mình nghi"; việc ghép đôi làm trong thẻ giữ (giữ thẻ rồi chạm lưới, giống cách Phù thủy độc).
+  - Hết giờ mà chưa chọn đủ 2 người hoặc chưa Xác nhận thì ván **không có cặp đôi**.
+- **Ai biết gì:**
+  - Từ Bình minh ngày 1, mỗi người trong cặp thấy trong thẻ giữ: "Bạn yêu X — X là ‹vai›" **(đề xuất: thấy cả vai của người kia, để biết mình có thành phe Tình nhân không)**.
+  - Cupid thấy cặp mình đã ghép. Những người khác không biết.
+- **Chết theo người yêu:**
+  - Một người trong cặp chết, vì bất kỳ lý do gì kể cả rời làng, thì người kia **chết theo ngay** (nguyên nhân "chết theo người yêu"). Không ai che hay cứu được cái chết này.
+  - Người chết theo là Thợ săn thì vẫn được bắn. Là Sói con thì vẫn kích hoạt 11.7. Là Kẻ chán đời thì thua.
+- **Phe Tình nhân:**
+  - Nếu hai người trong cặp **khác phe** (phe Sói / phe Dân / Kẻ chán đời), cả hai rời phe cũ và thành phe Tình nhân, mất điều kiện thắng cũ. Phe Tình nhân thắng khi chỉ còn đúng 2 người sống và đó là cặp đôi.
+  - Sói trong cặp Tình nhân vẫn cắn cùng bầy, vẫn bị soi ra "Là Sói", và vẫn chặn làng thắng, nhưng **không** được đếm khi xét "Sói đủ số".
+  - Hai người cùng phe thì vẫn thuộc phe cũ, chỉ thêm luật chết theo.
+
+### 11.6 Kẻ chán đời
+- Có phe riêng. Thắng khi **bị treo** ở bước Kết quả phiếu: ván kết thúc ngay, Kẻ chán đời thắng một mình, mọi người khác thua. Điều này đúng cả khi chính lần treo đó cũng làm Sói đủ số.
+- Chết theo cách khác (bị cắn, độc, bắn, chết theo người yêu, rời làng) thì thua, và ván tiếp tục.
+- Không phải Sói: Tiên tri soi ra "Không phải Sói". Khi xét "Sói đủ số", Kẻ chán đời tính vào "người còn lại". Còn sống cũng không ngăn làng thắng (lúc đó Kẻ chán đời thua).
+- Kẻ chán đời ở trong cặp Tình nhân thì không còn thắng khi bị treo, vì đã rời phe cũ.
+
+### 11.7 Sói con
+- Là Sói (11.1), cắn cùng bầy.
+- **Kích hoạt:**
+  - Khi Sói con chết, vì bất kỳ lý do gì **trừ rời làng** **(đề xuất)**, thì **đêm kế tiếp** bầy Sói được cắn **2 người khác nhau**. Đêm kế tiếp là đêm có số bằng vòng Sói con chết + 1.
+  - Đêm đó không còn Sói nào sống thì không có gì xảy ra.
+- **Cách chọn 2 người:**
+  - Mỗi Sói chọn 2 người. Bầy **thống nhất** khi mọi Sói còn sống chọn cùng một cặp 2 người.
+  - Hết giờ mà chưa thống nhất thì lấy 2 người nhiều phiếu nhất. Nếu hoà ở ranh giới thì theo "Sói hoà phiếu": "Ngẫu nhiên" là bốc trong số người hoà; "Không cắn" là chỉ cắn những người đã chắc chắn lọt top.
+  - Chỉ có 1 người được chọn thì chỉ cắn 1.
+- **Phù thủy và Bảo vệ đêm đó:**
+  - Phù thủy thấy cả hai người bị nhắm. Bình cứu chỉ có 1, nên phải chọn cứu **một** trong hai.
+  - Bảo vệ vẫn chỉ che một người.
+
+### 11.8 Thứ tự kiểm tra thắng (khi có vai mở rộng; thay cho mục 2)
+Kiểm tra sau mỗi lượt có người chết, kể cả người chết theo người yêu, theo thứ tự sau:
+1. Vừa treo Kẻ chán đời (không thuộc phe Tình nhân): **Kẻ chán đời thắng**.
+2. Chỉ còn đúng 2 người sống và đó là cặp Tình nhân: **Tình nhân thắng**.
+3. Không còn Sói nào sống (Ma Sói, Sói con, kể cả Sói trong cặp Tình nhân): **phe Dân thắng**. Tay sai, Kẻ chán đời và Tình nhân còn sống đều thua.
+4. Số Sói còn sống **không thuộc** phe Tình nhân ≥ số người còn sống còn lại: **phe Sói thắng** (gồm Ma Sói, Sói con và Tay sai không thuộc phe Tình nhân).
+5. Không thì ván tiếp tục.
+
+Thợ săn vẫn theo mục 5.7: thắng thua kiểm tra sau phát bắn. Riêng bước 3 (hết Sói) vẫn kết thúc ngay ở bình minh, giống E20.
+
+### 11.9 Ca biên vai mở rộng (mỗi mã ≥ 1 test)
+
+| Mã | Tình huống | Kết quả đúng |
+|---|---|---|
+| E29 | Già làng bị cắn lần đầu, không ai che hay cứu | Sống, mất mạng phụ. Bình minh "bình yên". |
+| E30 | Già làng bị cắn trúng lần thứ hai | Chết (nguyên nhân Sói). |
+| E31 | Già làng bị cắn lần đầu nhưng được che hoặc được cứu | Sống, mạng phụ còn nguyên. |
+| E32 | Già làng bị độc / treo / bắn / chết theo người yêu | Chết ngay. |
+| E33 | Tiên tri soi Người hoá sói | "Là Sói". |
+| E34 | Tiên tri soi Tay sai, Kẻ chán đời | "Không phải Sói". |
+| E35 | Hết Sói, Tay sai còn sống | Dân thắng, Tay sai thua. |
+| E36 | Còn 1 Sói, Tay sai, 1 Dân | Ván tiếp tục (Tay sai không tính là Sói: 1 < 2). |
+| E37 | Kẻ chán đời bị treo | Kẻ chán đời thắng, ván kết thúc. |
+| E38 | Treo Kẻ chán đời làm Sói đủ số | Kẻ chán đời thắng (bước 1 trước bước 4). |
+| E39 | Kẻ chán đời bị cắn / độc / bắn | Kẻ chán đời thua, ván tiếp tục. |
+| E40 | Cupid ghép cặp hợp lệ (gồm cả mình) | Lưu cặp đôi. Hai người thấy nhau (và vai) trong thẻ giữ. |
+| E41 | Cupid chưa chọn đủ 2 người hoặc chưa Xác nhận | Ván không có cặp đôi. |
+| E42 | Một người trong cặp bị cắn chết | Người kia chết theo, công bố cùng bình minh, theo thứ tự ghế. |
+| E43 | Một người trong cặp bị treo | Người kia chết theo ngay ở Kết quả phiếu. |
+| E44 | Người chết theo là Thợ săn | Được bắn (bước Thợ săn). |
+| E45 | Thợ săn bắn một người trong cặp | Người kia chết theo. |
+| E46 | Một người trong cặp rời làng | Người kia chết theo ("chết theo người yêu"). |
+| E47 | Cặp khác phe là 2 người cuối còn sống | Tình nhân thắng. |
+| E48 | Cặp Sói + Dân; các Sói khác đã chết; còn Sói-người-yêu, người yêu và 2 người khác | Ván tiếp tục (Sói-người-yêu chặn làng thắng, nhưng không được đếm khi xét "Sói đủ số"). |
+| E49 | Sói con chết ban ngày ở vòng r | Đêm r + 1 cắn 2 người. |
+| E50 | Sói con chết ban đêm ở vòng r (bị độc) | Đêm r + 1 cắn 2 người. |
+| E51 | Sói con rời làng | Không kích hoạt cắn 2. |
+| E52 | Đêm cắn 2: Phù thủy cứu một người, Bảo vệ che người kia | Cả hai sống. |
+| E53 | Đêm cắn 2: Sói chọn 3 người khác nhau, hoà ở ranh giới | Theo "Sói hoà phiếu". |
+| E54 | Đêm cắn 2 trúng Già làng (lần đầu) và một người khác | Già làng mất mạng phụ, người kia chết. |
+| E55 | Bộ vai có vai mở rộng nhiều hơn 1 người, hoặc trên 12 người | Không cho bắt đầu ván. |

@@ -60,8 +60,9 @@ và báo cáo bằng tiếng Việt: đã làm gì, lệch kế hoạch chỗ n�
 
 | Chủ đề | Quyết định |
 |---|---|
-| Số người | 5–10 (giới hạn chung của app là ≤ 10 người). |
+| Số người | 5–10 ở v1. **Nâng lên 5–12** (người dùng, 2026-10-17), cùng lúc thêm vai mở rộng. |
 | Bộ vai v1 | Ma Sói, Dân làng, Tiên tri, Bảo vệ, Phù thủy, Thợ săn. |
+| Vai mở rộng (v2) | Già làng, Người hoá sói, Tay sai, Kẻ chán đời, Cupid, Sói con (người dùng chọn 2026-10-17). **Mặc định tắt, chủ phòng bật từng vai.** Bộ mặc định 5–12 người chỉ dùng 6 vai gốc. Luật ở rules §11. |
 | Lộ vai khi chết | Mặc định **bật**, chủ phòng tắt được. |
 | Hồn ma xem hết vai | **Chủ phòng bật/tắt**, mặc định bật. |
 | Hoà phiếu ban ngày | Không ai bị treo. |
@@ -116,7 +117,7 @@ Ngoại lệ duy nhất: ở GĐ1 được **chuyển** một số hook UI thu�
 - Không tạo khác biệt nhìn thấy được giữa các vai.
 
 ### 2.6 Giữ nhỏ
-- ≤ 10 người.
+- ≤ 12 người (Ma Sói; các game khác của app vẫn ≤ 10).
 - Không presence system, không bầu lại host, không server trọng tài.
 - Không dùng `alert` / `confirm` gốc của trình duyệt.
 - Giao diện tiếng Việt, ưu tiên điện thoại (375px, không cuộn ngang, chạm ≥ 44px).
@@ -609,13 +610,101 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 
 ---
 
-## 10. GĐ5 — Chơi thật và mở rộng (chưa lên lịch)
-- Chơi 2–3 ván thật với nhóm bạn, ghi lỗi và cảm nhận, chỉnh preset vai và thời gian mặc định.
-- Vai mở rộng, người dùng chọn sau:
-  - Cupid + cặp đôi (phe thứ ba);
-  - Già làng (2 mạng);
-  - Kẻ chán đời (thắng khi bị treo);
-  - Sói con (chết thì đêm sau Sói cắn 2).
+## 10. GĐ5a — Vai mở rộng + 12 người: luật thành engine (thêm 2026-10-17)
+
+Người dùng chọn 6 vai mở rộng (Già làng, Người hoá sói, Tay sai, Kẻ chán đời, Cupid, Sói con) và nâng ván lên tối đa 12 người. Luật đầy đủ ở **rules §11**, ca biên E29–E55. Giống GĐ0: làm engine trước, có test đầy đủ, rồi mới làm giao diện (GĐ5b).
+
+### Việc cần làm
+- **`engine/roles.ts`:**
+  - thêm 6 vai: tên, câu mô tả, điểm (rules §11), phe;
+  - `MAX_PLAYERS = 12`; bộ mặc định 11–12 (rules §4);
+  - `validateSetup`: Sói = Ma Sói + Sói con; mỗi vai mở rộng ≤ 1 (E55);
+  - `nightActionOf`: Sói con cắn như Sói; Cupid ghép đôi ở đêm 1; các vai mở rộng khác chọn "người nghi".
+- **Phe và thắng thua (`engine/win.ts`):**
+  - phân biệt "Sói" (Ma Sói + Sói con) với "phe Sói" (+ Tay sai);
+  - thêm phe Kẻ chán đời và phe Tình nhân;
+  - `checkWinner` theo đúng thứ tự rules §11.8;
+  - `WinResult` có người thắng mới (`tanner`, `lovers`) và lý do mới;
+  - **mọi test v1 (E1–E28) phải giữ nguyên kết quả** khi không bật vai mở rộng.
+- **Đêm (`engine/night.ts`):**
+  - **Bầy Sói cắn 1 hoặc 2 người** (Sói con, rules §11.7): `wolfStatus` / `tallyWolves` nhận số người cần cắn (1 | 2). Thống nhất = cùng một tập; hết giờ lấy top-k; hoà ở ranh giới thì theo `wolfTie`.
+  - **Có thể có 2 người bị nhắm:**
+    - Phù thủy cứu **một** trong số đó: lựa chọn cứu chuyển từ `heal: boolean` sang người được cứu (`healId`), hoặc cách tương đương;
+    - Bảo vệ che một người.
+  - **Già làng:** mạng phụ (rules §11.2), lưu trong `gameData` của Già làng (ví dụ `elderLife: boolean`), cập nhật cùng transaction cuối đêm như `potions`.
+  - **Tiên tri** soi Người hoá sói ra "Là Sói"; soi Tay sai, Kẻ chán đời ra "Không phải Sói".
+  - **Cupid ghép đôi:** đêm 1, kiểm tra hợp lệ (2 người khác nhau, còn sống, được gồm cả mình). Có Xác nhận thì lưu cặp vào state (ví dụ `lovers: [a, b] | null`); không thì không có cặp (E41).
+- **Chết theo người yêu (`engine/flow.ts`):**
+  - mọi lượt có người chết đều chạy chuỗi chết theo: đêm, treo, phát bắn, rời làng;
+  - nguyên nhân mới: `love`;
+  - Thợ săn chết theo vẫn được bắn (E44); phát bắn trúng người yêu thì người kia chết theo (E45).
+- **Kẻ chán đời:** bị treo thì kết thúc ngay (E37, E38), kiểm tra trước Thợ săn và trước "Sói đủ số".
+- **Sói con:** số người bầy được cắn ở đêm r là 2 nếu Sói con chết ở vòng r − 1, vì lý do khác rời làng (E49–E51). Suy ra từ `deaths` (không cần thêm state) hoặc ghi rõ; người thực thi chọn và ghi lại.
+- **Nhật ký (`engine/log.ts`):** mục mới cho ghép đôi, mất mạng phụ, chết theo người yêu, đêm cắn 2, Kẻ chán đời / Tình nhân thắng. Có câu tiếng Việt cho từng mục.
+- **Test:**
+  - mỗi mã **E29–E55** có ít nhất một test mang mã đó;
+  - bộ mặc định 11–12;
+  - các tổ hợp: Cupid ghép Sói con với Thợ săn, đêm cắn 2 trúng Già làng + người yêu, Tay sai trong cặp Tình nhân, v.v.;
+  - toàn bộ 138 test cũ vẫn xanh.
+- **UI chỉ sửa tối thiểu để build qua** (kiểu dữ liệu đổi tên, `attack` → nhiều người…). Hành vi của 6 vai gốc trên màn hình **không đổi**, và chưa có giao diện cho vai mới (GĐ5b).
+
+### Không làm
+Giao diện vai mới, sảnh "Vai mở rộng", cảnh mới, ván thật 12 cửa sổ (GĐ5b).
+
+### Nghiệm thu
+- `npm run test:werewolf` xanh: 138 test cũ + test mới, phủ đủ E29–E55.
+- `tsc`, eslint werewolf, `build` qua. Engine vẫn không import react / firebase / `@/`.
+- Một ván thật ngắn 7 cửa sổ chỉ dùng 6 vai gốc (kịch bản `heal` của GĐ2) vẫn đạt: không hồi quy.
+- Ghi lại API mới cho GĐ5b ở §12, giống §12.1.
+
+---
+
+## 10b. GĐ5b — Vai mở rộng: giao diện, máy trạng thái, ván thật 12 cửa sổ
+
+### Việc cần làm
+- **Sảnh:**
+  - `gameRegistry` lên 5–12 người; Preview `count` lên 12;
+  - mục **"Vai mở rộng"**: mỗi vai một công tắc / stepper 0–1, kèm icon và một câu mô tả. Điểm cân bằng và Dân làng tự cập nhật.
+- **Xem vai:**
+  - Tay sai thấy bầy Sói (trong thẻ giữ);
+  - Sói **không** thấy Tay sai; Sói con thấy bầy như Sói;
+  - Già làng, Người hoá sói, Kẻ chán đời, Cupid: câu mô tả vai.
+- **Đêm ①:** màn vẫn giống hệt nhau khi không giữ.
+  - **Cupid đêm 1:** giữ thẻ + chạm để chọn 2 người yêu (giống Phù thủy độc); dấu chỉ hiện khi giữ.
+  - **Đêm cắn 2:** "Đêm nay bầy được cắn 2 người" chỉ hiện trong thẻ giữ của Sói. Bầy chọn 2 người trong thẻ; trạng thái thống nhất theo tập.
+- **Đêm ② (Phù thủy):** khi có 2 người bị nhắm, thẻ giữ cho chọn cứu một trong hai.
+- **Từ Bình minh 1:** người trong cặp đôi thấy "Bạn yêu X — X là ‹vai›" trong thẻ giữ; Cupid thấy cặp đã ghép; Già làng thấy trạng thái mạng phụ. Tất cả chỉ khi giữ. Thêm vào "Vai của tôi".
+- **Chết theo người yêu:** công bố cùng lượt (Bình minh, Kết quả phiếu, sau phát bắn, rời làng), theo thứ tự ghế, hoạt cảnh theo đồng hồ chung như GĐ4. Thợ săn chết theo vẫn có bước Thợ săn.
+- **Kết thúc:**
+  - phe thắng mới: Kẻ chán đời, Tình nhân, có câu và màu riêng. Có thể dùng lại cảnh kết thúc có sẵn, hoặc thêm 1–2 cảnh theo bộ nhận diện GĐ3;
+  - "Phe bạn thắng / thua" đúng cho từng phe (Tay sai thắng cùng Sói; người trong cặp Tình nhân thắng / thua theo phe Tình nhân);
+  - "Diễn biến ván" có mục mới.
+- **Hồn ma:** thấy cặp đôi, mạng phụ, đêm cắn 2.
+- **Luật chơi:** thêm mục "Vai mở rộng" (chỉ các vai đang bật trong phòng, hoặc cả 6 kèm ghi chú).
+- **12 người:** lưới 12 ô ở 320–390px và 1440px; kiểm va chạm 5–12 người; không cuộn ngang.
+
+### Nghiệm thu
+- Test engine xanh; `tsc` / eslint / build qua.
+- **Cặp ảnh riêng tư** (không giữ, ở các khung hình như GĐ4), mỗi vai mới so với Dân làng:
+  - Xem vai, Đêm ① (gồm Cupid đêm 1 và Sói ở đêm cắn 2), Đêm ② (2 người bị nhắm);
+  - màn người chết.
+  - Tất cả ≈ 0.
+- **Ván thật** (bản production, 11–12 cửa sổ: `localhost`, `127.0.0.1`, `a`–`j.localhost`). Mỗi kịch bản là một lần chạy riêng:
+  - Cupid ghép cặp khác phe → Tình nhân thắng;
+  - Kẻ chán đời bị treo;
+  - Sói con bị treo → đêm cắn 2 + Phù thủy cứu một;
+  - Già làng sống sót lần cắn đầu;
+  - Tiên tri soi Người hoá sói / Tay sai;
+  - người yêu là Thợ săn chết theo rồi bắn;
+  - một ván 12 người chơi tới kết thúc.
+- Tương phản, không cuộn ngang ở 320px, kích thước gói.
+- Sau review: **mốc PR #3** (hỏi người dùng trước khi push / mở PR).
+
+---
+
+## 10c. GĐ6 — Chơi thật (chưa lên lịch)
+- Chơi 2–3 ván thật với nhóm bạn, ghi lỗi và cảm nhận, chỉnh bộ vai mặc định, điểm cân bằng và thời gian mặc định.
+- Kiểm các mục "Để GĐ5" còn mở ở §12.8 và §12.14 (thẻ phát bắn che tiêu đề, chữ chồng lúc crossfade ở Kết quả, nhịp 8 giây, kéo để cuộn tờ hồn ma).
 - Tuỳ chọn "loa chung": máy chủ phòng đọc thông báo **công khai** bằng giọng nói (Web Speech, vi-VN).
 
 ---
@@ -658,6 +747,9 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 | GĐ2b | **Review đạt** (nhạc trưởng, 2026-10-16) | `c7eb0e2a` → `5a852dbe`; code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7, review ở §12.8. |
 | GĐ3a | **Người dùng đã duyệt hướng hình ảnh** (2026-10-17) | `336349ec` → (commit này); code `9867bcef`, `f35c2a70` | Token `--ww-*` (đêm xanh tím, chữ ánh trăng, một màu nhấn đèn lồng, font Grenze), bộ UI nhỏ, 29 icon qua registry (14 mới, người dùng duyệt tải), 2 cảnh cắt giấy (làng ban đêm, bình minh), 4 màn mẫu (Sảnh, Xem vai, Đêm ①, Bình minh) có bố cục hai cột ở 1440 px, bảng phong cách. Cặp ảnh riêng tư 114/114 = 0.000, tương phản 777/777 ≥ 4,5 : 1, không cuộn ngang ở 320 px. Gói Ma Sói +22,5 KB gzip. Chi tiết ở §12.10. |
 | GĐ3b | **Review đạt** (nhạc trưởng, 2026-10-17; GĐ3a cùng review) | `05feb3bd` → `7fece5ea`; code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11, review ở §12.12. |
+| GĐ5a | Chưa bắt đầu | | Vai mở rộng + 12 người: luật thành engine (§10). |
+| GĐ5b | Chưa bắt đầu | | Vai mở rộng: giao diện + ván thật 12 cửa sổ (§10b) → PR #3. |
+| GĐ6 | Chưa bắt đầu | | Chơi thật (§10c). |
 | GĐ4 | **Review đạt** (nhạc trưởng, 2026-10-17) | `e0ffa324` → `e336a9e1`; code `13d5e3fe` | Hoạt cảnh theo đồng hồ chung (`scenes/timelines.ts`): vào đêm, trăng / mặt trời lên, bình minh lần lượt theo ghế, kết quả phiếu dạng cột đếm, phát bắn của Thợ săn ở bước kế tiếp, kết thúc kể theo từng đêm / ngày; bù độ trễ dựng (`useCueSync`). Riêng tư 675/675 cặp = 0.000 ở 5 khung hình. Ván thật production 3 kịch bản 52/52, các cửa sổ lệch ≤ 5,3 ms ở 166 mốc, reload giữa hoạt cảnh lệch ≤ 1,1 ms. Gói Ma Sói 60,2 → 64,0 KB gzip. Chi tiết ở §12.13, review ở §12.14. |
 
 ### 12.1 GĐ0 — ghi chú của người thực thi (2026-10-11)
