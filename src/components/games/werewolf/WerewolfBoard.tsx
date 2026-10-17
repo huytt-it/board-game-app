@@ -14,6 +14,7 @@ import { useWerewolf, type PickResult, type WitchDraft, type WitchResult } from 
 import { dataOf, nightPicksOf, witchPicksOf } from './state';
 import { phaseTimeoutMs, type DayBallot, type WerewolfGameState, type WerewolfRoomConfig, type WwTable } from './types';
 import { usePhaseRemaining } from './hooks/usePhaseClock';
+import { useCueSync } from './hooks/useCueSync';
 import { useConfirm } from './ui/Dialog';
 import RoomMenu from './ui/RoomMenu';
 import Button from './ui/Button';
@@ -28,6 +29,8 @@ import VotePanel from './panel/VotePanel';
 import VoteResultPanel from './panel/VoteResultPanel';
 import EndPanel from './panel/EndPanel';
 import GhostPanel from './panel/GhostPanel';
+import Nightfall from './panel/Nightfall';
+import HunterShot from './panel/HunterShot';
 import { hasGhostCard, type PanelCtx } from './panel/shared';
 import WwIcon from './assets/WwIcon';
 import WwShell from './WwShell';
@@ -60,12 +63,22 @@ export interface PhaseHandlers {
   onLeave: () => void;
 }
 
-/** Màn của phase hiện tại (dùng chung với WerewolfPreview). Người chết có thêm một thẻ giữ để xem (GhostPanel). */
+/**
+ * Màn của phase hiện tại (dùng chung với WerewolfPreview). Người chết có thêm một
+ * thẻ giữ để xem (GhostPanel). Lớp hoạt cảnh chung của bước (GĐ4, giống hệt
+ * nhau với mọi người xem, `pointer-events: none`): vào đêm, phát bắn của Thợ
+ * săn ở bước ngay sau bước Thợ săn (màn kết thúc tự diễn phát bắn của nó).
+ * useCueSync bù độ trễ dựng cho mọi hoạt cảnh của bước (cả cảnh nền).
+ */
 export function PhaseView({ ctx, handlers }: { ctx: Omit<PanelCtx, 'remaining'>; handlers: PhaseHandlers }) {
+  useCueSync(ctx.state.phaseStartedAt);
   const remaining = usePhaseRemaining(ctx.state);
   const full: PanelCtx = { ...ctx, remaining };
+  const phase = full.state.phase;
   return (
     <>
+      {phase === 'night' && <Nightfall state={full.state} />}
+      {(phase === 'night' || phase === 'day-talk') && <HunterShot ctx={full} />}
       <PhasePanel ctx={full} handlers={handlers} />
       {/* Màn rộng (PhaseLayout hai cột): thẻ của người chết nằm dưới khung bên phải. */}
       {hasGhostCard(full) && (

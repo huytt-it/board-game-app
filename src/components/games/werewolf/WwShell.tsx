@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react';
 import { werewolfDisplayFont } from './assets/fonts';
 import SceneBackdrop from './scenes/SceneBackdrop';
-import { getScene } from './scenes/getScene';
+import { getScene, getSceneMotion } from './scenes/getScene';
 import type { WerewolfGameState } from './types';
 
 /**
@@ -18,13 +18,13 @@ export default function WwShell({
   className = 'mx-auto w-full max-w-lg lg:max-w-6xl',
   ...attrs
 }: {
-  state: Pick<WerewolfGameState, 'phase' | 'hunter' | 'winner'> | null;
+  state: Pick<WerewolfGameState, 'phase' | 'phaseStartedAt' | 'round' | 'hunter' | 'winner'> | null;
   children: ReactNode;
   className?: string;
 } & Record<`data-${string}`, string | number | undefined>) {
   return (
     <div className={`ww-root ${werewolfDisplayFont.variable} text-(--ww-text) ${className}`} data-ww-root="" {...attrs}>
-      <SceneBackdrop sceneId={getScene(state)} />
+      <SceneBackdrop sceneId={getScene(state)} motionAt={getSceneMotion(state)} />
       {children}
     </div>
   );

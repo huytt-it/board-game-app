@@ -55,10 +55,24 @@ export const DawnSky = sceneLayer(
     {BANDS.map(([y, amp, fill], i) => (
       <path key={i} d={ridge(rng(41 + i), { y, amp, step: 300 })} fill={fill} />
     ))}
-    {/* Quầng và mặt trời (nửa dưới bị đồi che). */}
+  </>
+);
+
+// Quầng và mặt trời (nửa dưới bị đồi che): lớp riêng để "lên" lúc bình minh bắt
+// đầu (GĐ4: registry đánh dấu `motion: 'rise'`; khung tĩnh = vị trí cuối).
+export const DawnSun = sceneLayer(
+  'DawnSun',
+  <>
     <circle cx={SUN.x} cy={SUN.y} r={SUN.r * 2.1} fill={C.glow} />
     <circle cx={SUN.x} cy={SUN.y} r={SUN.r * 1.45} fill={C.halo} />
     <circle cx={SUN.x} cy={SUN.y} r={SUN.r} fill={C.sun} />
+  </>
+);
+
+// Mây mảnh và chim, trước mặt trời.
+export const DawnClouds = sceneLayer(
+  'DawnClouds',
+  <>
     {/* Mây mảnh: dải tối phía trên, viền sáng phía dưới. */}
     <path d={pill(380, 300, 760, 16) + pill(470, 318, 640, 10) + pill(930, 262, 1290, 14) + pill(1010, 280, 1180, 9)} fill={C.cloud} />
     <path d={pill(560, 452, 760, 12) + pill(870, 430, 1120, 13) + pill(940, 446, 1060, 8)} fill={C.cloudLit} />

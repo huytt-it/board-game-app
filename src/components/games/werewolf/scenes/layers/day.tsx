@@ -31,7 +31,7 @@ export const DAY_PALETTE: ScenePalette = { base: C.sky, accent: C.sun };
 
 const SUN = { x: 330, y: 170, r: 50 };
 
-export const DAY_PARTICLES: readonly ParticleGroup[] = [{ kind: 'mote', count: 9, color: '#f3dca8', area: [380, 260, 1220, 640], size: 3 }];
+export const DAY_PARTICLES: readonly ParticleGroup[] = [{ kind: 'mote', count: 9, color: '#f3dca8', area: [380, 330, 1220, 640], size: 3 }];
 
 const BANDS: [number, number, string][] = [
   [240, 34, C.band1],

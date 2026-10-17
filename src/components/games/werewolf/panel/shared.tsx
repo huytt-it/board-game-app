@@ -249,9 +249,15 @@ export function Seat({
   action,
   onSelect,
   selected = false,
+  fall,
 }: {
   player: Player;
   dead?: boolean;
+  /**
+   * Hoạt cảnh (GĐ4): người này chết NGAY trong bước này. Ghế hiện như người sống
+   * rồi thành bia mộ lúc `fall` (animation-delay từ useCue). Khung tĩnh = bia mộ.
+   */
+  fall?: string;
   /** Dòng nhỏ dưới tên (vai đã lộ, "chủ phòng"…). */
   sub?: ReactNode;
   mark?: ReactNode;
@@ -290,6 +296,18 @@ export function Seat({
         </button>
       ) : (
         body
+      )}
+      {dead && fall && (
+        // Lớp "còn sống" phủ lên ghế bia mộ, tan đi đúng lúc người này chết.
+        <span
+          aria-hidden="true"
+          className="ww-a-gone absolute inset-0 flex items-center gap-2.5 rounded-xl bg-(--ww-raised) py-2 pr-2.5 pl-2.5 text-(--ww-text)"
+          style={{ animationDelay: fall }}
+          data-ww-fall=""
+        >
+          <Avatar name={player.name} id={player.id} />
+          <span className="min-w-0 flex-1 truncate">{player.name}</span>
+        </span>
       )}
       {action}
       {mark && <span className="absolute -top-2 -right-1.5">{mark}</span>}

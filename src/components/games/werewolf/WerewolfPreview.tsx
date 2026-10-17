@@ -35,6 +35,8 @@ export const PREVIEW_SCENES = {
   'night-confirmed': 'Đêm ① — đã xác nhận',
   'night-split': 'Đêm ① — bầy Sói chưa thống nhất',
   'night-dead': 'Đêm ① — người xem đã chết',
+  'night-2': 'Đêm 2 — vào đêm, trăng lên',
+  'night-after-hunter': 'Đêm 2 — sau phát bắn của Thợ săn (bị treo)',
   'witch-empty': 'Đêm ② — chưa chọn',
   'witch-picked': 'Đêm ② — đã chọn (Phù thủy: cứu + độc), chưa xác nhận',
   'witch-confirmed': 'Đêm ② — đã xác nhận',
@@ -43,6 +45,7 @@ export const PREVIEW_SCENES = {
   'witch-dead': 'Đêm ② — người xem đã chết',
   'dawn-deaths': 'Bình minh — có người chết',
   'dawn-peaceful': 'Bình minh — bình yên',
+  'dawn-two': 'Bình minh — hai người chết',
   'hunter-dawn': 'Thợ săn — bị cắn, bắn sau bình minh',
   'hunter-vote': 'Thợ săn — bị treo, bắn sau kết quả',
   'dawn-hunter': 'Bình minh — Thợ săn chết (chưa bắn: chưa phải hồn ma)',
@@ -57,11 +60,14 @@ export const PREVIEW_SCENES = {
   'ghost-off': 'Người chết — Đêm ① (hồn ma tắt)',
   'talk-hidden': 'Thảo luận — lộ vai khi chết tắt',
   'day-talk': 'Thảo luận',
+  'talk-after-hunter': 'Thảo luận — sau phát bắn của Thợ săn (bị cắn)',
+  'talk-hunter-skip': 'Thảo luận — Thợ săn không bắn',
   'day-vote': 'Bỏ phiếu',
   'vote-result-hanged': 'Kết quả — có người bị treo',
   'vote-result-tie': 'Kết quả — hoà, không ai bị treo',
   'end-village': 'Kết thúc — Dân thắng',
   'end-wolves': 'Kết thúc — Sói thắng',
+  'end-hunter': 'Kết thúc — Thợ săn bắn Sói cuối cùng',
 } as const;
 
 export type PreviewScene = keyof typeof PREVIEW_SCENES;
@@ -206,6 +212,33 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAUL
       }
       return { state: baseState('night', start, { deaths }), players };
     }
+    case 'night-2':
+    case 'night-after-hunter': {
+      // Đêm 2: cảnh vừa đổi từ giàn treo, trăng lên. Ngày 1 treo Sói (night-2) hoặc
+      // treo Thợ săn, Thợ săn bắn ghế 7 (night-after-hunter, diễn lại phát bắn).
+      const shot = scene === 'night-after-hunter';
+      const hunterId = idOf('hunter');
+      const hanged = shot ? hunterId : wolves[1];
+      const ballots: Record<string, DayBallot> = Object.fromEntries(
+        roles.map((_, i) => ID(i)).filter((id) => id !== common).map((id) => [id, id === hanged ? 'skip' : hanged])
+      );
+      return {
+        state: baseState('night', start, {
+          round: 2,
+          deaths: [
+            { id: common, round: 1, cause: 'wolf' },
+            { id: hanged, round: 1, cause: 'vote' },
+            ...(shot ? [{ id: otherVillager, round: 1, cause: 'hunter' as const }] : []),
+          ],
+          log: [
+            ...ROUND1_LOG,
+            { kind: 'vote', round: 1, ballots, executedId: hanged },
+            ...(shot ? [{ kind: 'hunter' as const, round: 1, hunterId, targetId: otherVillager }] : []),
+          ],
+        }),
+        players: makePlayers(roles),
+      };
+    }
     case 'witch-empty':
     case 'witch-picked':
     case 'witch-confirmed':
@@ -229,6 +262,17 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAUL
       return { state: baseState('dawn', start, { deaths: [{ id: common, round: 1, cause: 'wolf' }], dawnDeaths: [common] }), players: makePlayers(roles) };
     case 'dawn-peaceful':
       return { state: baseState('dawn', start), players: makePlayers(roles) };
+    case 'dawn-two':
+      return {
+        state: baseState('dawn', start, {
+          deaths: [
+            { id: common, round: 1, cause: 'wolf' },
+            { id: otherVillager, round: 1, cause: 'poison' },
+          ],
+          dawnDeaths: [common, otherVillager],
+        }),
+        players: makePlayers(roles),
+      };
     case 'hunter-dawn':
     case 'hunter-vote': {
       // Người xem chọn vai Thợ săn thì thấy màn bắn; vai khác thấy "đang ngắm".
@@ -348,6 +392,23 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAUL
         state: baseState('day-talk', start, { deaths: [{ id: common, round: 1, cause: 'wolf' }], acks: { [idOf('seer')]: true, [wolves[1]]: true } }),
         players: makePlayers(roles),
       };
+    case 'talk-after-hunter':
+    case 'talk-hunter-skip': {
+      // Thợ săn bị cắn đêm 1, bắn ghế 7 (hoặc không bắn) sau bình minh: Thảo luận diễn lại phát bắn.
+      const hunterId = idOf('hunter');
+      const target = scene === 'talk-after-hunter' ? otherVillager : null;
+      return {
+        state: baseState('day-talk', start, {
+          deaths: [{ id: hunterId, round: 1, cause: 'wolf' }, ...(target ? [{ id: target, round: 1, cause: 'hunter' as const }] : [])],
+          log: [
+            { kind: 'wolves', round: 1, targetId: hunterId, how: 'consensus' },
+            { kind: 'death', round: 1, id: hunterId, cause: 'wolf' },
+            { kind: 'hunter', round: 1, hunterId, targetId: target },
+          ],
+        }),
+        players: makePlayers(roles),
+      };
+    }
     case 'day-vote':
       return {
         state: baseState('day-vote', start, {
@@ -375,6 +436,30 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAUL
           lastVote: { ballots: step.vote.ballots, executedId: step.vote.executedId, outcome: step.vote.outcome },
         }),
         players,
+      };
+    }
+    case 'end-hunter': {
+      // Thợ săn (ghế 9) bị cắn đêm 2, bắn Sói cuối cùng (ghế 6): phát bắn diễn trước, rồi mới lộ phe thắng.
+      const base = LINEUP.slice(0, n);
+      return {
+        state: baseState('end', start, {
+          round: 2,
+          deaths: [
+            { id: 'p5', round: 1, cause: 'wolf' },
+            { id: 'p2', round: 1, cause: 'vote' },
+            { id: 'p9', round: 2, cause: 'wolf' },
+            { id: 'p6', round: 2, cause: 'hunter' },
+          ],
+          winner: 'village',
+          endReason: 'no-wolves',
+          log: [
+            ...SAMPLE_LOG.slice(0, 7),
+            { kind: 'wolves', round: 2, targetId: 'p9', how: 'consensus' },
+            { kind: 'death', round: 2, id: 'p9', cause: 'wolf' },
+            { kind: 'hunter', round: 2, hunterId: 'p9', targetId: 'p6' },
+          ],
+        }),
+        players: makePlayers(base),
       };
     }
     case 'end-village':

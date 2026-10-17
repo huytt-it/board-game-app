@@ -30,9 +30,15 @@ export const VILLAGE_NIGHT_PALETTE: ScenePalette = { base: C.sky, accent: C.moon
 // chữ), ở màn rộng lộ ra giữa lưới người chơi và mái nhà.
 const MOON = { x: 840, y: 520, r: 64 };
 
+// Sao nhấp nháy chỉ ở hai bên trời, không ở cột giữa: ở đó (và ở dải trên cùng
+// bên trái) là tiêu đề, tên trò chơi, lời mời của màn vào phòng. Hạt không nằm
+// trên vùng chữ (GĐ4, kiểm 320–1920 px). Điện thoại dọc chỉ thấy cột giữa nên
+// không có sao nhấp nháy, còn đom đóm và quầng đèn.
 export const VILLAGE_NIGHT_PARTICLES: readonly ParticleGroup[] = [
-  { kind: 'twinkle', count: 6, color: C.star, area: [560, 40, 1040, 420], size: 3 },
-  { kind: 'twinkle', count: 5, color: C.star, area: [60, 40, 1540, 460], size: 3 },
+  { kind: 'twinkle', count: 3, color: C.star, area: [380, 60, 560, 380], size: 3 },
+  { kind: 'twinkle', count: 3, color: C.star, area: [1040, 60, 1220, 380], size: 3 },
+  { kind: 'twinkle', count: 3, color: C.star, area: [40, 90, 360, 420], size: 3 },
+  { kind: 'twinkle', count: 2, color: C.star, area: [1240, 90, 1560, 420], size: 3 },
   { kind: 'firefly', count: 4, color: '#efe3a6', area: [180, 640, 1420, 800], size: 3 },
   { kind: 'flicker', count: 1, color: C.window, area: [655, 696, 655, 696], size: 30 },
   { kind: 'flicker', count: 1, color: C.window, area: [800, 500, 800, 500], size: 24 },
@@ -50,7 +56,16 @@ export const NightSky = sceneLayer(
     {STARS.map((s, i) => (
       <circle key={i} cx={s.x} cy={s.y} r={s.r} fill={C.star} opacity={s.o} />
     ))}
-    <path d="M300 120l4 14 14 4-14 4-4 14-4-14-14-4 14-4zM1290 90l3 11 11 3-11 3-3 11-3-11-11-3 11-3zM640 300l3 10 10 3-10 3-3 10-3-10-10-3 10-3z" fill={C.star} />
+    {/* Ba sao 4 cánh, ngoài cột giữa (chữ của màn vào phòng / tiêu đề nằm ở đó). */}
+    <path d="M300 120l4 14 14 4-14 4-4 14-4-14-14-4 14-4zM1290 90l3 11 11 3-11 3-3 11-3-11-11-3 11-3zM470 217l3 10 10 3-10 3-3 10-3-10-10-3 10-3z" fill={C.star} />
+  </>
+);
+
+// Trăng là lớp riêng để "lên" được sau đồi lúc vào đêm (GĐ4: registry đánh dấu
+// `motion: 'rise'`; khung tĩnh = vị trí cuối).
+export const NightMoon = sceneLayer(
+  'NightMoon',
+  <>
     <circle cx={MOON.x} cy={MOON.y} r={MOON.r * 2.6} fill={C.halo} />
     <circle cx={MOON.x} cy={MOON.y} r={MOON.r * 1.75} fill={C.haloIn} />
     <circle cx={MOON.x} cy={MOON.y} r={MOON.r} fill={C.moon} />

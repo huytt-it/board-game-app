@@ -1,10 +1,11 @@
 'use client';
 
 import { useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { useCue } from '@/components/games/shared/hooks/useCue';
 import { useReducedMotion } from '@/components/games/shared/hooks/useReducedMotion';
 import { between, H, rng, W } from '@/components/games/avalon/scenes/paper';
 import { hashString } from '@/components/games/avalon/scenes/journey';
-import { SCENES, type AssetSource } from '../assets/registry';
+import { SCENES, type SceneLayerDef } from '../assets/registry';
 import type { ParticleGroup, SceneId } from './types';
 
 // Cảnh cắt giấy phủ kín màn hình, phía sau giao diện Ma Sói (mẫu: Avalon
@@ -16,9 +17,15 @@ import type { ParticleGroup, SceneId } from './types';
 // Lần mount đầu (hay reload) cảnh hiện ngay; đổi cảnh trong 1,5 s đầu sau khi
 // mount (sảnh "đang tải" nhường cho cảnh thật) cũng hiện ngay. Giảm chuyển
 // động: đổi ngay, không hạt.
+//
+// Chuyển động của cảnh (GĐ4): `motionAt` = phaseStartedAt của bước có chuyển
+// động (getSceneMotion), null = đứng yên. Chỉ cảnh đang lên trên cùng nhận nó;
+// lớp `motion: 'rise'` (mặt trời / trăng) và lớp "trời sáng dần" mount lại theo
+// mốc đó và chạy theo đồng hồ chung (useCue): reload giữa chừng thì vào đúng
+// khung. Khung tĩnh = khung cuối, nên giảm chuyển động chỉ thấy khung cuối.
 const SETTLE_MS = 1500;
 
-export default function SceneBackdrop({ sceneId }: { sceneId: SceneId }) {
+export default function SceneBackdrop({ sceneId, motionAt = null }: { sceneId: SceneId; motionAt?: number | null }) {
   const reduced = useReducedMotion();
   const [settled, setSettled] = useState(false);
   useEffect(() => {
@@ -45,6 +52,7 @@ export default function SceneBackdrop({ sceneId }: { sceneId: SceneId }) {
         <SceneView
           key={s.key}
           id={s.id}
+          motionAt={s.key === top.key ? motionAt : null}
           fadeIn={!!s.fade}
           onShown={() => setStack((list) => list.filter((x) => x.key >= s.key))}
         />
@@ -54,7 +62,7 @@ export default function SceneBackdrop({ sceneId }: { sceneId: SceneId }) {
   );
 }
 
-function SceneView({ id, fadeIn, onShown }: { id: SceneId; fadeIn: boolean; onShown: () => void }) {
+function SceneView({ id, motionAt, fadeIn, onShown }: { id: SceneId; motionAt: number | null; fadeIn: boolean; onShown: () => void }) {
   const def = SCENES[id];
   return (
     <div
@@ -66,25 +74,42 @@ function SceneView({ id, fadeIn, onShown }: { id: SceneId; fadeIn: boolean; onSh
       }}
     >
       <div className="ww-scene-stage">
-        {def.layers.map((layer, i) => (
-          <SceneLayer key={i} src={layer} />
-        ))}
+        {def.layers.map((layer, i) =>
+          layer.motion && motionAt !== null ? (
+            <MovingLayer key={`${i}@${motionAt}`} src={layer} startedAt={motionAt} />
+          ) : (
+            <SceneLayer key={i} src={layer} />
+          )
+        )}
         {def.particles && <Particles sceneId={id} groups={def.particles} />}
+        {def.intro === 'brighten' && motionAt !== null && <Brighten key={motionAt} startedAt={motionAt} />}
       </div>
     </div>
   );
 }
 
-function SceneLayer({ src }: { src: AssetSource }) {
+function SceneLayer({ src, className = '', style }: { src: SceneLayerDef; className?: string; style?: CSSProperties }) {
   if (src.kind === 'image') {
     return (
       // Ảnh trang trí phủ kín khung; next/image không thêm được gì.
       // eslint-disable-next-line @next/next/no-img-element
-      <img src={src.src} alt="" draggable={false} className="absolute inset-0 h-full w-full object-cover object-bottom" />
+      <img src={src.src} alt="" draggable={false} className={`absolute inset-0 h-full w-full object-cover object-bottom ${className}`} style={style} />
     );
   }
   const Svg = src.Component;
-  return <Svg className="absolute inset-0 h-full w-full" />;
+  return <Svg className={`absolute inset-0 h-full w-full ${className}`} style={style} />;
+}
+
+// Mặt trời / trăng nhô lên sau đồi (scenes/timelines.ts: DAWN.sunMs, NIGHTFALL.moonMs).
+function MovingLayer({ src, startedAt }: { src: SceneLayerDef; startedAt: number }) {
+  const cue = useCue(startedAt);
+  return <SceneLayer src={src} className="ww-a-rise" style={{ animationDelay: cue(0) }} />;
+}
+
+// Bình minh: trời sáng dần (lớp tối phủ cả cảnh mờ đi trong DAWN.sunMs).
+function Brighten({ startedAt }: { startedAt: number }) {
+  const cue = useCue(startedAt);
+  return <div className="ww-a-brighten absolute inset-0" style={{ animationDelay: cue(0) }} />;
 }
 
 // Cỡ hạt (px) và độ dài một vòng animation (s) mặc định theo loại.

@@ -29,6 +29,15 @@ export interface ScenePalette {
   accent: string;
 }
 
+/**
+ * Chuyển động của cảnh theo đồng hồ chung của bước (GĐ4, scenes/timelines.ts),
+ * chạy một lần lúc bước bắt đầu (getSceneMotion), khung tĩnh = khung cuối:
+ * - lớp `rise`: mặt trời / trăng nhô lên sau đồi;
+ * - cảnh `brighten`: trời sáng dần (lớp tối mờ đi).
+ */
+export type LayerMotion = 'rise';
+export type SceneIntro = 'brighten';
+
 /** Hạt hiệu ứng vẽ bằng HTML trên các lớp; toạ độ theo khung cảnh 1600×900. Ẩn khi giảm chuyển động. */
 export type ParticleKind =
   | 'twinkle' // đứng yên, nhấp nháy (sao)

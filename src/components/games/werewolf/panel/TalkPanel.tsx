@@ -1,17 +1,23 @@
 'use client';
 
 import { useState } from 'react';
+import { useCue } from '@/components/games/shared/hooks/useCue';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import { isDead } from '../state';
 import Button from '../ui/Button';
+import { HUNTER_SHOT, hunterShotOf } from '../scenes/timelines';
 import { DoneMark } from './DealPanel';
 import { DeadNote, Dock, PhaseHeader, PhaseLayout, revealedRole, RoleLine, Seat, StatusLine, type PanelCtx } from './shared';
 
 /**
  * Cả làng (công khai): người còn sống, người đã chết (bia mộ; vai chỉ hiện khi
  * đã lộ lúc chết), dấu ✓ khi `mark` đúng (vd. sẵn sàng bỏ phiếu). Dùng ở Thảo luận.
+ * Ngay sau phát bắn của Thợ săn, ghế người bị bắn thành bia mộ cùng lúc với thẻ
+ * phát bắn (HunterShot).
  */
 export function Roster({ ctx, mark, markLabel }: { ctx: PanelCtx; mark?: (id: string) => boolean; markLabel?: string }) {
+  const cue = useCue(ctx.state.phaseStartedAt);
+  const shotId = hunterShotOf(ctx.state)?.targetId ?? null;
   return (
     <ul className="grid grid-cols-2 gap-2 lg:grid-cols-3 lg:gap-3" aria-label="Người trong làng">
       {ctx.players.map((p) => {
@@ -22,6 +28,7 @@ export function Roster({ ctx, mark, markLabel }: { ctx: PanelCtx; mark?: (id: st
             <Seat
               player={p}
               dead={dead}
+              fall={p.id === shotId ? cue(HUNTER_SHOT.fallAt) : undefined}
               sub={role ? <RoleLine role={role} /> : p.id === ctx.me.id ? <span className="block text-xs font-normal text-(--ww-text-3)">bạn</span> : undefined}
               mark={!dead && mark?.(p.id) ? <DoneMark label={markLabel} /> : undefined}
             />

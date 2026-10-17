@@ -31,7 +31,11 @@ export const END_WOLVES_PALETTE: ScenePalette = { base: C.sky, accent: C.moon };
 // điện thoại (x ≈ 590–1010) vẫn thấy cả hai.
 const MOON = { x: 930, y: 360, r: 82 };
 
-export const END_WOLVES_PARTICLES: readonly ParticleGroup[] = [{ kind: 'twinkle', count: 9, color: C.star, area: [80, 40, 1520, 380], size: 2 }];
+// Sao nhấp nháy ở hai bên trời, không ở cột giữa (tiêu đề phe thắng nằm ở đó; GĐ4).
+export const END_WOLVES_PARTICLES: readonly ParticleGroup[] = [
+  { kind: 'twinkle', count: 5, color: C.star, area: [60, 90, 560, 380], size: 2 },
+  { kind: 'twinkle', count: 4, color: C.star, area: [1040, 90, 1540, 380], size: 2 },
+];
 
 const STARS = scatter(rng(121), 40, [0, 0, W, 460], [0.6, 1.8], { x: MOON.x, y: MOON.y, r: 230 });
 

@@ -2,9 +2,9 @@
 // Muốn thay một cái bằng ảnh vẽ (AI vẽ…), thả file vào `public/werewolf/...`
 // rồi sửa đúng MỘT dòng bên dưới — xem assets/README.md.
 import type { ComponentType, SVGProps } from 'react';
-import type { ParticleGroup, SceneId, ScenePalette } from '../scenes/types';
-import { NightFront, NightHills, NightSky, NightVillage, VILLAGE_NIGHT_PALETTE, VILLAGE_NIGHT_PARTICLES } from '../scenes/layers/village-night';
-import { DawnFront, DawnHills, DawnSky, DawnVillage, DAWN_PALETTE, DAWN_PARTICLES } from '../scenes/layers/dawn';
+import type { LayerMotion, ParticleGroup, SceneId, SceneIntro, ScenePalette } from '../scenes/types';
+import { NightFront, NightHills, NightMoon, NightSky, NightVillage, VILLAGE_NIGHT_PALETTE, VILLAGE_NIGHT_PARTICLES } from '../scenes/layers/village-night';
+import { DawnClouds, DawnFront, DawnHills, DawnSky, DawnSun, DawnVillage, DAWN_PALETTE, DAWN_PARTICLES } from '../scenes/layers/dawn';
 import { DayFront, DayHills, DaySky, DayVillage, DAY_PALETTE, DAY_PARTICLES } from '../scenes/layers/day';
 import { GallowsCrowd, GallowsSky, GallowsStage, GallowsVillage, GALLOWS_PALETTE, GALLOWS_PARTICLES } from '../scenes/layers/gallows';
 import { EndVillageFront, EndVillageSky, EndVillageTown, END_VILLAGE_PALETTE, END_VILLAGE_PARTICLES } from '../scenes/layers/end-village';
@@ -94,21 +94,27 @@ export type IconName = keyof typeof ICONS;
 // đáy-giữa; xem scenes/SceneBackdrop.tsx). Lớp nào cũng đổi được sang ảnh:
 //   layers: [{ kind: 'image', src: '/werewolf/scenes/dawn-sky.webp' }, svg(DawnHills), …]
 
+/** Một lớp cảnh; `motion`: lớp chuyển động lúc bước bắt đầu (GĐ4, xem scenes/types.ts). */
+export type SceneLayerDef = AssetSource & { motion?: LayerMotion };
+
 export interface SceneDef {
   /** Xa → gần. */
-  layers: AssetSource[];
+  layers: SceneLayerDef[];
+  /** Hiệu ứng cả cảnh lúc bước bắt đầu (GĐ4). */
+  intro?: SceneIntro;
   palette: ScenePalette;
   particles?: readonly ParticleGroup[];
 }
 
 export const SCENES: Record<SceneId, SceneDef> = {
   'village-night': {
-    layers: [svg(NightSky), svg(NightHills), svg(NightVillage), svg(NightFront)],
+    layers: [svg(NightSky), { ...svg(NightMoon), motion: 'rise' }, svg(NightHills), svg(NightVillage), svg(NightFront)],
     palette: VILLAGE_NIGHT_PALETTE,
     particles: VILLAGE_NIGHT_PARTICLES,
   },
   dawn: {
-    layers: [svg(DawnSky), svg(DawnHills), svg(DawnVillage), svg(DawnFront)],
+    layers: [svg(DawnSky), { ...svg(DawnSun), motion: 'rise' }, svg(DawnClouds), svg(DawnHills), svg(DawnVillage), svg(DawnFront)],
+    intro: 'brighten',
     palette: DAWN_PALETTE,
     particles: DAWN_PARTICLES,
   },

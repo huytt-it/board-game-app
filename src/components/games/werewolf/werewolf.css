@@ -179,9 +179,207 @@
   }
 }
 
+/* ─── Hoạt cảnh theo đồng hồ chung (GĐ4, scenes/timelines.ts) ────── */
+/* Quy ước (như Avalon GĐ3): style tĩnh của phần tử = KHUNG CUỐI; keyframes chỉ
+   tả đoạn trước đó (fill `both`, hoặc `backwards` với thứ biến mất khi xong).
+   animation-delay đặt inline bằng useCue: âm khi mốc đã qua, nên reload / vào
+   trễ thì nhảy đúng khung. Giảm chuyển động tắt mọi animation (khối cuối file)
+   → hiện ngay khung cuối. Chỉ animate transform + opacity; lớp phủ luôn
+   `pointer-events: none` để không chặn bước có giờ. Giống hệt nhau với mọi vai. */
+
+/* Hiện ra: trồi nhẹ lên (thẻ, dòng chữ, khung). */
+.ww-a-pop {
+  animation: ww-pop 450ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes ww-pop {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.96);
+  }
+}
+.ww-a-fade {
+  animation: ww-fade 450ms ease-out both;
+}
+@keyframes ww-fade {
+  from {
+    opacity: 0;
+  }
+}
+/* Biến mất (khung cuối: ẩn): avatar người sống tan đi, lộ bia mộ bên dưới. */
+.ww-a-gone {
+  opacity: 0;
+  animation: ww-gone 400ms ease-in both;
+}
+@keyframes ww-gone {
+  from {
+    opacity: 1;
+  }
+}
+/* Lật thẻ vai (phần tử phải là inline-flex / flex / block). */
+.ww-a-flip {
+  backface-visibility: hidden;
+  animation: ww-flip 500ms cubic-bezier(0.3, 0.7, 0.3, 1) both;
+}
+@keyframes ww-flip {
+  from {
+    opacity: 0;
+    transform: perspective(400px) rotateY(90deg);
+  }
+}
+/* Lá phiếu rơi vào hàng của người được bầu. */
+.ww-a-drop {
+  animation: ww-drop 350ms cubic-bezier(0.3, 1.4, 0.5, 1) both;
+}
+@keyframes ww-drop {
+  from {
+    opacity: 0;
+    transform: translateY(-14px) scale(0.7);
+  }
+}
+/* Giàn treo dập xuống. */
+.ww-a-thud {
+  animation: ww-thud 700ms cubic-bezier(0.3, 1.5, 0.5, 1) both;
+}
+@keyframes ww-thud {
+  from {
+    opacity: 0;
+    transform: translateY(-24px) scale(0.85);
+  }
+}
+/* Icon bình minh nhô lên; quầng nắng toả ra. */
+.ww-a-rise-sm {
+  animation: ww-rise-sm 800ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes ww-rise-sm {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+.ww-a-glow {
+  animation: ww-glow 600ms ease-out both;
+}
+@keyframes ww-glow {
+  from {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+}
+/* Tên phe thắng. */
+.ww-a-banner {
+  animation: ww-banner 700ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+@keyframes ww-banner {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+}
+
+/* Cảnh nền: mặt trời / trăng lên sau đồi; trời sáng dần lúc bình minh. */
+.ww-a-rise {
+  animation: ww-rise 2400ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
+}
+@keyframes ww-rise {
+  from {
+    transform: translateY(14%);
+  }
+}
+.ww-a-brighten {
+  opacity: 0;
+  background: rgba(8, 10, 28, 0.6);
+  animation: ww-brighten 2400ms ease-out both;
+}
+@keyframes ww-brighten {
+  from {
+    opacity: 1;
+  }
+}
+
+/* Vào đêm: màn sẫm lại, "Đêm N" giữa màn, rồi tan (1,2 s). Khung cuối: ẩn. */
+.ww-a-nightfall {
+  opacity: 0;
+  background: radial-gradient(ellipse 90% 70% at 50% 45%, rgba(10, 12, 30, 0.9), rgba(4, 5, 14, 0.97));
+  animation: ww-nightfall 1200ms ease-in-out both;
+}
+@keyframes ww-nightfall {
+  0% {
+    opacity: 0;
+  }
+  15% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+/* Thẻ phát bắn của Thợ săn: vào, đứng, rồi ra (hai animation, hai delay; cái sau
+   thắng khi đã chạy). Khung tĩnh: hiện — giảm chuyển động thì thẻ đứng yên cho
+   tới lúc được gỡ (4,2 s). */
+.ww-a-toast {
+  animation:
+    ww-toast-in 300ms ease-out both,
+    ww-toast-out 400ms ease-in forwards;
+}
+@keyframes ww-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(-12px);
+  }
+}
+@keyframes ww-toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(-8px);
+  }
+}
+/* Hồng tâm khép lại trên người bị bắn, đứng một nhịp, mất khi bắn (khung tĩnh: ẩn). */
+.ww-a-aim {
+  opacity: 0;
+  animation: ww-aim 1100ms cubic-bezier(0.2, 0.7, 0.3, 1) backwards;
+}
+@keyframes ww-aim {
+  0% {
+    opacity: 0;
+    transform: scale(2.4) rotate(-60deg);
+  }
+  25% {
+    opacity: 1;
+  }
+  80%,
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+/* Chớp của phát bắn (khung tĩnh: ẩn). */
+.ww-a-flash {
+  opacity: 0;
+  animation: ww-flash 350ms ease-out backwards;
+}
+@keyframes ww-flash {
+  0% {
+    opacity: 0;
+    transform: scale(0.4);
+  }
+  30% {
+    opacity: 1;
+    transform: scale(1.15);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.5);
+  }
+}
+
 /* ─── Giảm chuyển động ───────────────────────────────────────────── */
 /* Tắt mọi animation / transition bên trong Ma Sói; hạt hiệu ứng (trang trí
-   thuần) ẩn hẳn. Cảnh đổi ngay, không crossfade. */
+   thuần) ẩn hẳn. Cảnh đổi ngay, không crossfade. Hoạt cảnh GĐ4 hiện ngay khung
+   cuối (style tĩnh), chữ đầy đủ. */
 @media (prefers-reduced-motion: reduce) {
   .ww-root *,
   .ww-root *::before,
