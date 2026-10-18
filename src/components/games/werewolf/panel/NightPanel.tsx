@@ -24,6 +24,13 @@ const ACTION_TEXT: Record<WwRole, string> = {
   villager: 'Chọn người bạn nghi. Chỉ để tổng kết cuối ván.',
   witch: 'Chọn người bạn nghi. Chỉ để tổng kết cuối ván.',
   hunter: 'Chọn người bạn nghi. Chỉ để tổng kết cuối ván.',
+  // Vai mở rộng: màn của từng vai làm ở GĐ5b.
+  elder: 'Chọn người bạn nghi. Chỉ để tổng kết cuối ván.',
+  lycan: 'Chọn người bạn nghi. Chỉ để tổng kết cuối ván.',
+  minion: 'Chọn người bạn nghi. Chỉ để tổng kết cuối ván.',
+  tanner: 'Chọn người bạn nghi. Chỉ để tổng kết cuối ván.',
+  cupid: 'Chọn người bạn nghi. Chỉ để tổng kết cuối ván.',
+  wolfcub: 'Cùng bầy chọn một người để cắn.',
 };
 
 function invalidText(role: WwRole, ctx: PanelCtx, targetId: string): string {

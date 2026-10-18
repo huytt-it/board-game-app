@@ -1,7 +1,7 @@
-// Câu hỏi về bàn chơi mà mọi phần của engine đều cần: ai còn sống, ai là Sói.
-// Sống/chết chỉ đọc từ `deaths` (plan §2.2), không dùng `Player.isAlive`.
+// Câu hỏi về bàn chơi mà mọi phần của engine đều cần: ai còn sống, ai là Sói,
+// ai yêu ai. Sống/chết chỉ đọc từ `deaths` (plan §2.2), không dùng `Player.isAlive`.
 
-import { ROLE_TEAM } from './roles.ts';
+import { isWolfRole } from './roles.ts';
 import type { WwDeath, WwRole, WwTable } from './types.ts';
 
 export function deadIds(table: WwTable): Set<string> {
@@ -22,12 +22,13 @@ export function roleOf(table: WwTable, id: string): WwRole | null {
   return table.roles[id] ?? null;
 }
 
+/** Là Sói (Ma Sói, Sói con — rules §11.1). Tay sai thuộc phe Sói nhưng không phải Sói. */
 export function isWolf(table: WwTable, id: string): boolean {
   const role = roleOf(table, id);
-  return role !== null && ROLE_TEAM[role] === 'wolves';
+  return role !== null && isWolfRole(role);
 }
 
-/** Mọi Sói của ván (kể cả đã chết), theo thứ tự ghế: Sói thấy đồng đội. */
+/** Mọi Sói của ván (kể cả đã chết), theo thứ tự ghế: Sói thấy đồng đội, Tay sai thấy bầy. */
 export function wolfIds(table: WwTable): string[] {
   return table.seatOrder.filter((id) => isWolf(table, id));
 }
@@ -51,4 +52,52 @@ export function withDeaths(table: WwTable, newDeaths: readonly WwDeath[]): WwTab
 export function inSeatOrder(table: WwTable, ids: Iterable<string>): string[] {
   const set = new Set(ids);
   return table.seatOrder.filter((id) => set.has(id));
+}
+
+// ── Cặp đôi (rules §11.5) ────────────────────────────────────────────────
+
+/** Cặp đôi của ván (hai người khác nhau, đều có ghế), hoặc null. */
+export function loversOf(table: WwTable): [string, string] | null {
+  const pair = table.lovers;
+  if (!pair || pair.length !== 2) return null;
+  const [a, b] = pair;
+  if (a === b || !table.seatOrder.includes(a) || !table.seatOrder.includes(b)) return null;
+  return [a, b];
+}
+
+/** Người yêu của `id`, hoặc null. */
+export function loverOf(table: WwTable, id: string): string | null {
+  const pair = loversOf(table);
+  if (!pair) return null;
+  if (pair[0] === id) return pair[1];
+  if (pair[1] === id) return pair[0];
+  return null;
+}
+
+/**
+ * Chết theo người yêu (rules §11.5): người còn sống có người yêu nằm trong
+ * `deaths` (những người vừa chết trong cùng một lượt) thì chết theo ngay,
+ * nguyên nhân "love". Không ai che hay cứu được. Trả về các cái chết thêm
+ * (0 hoặc 1 người), không đổi bàn gốc.
+ */
+export function loveDeaths(table: WwTable, deaths: readonly WwDeath[], round: number): WwDeath[] {
+  const pair = loversOf(table);
+  if (!pair) return [];
+  const dying = new Set(deaths.map((d) => d.id));
+  return pair
+    .filter((id) => !dying.has(id) && dying.has(loverOf(table, id) as string) && isAlive(table, id))
+    .map((id) => ({ id, round, cause: 'love' as const }));
+}
+
+/**
+ * Chết vì rời làng, hoặc chết theo người yêu vừa bị cho rời làng. Cái chết
+ * này không kích hoạt gì: Thợ săn không bắn, Sói con không làm bầy cắn 2
+ * (rules §7, §11.7; ca chết theo là cách hiểu của GĐ5a, plan §12.16).
+ */
+export function countsAsLeft(table: WwTable, id: string): boolean {
+  const own = table.deaths.find((d) => d.id === id);
+  if (own?.cause === 'left') return true;
+  if (own?.cause !== 'love') return false;
+  const partner = loverOf(table, id);
+  return partner !== null && table.deaths.some((d) => d.id === partner && d.cause === 'left');
 }

@@ -26,7 +26,21 @@ const PHASE_LABEL: Record<TimedPhase, string> = {
 };
 
 const STEP_ROLES: readonly WwRole[] = ['werewolf', 'seer', 'guard', 'witch', 'hunter'];
-const ROLE_MAX: Record<WwRole, number> = { werewolf: 4, seer: 1, guard: 1, witch: 1, hunter: 1, villager: 10 };
+// Vai mở rộng chưa có stepper ở sảnh (GĐ5b); mỗi vai tối đa 1 người (rules §4).
+const ROLE_MAX: Record<WwRole, number> = {
+  werewolf: 4,
+  seer: 1,
+  guard: 1,
+  witch: 1,
+  hunter: 1,
+  villager: 10,
+  elder: 1,
+  lycan: 1,
+  minion: 1,
+  tanner: 1,
+  cupid: 1,
+  wolfcub: 1,
+};
 
 function formatDuration(s: number): string {
   if (s < 60) return `${s} giây`;

@@ -5,8 +5,20 @@
 // Mọi giá trị engine trả về để ghi vào Firestore dùng `null`, không dùng
 // `undefined` (Firestore từ chối `undefined`).
 
-export type WwRole = 'werewolf' | 'villager' | 'seer' | 'guard' | 'witch' | 'hunter';
-export type WwTeam = 'wolves' | 'village';
+/** 6 vai gốc (v1, rules §3). */
+export type BaseRole = 'werewolf' | 'villager' | 'seer' | 'guard' | 'witch' | 'hunter';
+/**
+ * 6 vai mở rộng (rules §11): Già làng, Người hoá sói, Tay sai, Kẻ chán đời,
+ * Cupid, Sói con. Mặc định tắt, chủ phòng bật từng vai, mỗi vai tối đa 1 người.
+ */
+export type ExtraRole = 'elder' | 'lycan' | 'minion' | 'tanner' | 'cupid' | 'wolfcub';
+export type WwRole = BaseRole | ExtraRole;
+
+/**
+ * Phe: Dân làng, Sói (Ma Sói, Sói con, Tay sai), Kẻ chán đời (phe riêng) và
+ * Tình nhân (cặp đôi khác phe, rules §11.5: không vai nào vào ván đã ở phe này).
+ */
+export type WwTeam = 'wolves' | 'village' | 'tanner' | 'lovers';
 
 export type WwPhase =
   | 'deal'
@@ -20,7 +32,7 @@ export type WwPhase =
   | 'end';
 
 /** Nguyên nhân chết, chỉ hiện ở màn kết thúc (rules §5.6). */
-export type DeathCause = 'wolf' | 'poison' | 'vote' | 'hunter' | 'left';
+export type DeathCause = 'wolf' | 'poison' | 'vote' | 'hunter' | 'left' | 'love';
 
 export interface WwDeath {
   id: string;
@@ -58,18 +70,40 @@ export interface WwTable {
   seatOrder: string[];
   roles: Record<string, WwRole>;
   deaths: WwDeath[];
+  /**
+   * Cặp đôi Cupid đã ghép (`state.lovers`, rules §11.5), theo thứ tự ghế.
+   * Thiếu hoặc null = ván không có cặp đôi.
+   */
+  lovers?: [string, string] | null;
 }
+
+/** Số người bầy Sói được cắn trong một đêm: 2 ở đêm sau khi Sói con chết (rules §11.7). */
+export type WolfBites = 1 | 2;
 
 /** Lựa chọn Đêm ① của một người (`gameData.nightPick`). */
 export interface NightPick {
   round: number;
   targetId: string | null;
   confirmed: boolean;
+  /**
+   * Đêm cắn 2 (rules §11.7): tập người Sói này chọn cắn (0–2 người, khác
+   * nhau). Thiếu thì dùng `targetId` như đêm thường. Đêm cắn 1 bỏ qua trường này.
+   */
+  biteIds?: string[] | null;
+  /**
+   * Cupid ở đêm 1 (rules §11.5): hai người được ghép đôi (đang chọn: 0–2
+   * người). `targetId` của Cupid vẫn là "người mình nghi".
+   */
+  loverIds?: string[] | null;
 }
 
 /**
  * Lựa chọn Đêm ② (`gameData.witchPick`). Với Phù thủy: `heal` (cứu người bị
  * nhắm) và `poisonId`. Với người khác: `guessId` (đoán Sói nhắm ai).
+ *
+ * Đêm có 2 người bị nhắm (rules §11.7), Phù thủy chọn cứu ai bằng `healId`.
+ * `healId` có giá trị thì được dùng thay cho `heal`; `heal: true` không kèm
+ * `healId` chỉ hợp lệ khi có đúng một người bị nhắm.
  */
 export interface WitchPick {
   round: number;
@@ -77,6 +111,7 @@ export interface WitchPick {
   poisonId: string | null;
   guessId: string | null;
   confirmed: boolean;
+  healId?: string | null;
 }
 
 /** Bình còn lại của Phù thủy (`gameData.potions`). */
@@ -99,7 +134,11 @@ export interface HunterTurn {
   after: 'dawn' | 'vote';
 }
 
-export type WinReason = 'no-wolves' | 'wolf-parity';
+export type WinReason =
+  | 'no-wolves'
+  | 'wolf-parity'
+  | 'tanner-hanged' // Kẻ chán đời bị treo (rules §11.6)
+  | 'lovers'; // chỉ còn cặp Tình nhân (rules §11.5)
 
 export interface WinResult {
   winner: WwTeam;
@@ -116,7 +155,8 @@ export type WolfTallyHow =
 
 /** Một mục "Diễn biến ván" (rules §5.10). */
 export type WwLogEntry =
-  | { kind: 'wolves'; round: number; targetId: string | null; how: WolfTallyHow }
+  // Đêm cắn 2 có thêm `targetIds` (mọi người bị nhắm, theo ghế); đêm thường không có.
+  | { kind: 'wolves'; round: number; targetId: string | null; how: WolfTallyHow; targetIds?: string[] }
   | { kind: 'guard'; round: number; guardId: string; targetId: string }
   | { kind: 'seer'; round: number; seerId: string; targetId: string; isWolf: boolean }
   | { kind: 'witch'; round: number; witchId: string; healedId: string | null; poisonId: string | null }
@@ -125,4 +165,8 @@ export type WwLogEntry =
   | { kind: 'guesses'; round: number; picks: Record<string, string> }
   | { kind: 'vote'; round: number; ballots: Record<string, DayBallot>; executedId: string | null }
   | { kind: 'hunter'; round: number; hunterId: string; targetId: string | null }
-  | { kind: 'left'; round: number; id: string; during: WwPhase };
+  | { kind: 'left'; round: number; id: string; during: WwPhase }
+  // Vai mở rộng (rules §11):
+  | { kind: 'lovers'; round: number; cupidId: string; loverIds: [string, string]; mixed: boolean }
+  | { kind: 'elder'; round: number; elderId: string }
+  | { kind: 'love'; round: number; id: string; loverId: string; part: 'night' | 'day' };

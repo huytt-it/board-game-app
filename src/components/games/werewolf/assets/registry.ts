@@ -56,6 +56,13 @@ export const ICONS = {
   guard: svg(CheckedShield),
   witch: svg(Cauldron),
   hunter: svg(Crossbow),
+  // Vai mở rộng (rules §11): icon tạm mượn của vai gần nhất, GĐ5b thay bằng icon riêng.
+  elder: svg(Farmer),
+  lycan: svg(Farmer),
+  minion: svg(WolfHead),
+  tanner: svg(Gibbet),
+  cupid: svg(Farmer),
+  wolfcub: svg(WolfHead),
   'team-village': svg(Village),
 
   // Trò chơi, các bước

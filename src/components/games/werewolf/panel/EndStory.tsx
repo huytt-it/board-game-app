@@ -23,6 +23,9 @@ const KIND_ICON: Record<WwLogEntry['kind'], IconName> = {
   vote: 'vote',
   hunter: 'hunter',
   left: 'leave',
+  lovers: 'cupid',
+  elder: 'elder',
+  love: 'dead',
 };
 
 interface Chapter {

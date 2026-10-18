@@ -5,7 +5,7 @@ import type { Player } from '@/types/player';
 import { serverNow } from '@/lib/serverClock';
 import { afterVote } from '@/components/games/werewolf/engine/flow.ts';
 import { isValidTarget, pickFor, seerLook, validateWitchPick } from '@/components/games/werewolf/engine/night.ts';
-import { nightActionOf, ROLE_NAME, ROLE_ORDER, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
+import { fullCounts, nightActionOf, ROLE_NAME, ROLE_ORDER, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
 import { DEFAULT_RULES, FULL_POTIONS } from '@/components/games/werewolf/engine/types.ts';
 import { PhaseView, TopBar } from './WerewolfBoard';
 import WwShell from './WwShell';
@@ -111,7 +111,7 @@ function makePlayers(roles: WwRole[], extra: (id: string, role: WwRole) => Parti
 }
 
 function baseStateN(phase: WwPhase, start: number, over: Partial<WerewolfGameState> = {}, n = DEFAULT_COUNT): WerewolfGameState {
-  const roleCounts: Record<WwRole, number> = { werewolf: 0, villager: 0, seer: 0, guard: 0, witch: 0, hunter: 0 };
+  const roleCounts = fullCounts({});
   for (const r of LINEUP.slice(0, n)) roleCounts[r] += 1;
   return {
     phase,
