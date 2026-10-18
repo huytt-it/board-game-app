@@ -700,6 +700,43 @@ Giao diện vai mới, sảnh "Vai mở rộng", cảnh mới, ván thật 12 c�
 - Tương phản, không cuộn ngang ở 320px, kích thước gói.
 - Sau review: **mốc PR #3** (hỏi người dùng trước khi push / mở PR).
 
+#### Bổ sung cho GĐ5b (nhạc trưởng, sau review GĐ5a, 2026-10-18)
+
+1. **Theo §12.16:** dùng API engine liệt kê ở đó, làm hết mục "Việc của GĐ5b ở UI".
+   - `nightCheck`: Sói con cũng đổi được sau Xác nhận. Dùng `isWolfRole`, không so `'werewolf'`.
+   - `lobbyCounts`: Dân = số người − mọi vai khác.
+   - Bỏ hằng tạm `MAX_PLAYERS = 10` ở sảnh. `gameRegistry` lên 5–12.
+2. **Dữ liệu mới và CAS.** Bổ sung bảng mục 4 của phần GĐ1:
+
+   | Chuyển | Thêm vào `expect` / `expectPlayerData` | Thêm vào patch / `playerData` |
+   |---|---|---|
+   | `night → night-witch` / `dawn` | `nightPick` của mọi người còn sống (đã có, gồm `biteIds` / `loverIds`); `elderLife` của Già làng | `lovers` (từ `NightStep.lovers`), `attacks`; khi sang thẳng `dawn`: `elderLife` của Già làng |
+   | `night-witch → dawn` | `attacks` (cùng `attack`); `elderLife` của Già làng | `elderLife` của Già làng |
+   | `day-vote → vote-result`, `hunter → …`, rời làng | không đổi (`deaths`) | `deaths` đã gồm người chết theo người yêu |
+
+   - Lựa chọn mới (`biteIds`, `loverIds`, `healId`) ghi vào `gameData` của chính người đó như cũ, qua hàng đợi ghi.
+   - Cupid ghi `loverIds` **cùng lần Xác nhận**.
+3. **Riêng tư (bất di bất dịch, §2.3).**
+   - Mọi thứ của vai mới chỉ render khi giữ thẻ: ghép đôi của Cupid; "Bạn yêu X — X là ‹vai›"; bầy Sói thấy "đêm nay cắn 2" và chọn 2 người; Tay sai thấy bầy; Phù thủy thấy 2 người bị nhắm và chọn cứu một; Già làng "mất mạng phụ".
+   - Khi không giữ, màn của Cupid, Tay sai, Người hoá sói, Già làng, Kẻ chán đời, Sói con **giống hệt** Dân làng. Đêm cắn 2 và Đêm ② có 2 người bị nhắm cũng giống hệt đêm thường.
+   - Thời lượng các bước không đổi theo vai mới.
+   - Người chết theo người yêu công bố như mọi người chết: theo ghế, không nói nguyên nhân tới màn kết thúc.
+   - "Phe Tình nhân" chỉ hiện cho người trong cặp (khi giữ) và ở màn kết thúc.
+4. **Icon:** thay 6 icon tạm bằng icon game-icons.net hợp nghĩa (qua registry, ghi CREDITS). **Tải file mới thì hỏi người dùng trước**, như GĐ3a.
+5. **Kết thúc:**
+   - phe thắng Kẻ chán đời / Tình nhân có câu, màu, và cảnh: dùng lại cảnh có sẵn đổi bảng màu, hoặc thêm tối đa 2 cảnh cắt giấy theo bộ nhận diện GĐ3;
+   - "Phe bạn thắng / thua" dùng `wonGame`;
+   - danh sách vai cuối ván ghi phe lúc kết thúc (`teamOf`).
+6. **Hồn ma:** tờ hồn ma thấy cặp đôi (và có phải Tình nhân không), mạng phụ của Già làng, đêm cắn 2, `biteIds`, `loverIds`, `healId`.
+7. **Luật chơi:** thêm mục "Vai mở rộng". Ưu tiên các vai đang bật trong phòng, có thể xem cả 6.
+8. **Hoạt cảnh GĐ4:** người chết theo người yêu dùng chung chuỗi Bình minh / Kết quả / sau phát bắn (theo ghế). Không thêm bước, không làm dài 8 s.
+9. **Kiểm thử:** như nghiệm thu §10b, thêm:
+   - hồi quy ván 6 vai gốc (kịch bản `heal`);
+   - ván 12 cửa sổ: thêm origin `f`–`j.localhost`, cửa sổ cuối 320×568;
+   - va chạm 5–12 người;
+   - đo gói.
+10. Sau review: **mốc PR #3**. Nhạc trưởng hỏi người dùng trước khi push / mở PR / merge.
+
 ---
 
 ## 10c. GĐ6 — Chơi thật (chưa lên lịch)
@@ -747,7 +784,7 @@ Giao diện vai mới, sảnh "Vai mở rộng", cảnh mới, ván thật 12 c�
 | GĐ2b | **Review đạt** (nhạc trưởng, 2026-10-16) | `c7eb0e2a` → `5a852dbe`; code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7, review ở §12.8. |
 | GĐ3a | **Người dùng đã duyệt hướng hình ảnh** (2026-10-17) | `336349ec` → (commit này); code `9867bcef`, `f35c2a70` | Token `--ww-*` (đêm xanh tím, chữ ánh trăng, một màu nhấn đèn lồng, font Grenze), bộ UI nhỏ, 29 icon qua registry (14 mới, người dùng duyệt tải), 2 cảnh cắt giấy (làng ban đêm, bình minh), 4 màn mẫu (Sảnh, Xem vai, Đêm ①, Bình minh) có bố cục hai cột ở 1440 px, bảng phong cách. Cặp ảnh riêng tư 114/114 = 0.000, tương phản 777/777 ≥ 4,5 : 1, không cuộn ngang ở 320 px. Gói Ma Sói +22,5 KB gzip. Chi tiết ở §12.10. |
 | GĐ3b | **Review đạt** (nhạc trưởng, 2026-10-17; GĐ3a cùng review) | `05feb3bd` → `7fece5ea`; code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11, review ở §12.12. |
-| GĐ5a | **Xong, chờ review** (2026-10-18) | `fcc2a7f5` → (commit này); code `bddc1cf5` | 6 vai mở rộng + 12 người thành engine thuần, giữ tương thích ngược (138 test cũ chạy nguyên, chỉ sửa 3 chỗ ghi cứng "5–10 người"). Engine 202 test, phủ đủ E1–E55. UI chỉ thêm khoá cho vai mới để build qua. Ván thật hồi quy `heal` 7 cửa sổ 22/22. 6 cách hiểu luật: **người dùng chốt giữ nguyên cả 6** (2026-10-18), đã ghi vào rules §11. Chi tiết, API cho GĐ5b ở §12.16. |
+| GĐ5a | **Review đạt** (nhạc trưởng, 2026-10-18) | `fcc2a7f5` → `4e0858bd`; code `bddc1cf5` | 6 vai mở rộng + 12 người thành engine thuần, giữ tương thích ngược (138 test cũ chạy nguyên, chỉ sửa 3 chỗ ghi cứng "5–10 người"). Engine 202 test, phủ đủ E1–E55. UI chỉ thêm khoá cho vai mới để build qua. Ván thật hồi quy `heal` 7 cửa sổ 22/22. 6 cách hiểu luật: **người dùng chốt giữ nguyên cả 6** (2026-10-18), đã ghi vào rules §11. Chi tiết, API cho GĐ5b ở §12.16, review ở §12.17. |
 | GĐ5b | Chưa bắt đầu | | Vai mở rộng: giao diện + ván thật 12 cửa sổ (§10b) → PR #3. |
 | GĐ6 | Chưa bắt đầu | | Chơi thật (§10c). |
 | GĐ4 | **Review đạt** (nhạc trưởng, 2026-10-17) | `e0ffa324` → `e336a9e1`; code `13d5e3fe` | Hoạt cảnh theo đồng hồ chung (`scenes/timelines.ts`): vào đêm, trăng / mặt trời lên, bình minh lần lượt theo ghế, kết quả phiếu dạng cột đếm, phát bắn của Thợ săn ở bước kế tiếp, kết thúc kể theo từng đêm / ngày; bù độ trễ dựng (`useCueSync`). Riêng tư 675/675 cặp = 0.000 ở 5 khung hình. Ván thật production 3 kịch bản 52/52, các cửa sổ lệch ≤ 5,3 ms ở 166 mốc, reload giữa hoạt cảnh lệch ≤ 1,1 ms. Gói Ma Sói 60,2 → 64,0 KB gzip. Chi tiết ở §12.13, review ở §12.14. |
@@ -1371,3 +1408,33 @@ Người dùng duyệt hướng hình ảnh GĐ3a (màu nhấn đèn lồng, fon
 **Việc chuyển tiếp**
 - ~~Người dùng chốt 6 cách hiểu ở trên~~: đã chốt giữ nguyên, ghi vào rules §11 (2026-10-18).
 - Nhạc trưởng review `git diff fcc2a7f5..HEAD`, rồi viết brief GĐ5b.
+
+### 12.17 GĐ5a — review của nhạc trưởng (2026-10-18): **ĐẠT**
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 202/202. Mỗi mã E29–E55 có ít nhất một test (đếm bằng grep).
+- `tsc` sạch. eslint werewolf sạch. `npx eslint src/components/games` 29 / 29 = baseline.
+- `npm run build` exit 0.
+- Engine không import react / firebase / `@/`, không `enum`.
+- Test cũ: chỉ `roles.test.ts` đổi đúng 3 chỗ giới hạn 5–10 → 5–12 (và 2 hàng bộ mặc định 11–12). Các file test logic ván không đổi một dòng.
+
+**Đọc code:**
+- `checkWinner` đúng thứ tự rules §11.8: Kẻ chán đời (chỉ khi không thuộc Tình nhân) → Tình nhân 2 người cuối → hết Sói (gồm Sói người yêu) → Sói đủ số (không đếm Sói người yêu, người yêu tính vào "người còn lại").
+- `afterVoteResult`: Kẻ chán đời trước Thợ săn; Thợ săn chết theo người bị treo cũng được bắn; thắng thua sau phát bắn.
+- `loveDeaths` có mặt ở mọi lượt có người chết. `countsAsLeft` chặn Thợ săn / Sói con khi người yêu rời làng.
+- `wolfBitesFor` suy từ `deaths` (vòng r − 1, không tính rời làng).
+- `resolveNight`: độc trước (Già làng bị độc thì không tốn mạng phụ), được che / cứu thì giữ mạng phụ.
+- Khi không bật vai mở rộng, mọi nhánh quay về đúng v1.
+
+**Bằng chứng của người thực thi:** ván thật hồi quy `heal` 7 cửa sổ 22/22 (riêng tư 1 606 mẫu, 0 vi phạm).
+
+**Chấp nhận các lệch:**
+- thêm trường thay vì đổi tên (`attacks`, `healId`, `tallyBites`);
+- Cupid vẫn là `suspect` khi chạm lưới;
+- 3 test giới hạn số người;
+- mục nhật ký `love` riêng;
+- thứ tự `newDeaths` khi treo / bắn / rời làng (màn công bố tự sắp theo ghế).
+
+**6 cách hiểu luật:** người dùng chốt giữ nguyên (2026-10-18), đã ghi vào rules §11 và E32 / E41 / E46 / E52.
+
+**Chuyển sang GĐ5b:** "Bổ sung cho GĐ5b" ở §10b.
