@@ -248,7 +248,7 @@ Chỉnh bằng nút −/+, cố định khi bắt đầu ván (giống Avalon G�
 
 ## 11. Vai mở rộng (v2)
 
-Người dùng chọn 2026-10-17. Mặc định **tắt**; chủ phòng bật từng vai ở sảnh. Ván có tối đa 12 người. Những điểm ghi "(đề xuất)" là cách hiểu của nhạc trưởng, người dùng có thể đổi trước GĐ5a.
+Người dùng chọn 2026-10-17. Mặc định **tắt**; chủ phòng bật từng vai ở sảnh. Ván có tối đa 12 người. Những điểm ghi "(đề xuất)" là cách hiểu của nhạc trưởng, người dùng có thể đổi trước GĐ5a. Những điểm ghi "(chốt 2026-10-18)" là cách hiểu GĐ5a đề xuất cho các ca luật chưa nói rõ, người dùng đã chốt.
 
 | Vai | Phe | Điểm (tạm) | Ban đêm (Đêm ①) |
 |---|---|---|---|
@@ -269,6 +269,7 @@ Người dùng chọn 2026-10-17. Mặc định **tắt**; chủ phòng bật t�
 - Có một **mạng phụ**, chỉ dùng với Sói cắn. Lần đầu bị cắn **trúng** (không được Bảo vệ che, không được Phù thủy cứu) thì không chết, nhưng mất mạng phụ. Lần bị cắn trúng sau thì chết.
 - Được che hoặc được cứu thì mạng phụ còn nguyên (bình cứu vẫn mất, như E2).
 - Bị độc, bị treo, bị bắn, chết theo người yêu hoặc rời làng thì chết ngay; mạng phụ không có tác dụng.
+- Cùng một đêm vừa bị cắn trúng vừa bị độc thì chết vì độc (như E4); mạng phụ không tính là đã dùng. Mất mạng phụ vì bị cắn mà người yêu chết cùng đêm thì vẫn chết theo **(chốt 2026-10-18)**.
 - Đêm Già làng mất mạng phụ, bình minh công bố "Đêm qua bình yên" (không ai biết). Già làng thấy "Bạn đã mất mạng phụ" trong thẻ giữ.
 
 ### 11.3 Người hoá sói
@@ -286,16 +287,19 @@ Phe Dân, giống Dân làng ở mọi mặt, trừ một điểm: Tiên tri soi
   - Cupid chọn **2 người khác nhau** còn sống làm cặp đôi, được chọn cả chính mình, rồi Xác nhận.
   - Màn của Cupid giống mọi người: chạm lưới khi không giữ là "người mình nghi"; việc ghép đôi làm trong thẻ giữ (giữ thẻ rồi chạm lưới, giống cách Phù thủy độc).
   - Hết giờ mà chưa chọn đủ 2 người hoặc chưa Xác nhận thì ván **không có cặp đôi**.
+  - Cupid, hoặc một trong hai người được chọn, bị cho rời làng trước khi Đêm ① của đêm 1 kết thúc thì ván cũng không có cặp đôi (như E25) **(chốt 2026-10-18)**.
 - **Ai biết gì:**
   - Từ Bình minh ngày 1, mỗi người trong cặp thấy trong thẻ giữ: "Bạn yêu X — X là ‹vai›" **(đề xuất: thấy cả vai của người kia, để biết mình có thành phe Tình nhân không)**.
   - Cupid thấy cặp mình đã ghép. Những người khác không biết.
 - **Chết theo người yêu:**
   - Một người trong cặp chết, vì bất kỳ lý do gì kể cả rời làng, thì người kia **chết theo ngay** (nguyên nhân "chết theo người yêu"). Không ai che hay cứu được cái chết này.
   - Người chết theo là Thợ săn thì vẫn được bắn. Là Sói con thì vẫn kích hoạt 11.7. Là Kẻ chán đời thì thua.
+  - Riêng khi người kia **bị cho rời làng**, cái chết theo được coi như rời làng: Thợ săn chết theo không bắn, Sói con chết theo không kích hoạt 11.7 **(chốt 2026-10-18)**. Lý do: rời làng không đổi bước đang chạy nên không có lúc nào để bắn, và rời làng không kích hoạt năng lực nào (mục 7, E51).
 - **Phe Tình nhân:**
   - Nếu hai người trong cặp **khác phe** (phe Sói / phe Dân / Kẻ chán đời), cả hai rời phe cũ và thành phe Tình nhân, mất điều kiện thắng cũ. Phe Tình nhân thắng khi chỉ còn đúng 2 người sống và đó là cặp đôi.
   - Sói trong cặp Tình nhân vẫn cắn cùng bầy, vẫn bị soi ra "Là Sói", và vẫn chặn làng thắng, nhưng **không** được đếm khi xét "Sói đủ số".
   - Hai người cùng phe thì vẫn thuộc phe cũ, chỉ thêm luật chết theo.
+  - "Phe" ở đây là phe của vai: Ma Sói, Sói con, Tay sai là phe Sói; Kẻ chán đời là phe riêng; còn lại là phe Dân. Vì vậy cặp Tay sai + Sói vẫn ở phe Sói, còn Kẻ chán đời ghép với ai cũng thành Tình nhân **(chốt 2026-10-18)**.
 
 ### 11.6 Kẻ chán đời
 - Có phe riêng. Thắng khi **bị treo** ở bước Kết quả phiếu: ván kết thúc ngay, Kẻ chán đời thắng một mình, mọi người khác thua. Điều này đúng cả khi chính lần treo đó cũng làm Sói đủ số.
@@ -308,12 +312,15 @@ Phe Dân, giống Dân làng ở mọi mặt, trừ một điểm: Tiên tri soi
 - **Kích hoạt:**
   - Khi Sói con chết, vì bất kỳ lý do gì **trừ rời làng** **(đề xuất)**, thì **đêm kế tiếp** bầy Sói được cắn **2 người khác nhau**. Đêm kế tiếp là đêm có số bằng vòng Sói con chết + 1.
   - Đêm đó không còn Sói nào sống thì không có gì xảy ra.
+  - Sói con chết theo người yêu bị cho rời làng cũng không kích hoạt (11.5) **(chốt 2026-10-18)**.
 - **Cách chọn 2 người:**
   - Mỗi Sói chọn 2 người. Bầy **thống nhất** khi mọi Sói còn sống chọn cùng một cặp 2 người.
   - Hết giờ mà chưa thống nhất thì lấy 2 người nhiều phiếu nhất. Nếu hoà ở ranh giới thì theo "Sói hoà phiếu": "Ngẫu nhiên" là bốc trong số người hoà; "Không cắn" là chỉ cắn những người đã chắc chắn lọt top.
   - Chỉ có 1 người được chọn thì chỉ cắn 1.
+  - Sói mới chạm một ô trên lưới (chưa chọn người thứ hai) thì tính là chọn một người. Bầy chỉ thống nhất khi mọi Sói còn sống đã chọn đủ 2 người, trừ khi chỉ còn 1 người để cắn **(chốt 2026-10-18)**.
 - **Phù thủy và Bảo vệ đêm đó:**
   - Phù thủy thấy cả hai người bị nhắm. Bình cứu chỉ có 1, nên phải chọn cứu **một** trong hai.
+  - Bấm cứu mà chưa chọn cứu ai thì không cứu ai, bình cứu còn nguyên; màn phải bắt chọn người **(chốt 2026-10-18)**.
   - Bảo vệ vẫn chỉ che một người.
 
 ### 11.8 Thứ tự kiểm tra thắng (khi có vai mở rộng; thay cho mục 2)
@@ -333,7 +340,7 @@ Thợ săn vẫn theo mục 5.7: thắng thua kiểm tra sau phát bắn. Riêng
 | E29 | Già làng bị cắn lần đầu, không ai che hay cứu | Sống, mất mạng phụ. Bình minh "bình yên". |
 | E30 | Già làng bị cắn trúng lần thứ hai | Chết (nguyên nhân Sói). |
 | E31 | Già làng bị cắn lần đầu nhưng được che hoặc được cứu | Sống, mạng phụ còn nguyên. |
-| E32 | Già làng bị độc / treo / bắn / chết theo người yêu | Chết ngay. |
+| E32 | Già làng bị độc / treo / bắn / chết theo người yêu | Chết ngay. Vừa bị cắn trúng vừa bị độc: chết vì độc, mạng phụ không tính là đã dùng. |
 | E33 | Tiên tri soi Người hoá sói | "Là Sói". |
 | E34 | Tiên tri soi Tay sai, Kẻ chán đời | "Không phải Sói". |
 | E35 | Hết Sói, Tay sai còn sống | Dân thắng, Tay sai thua. |
@@ -342,18 +349,18 @@ Thợ săn vẫn theo mục 5.7: thắng thua kiểm tra sau phát bắn. Riêng
 | E38 | Treo Kẻ chán đời làm Sói đủ số | Kẻ chán đời thắng (bước 1 trước bước 4). |
 | E39 | Kẻ chán đời bị cắn / độc / bắn | Kẻ chán đời thua, ván tiếp tục. |
 | E40 | Cupid ghép cặp hợp lệ (gồm cả mình) | Lưu cặp đôi. Hai người thấy nhau (và vai) trong thẻ giữ. |
-| E41 | Cupid chưa chọn đủ 2 người hoặc chưa Xác nhận | Ván không có cặp đôi. |
+| E41 | Cupid chưa chọn đủ 2 người hoặc chưa Xác nhận; hoặc Cupid / người được chọn rời làng trước khi Đêm ① kết thúc | Ván không có cặp đôi. |
 | E42 | Một người trong cặp bị cắn chết | Người kia chết theo, công bố cùng bình minh, theo thứ tự ghế. |
 | E43 | Một người trong cặp bị treo | Người kia chết theo ngay ở Kết quả phiếu. |
 | E44 | Người chết theo là Thợ săn | Được bắn (bước Thợ săn). |
 | E45 | Thợ săn bắn một người trong cặp | Người kia chết theo. |
-| E46 | Một người trong cặp rời làng | Người kia chết theo ("chết theo người yêu"). |
+| E46 | Một người trong cặp rời làng | Người kia chết theo ("chết theo người yêu"), coi như rời làng: Thợ săn không bắn, Sói con không kích hoạt cắn 2. |
 | E47 | Cặp khác phe là 2 người cuối còn sống | Tình nhân thắng. |
 | E48 | Cặp Sói + Dân; các Sói khác đã chết; còn Sói-người-yêu, người yêu và 2 người khác | Ván tiếp tục (Sói-người-yêu chặn làng thắng, nhưng không được đếm khi xét "Sói đủ số"). |
 | E49 | Sói con chết ban ngày ở vòng r | Đêm r + 1 cắn 2 người. |
 | E50 | Sói con chết ban đêm ở vòng r (bị độc) | Đêm r + 1 cắn 2 người. |
 | E51 | Sói con rời làng | Không kích hoạt cắn 2. |
-| E52 | Đêm cắn 2: Phù thủy cứu một người, Bảo vệ che người kia | Cả hai sống. |
+| E52 | Đêm cắn 2: Phù thủy cứu một người, Bảo vệ che người kia | Cả hai sống. Bấm cứu mà chưa chọn ai: không cứu ai, bình còn. |
 | E53 | Đêm cắn 2: Sói chọn 3 người khác nhau, hoà ở ranh giới | Theo "Sói hoà phiếu". |
 | E54 | Đêm cắn 2 trúng Già làng (lần đầu) và một người khác | Già làng mất mạng phụ, người kia chết. |
 | E55 | Bộ vai có vai mở rộng nhiều hơn 1 người, hoặc trên 12 người | Không cho bắt đầu ván. |

@@ -92,7 +92,7 @@ export function loveDeaths(table: WwTable, deaths: readonly WwDeath[], round: nu
 /**
  * Chết vì rời làng, hoặc chết theo người yêu vừa bị cho rời làng. Cái chết
  * này không kích hoạt gì: Thợ săn không bắn, Sói con không làm bầy cắn 2
- * (rules §7, §11.7; ca chết theo là cách hiểu của GĐ5a, plan §12.16).
+ * (rules §7, §11.5, §11.7).
  */
 export function countsAsLeft(table: WwTable, id: string): boolean {
   const own = table.deaths.find((d) => d.id === id);

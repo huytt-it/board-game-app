@@ -533,7 +533,7 @@ describe('Cupid và cặp đôi (rules §11.5)', () => {
     assert.deepEqual(applyLeave(t, 2, 'night', 'v1')?.log[1], { kind: 'love', round: 2, id: 'seer', loverId: 'v1', part: 'night' });
   });
 
-  test('E46 Thợ săn chết theo người yêu bị cho rời làng: coi như rời làng, không bắn (cách hiểu GĐ5a)', () => {
+  test('E46 Thợ săn chết theo người yêu bị cho rời làng: coi như rời làng, không bắn (rules §11.5)', () => {
     const t = withLovers(table12(), 'hunter', 'v1');
     const r = applyLeave(t, 2, 'night', 'v1');
     assert.ok(r);
@@ -603,7 +603,7 @@ describe('Sói con và đêm cắn 2 (rules §11.7)', () => {
     assert.equal(wolfBitesFor(withDeaths(table12(), r.newDeaths), 3), 1);
   });
 
-  test('E51 Sói con chết theo người yêu bị cắn: vẫn kích hoạt; chết theo người yêu bị cho rời làng: không (cách hiểu GĐ5a)', () => {
+  test('E51 Sói con chết theo người yêu bị cắn: vẫn kích hoạt; chết theo người yêu bị cho rời làng: không (rules §11.7)', () => {
     const t = withLovers(table12(), 'cub', 'v1');
     const bitten = afterNightWitch(nightInput({ table: t, round: 2, attack: 'v1' }));
     assert.deepEqual(bitten.night.dawnDeaths, ['cub', 'v1']);
