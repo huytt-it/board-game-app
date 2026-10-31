@@ -785,7 +785,7 @@ Giao diện vai mới, sảnh "Vai mở rộng", cảnh mới, ván thật 12 c�
 | GĐ3a | **Người dùng đã duyệt hướng hình ảnh** (2026-10-17) | `336349ec` → (commit này); code `9867bcef`, `f35c2a70` | Token `--ww-*` (đêm xanh tím, chữ ánh trăng, một màu nhấn đèn lồng, font Grenze), bộ UI nhỏ, 29 icon qua registry (14 mới, người dùng duyệt tải), 2 cảnh cắt giấy (làng ban đêm, bình minh), 4 màn mẫu (Sảnh, Xem vai, Đêm ①, Bình minh) có bố cục hai cột ở 1440 px, bảng phong cách. Cặp ảnh riêng tư 114/114 = 0.000, tương phản 777/777 ≥ 4,5 : 1, không cuộn ngang ở 320 px. Gói Ma Sói +22,5 KB gzip. Chi tiết ở §12.10. |
 | GĐ3b | **Review đạt** (nhạc trưởng, 2026-10-17; GĐ3a cùng review) | `05feb3bd` → `7fece5ea`; code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11, review ở §12.12. |
 | GĐ5a | **Review đạt** (nhạc trưởng, 2026-10-18) | `fcc2a7f5` → `4e0858bd`; code `bddc1cf5` | 6 vai mở rộng + 12 người thành engine thuần, giữ tương thích ngược (138 test cũ chạy nguyên, chỉ sửa 3 chỗ ghi cứng "5–10 người"). Engine 202 test, phủ đủ E1–E55. UI chỉ thêm khoá cho vai mới để build qua. Ván thật hồi quy `heal` 7 cửa sổ 22/22. 6 cách hiểu luật: **người dùng chốt giữ nguyên cả 6** (2026-10-18), đã ghi vào rules §11. Chi tiết, API cho GĐ5b ở §12.16, review ở §12.17. |
-| GĐ5b | **Xong, chờ review** (2026-10-31) | `53d21220` → (commit docs này); code `a3242eb1`, `11bd53de`, `dda718fe` | Vai mở rộng có giao diện + máy trạng thái, 5–12 người. Riêng tư 613/613 cặp khung hình = 0.000 (6 vai mới × 16 màn × 5 khung, đêm cắn 2, 2 người bị nhắm, cặp đôi, 1440 px). Ván thật production 8 kịch bản 83/83 (11–12 cửa sổ + hồi quy `heal` 7 cửa sổ), 0 banner, 0 lỗi JS, riêng tư liên tục 0 vi phạm. Va chạm 310/310, tương phản 918/918, không cuộn ngang 122/122 màn. Gói Ma Sói 66,2 → 74,6 KB gzip. Chi tiết, lệch kế hoạch, chỗ cần chốt ở §12.18. |
+| GĐ5b | **Review đạt** (nhạc trưởng, 2026-10-31) → PR #3 | `53d21220` → (commit docs này); code `a3242eb1`, `11bd53de`, `dda718fe` | Vai mở rộng có giao diện + máy trạng thái, 5–12 người. Riêng tư 613/613 cặp khung hình = 0.000 (6 vai mới × 16 màn × 5 khung, đêm cắn 2, 2 người bị nhắm, cặp đôi, 1440 px). Ván thật production 8 kịch bản 83/83 (11–12 cửa sổ + hồi quy `heal` 7 cửa sổ), 0 banner, 0 lỗi JS, riêng tư liên tục 0 vi phạm. Va chạm 310/310, tương phản 918/918, không cuộn ngang 122/122 màn. Gói Ma Sói 66,2 → 74,6 KB gzip. Chi tiết, lệch kế hoạch, chỗ cần chốt ở §12.18. Review ở §12.19. |
 | GĐ6 | Chưa bắt đầu | | Chơi thật (§10c). |
 | GĐ4 | **Review đạt** (nhạc trưởng, 2026-10-17) | `e0ffa324` → `e336a9e1`; code `13d5e3fe` | Hoạt cảnh theo đồng hồ chung (`scenes/timelines.ts`): vào đêm, trăng / mặt trời lên, bình minh lần lượt theo ghế, kết quả phiếu dạng cột đếm, phát bắn của Thợ săn ở bước kế tiếp, kết thúc kể theo từng đêm / ngày; bù độ trễ dựng (`useCueSync`). Riêng tư 675/675 cặp = 0.000 ở 5 khung hình. Ván thật production 3 kịch bản 52/52, các cửa sổ lệch ≤ 5,3 ms ở 166 mốc, reload giữa hoạt cảnh lệch ≤ 1,1 ms. Gói Ma Sói 60,2 → 64,0 KB gzip. Chi tiết ở §12.13, review ở §12.14. |
 
@@ -1521,3 +1521,53 @@ Người dùng duyệt hướng hình ảnh GĐ3a (màu nhấn đèn lồng, fon
 - Nhạc trưởng review `git diff 53d21220..HEAD`; người dùng / nhạc trưởng chốt các mục 1–3 (và 7) ở trên.
 - Sau review: mốc PR #3 (người dùng đã đồng ý 2026-10-31 cho nhạc trưởng push + mở PR + squash-merge GĐ5a + GĐ5b).
 - GĐ6 (chơi thật): điểm cân bằng của vai mở rộng (đang "tạm"); tờ hồn ma với 12 người + vai mở rộng dài hơn 667 px (cuộn được, kéo bằng ngón chưa kiểm trên cảm ứng thật — còn mở từ GĐ2b); cửa sổ chậm thấy `end` ở một lần `heal`; nhịp 8 s của Bình minh khi có 3–4 người chết.
+
+### 12.19 GĐ5b — review của nhạc trưởng (2026-10-31): **ĐẠT** → mốc PR #3
+
+GĐ5b do một agent thực thi (Opus) chạy nền làm, theo yêu cầu của người dùng. Khoảng commit `53d21220..2441b331`.
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 202/202.
+- `tsc` sạch. eslint werewolf + `gameRegistry.ts` sạch. `npx eslint src/components/games` 29 / 29 = baseline.
+- Lớp màu lẻ / `text-[Npx]`: 0 / 0.
+- `npm run build` exit 0.
+- **Phạm vi:** engine, Avalon, `games/shared`, `services`, `hooks`, `tsconfig`, `package.json` không đổi. Ngoài thư mục werewolf chỉ có `gameRegistry.ts` (5–12 người).
+
+**Đọc code (`useWerewolf`, `state.ts`):**
+- `lobbyCounts`: Dân = số người − mọi vai khác.
+- `tableOf` đưa `lovers` vào bàn.
+- `nightCheck`:
+  - Sói con đổi được sau Xác nhận (`isWolfRole`);
+  - `biteIds` chỉ hợp lệ cho Sói ở đêm cắn 2;
+  - `loverIds` chỉ cho Cupid ở đêm 1.
+- `confirmNight`: Cupid đêm 1 kiểm `validateCupidPick`; ghi `biteIds` / `loverIds` cùng lần Xác nhận.
+- `resolveNightPhase`:
+  - ghi `attack` / `attacks` / `lovers`;
+  - `expectPlayerData` có `elderLife`;
+  - sang thẳng `dawn` thì ghi `elderLife` cùng `guardLast`.
+- `resolveWitchPhase`:
+  - `attacks` lấy từ state, `expect` có `attacks`;
+  - ghi `elderLife`;
+  - `witchCheck` dùng `attacksOf` và chặn `healId` của người không phải Phù thủy.
+- Đêm thường ghi `nightPick` / `witchPick` đúng dạng v1 (không thêm khoá rỗng).
+
+**Ảnh (375px):** sảnh "Vai mở rộng" (6 công tắc, điểm và cảnh báo cập nhật), Cupid đêm 1 khi giữ (dấu "đôi" chỉ khi giữ), Phù thủy 2 người bị nhắm khi giữ (Cứu một trong hai, Độc), kết thúc "Tình nhân thắng" (vai theo `teamOf`, "Phe bạn thua", nhật ký có câu ghép đôi).
+
+**Bằng chứng của người thực thi:**
+- Riêng tư 613/613 = 0.000.
+- Giữ thẻ 27/27.
+- Ván thật 11–12 cửa sổ 83/83 (8 kịch bản, gồm hồi quy `heal`).
+- Va chạm 310/310. Tương phản 918/918. Không cuộn ngang 122/122.
+- Gói 66,2 → 74,6 KB gzip.
+
+**Chấp nhận, cần người dùng chốt ở GĐ6 (không chặn PR):**
+1. **Cupid đêm 1 chưa ghép đủ 2 người thì không Xác nhận được** (lý do chỉ hiện trong thẻ giữ). Hệ quả: nếu ai đó nhìn chằm chằm Cupid bấm Xác nhận mà dòng trạng thái không đổi, đó là một tín hiệu nhỏ. Phương án khác: cho Xác nhận, không có cặp đôi (đúng rules §11.5 "chưa chọn đủ … thì không có cặp đôi").
+2. Đêm cắn 2: người thứ nhất bằng chạm thường, người thứ hai bằng giữ thẻ + chạm.
+3. Bình minh 1 của ván có Cupid có thêm câu công khai nhắc mọi người giữ "Vai của tôi". Câu này như nhau với mọi người; việc có Cupid vốn công khai ở sảnh.
+4. Sảnh cho tối đa 5 Ma Sói.
+
+**Còn mở:**
+- 1/5 lần chạy `heal` (7 cửa sổ) có 1 cửa sổ chưa thấy màn kết thúc sau khoảng 4 s (6 cửa sổ kia thấy, 0 lỗi JS). 4 lần chạy lại đều đạt. Nghi do snapshot đến muộn trong môi trường thử (như ghi chú QUIC ở GĐ2). Theo dõi khi chơi thật (GĐ6).
+- Để GĐ6: điểm cân bằng vai mở rộng; tờ hồn ma 12 người phải cuộn (kéo ngón chưa thử trên cảm ứng thật); nhịp Bình minh khi có 3–4 người chết.
+
+**Tiếp theo:** người dùng đã đồng ý (2026-10-31). Nhạc trưởng push `dev-werewolf`, mở PR #3 và squash-merge GĐ5a + GĐ5b vào `main`, rồi `git merge -s ours origin/main` trên `dev-werewolf`. Sau đó GĐ6 (§10c).
