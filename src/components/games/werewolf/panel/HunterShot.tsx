@@ -4,7 +4,7 @@ import type { CSSProperties } from 'react';
 import { useCue } from '@/components/games/shared/hooks/useCue';
 import { usePhaseMoment } from '../hooks/usePhaseMoment';
 import WwIcon from '../assets/WwIcon';
-import { HUNTER_SHOT, hunterShotOf } from '../scenes/timelines';
+import { HUNTER_SHOT, hunterShotOf, loveFollowersOf } from '../scenes/timelines';
 import { Avatar, nameOf, revealedRole, RoleTag, type PanelCtx } from './shared';
 
 // Phát bắn của Thợ săn, diễn ở bước NGAY SAU bước Thợ săn (Thảo luận, Đêm hoặc
@@ -15,14 +15,24 @@ import { Avatar, nameOf, revealedRole, RoleTag, type PanelCtx } from './shared';
 // Thẻ là lớp phủ `pointer-events: none` ở trên tiêu đề, không che lưới (màn
 // rộng: trên khung bên phải): ban đêm ai cũng chọn được ngay từ T = 0. Gỡ ở
 // HUNTER_SHOT.doneAt; giảm chuyển động thì thẻ đứng yên (đủ chữ) tới lúc đó.
+// Người bị bắn có người yêu (rules §11.5, E45): người đó chết theo cùng lúc,
+// thẻ ghi "… cũng chết" (không nói nguyên nhân), ghế cũng thành bia mộ.
 export default function HunterShot({ ctx, hidden = false }: { ctx: PanelCtx; hidden?: boolean }) {
   const over = usePhaseMoment(ctx.state.phaseStartedAt, HUNTER_SHOT.doneAt);
   const shot = hunterShotOf(ctx.state);
   if (!shot || over || hidden) return null;
-  return <ShotCard key={ctx.state.phaseStartedAt} ctx={ctx} hunterId={shot.hunterId} targetId={shot.targetId} />;
+  return (
+    <ShotCard
+      key={ctx.state.phaseStartedAt}
+      ctx={ctx}
+      hunterId={shot.hunterId}
+      targetId={shot.targetId}
+      alsoIds={loveFollowersOf(ctx.state.log, shot.targetId, shot.round)}
+    />
+  );
 }
 
-function ShotCard({ ctx, hunterId, targetId }: { ctx: PanelCtx; hunterId: string; targetId: string | null }) {
+function ShotCard({ ctx, hunterId, targetId, alsoIds }: { ctx: PanelCtx; hunterId: string; targetId: string | null; alsoIds: string[] }) {
   const cue = useCue(ctx.state.phaseStartedAt);
   const at = (ms: number) => ({ animationDelay: cue(ms) });
   const target = targetId ? ctx.players.find((p) => p.id === targetId) : undefined;
@@ -50,6 +60,19 @@ function ShotCard({ ctx, hunterId, targetId }: { ctx: PanelCtx; hunterId: string
                 <RoleTag role={role} />
               </span>
             )}
+            {alsoIds.map((id) => {
+              const alsoRole = revealedRole(ctx, id);
+              return (
+                <p key={id} className="ww-a-fade mt-1 flex flex-wrap items-center gap-1.5 text-xs text-(--ww-text-2)" style={at(HUNTER_SHOT.fallAt)} data-ww-also-dead={id}>
+                  <span className="truncate">{nameOf(ctx.players, id)} cũng chết</span>
+                  {alsoRole && (
+                    <span className="ww-a-flip inline-flex" style={at(HUNTER_SHOT.flipAt + 150)}>
+                      <RoleTag role={alsoRole} />
+                    </span>
+                  )}
+                </p>
+              );
+            })}
           </div>
           {target && (
             <span className="relative flex size-10 shrink-0 items-center justify-center" aria-hidden="true">

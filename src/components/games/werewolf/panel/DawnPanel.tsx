@@ -8,8 +8,8 @@ import Panel from '../ui/Panel';
 import { DAWN, DAWN_STAGES } from '../scenes/timelines';
 import { PhaseHeader, PhaseLayout, RoleLine, RoleTag, Seat, nameOf, revealedRole, type PanelCtx } from './shared';
 
-// Bình minh (rules §5.6): người chết đêm qua theo thứ tự ghế, không nói
-// nguyên nhân. Lật vai nếu bật "Lộ vai khi chết". 8 giây, không ai bấm gì.
+// Bình minh (rules §5.6): người chết đêm qua theo thứ tự ghế (kể cả người chết
+// theo người yêu — rules §11.5, E42), không nói nguyên nhân. Lật vai nếu bật "Lộ vai khi chết". 8 giây, không ai bấm gì.
 // Màn rộng thêm cả làng bên trái: ai còn sống, ai đã nằm dưới bia mộ (công khai).
 //
 // Hoạt cảnh (GĐ4, scenes/timelines.ts DAWN): mặt trời lên (cảnh nền); khung
@@ -23,6 +23,8 @@ export default function DawnPanel({ ctx }: { ctx: PanelCtx }) {
   const { stage } = usePhaseTimeline(ctx.state.phaseStartedAt, DAWN_STAGES);
   const slot = new Map(deaths.map((id, i) => [id, i]));
   const flipAt = (i: number) => ({ animationDelay: cue(DAWN.flipAt + i * DAWN.flipGapMs) });
+  // Ván có Cupid (công khai qua bộ vai): sáng ngày 1 nhắc mọi người xem mình có được ghép đôi không.
+  const cupidHint = ctx.state.round === 1 && (ctx.state.roleCounts?.cupid ?? 0) > 0;
   return (
     <PhaseLayout
       section="dawn"
@@ -40,7 +42,7 @@ export default function DawnPanel({ ctx }: { ctx: PanelCtx }) {
                 <Seat
                   player={p}
                   dead={dead}
-                  fall={i !== undefined ? cue(DAWN.slotAt(i)) : undefined}
+                  fall={i !== undefined ? cue(DAWN.slotFor(i, deaths.length)) : undefined}
                   sub={
                     role ? (
                       i !== undefined ? (
@@ -88,7 +90,7 @@ export default function DawnPanel({ ctx }: { ctx: PanelCtx }) {
                 <li
                   key={id}
                   className="ww-a-pop flex min-h-12 items-center gap-3 rounded-xl bg-(--ww-raised) px-3 py-2"
-                  style={{ animationDelay: cue(DAWN.slotAt(i)) }}
+                  style={{ animationDelay: cue(DAWN.slotFor(i, deaths.length)) }}
                   data-ww-dead={id}
                 >
                   <WwIcon name="dead" size={26} className="text-(--ww-text-3)" />
@@ -103,6 +105,14 @@ export default function DawnPanel({ ctx }: { ctx: PanelCtx }) {
             })}
           </ul>
         </Panel>
+      )}
+      {cupidHint && (
+        <div className="ww-a-fade mt-3" style={{ animationDelay: cue(DAWN.doneAt) }} data-ww-cupid-hint="">
+          <p className="flex items-start gap-2 rounded-2xl bg-(color:--ww-glass-bg) px-3 py-2 text-sm text-(--ww-text-2)">
+            <WwIcon name="lovers" size={16} className="mt-0.5 shrink-0 text-(--ww-text-3)" />
+            Ván có Cupid: giữ “Vai của tôi” (menu ⋯) để xem mình có được ghép đôi không.
+          </p>
+        </div>
       )}
     </PhaseLayout>
   );

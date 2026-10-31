@@ -3,12 +3,14 @@
 import { useRef, type PointerEvent as ReactPointerEvent, type ReactNode } from 'react';
 import { useHold } from '@/components/games/shared/hooks/useHold';
 import { pickFor, wolfStatus } from '@/components/games/werewolf/engine/night.ts';
-import { nightActionOf, ROLE_NAME } from '@/components/games/werewolf/engine/roles.ts';
-import { dataOf, isDead, nightPicksOf, potionsOf } from '../state';
+import { cupidPairsTonight, isWolfRole, nightActionOf, ROLE_NAME } from '@/components/games/werewolf/engine/roles.ts';
+import { loversOf } from '@/components/games/werewolf/engine/table.ts';
+import { isLoversTeam } from '@/components/games/werewolf/engine/win.ts';
+import { attacksOf, dataOf, elderLifeOf, holderOf, isDead, nightPicksOf, potionsOf } from '../state';
 import type { WerewolfGameData, WwRole } from '../types';
 import WwIcon from '../assets/WwIcon';
 import { MyRoleBody } from './DealPanel';
-import { HoldCard, LogList, ghostView, nameOf, type PanelCtx } from './shared';
+import { HoldCard, LogList, ghostView, nameOf, roleText, type PanelCtx } from './shared';
 
 // Thẻ giữ-để-xem của người chết (rules §6, plan §7b). Người chết ở mọi bước
 // (trừ màn kết thúc) có đúng MỘT thẻ này. Khi không giữ, màn của họ giống hệt
@@ -18,6 +20,9 @@ import { HoldCard, LogList, ghostView, nameOf, type PanelCtx } from './shared';
 //    gần nhất (vòng này và vòng trước, tối đa 8 mục);
 //  - luật tắt, hoặc Thợ săn chưa bắn: chỉ vai của mình.
 // Người còn sống không bao giờ có thẻ này.
+// Vai mở rộng (GĐ5b, rules §11): hồn ma xem hết thấy thêm cặp đôi (và có phải
+// phe Tình nhân không), mạng phụ của Già làng, đêm cắn 2 (tập người từng Sói
+// chọn — `biteIds`), Cupid đang ghép ai (`loverIds`), Phù thủy cứu ai (`healId`).
 
 const VERB = { wolf: 'cắn', seer: 'soi', guard: 'che', suspect: 'nghi' } as const;
 // Nhật ký chỉ hiện chừng này mục mới nhất (trong vòng này và vòng trước) để tờ vừa một màn hình điện thoại.
@@ -32,7 +37,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
   );
 }
 
-const roleColor = (role: WwRole) => (role === 'werewolf' ? 'text-(--ww-wolf-light)' : 'text-(--ww-village-light)');
+const roleColor = (role: WwRole) => roleText(role);
 
 /** Vai của mọi người theo ghế, hai cột (các bước không có lựa chọn đêm). */
 function Roles({ ctx }: { ctx: PanelCtx }) {
@@ -56,7 +61,7 @@ function Roles({ ctx }: { ctx: PanelCtx }) {
 }
 
 /** Ban đêm: gộp "vai" và "lựa chọn đang có" thành một danh sách theo ghế. Người đã chết chỉ có tên (gạch, chữ mức 3) và vai. */
-function PickRows({ ctx, pick }: { ctx: PanelCtx; pick: (role: WwRole, data: Partial<WerewolfGameData>) => { text: string; confirmed: boolean } }) {
+function PickRows({ ctx, pick }: { ctx: PanelCtx; pick: (role: WwRole, data: Partial<WerewolfGameData>, id: string) => { text: string; confirmed: boolean } }) {
   return (
     <ul className="space-y-0.5 text-sm leading-snug text-(--ww-text-2)" data-ww-ghost-roles="">
       {ctx.players.map((p) => {
@@ -64,7 +69,7 @@ function PickRows({ ctx, pick }: { ctx: PanelCtx; pick: (role: WwRole, data: Par
         const role = data.role;
         if (!role) return null;
         const dead = isDead(ctx.state, p.id);
-        const choice = dead ? null : pick(role, data);
+        const choice = dead ? null : pick(role, data, p.id);
         return (
           <li key={p.id}>
             <span className={dead ? 'text-(--ww-text-3) line-through' : 'text-(--ww-text)'}>{p.name}</span>{' '}
@@ -87,21 +92,27 @@ function PickRows({ ctx, pick }: { ctx: PanelCtx; pick: (role: WwRole, data: Par
 function NightLive({ ctx }: { ctx: PanelCtx }) {
   const { state, players, table } = ctx;
   const pack = wolfStatus(table, nightPicksOf(state, players), state.round);
+  const names = (ids: readonly string[]) => ids.map((id) => nameOf(players, id)).join(' và ');
   return (
     <Section title={`Đêm ${state.round}: vai và lựa chọn đang có`}>
-      <div data-ww-ghost-live="night">
+      <div data-ww-ghost-live="night" data-ww-ghost-bites={pack.bites}>
         <p className="mb-1 text-sm leading-snug font-semibold text-(--ww-wolf-light)">
-          {pack.agreedId
-            ? `Bầy Sói đã thống nhất: ${nameOf(players, pack.agreedId)}`
+          {pack.bites === 2 && 'Đêm cắn 2 người. '}
+          {pack.agreedIds && pack.agreedIds.length > 0
+            ? `Bầy Sói đã thống nhất: ${names(pack.agreedIds)}`
             : pack.counts.length === 0
               ? 'Bầy Sói chưa ai chọn.'
               : `Bầy Sói chưa thống nhất: ${pack.counts.map((c) => `${nameOf(players, c.targetId)} (${c.votes})`).join(' · ')}`}
         </p>
         <PickRows
           ctx={ctx}
-          pick={(role, data) => {
+          pick={(role, data, id) => {
             const p = pickFor(data.nightPick, state.round);
-            return { text: p?.targetId ? `${VERB[nightActionOf(role)]} ${nameOf(players, p.targetId)}` : 'chưa chọn', confirmed: !!p?.confirmed };
+            const bites = isWolfRole(role) && pack.bites === 2 ? (pack.sets[id] ?? null) : null;
+            const target = bites && bites.length > 0 ? `cắn ${names(bites)}` : p?.targetId ? `${VERB[nightActionOf(role)]} ${nameOf(players, p.targetId)}` : 'chưa chọn';
+            const lovers = cupidPairsTonight(role, state.round) ? (p?.loverIds ?? []) : [];
+            const pair = cupidPairsTonight(role, state.round) ? ` · ghép đôi: ${lovers.length > 0 ? names(lovers) : 'chưa'}` : '';
+            return { text: target + pair, confirmed: !!p?.confirmed };
           }}
         />
       </div>
@@ -109,13 +120,44 @@ function NightLive({ ctx }: { ctx: PanelCtx }) {
   );
 }
 
+/** Cặp đôi và mạng phụ của Già làng (vai mở rộng), cho hồn ma xem hết. */
+function ExtraFacts({ ctx }: { ctx: PanelCtx }) {
+  const { table, players } = ctx;
+  const pair = loversOf(table);
+  const elderId = holderOf(table, 'elder');
+  const elder = elderId ? players.find((p) => p.id === elderId) : undefined;
+  if (!pair && !elder) return null;
+  return (
+    <ul className="mt-2 space-y-0.5 text-sm leading-snug text-(--ww-text)" data-ww-ghost-facts="">
+      {pair && (
+        <li className="flex items-start gap-1.5" data-ww-ghost-lovers={pair.join(',')}>
+          <WwIcon name="lovers" size={15} className="mt-0.5 shrink-0 text-(--ww-lovers-light)" />
+          <span>
+            Cặp đôi: {nameOf(players, pair[0])} và {nameOf(players, pair[1])} —{' '}
+            {isLoversTeam(table) ? <b className="text-(--ww-lovers-light)">phe Tình nhân</b> : 'cùng phe'}
+          </span>
+        </li>
+      )}
+      {elder && (
+        <li className="flex items-start gap-1.5" data-ww-ghost-elder={elderLifeOf(dataOf(elder)) ? 'yes' : 'no'}>
+          <WwIcon name="elder" size={15} className="mt-0.5 shrink-0 text-(--ww-text-3)" />
+          <span>
+            Già làng {elder.name}: {elderLifeOf(dataOf(elder)) ? 'còn mạng phụ' : 'đã mất mạng phụ'}
+          </span>
+        </li>
+      )}
+    </ul>
+  );
+}
+
 function WitchLive({ ctx }: { ctx: PanelCtx }) {
   const { state, players } = ctx;
+  const attacks = attacksOf(state);
   return (
     <Section title={`Đêm ${state.round} (Phù thủy): vai và lựa chọn đang có`}>
       <div data-ww-ghost-live="night-witch">
         <p className="mb-1 text-sm leading-snug font-semibold text-(--ww-wolf-light)">
-          {state.attack ? `Sói nhắm: ${nameOf(players, state.attack)}` : 'Đêm nay Sói không cắn ai.'}
+          {attacks.length > 0 ? `Sói nhắm: ${attacks.map((id) => nameOf(players, id)).join(' và ')}` : 'Đêm nay Sói không cắn ai.'}
         </p>
         <PickRows
           ctx={ctx}
@@ -123,7 +165,8 @@ function WitchLive({ ctx }: { ctx: PanelCtx }) {
             const p = pickFor(data.witchPick, state.round);
             if (role !== 'witch') return { text: p?.guessId ? `đoán ${nameOf(players, p.guessId)}` : 'chưa đoán', confirmed: !!p?.confirmed };
             const potions = potionsOf(data);
-            const acts = [p?.heal && state.attack ? `cứu ${nameOf(players, state.attack)}` : null, p?.poisonId ? `độc ${nameOf(players, p.poisonId)}` : null].filter(Boolean);
+            const healId = p?.healId ?? (p?.heal && attacks.length === 1 ? attacks[0] : null);
+            const acts = [healId ? `cứu ${nameOf(players, healId)}` : null, p?.poisonId ? `độc ${nameOf(players, p.poisonId)}` : null].filter(Boolean);
             const left = [potions.heal ? 'cứu' : null, potions.poison ? 'độc' : null].filter(Boolean).join(', ') || 'hết';
             return { text: `${acts.length > 0 ? acts.join(' và ') : 'chưa dùng bình'} (bình còn: ${left})`, confirmed: !!p?.confirmed };
           }}
@@ -146,6 +189,7 @@ function AllBody({ ctx }: { ctx: PanelCtx }) {
         <WwIcon name="ghost" size={16} />
         Hồn ma · chỉ mình bạn thấy
       </p>
+      <ExtraFacts ctx={ctx} />
       {state.phase === 'night' && <NightLive ctx={ctx} />}
       {state.phase === 'night-witch' && <WitchLive ctx={ctx} />}
       {!night && (

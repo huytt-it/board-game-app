@@ -6,7 +6,7 @@ import { useCue } from '@/components/games/shared/hooks/useCue';
 import { usePhaseTimeline } from '@/components/games/shared/hooks/usePhaseTimeline';
 import WwIcon from '../assets/WwIcon';
 import Panel from '../ui/Panel';
-import { VOTE_RESULT, VOTE_RESULT_STAGES } from '../scenes/timelines';
+import { VOTE_RESULT, VOTE_RESULT_STAGES, loveFollowersOf } from '../scenes/timelines';
 import { Avatar, avatarColor, PhaseHeader, PhaseLayout, RoleTag, nameOf, revealedRole, type PanelCtx } from './shared';
 
 const NO_HANG: Record<Exclude<DayVoteOutcome, 'executed'>, string> = {
@@ -24,11 +24,14 @@ const NO_HANG: Record<Exclude<DayVoteOutcome, 'executed'>, string> = {
 // chạm. Rồi phán quyết: hàng của người bị treo sáng lên, giàn treo dập xuống,
 // tên, lật vai (theo luật) — hoặc "Không ai bị treo" kèm lý do. Đọc được ở
 // 375 px (tên đầy đủ, không có mũi tên bay chéo màn hình).
+// Người bị treo có người yêu (rules §11.5, E43): người đó chết theo ngay, công
+// bố cùng phán quyết ("… cũng chết", không nói nguyên nhân), lật vai theo luật.
 export default function VoteResultPanel({ ctx }: { ctx: PanelCtx }) {
   const last = ctx.state.lastVote;
   const ballots = last?.ballots ?? {};
   const executed = last?.executedId ?? null;
   const role = executed ? revealedRole(ctx, executed) : null;
+  const also = loveFollowersOf(ctx.state.log, executed, ctx.state.round);
   const cue = useCue(ctx.state.phaseStartedAt);
   const { stage } = usePhaseTimeline(ctx.state.phaseStartedAt, VOTE_RESULT_STAGES);
   const at = (ms: number) => ({ animationDelay: cue(ms) });
@@ -143,6 +146,20 @@ export default function VoteResultPanel({ ctx }: { ctx: PanelCtx }) {
                   </span>
                 </p>
               )}
+              {also.map((id) => {
+                const alsoRole = revealedRole(ctx, id);
+                return (
+                  <p key={id} className="ww-a-fade mt-2 flex flex-wrap items-center justify-center gap-2 text-sm text-(--ww-text-2)" style={at(VOTE_RESULT.gibbetAt)} data-ww-also-dead={id}>
+                    <WwIcon name="dead" size={18} className="text-(--ww-text-3)" />
+                    <span className="font-semibold text-(--ww-text)">{nameOf(ctx.players, id)}</span> cũng chết
+                    {alsoRole && (
+                      <span className="ww-a-flip inline-flex" style={at(VOTE_RESULT.flipAt + 150)}>
+                        <RoleTag role={alsoRole} />
+                      </span>
+                    )}
+                  </p>
+                );
+              })}
             </>
           ) : (
             <>
