@@ -27,11 +27,13 @@ const TABLE: Record<number, [number, number, number, number, number, number, num
   8: [2, 1, 1, 1, 0, 3, 5],
   9: [3, 1, 1, 1, 1, 2, 1],
   10: [3, 1, 1, 1, 1, 3, 2],
+  11: [3, 1, 1, 1, 1, 4, 3],
+  12: [3, 1, 1, 1, 1, 5, 4],
 };
 
 const ids = (n: number) => Array.from({ length: n }, (_, i) => `p${i + 1}`);
 
-describe('bộ vai mặc định 5–10 người (rules §4)', () => {
+describe('bộ vai mặc định 5–12 người (rules §4)', () => {
   for (let n = MIN_PLAYERS; n <= MAX_PLAYERS; n++) {
     test(`${n} người: đúng bảng, tổng = ${n}, hợp lệ, điểm như bảng`, () => {
       const preset = presetFor(n);
@@ -44,9 +46,9 @@ describe('bộ vai mặc định 5–10 người (rules §4)', () => {
     });
   }
 
-  test('ngoài 5–10 người thì không có bộ mặc định', () => {
+  test('ngoài 5–12 người thì không có bộ mặc định', () => {
     assert.equal(presetFor(4), null);
-    assert.equal(presetFor(11), null);
+    assert.equal(presetFor(13), null);
   });
 
   test('presetFor trả bản sao, sửa không ảnh hưởng bảng gốc', () => {
@@ -78,9 +80,9 @@ describe('E28 — bộ vai vi phạm ràng buộc', () => {
     assert.deepEqual(codes(8, { werewolf: 2, guard: 2, hunter: 2, villager: 2 }), ['special-limit']);
   });
 
-  test('E28 số người ngoài 5–10', () => {
+  test('E28 số người ngoài 5–12', () => {
     assert.deepEqual(codes(4, { werewolf: 1, villager: 3 }), ['player-count']);
-    assert.deepEqual(codes(11, { werewolf: 3, villager: 8 }), ['player-count']);
+    assert.deepEqual(codes(13, { werewolf: 3, villager: 10 }), ['player-count']);
   });
 
   test('E28 số lượng âm hoặc lẻ', () => {

@@ -2,10 +2,11 @@
 
 import type { ReactNode } from 'react';
 import type { Player } from '@/types/player';
-import { ROLE_ORDER } from '@/components/games/werewolf/engine/roles.ts';
+import { ALL_ROLES } from '@/components/games/werewolf/engine/roles.ts';
 import WwIcon from './assets/WwIcon';
 import { ICONS, SCENES, type IconName } from './assets/registry';
 import { SCENE_IDS, SCENE_NAMES_VI, type SceneId } from './scenes/types';
+import { SceneTintLayer } from './scenes/SceneBackdrop';
 import Button from './ui/Button';
 import Chip from './ui/Chip';
 import Panel from './ui/Panel';
@@ -61,6 +62,7 @@ function SceneThumb({ id }: { id: SceneId }) {
           const Svg = l.Component;
           return <Svg key={i} className="absolute inset-0 h-full w-full" />;
         })}
+        {def.tint && <SceneTintLayer tint={def.tint} />}
       </div>
       <figcaption className="text-xs text-(--ww-text-2)">{SCENE_NAMES_VI[id]}</figcaption>
     </figure>
@@ -220,7 +222,7 @@ export default function StyleBoard() {
         <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-10">
           {(Object.keys(ICONS) as IconName[]).map((name) => (
             <div key={name} className="flex flex-col items-center gap-1 rounded-xl bg-(--ww-raised) px-1 py-2 text-center">
-              <WwIcon name={name} size={28} className={ROLE_ORDER.includes(name as WwRole) ? 'text-(--ww-moon)' : 'text-(--ww-text-2)'} />
+              <WwIcon name={name} size={28} className={ALL_ROLES.includes(name as WwRole) ? 'text-(--ww-moon)' : 'text-(--ww-text-2)'} />
               <span className="w-full truncate text-xs text-(--ww-text-3)">{name}</span>
             </div>
           ))}

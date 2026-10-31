@@ -66,11 +66,11 @@ export const GAME_REGISTRY: GameRegistryEntry[] = [
   {
     key: 'werewolf',
     label: 'Ma Sói',
-    description: 'Không cần quản trò: app gọi từng bước, đếm giờ và công bố kết quả. Ban đêm Sói cắn người, ban ngày cả làng nói chuyện ngoài đời rồi bỏ phiếu treo một người. 5-10 người.',
+    description: 'Không cần quản trò: app gọi từng bước, đếm giờ và công bố kết quả. Ban đêm Sói cắn người, ban ngày cả làng nói chuyện ngoài đời rồi bỏ phiếu treo một người. 5-12 người.',
     icon: '🐺',
     enabled: true,
     minPlayers: 5,
-    maxPlayers: 10,
+    maxPlayers: 12,
     component: WerewolfBoard,
   },
   {

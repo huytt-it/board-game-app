@@ -3,7 +3,8 @@
 Mọi icon lấy từ [game-icons.net](https://game-icons.net), dùng theo giấy phép
 [Creative Commons BY 3.0](https://creativecommons.org/licenses/by/3.0/). Tác giả: **Lorc**,
 **Delapouite**, **Carl Olsen** và **Sbed** (danh sách tác giả: <https://game-icons.net/about.html>).
-Người dùng duyệt việc tải 14 icon riêng của Ma Sói ngày 2026-10-17 (GĐ3a).
+Người dùng duyệt việc tải 14 icon riêng của Ma Sói ngày 2026-10-17 (GĐ3a), và thêm 8 icon cho 6 vai mở rộng +
+màn kết thúc của phe Tình nhân (GĐ5b, cho phép trong brief 2026-10-31: tối đa 8 icon vai + 2 icon màn kết thúc).
 
 Dòng credit hiển thị trong game: bảng phong cách của `WerewolfPreview`; GĐ3b thêm vào màn "Luật chơi".
 
@@ -46,5 +47,13 @@ Dòng credit hiển thị trong game: bảng phong cách của `WerewolfPreview`
 | `offline` | Mất kết nối | [Aerial signal](https://game-icons.net/1x1/lorc/aerial-signal.html) | Lorc | `shared/icons/aerial-signal.tsx` |
 | `warning` | Cảnh báo | [Hazard sign](https://game-icons.net/1x1/lorc/hazard-sign.html) | Lorc | `shared/icons/hazard-sign.tsx` |
 | `clock` | Đồng hồ đếm ngược | [Stopwatch](https://game-icons.net/1x1/lorc/stopwatch.html) | Lorc | `shared/icons/stopwatch.tsx` |
+| `elder` | Vai Già làng (GĐ5b) | [Beard](https://game-icons.net/1x1/lorc/beard.html) | Lorc | `icons/beard.tsx` |
+| `lycan` | Vai Người hoá sói (GĐ5b) | [Werewolf](https://game-icons.net/1x1/lorc/werewolf.html) | Lorc | `icons/werewolf.tsx` |
+| `minion` | Vai Tay sai (GĐ5b) | [Cowled](https://game-icons.net/1x1/lorc/cowled.html) | Lorc | `icons/cowled.tsx` |
+| `tanner` | Vai Kẻ chán đời, phe Kẻ chán đời ở màn kết thúc (GĐ5b) | [Shrug](https://game-icons.net/1x1/delapouite/shrug.html) | Delapouite | `icons/shrug.tsx` |
+| `cupid` | Vai Cupid, mục ghép đôi trong nhật ký (GĐ5b) | [Cupidon arrow](https://game-icons.net/1x1/lorc/cupidon-arrow.html) | Lorc | `icons/cupidon-arrow.tsx` |
+| `wolfcub` | Vai Sói con (GĐ5b) | [Paw print](https://game-icons.net/1x1/lorc/paw-print.html) | Lorc | `icons/paw-print.tsx` |
+| `lovers` | Phe Tình nhân / cặp đôi (màn kết thúc, thẻ giữ) (GĐ5b) | [Nested hearts](https://game-icons.net/1x1/delapouite/nested-hearts.html) | Delapouite | `icons/nested-hearts.tsx` |
+| `heartbreak` | Chết theo người yêu (nhật ký ở màn kết thúc, hồn ma) (GĐ5b) | [Broken heart](https://game-icons.net/1x1/lorc/broken-heart.html) | Lorc | `icons/broken-heart.tsx` |
 
 `shared/icons/…` = `src/components/games/shared/icons/` (dùng chung với Avalon).

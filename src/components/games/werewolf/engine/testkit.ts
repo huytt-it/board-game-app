@@ -16,12 +16,51 @@ export function table7(deaths: WwDeath[] = []): WwTable {
   );
 }
 
+/**
+ * Bàn 12 người có đủ 6 vai mở rộng (rules §11): Ma Sói, Sói con, Tay sai, Tiên
+ * tri, Bảo vệ, Phù thủy, Thợ săn, Già làng, Người hoá sói, Kẻ chán đời, Cupid, 1 Dân.
+ */
+export function table12(deaths: WwDeath[] = []): WwTable {
+  return makeTable(
+    {
+      w1: 'werewolf',
+      seer: 'seer',
+      elder: 'elder',
+      cub: 'wolfcub',
+      guard: 'guard',
+      lycan: 'lycan',
+      witch: 'witch',
+      minion: 'minion',
+      hunter: 'hunter',
+      tanner: 'tanner',
+      cupid: 'cupid',
+      v1: 'villager',
+    },
+    deaths,
+  );
+}
+
+/** Bàn có cặp đôi `a`, `b` (như `state.lovers`). */
+export function withLovers(table: WwTable, a: string, b: string): WwTable {
+  return { ...table, lovers: [a, b] };
+}
+
 export function rules(over: Partial<WwRules> = {}): WwRules {
   return { ...DEFAULT_RULES, ...over };
 }
 
 export function night(round: number, targetId: string | null, confirmed = true): NightPick {
   return { round, targetId, confirmed };
+}
+
+/** Lựa chọn của một Sói ở đêm cắn 2: tập `biteIds` (ô lưới `targetId` là người đầu). */
+export function bite(round: number, biteIds: string[], confirmed = true): NightPick {
+  return { round, targetId: biteIds[0] ?? null, confirmed, biteIds };
+}
+
+/** Lựa chọn của Cupid ở đêm 1: cặp `loverIds`, cùng "người mình nghi" `targetId`. */
+export function cupid(round: number, loverIds: string[], targetId: string | null = null, confirmed = true): NightPick {
+  return { round, targetId, confirmed, loverIds };
 }
 
 export function witch(round: number, over: Partial<Omit<WitchPick, 'round'>> = {}): WitchPick {

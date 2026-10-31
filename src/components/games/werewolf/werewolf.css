@@ -38,6 +38,12 @@
   --ww-wolf-light: #f3aba8;
   --ww-village: #5fae7e;
   --ww-village-light: #a9dcbb;
+  /* Hai phe của vai mở rộng (GĐ5b, rules §11): chỉ ở màn kết thúc, vai đã lộ và
+     trong thẻ đang giữ. Kẻ chán đời = màu đất sét / tro; Tình nhân = hồng. */
+  --ww-tanner: #b98a5e;
+  --ww-tanner-light: #e6caa8;
+  --ww-lovers: #d9789a;
+  --ww-lovers-light: #f6bfd2;
 }
 
 /* Font tiêu đề (Grenze: chữ nửa Gô-tích, có dấu tiếng Việt) — biến

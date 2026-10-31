@@ -23,7 +23,8 @@ export const NIGHTFALL = {
 } as const;
 
 // ─── Bình minh (dawn, 8 s; hoạt cảnh ≤ 4,6 s) ──────────────────────
-// Người chết đêm qua (tối đa 2: bị cắn + trúng độc) hiện lần lượt THEO GHẾ,
+// Người chết đêm qua (thường ≤ 2: bị cắn + trúng độc; vai mở rộng: tới 4 — cắn 2,
+// độc, người chết theo người yêu) hiện lần lượt THEO GHẾ,
 // mỗi người một "ô" thời gian cố định; vai lật cùng một lúc cho mọi lá (nếu
 // bật "Lộ vai khi chết"). "Đêm qua bình yên" có hoạt cảnh riêng nhưng dùng
 // đúng các ô thời gian ấy và xong cùng lúc, để nhịp không nói lên gì.
@@ -34,6 +35,12 @@ export const DAWN = {
   leadAt: 800,
   /** Người chết thứ i (theo ghế) hiện ra; bình yên: icon (ô 0) rồi câu (ô 1). */
   slotAt: (i: number) => 1600 + 1200 * i,
+  /**
+   * Ô của người chết thứ i khi đêm qua có `n` người chết: ≤ 2 người giống hệt
+   * slotAt (GĐ4); từ 3 người (vai mở rộng) các ô dồn lại để lá cuối hiện xong
+   * trước mốc lật vai (≤ 3,35 s). Số người chết là công khai.
+   */
+  slotFor: (i: number, n: number) => 1600 + (n <= 2 ? 1200 : Math.floor(1750 / (n - 1))) * i,
   cardMs: 450,
   /** Lật vai: lá thứ i lúc flipAt + i·flipGapMs; bình yên: các tia nắng. */
   flipAt: 3800,
@@ -105,6 +112,16 @@ export const HUNTER_SHOT = {
 type HunterEntry = Extract<WwLogEntry, { kind: 'hunter' }>;
 
 /**
+ * Người chết theo người yêu ngay trong lượt `id` chết ở vòng `round` (rules
+ * §11.5: bị treo, bị Thợ săn bắn), theo nhật ký. Công bố cùng lúc với người
+ * kia, không nói nguyên nhân (nguyên nhân chỉ ở màn kết thúc).
+ */
+export function loveFollowersOf(log: readonly WwLogEntry[] | undefined, id: string | null, round: number): string[] {
+  if (!id) return [];
+  return (log ?? []).flatMap((e) => (e.kind === 'love' && e.loverId === id && e.round === round ? [e.id] : []));
+}
+
+/**
  * Phát bắn vừa xong, nếu bước hiện tại là bước NGAY SAU bước Thợ săn; null nếu
  * không. Mỗi ván có tối đa một Thợ săn nên có tối đa một mục 'hunter':
  *  - Thảo luận vòng r: Thợ săn bắn sau bình minh vòng r;
@@ -122,7 +139,8 @@ export function hunterShotOf(state: Pick<WerewolfGameState, 'phase' | 'round' | 
     case 'night':
       return e.round === state.round - 1 && log.some((v, j) => j < i && v.kind === 'vote' && v.round === e.round) ? e : null;
     case 'end':
-      return i === log.length - 1 ? e : null;
+      // Phát bắn là việc cuối của ván (sau nó chỉ có người chết theo người yêu bị bắn).
+      return log.slice(i + 1).every((v) => v.kind === 'love' && v.round === e.round) ? e : null;
     default:
       return null;
   }

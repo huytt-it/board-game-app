@@ -1,7 +1,9 @@
 'use client';
 
-import { ROLE_BLURB, ROLE_NAME, ROLE_ORDER } from '@/components/games/werewolf/engine/roles.ts';
-import type { WwRules } from '../types';
+import { useState } from 'react';
+import { EXTRA_ROLES, ROLE_BLURB, ROLE_NAME, ROLE_ORDER } from '@/components/games/werewolf/engine/roles.ts';
+import type { WwRole, WwRules } from '../types';
+import { roleText } from '../panel/shared';
 import WwIcon, { type IconName } from '../assets/WwIcon';
 import Button from './Button';
 import { Modal } from './Dialog';
@@ -23,7 +25,69 @@ function Section({ title, icon, children }: { title: string; icon: IconName; chi
   );
 }
 
-export default function RulesDialog({ rules, onClose }: { rules: WwRules | null; onClose: () => void }) {
+function RoleList({ roles }: { roles: readonly WwRole[] }) {
+  return (
+    <ul className="space-y-1.5">
+      {roles.map((role) => (
+        <li key={role} className="flex gap-2" data-ww-rules-role={role}>
+          <WwIcon name={role} size={18} className={`mt-0.5 shrink-0 ${roleText(role)}`} />
+          <span>
+            <b className={roleText(role)}>{ROLE_NAME[role]}</b>: {ROLE_BLURB[role]}
+          </span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/**
+ * Vai mở rộng (rules §11): các vai đang bật trong phòng / ván trước, rồi nút xem
+ * cả 6. `counts`: bộ vai của phòng (sảnh) hoặc của ván (công khai).
+ */
+function ExtraRoles({ counts }: { counts: Partial<Record<WwRole, number>> | null }) {
+  const on = EXTRA_ROLES.filter((r) => (counts?.[r] ?? 0) > 0);
+  const [all, setAll] = useState(false);
+  const rest = EXTRA_ROLES.filter((r) => !on.includes(r));
+  return (
+    <Section title="Vai mở rộng" icon="cupid">
+      {on.length > 0 ? <RoleList roles={on} /> : <p>{counts ? 'Phòng này không bật vai mở rộng nào.' : 'Chủ phòng bật từng vai ở sảnh, mỗi vai tối đa 1 người.'}</p>}
+      {all ? (
+        rest.length > 0 && <RoleList roles={rest} />
+      ) : (
+        rest.length > 0 && (
+          <Button variant="ghost" block align="start" onClick={() => setAll(true)}>
+            {on.length > 0 ? `Xem ${rest.length} vai mở rộng còn lại` : 'Xem cả 6 vai mở rộng'}
+          </Button>
+        )
+      )}
+      <ul className="list-disc space-y-1 pl-5">
+        <li>
+          <b className="text-(--ww-text)">Sói</b> là Ma Sói và Sói con; Tay sai thuộc phe Sói nhưng không cắn, không được tính là Sói khi đếm.
+        </li>
+        <li>
+          <b className="text-(--ww-text)">Cặp đôi</b> của Cupid: một người chết thì người kia chết theo ngay. Hai người khác phe thành phe{' '}
+          <b className="text-(--ww-lovers-light)">Tình nhân</b>, thắng khi chỉ còn hai người họ. Sáng ngày 1, ai cũng nên giữ “Vai của tôi” (menu ⋯)
+          để xem mình có được ghép đôi không.
+        </li>
+        <li>
+          <b className="text-(--ww-tanner-light)">Kẻ chán đời</b> bị treo thì thắng một mình, ván kết thúc ngay.
+        </li>
+        <li>Sói con chết thì đêm sau bầy được cắn 2 người; Phù thủy chỉ cứu được một.</li>
+      </ul>
+    </Section>
+  );
+}
+
+export default function RulesDialog({
+  rules,
+  counts = null,
+  onClose,
+}: {
+  rules: WwRules | null;
+  /** Bộ vai của phòng / ván (công khai), để mục "Vai mở rộng" nêu các vai đang bật trước. */
+  counts?: Partial<Record<WwRole, number>> | null;
+  onClose: () => void;
+}) {
   return (
     <Modal title="Luật chơi" onClose={onClose} initialFocus="panel">
       <div className="space-y-4 text-sm leading-relaxed text-(--ww-text-2)" data-ww-rules="">
@@ -43,14 +107,16 @@ export default function RulesDialog({ rules, onClose }: { rules: WwRules | null;
           <ul className="space-y-1.5">
             {ROLE_ORDER.map((role) => (
               <li key={role} className="flex gap-2">
-                <WwIcon name={role} size={18} className={`mt-0.5 ${role === 'werewolf' ? 'text-(--ww-wolf-light)' : 'text-(--ww-village-light)'}`} />
+                <WwIcon name={role} size={18} className={`mt-0.5 ${roleText(role)}`} />
                 <span>
-                  <b className={role === 'werewolf' ? 'text-(--ww-wolf-light)' : 'text-(--ww-village-light)'}>{ROLE_NAME[role]}</b>: {ROLE_BLURB[role]}
+                  <b className={roleText(role)}>{ROLE_NAME[role]}</b>: {ROLE_BLURB[role]}
                 </span>
               </li>
             ))}
           </ul>
         </Section>
+
+        <ExtraRoles counts={counts} />
 
         <Section title="Một vòng chơi" icon="night">
           <ol className="list-decimal space-y-1 pl-5">

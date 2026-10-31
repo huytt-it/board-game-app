@@ -5,7 +5,7 @@ import { useHold } from '@/components/games/shared/hooks/useHold';
 import { pickFor, WITCH_PICK_ERROR_TEXT } from '@/components/games/werewolf/engine/night.ts';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import { EMPTY_WITCH_DRAFT, type WitchDraft, type WitchResult } from '../useWerewolf';
-import { potionsOf } from '../state';
+import { attacksOf, potionsOf } from '../state';
 import WwIcon from '../assets/WwIcon';
 import Button from '../ui/Button';
 import { DeadNote, Dock, HoldCard, InHoldButton, MeMark, nameOf, PhaseHeader, PhaseLayout, PlayerTile, revealedRole, StatusLine, type PanelCtx } from './shared';
@@ -18,6 +18,8 @@ import { DeadNote, Dock, HoldCard, InHoldButton, MeMark, nameOf, PhaseHeader, Ph
 // sáng, không có tác dụng). Người bị nhắm, công tắc Cứu và việc chọn người để
 // Độc chỉ hiện và chỉ thao tác được khi đang giữ: Phù thủy vừa giữ thẻ vừa chạm
 // người ở lưới để độc. Một lần chạm lưới lúc không giữ không bao giờ thành độc.
+// Đêm cắn 2 (rules §11.7): thẻ giữ hiện cả hai người bị nhắm, Phù thủy chọn cứu
+// MỘT người (`healId`); khi không giữ, màn vẫn giống hệt đêm thường.
 
 function errorText(code: WitchResult['error'], fallback: string): string {
   return code ? WITCH_PICK_ERROR_TEXT[code] : fallback;
@@ -36,15 +38,34 @@ function WitchBody({
   locked: boolean;
   onDraft: (next: WitchDraft) => void;
 }) {
-  const attack = ctx.state.attack;
+  const attacks = attacksOf(ctx.state);
+  const attack = attacks[0] ?? null;
   const potions = potionsOf(ctx.myData);
+  const names = attacks.map((id) => nameOf(ctx.players, id));
   return (
     <div className="space-y-1.5 text-left" data-ww-witch="">
-      <p className="font-bold" data-ww-attack={attack ?? 'none'}>
-        {attack ? `Sói nhắm: ${nameOf(ctx.players, attack)}` : 'Đêm nay Sói không cắn ai.'}
+      <p className="font-bold" data-ww-attack={attacks.length > 0 ? attacks.join(',') : 'none'}>
+        {attacks.length === 0 ? 'Đêm nay Sói không cắn ai.' : attacks.length === 1 ? `Sói nhắm: ${names[0]}` : `Sói nhắm 2 người: ${names.join(' và ')}`}
       </p>
       {potions.heal ? (
-        attack ? (
+        attacks.length > 1 ? (
+          // Đêm cắn 2: một bình cứu, chọn cứu MỘT người (bấm lại để bỏ).
+          attacks.map((id) => {
+            const on = draft.healId === id;
+            return (
+              <InHoldButton
+                key={id}
+                pressed={on}
+                tone="heal"
+                disabled={locked}
+                onPress={() => onDraft(on ? { ...draft, heal: false, healId: null } : { ...draft, heal: true, healId: id })}
+              >
+                <WwIcon name="heal" size={18} className="mr-1.5" />
+                {on ? `Sẽ cứu ${nameOf(ctx.players, id)} — bấm để bỏ` : `Cứu ${nameOf(ctx.players, id)}`}
+              </InHoldButton>
+            );
+          })
+        ) : attack ? (
           <InHoldButton pressed={draft.heal} tone="heal" disabled={locked} onPress={() => onDraft({ ...draft, heal: !draft.heal })}>
             <WwIcon name="heal" size={18} className="mr-1.5" />
             {draft.heal ? `Sẽ cứu ${nameOf(ctx.players, attack)} — bấm để bỏ` : `Cứu ${nameOf(ctx.players, attack)}`}
@@ -114,7 +135,7 @@ export default function WitchPanel({
   const confirming = confirmingAt === state.phaseStartedAt && !confirmed;
   const draft: WitchDraft =
     (pending && pending.at === state.phaseStartedAt ? pending.draft : null) ??
-    (stored ? { heal: stored.heal, poisonId: stored.poisonId, guessId: stored.guessId } : EMPTY_WITCH_DRAFT);
+    (stored ? { heal: stored.heal, poisonId: stored.poisonId, guessId: stored.guessId, healId: stored.healId ?? null } : EMPTY_WITCH_DRAFT);
   const open = ctx.remaining > 0;
   const isWitch = myData.role === 'witch';
   const iAmAlive = alive.includes(me.id);

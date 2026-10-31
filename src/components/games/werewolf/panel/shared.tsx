@@ -3,11 +3,11 @@
 import type { HTMLAttributes, ReactNode } from 'react';
 import type { Player } from '@/types/player';
 import { describeLog } from '@/components/games/werewolf/engine/log.ts';
-import { ROLE_NAME } from '@/components/games/werewolf/engine/roles.ts';
+import { ROLE_NAME, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
 import { formatCountdown } from '../hooks/usePhaseClock';
 import { dataOf, isDead } from '../state';
 import WwIcon, { type IconName } from '../assets/WwIcon';
-import type { WerewolfGameData, WerewolfGameState, WwLogEntry, WwRole, WwTable } from '../types';
+import type { WerewolfGameData, WerewolfGameState, WwLogEntry, WwRole, WwTable, WwTeam } from '../types';
 
 /** Những gì mọi panel trong ván cần biết. `me` là người đang xem màn này. */
 export interface PanelCtx {
@@ -21,6 +21,26 @@ export interface PanelCtx {
   /** Thời gian còn lại của phase (ms). */
   remaining: number;
 }
+
+/** Màu chữ theo phe (lớp Tailwind viết nguyên văn để được sinh ra). */
+export const TEAM_TEXT: Record<WwTeam, string> = {
+  wolves: 'text-(--ww-wolf-light)',
+  village: 'text-(--ww-village-light)',
+  tanner: 'text-(--ww-tanner-light)',
+  lovers: 'text-(--ww-lovers-light)',
+};
+
+/** Màu chữ của một vai (vai đã lộ công khai, danh sách vai): theo phe của VAI (Tay sai, Sói con: màu Sói). */
+export function roleText(role: WwRole): string {
+  return TEAM_TEXT[ROLE_TEAM[role]];
+}
+
+const TEAM_CHIP: Record<WwTeam, string> = {
+  wolves: 'bg-(--ww-wolf)/15 text-(--ww-wolf-light)',
+  village: 'bg-(--ww-village)/15 text-(--ww-village-light)',
+  tanner: 'bg-(--ww-tanner)/15 text-(--ww-tanner-light)',
+  lovers: 'bg-(--ww-lovers)/15 text-(--ww-lovers-light)',
+};
 
 export function nameOf(players: Player[], id: string | null | undefined): string {
   if (!id) return '—';
@@ -161,16 +181,21 @@ export function Avatar({ name, id, dim = false, size = 'sm' }: { name: string; i
   );
 }
 
-/** Vai đã lộ CÔNG KHAI của một người (luật "Lộ vai khi chết"): icon + tên vai, màu phe, chữ nhỏ. */
-export function RoleLine({ role }: { role: WwRole }) {
-  const wolf = role === 'werewolf';
+/**
+ * Vai đã lộ CÔNG KHAI của một người (luật "Lộ vai khi chết"): icon + tên vai, màu
+ * phe của vai, chữ nhỏ. Màn kết thúc (mọi thứ đã công khai): `team` = phe lúc
+ * kết thúc (teamOf, tô màu), `lover` = người trong cặp đôi (thêm icon trái tim).
+ */
+export function RoleLine({ role, team, lover = false }: { role: WwRole; team?: WwTeam | null; lover?: boolean }) {
   return (
     <span
-      className={`flex min-w-0 items-center gap-1 truncate text-xs font-semibold ${wolf ? 'text-(--ww-wolf-light)' : 'text-(--ww-village-light)'}`}
+      className={`flex min-w-0 items-center gap-1 truncate text-xs font-semibold ${team ? TEAM_TEXT[team] : roleText(role)}`}
       data-ww-tile-role={role}
+      data-ww-end-team={team ?? undefined}
     >
       <WwIcon name={role} size={13} />
       {ROLE_NAME[role]}
+      {lover && <WwIcon name="lovers" size={13} title={team === 'lovers' ? 'Phe Tình nhân' : 'Cặp đôi'} />}
     </span>
   );
 }
@@ -405,10 +430,9 @@ export function InHoldButton({
 
 /** Tên vai kèm phe, cho các danh sách công khai (vai đã lộ). */
 export function RoleTag({ role }: { role: WwRole }) {
-  const wolf = role === 'werewolf';
   return (
     <span
-      className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-xs font-semibold ${wolf ? 'bg-(--ww-wolf)/15 text-(--ww-wolf-light)' : 'bg-(--ww-village)/15 text-(--ww-village-light)'}`}
+      className={`inline-flex h-6 shrink-0 items-center gap-1 rounded-full px-2 text-xs font-semibold ${TEAM_CHIP[ROLE_TEAM[role]]}`}
       data-ww-role-tag={role}
     >
       <WwIcon name={role} size={14} />

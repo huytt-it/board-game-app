@@ -2,7 +2,7 @@
 // Muốn thay một cái bằng ảnh vẽ (AI vẽ…), thả file vào `public/werewolf/...`
 // rồi sửa đúng MỘT dòng bên dưới — xem assets/README.md.
 import type { ComponentType, SVGProps } from 'react';
-import type { LayerMotion, ParticleGroup, SceneId, SceneIntro, ScenePalette } from '../scenes/types';
+import type { LayerMotion, ParticleGroup, SceneId, SceneIntro, ScenePalette, SceneTint } from '../scenes/types';
 import { NightFront, NightHills, NightMoon, NightSky, NightVillage, VILLAGE_NIGHT_PALETTE, VILLAGE_NIGHT_PARTICLES } from '../scenes/layers/village-night';
 import { DawnClouds, DawnFront, DawnHills, DawnSky, DawnSun, DawnVillage, DAWN_PALETTE, DAWN_PARTICLES } from '../scenes/layers/dawn';
 import { DayFront, DayHills, DaySky, DayVillage, DAY_PALETTE, DAY_PARTICLES } from '../scenes/layers/day';
@@ -24,6 +24,15 @@ import Tombstone from './icons/tombstone';
 import Ghost from './icons/ghost';
 import HealthPotion from './icons/health-potion';
 import PoisonBottle from './icons/poison-bottle';
+// Vai mở rộng + màn kết thúc của phe mới (GĐ5b, người dùng cho tải 2026-10-31).
+import Beard from './icons/beard';
+import WerewolfFigure from './icons/werewolf';
+import Cowled from './icons/cowled';
+import Shrug from './icons/shrug';
+import CupidonArrow from './icons/cupidon-arrow';
+import PawPrint from './icons/paw-print';
+import NestedHearts from './icons/nested-hearts';
+import BrokenHeart from './icons/broken-heart';
 // Icon dùng chung với Avalon.
 import CrystalBall from '@/components/games/shared/icons/crystal-ball';
 import Moon from '@/components/games/shared/icons/moon';
@@ -56,7 +65,16 @@ export const ICONS = {
   guard: svg(CheckedShield),
   witch: svg(Cauldron),
   hunter: svg(Crossbow),
+  // Vai mở rộng (rules §11)
+  elder: svg(Beard),
+  lycan: svg(WerewolfFigure),
+  minion: svg(Cowled),
+  tanner: svg(Shrug),
+  cupid: svg(CupidonArrow),
+  wolfcub: svg(PawPrint),
   'team-village': svg(Village),
+  // Phe Tình nhân (cặp đôi khác phe, rules §11.5): màn kết thúc, cặp đôi trong thẻ giữ.
+  lovers: svg(NestedHearts),
 
   // Trò chơi, các bước
   game: svg(WolfHowl),
@@ -68,6 +86,8 @@ export const ICONS = {
 
   // Trạng thái
   dead: svg(Tombstone),
+  /** Chết theo người yêu (nhật ký ở màn kết thúc / tờ hồn ma). */
+  heartbreak: svg(BrokenHeart),
   ghost: svg(Ghost),
   heal: svg(HealthPotion),
   poison: svg(PoisonBottle),
@@ -102,6 +122,8 @@ export interface SceneDef {
   layers: SceneLayerDef[];
   /** Hiệu ứng cả cảnh lúc bước bắt đầu (GĐ4). */
   intro?: SceneIntro;
+  /** Đổi bảng màu của các lớp (GĐ5b, cảnh kết thúc của phe mới). */
+  tint?: SceneTint;
   palette: ScenePalette;
   particles?: readonly ParticleGroup[];
 }
@@ -137,5 +159,21 @@ export const SCENES: Record<SceneId, SceneDef> = {
     layers: [svg(EndWolvesSky), svg(EndWolvesHill), svg(EndWolvesVillage), svg(EndWolvesFront)],
     palette: END_WOLVES_PALETTE,
     particles: END_WOLVES_PARTICLES,
+  },
+  // Hai phe của vai mở rộng (GĐ5b): dùng lại lớp vẽ của cảnh có sẵn, đổi bảng màu
+  // bằng một lớp `tint` (không thêm hình vẽ mới).
+  // Kẻ chán đời thắng: giàn treo lúc chạng vạng, nhuộm màu đất sét / tro.
+  'end-tanner': {
+    layers: [svg(GallowsSky), svg(GallowsVillage), svg(GallowsStage), svg(GallowsCrowd)],
+    tint: { color: '#b98a5e', blend: 'color', opacity: 0.55 },
+    palette: { base: '#221c19', accent: GALLOWS_PALETTE.accent },
+    particles: [{ kind: 'mote', count: 6, color: '#d9c2a6', area: [520, 380, 1080, 640], size: 2 }],
+  },
+  // Tình nhân thắng: buổi sáng ngày hội của làng (dây cờ), nhuộm hồng.
+  'end-lovers': {
+    layers: [svg(EndVillageSky), svg(EndVillageTown), svg(EndVillageFront)],
+    tint: { color: '#d9789a', blend: 'color', opacity: 0.5 },
+    palette: { base: '#2c2134', accent: END_VILLAGE_PALETTE.accent },
+    particles: [{ kind: 'mote', count: 10, color: '#f6c9d8', area: [380, 330, 1220, 660], size: 3 }],
   },
 };

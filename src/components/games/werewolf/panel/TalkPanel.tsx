@@ -5,7 +5,7 @@ import { useCue } from '@/components/games/shared/hooks/useCue';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import { isDead } from '../state';
 import Button from '../ui/Button';
-import { HUNTER_SHOT, hunterShotOf } from '../scenes/timelines';
+import { HUNTER_SHOT, hunterShotOf, loveFollowersOf } from '../scenes/timelines';
 import { DoneMark } from './DealPanel';
 import { DeadNote, Dock, PhaseHeader, PhaseLayout, revealedRole, RoleLine, Seat, StatusLine, type PanelCtx } from './shared';
 
@@ -17,7 +17,9 @@ import { DeadNote, Dock, PhaseHeader, PhaseLayout, revealedRole, RoleLine, Seat,
  */
 export function Roster({ ctx, mark, markLabel }: { ctx: PanelCtx; mark?: (id: string) => boolean; markLabel?: string }) {
   const cue = useCue(ctx.state.phaseStartedAt);
-  const shotId = hunterShotOf(ctx.state)?.targetId ?? null;
+  const shot = hunterShotOf(ctx.state);
+  // Người bị bắn và người chết theo họ (rules §11.5) thành bia mộ cùng lúc.
+  const fallen = shot?.targetId ? [shot.targetId, ...loveFollowersOf(ctx.state.log, shot.targetId, shot.round)] : [];
   return (
     <ul className="grid grid-cols-2 gap-2 lg:grid-cols-3 lg:gap-3" aria-label="Người trong làng">
       {ctx.players.map((p) => {
@@ -28,7 +30,7 @@ export function Roster({ ctx, mark, markLabel }: { ctx: PanelCtx; mark?: (id: st
             <Seat
               player={p}
               dead={dead}
-              fall={p.id === shotId ? cue(HUNTER_SHOT.fallAt) : undefined}
+              fall={fallen.includes(p.id) ? cue(HUNTER_SHOT.fallAt) : undefined}
               sub={role ? <RoleLine role={role} /> : p.id === ctx.me.id ? <span className="block text-xs font-normal text-(--ww-text-3)">bạn</span> : undefined}
               mark={!dead && mark?.(p.id) ? <DoneMark label={markLabel} /> : undefined}
             />

@@ -32,6 +32,15 @@ export function getScene(state: Pick<WerewolfGameState, 'phase' | 'hunter' | 'wi
     case 'vote-result':
       return 'gallows';
     case 'end':
-      return state.winner === 'wolves' ? 'end-wolves' : 'end-village';
+      switch (state.winner) {
+        case 'wolves':
+          return 'end-wolves';
+        case 'tanner':
+          return 'end-tanner';
+        case 'lovers':
+          return 'end-lovers';
+        default:
+          return 'end-village';
+      }
   }
 }

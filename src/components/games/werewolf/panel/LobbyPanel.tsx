@@ -15,6 +15,7 @@ import { Dock, PhaseHeader, PhaseLayout, Seat, StatusLine } from './shared';
 // (giữa ván không xoá doc người chơi nào — plan §6 "Bổ sung cho GĐ1" mục 3):
 // chủ phòng chạm vào một ghế thì ghế đó mới hiện nút mời ra (không rải ✕ lên
 // mọi ghế). Màn rộng: người trong phòng + mã mời bên trái, cài đặt + nút bên phải.
+
 export default function LobbyPanel({
   players,
   myId,

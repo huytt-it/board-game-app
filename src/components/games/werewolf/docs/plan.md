@@ -60,8 +60,9 @@ và báo cáo bằng tiếng Việt: đã làm gì, lệch kế hoạch chỗ n�
 
 | Chủ đề | Quyết định |
 |---|---|
-| Số người | 5–10 (giới hạn chung của app là ≤ 10 người). |
+| Số người | 5–10 ở v1. **Nâng lên 5–12** (người dùng, 2026-10-17), cùng lúc thêm vai mở rộng. |
 | Bộ vai v1 | Ma Sói, Dân làng, Tiên tri, Bảo vệ, Phù thủy, Thợ săn. |
+| Vai mở rộng (v2) | Già làng, Người hoá sói, Tay sai, Kẻ chán đời, Cupid, Sói con (người dùng chọn 2026-10-17). **Mặc định tắt, chủ phòng bật từng vai.** Bộ mặc định 5–12 người chỉ dùng 6 vai gốc. Luật ở rules §11. |
 | Lộ vai khi chết | Mặc định **bật**, chủ phòng tắt được. |
 | Hồn ma xem hết vai | **Chủ phòng bật/tắt**, mặc định bật. |
 | Hoà phiếu ban ngày | Không ai bị treo. |
@@ -116,7 +117,7 @@ Ngoại lệ duy nhất: ở GĐ1 được **chuyển** một số hook UI thu�
 - Không tạo khác biệt nhìn thấy được giữa các vai.
 
 ### 2.6 Giữ nhỏ
-- ≤ 10 người.
+- ≤ 12 người (Ma Sói; các game khác của app vẫn ≤ 10).
 - Không presence system, không bầu lại host, không server trọng tài.
 - Không dùng `alert` / `confirm` gốc của trình duyệt.
 - Giao diện tiếng Việt, ưu tiên điện thoại (375px, không cuộn ngang, chạm ≥ 44px).
@@ -609,13 +610,138 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 
 ---
 
-## 10. GĐ5 — Chơi thật và mở rộng (chưa lên lịch)
-- Chơi 2–3 ván thật với nhóm bạn, ghi lỗi và cảm nhận, chỉnh preset vai và thời gian mặc định.
-- Vai mở rộng, người dùng chọn sau:
-  - Cupid + cặp đôi (phe thứ ba);
-  - Già làng (2 mạng);
-  - Kẻ chán đời (thắng khi bị treo);
-  - Sói con (chết thì đêm sau Sói cắn 2).
+## 10. GĐ5a — Vai mở rộng + 12 người: luật thành engine (thêm 2026-10-17)
+
+Người dùng chọn 6 vai mở rộng (Già làng, Người hoá sói, Tay sai, Kẻ chán đời, Cupid, Sói con) và nâng ván lên tối đa 12 người. Luật đầy đủ ở **rules §11**, ca biên E29–E55. Giống GĐ0: làm engine trước, có test đầy đủ, rồi mới làm giao diện (GĐ5b).
+
+### Việc cần làm
+- **`engine/roles.ts`:**
+  - thêm 6 vai: tên, câu mô tả, điểm (rules §11), phe;
+  - `MAX_PLAYERS = 12`; bộ mặc định 11–12 (rules §4);
+  - `validateSetup`: Sói = Ma Sói + Sói con; mỗi vai mở rộng ≤ 1 (E55);
+  - `nightActionOf`: Sói con cắn như Sói; Cupid ghép đôi ở đêm 1; các vai mở rộng khác chọn "người nghi".
+- **Phe và thắng thua (`engine/win.ts`):**
+  - phân biệt "Sói" (Ma Sói + Sói con) với "phe Sói" (+ Tay sai);
+  - thêm phe Kẻ chán đời và phe Tình nhân;
+  - `checkWinner` theo đúng thứ tự rules §11.8;
+  - `WinResult` có người thắng mới (`tanner`, `lovers`) và lý do mới;
+  - **mọi test v1 (E1–E28) phải giữ nguyên kết quả** khi không bật vai mở rộng.
+- **Đêm (`engine/night.ts`):**
+  - **Bầy Sói cắn 1 hoặc 2 người** (Sói con, rules §11.7): `wolfStatus` / `tallyWolves` nhận số người cần cắn (1 | 2). Thống nhất = cùng một tập; hết giờ lấy top-k; hoà ở ranh giới thì theo `wolfTie`.
+  - **Có thể có 2 người bị nhắm:**
+    - Phù thủy cứu **một** trong số đó: lựa chọn cứu chuyển từ `heal: boolean` sang người được cứu (`healId`), hoặc cách tương đương;
+    - Bảo vệ che một người.
+  - **Già làng:** mạng phụ (rules §11.2), lưu trong `gameData` của Già làng (ví dụ `elderLife: boolean`), cập nhật cùng transaction cuối đêm như `potions`.
+  - **Tiên tri** soi Người hoá sói ra "Là Sói"; soi Tay sai, Kẻ chán đời ra "Không phải Sói".
+  - **Cupid ghép đôi:** đêm 1, kiểm tra hợp lệ (2 người khác nhau, còn sống, được gồm cả mình). Có Xác nhận thì lưu cặp vào state (ví dụ `lovers: [a, b] | null`); không thì không có cặp (E41).
+- **Chết theo người yêu (`engine/flow.ts`):**
+  - mọi lượt có người chết đều chạy chuỗi chết theo: đêm, treo, phát bắn, rời làng;
+  - nguyên nhân mới: `love`;
+  - Thợ săn chết theo vẫn được bắn (E44); phát bắn trúng người yêu thì người kia chết theo (E45).
+- **Kẻ chán đời:** bị treo thì kết thúc ngay (E37, E38), kiểm tra trước Thợ săn và trước "Sói đủ số".
+- **Sói con:** số người bầy được cắn ở đêm r là 2 nếu Sói con chết ở vòng r − 1, vì lý do khác rời làng (E49–E51). Suy ra từ `deaths` (không cần thêm state) hoặc ghi rõ; người thực thi chọn và ghi lại.
+- **Nhật ký (`engine/log.ts`):** mục mới cho ghép đôi, mất mạng phụ, chết theo người yêu, đêm cắn 2, Kẻ chán đời / Tình nhân thắng. Có câu tiếng Việt cho từng mục.
+- **Test:**
+  - mỗi mã **E29–E55** có ít nhất một test mang mã đó;
+  - bộ mặc định 11–12;
+  - các tổ hợp: Cupid ghép Sói con với Thợ săn, đêm cắn 2 trúng Già làng + người yêu, Tay sai trong cặp Tình nhân, v.v.;
+  - toàn bộ 138 test cũ vẫn xanh.
+- **UI chỉ sửa tối thiểu để build qua** (kiểu dữ liệu đổi tên, `attack` → nhiều người…). Hành vi của 6 vai gốc trên màn hình **không đổi**, và chưa có giao diện cho vai mới (GĐ5b).
+
+### Không làm
+Giao diện vai mới, sảnh "Vai mở rộng", cảnh mới, ván thật 12 cửa sổ (GĐ5b).
+
+### Nghiệm thu
+- `npm run test:werewolf` xanh: 138 test cũ + test mới, phủ đủ E29–E55.
+- `tsc`, eslint werewolf, `build` qua. Engine vẫn không import react / firebase / `@/`.
+- Một ván thật ngắn 7 cửa sổ chỉ dùng 6 vai gốc (kịch bản `heal` của GĐ2) vẫn đạt: không hồi quy.
+- Ghi lại API mới cho GĐ5b ở §12, giống §12.1.
+
+---
+
+## 10b. GĐ5b — Vai mở rộng: giao diện, máy trạng thái, ván thật 12 cửa sổ
+
+### Việc cần làm
+- **Sảnh:**
+  - `gameRegistry` lên 5–12 người; Preview `count` lên 12;
+  - mục **"Vai mở rộng"**: mỗi vai một công tắc / stepper 0–1, kèm icon và một câu mô tả. Điểm cân bằng và Dân làng tự cập nhật.
+- **Xem vai:**
+  - Tay sai thấy bầy Sói (trong thẻ giữ);
+  - Sói **không** thấy Tay sai; Sói con thấy bầy như Sói;
+  - Già làng, Người hoá sói, Kẻ chán đời, Cupid: câu mô tả vai.
+- **Đêm ①:** màn vẫn giống hệt nhau khi không giữ.
+  - **Cupid đêm 1:** giữ thẻ + chạm để chọn 2 người yêu (giống Phù thủy độc); dấu chỉ hiện khi giữ.
+  - **Đêm cắn 2:** "Đêm nay bầy được cắn 2 người" chỉ hiện trong thẻ giữ của Sói. Bầy chọn 2 người trong thẻ; trạng thái thống nhất theo tập.
+- **Đêm ② (Phù thủy):** khi có 2 người bị nhắm, thẻ giữ cho chọn cứu một trong hai.
+- **Từ Bình minh 1:** người trong cặp đôi thấy "Bạn yêu X — X là ‹vai›" trong thẻ giữ; Cupid thấy cặp đã ghép; Già làng thấy trạng thái mạng phụ. Tất cả chỉ khi giữ. Thêm vào "Vai của tôi".
+- **Chết theo người yêu:** công bố cùng lượt (Bình minh, Kết quả phiếu, sau phát bắn, rời làng), theo thứ tự ghế, hoạt cảnh theo đồng hồ chung như GĐ4. Thợ săn chết theo vẫn có bước Thợ săn.
+- **Kết thúc:**
+  - phe thắng mới: Kẻ chán đời, Tình nhân, có câu và màu riêng. Có thể dùng lại cảnh kết thúc có sẵn, hoặc thêm 1–2 cảnh theo bộ nhận diện GĐ3;
+  - "Phe bạn thắng / thua" đúng cho từng phe (Tay sai thắng cùng Sói; người trong cặp Tình nhân thắng / thua theo phe Tình nhân);
+  - "Diễn biến ván" có mục mới.
+- **Hồn ma:** thấy cặp đôi, mạng phụ, đêm cắn 2.
+- **Luật chơi:** thêm mục "Vai mở rộng" (chỉ các vai đang bật trong phòng, hoặc cả 6 kèm ghi chú).
+- **12 người:** lưới 12 ô ở 320–390px và 1440px; kiểm va chạm 5–12 người; không cuộn ngang.
+
+### Nghiệm thu
+- Test engine xanh; `tsc` / eslint / build qua.
+- **Cặp ảnh riêng tư** (không giữ, ở các khung hình như GĐ4), mỗi vai mới so với Dân làng:
+  - Xem vai, Đêm ① (gồm Cupid đêm 1 và Sói ở đêm cắn 2), Đêm ② (2 người bị nhắm);
+  - màn người chết.
+  - Tất cả ≈ 0.
+- **Ván thật** (bản production, 11–12 cửa sổ: `localhost`, `127.0.0.1`, `a`–`j.localhost`). Mỗi kịch bản là một lần chạy riêng:
+  - Cupid ghép cặp khác phe → Tình nhân thắng;
+  - Kẻ chán đời bị treo;
+  - Sói con bị treo → đêm cắn 2 + Phù thủy cứu một;
+  - Già làng sống sót lần cắn đầu;
+  - Tiên tri soi Người hoá sói / Tay sai;
+  - người yêu là Thợ săn chết theo rồi bắn;
+  - một ván 12 người chơi tới kết thúc.
+- Tương phản, không cuộn ngang ở 320px, kích thước gói.
+- Sau review: **mốc PR #3** (hỏi người dùng trước khi push / mở PR).
+
+#### Bổ sung cho GĐ5b (nhạc trưởng, sau review GĐ5a, 2026-10-18)
+
+1. **Theo §12.16:** dùng API engine liệt kê ở đó, làm hết mục "Việc của GĐ5b ở UI".
+   - `nightCheck`: Sói con cũng đổi được sau Xác nhận. Dùng `isWolfRole`, không so `'werewolf'`.
+   - `lobbyCounts`: Dân = số người − mọi vai khác.
+   - Bỏ hằng tạm `MAX_PLAYERS = 10` ở sảnh. `gameRegistry` lên 5–12.
+2. **Dữ liệu mới và CAS.** Bổ sung bảng mục 4 của phần GĐ1:
+
+   | Chuyển | Thêm vào `expect` / `expectPlayerData` | Thêm vào patch / `playerData` |
+   |---|---|---|
+   | `night → night-witch` / `dawn` | `nightPick` của mọi người còn sống (đã có, gồm `biteIds` / `loverIds`); `elderLife` của Già làng | `lovers` (từ `NightStep.lovers`), `attacks`; khi sang thẳng `dawn`: `elderLife` của Già làng |
+   | `night-witch → dawn` | `attacks` (cùng `attack`); `elderLife` của Già làng | `elderLife` của Già làng |
+   | `day-vote → vote-result`, `hunter → …`, rời làng | không đổi (`deaths`) | `deaths` đã gồm người chết theo người yêu |
+
+   - Lựa chọn mới (`biteIds`, `loverIds`, `healId`) ghi vào `gameData` của chính người đó như cũ, qua hàng đợi ghi.
+   - Cupid ghi `loverIds` **cùng lần Xác nhận**.
+3. **Riêng tư (bất di bất dịch, §2.3).**
+   - Mọi thứ của vai mới chỉ render khi giữ thẻ: ghép đôi của Cupid; "Bạn yêu X — X là ‹vai›"; bầy Sói thấy "đêm nay cắn 2" và chọn 2 người; Tay sai thấy bầy; Phù thủy thấy 2 người bị nhắm và chọn cứu một; Già làng "mất mạng phụ".
+   - Khi không giữ, màn của Cupid, Tay sai, Người hoá sói, Già làng, Kẻ chán đời, Sói con **giống hệt** Dân làng. Đêm cắn 2 và Đêm ② có 2 người bị nhắm cũng giống hệt đêm thường.
+   - Thời lượng các bước không đổi theo vai mới.
+   - Người chết theo người yêu công bố như mọi người chết: theo ghế, không nói nguyên nhân tới màn kết thúc.
+   - "Phe Tình nhân" chỉ hiện cho người trong cặp (khi giữ) và ở màn kết thúc.
+4. **Icon:** thay 6 icon tạm bằng icon game-icons.net hợp nghĩa (qua registry, ghi CREDITS). **Tải file mới thì hỏi người dùng trước**, như GĐ3a.
+5. **Kết thúc:**
+   - phe thắng Kẻ chán đời / Tình nhân có câu, màu, và cảnh: dùng lại cảnh có sẵn đổi bảng màu, hoặc thêm tối đa 2 cảnh cắt giấy theo bộ nhận diện GĐ3;
+   - "Phe bạn thắng / thua" dùng `wonGame`;
+   - danh sách vai cuối ván ghi phe lúc kết thúc (`teamOf`).
+6. **Hồn ma:** tờ hồn ma thấy cặp đôi (và có phải Tình nhân không), mạng phụ của Già làng, đêm cắn 2, `biteIds`, `loverIds`, `healId`.
+7. **Luật chơi:** thêm mục "Vai mở rộng". Ưu tiên các vai đang bật trong phòng, có thể xem cả 6.
+8. **Hoạt cảnh GĐ4:** người chết theo người yêu dùng chung chuỗi Bình minh / Kết quả / sau phát bắn (theo ghế). Không thêm bước, không làm dài 8 s.
+9. **Kiểm thử:** như nghiệm thu §10b, thêm:
+   - hồi quy ván 6 vai gốc (kịch bản `heal`);
+   - ván 12 cửa sổ: thêm origin `f`–`j.localhost`, cửa sổ cuối 320×568;
+   - va chạm 5–12 người;
+   - đo gói.
+10. Sau review: **mốc PR #3**. Nhạc trưởng hỏi người dùng trước khi push / mở PR / merge.
+
+---
+
+## 10c. GĐ6 — Chơi thật (chưa lên lịch)
+- Chơi 2–3 ván thật với nhóm bạn, ghi lỗi và cảm nhận, chỉnh bộ vai mặc định, điểm cân bằng và thời gian mặc định.
+- Kiểm các mục "Để GĐ5" còn mở ở §12.8 và §12.14 (thẻ phát bắn che tiêu đề, chữ chồng lúc crossfade ở Kết quả, nhịp 8 giây, kéo để cuộn tờ hồn ma).
 - Tuỳ chọn "loa chung": máy chủ phòng đọc thông báo **công khai** bằng giọng nói (Web Speech, vi-VN).
 
 ---
@@ -658,6 +784,9 @@ Không đổi luật, engine, logic chuyển phase hay giao diện của ngườ
 | GĐ2b | **Review đạt** (nhạc trưởng, 2026-10-16) | `c7eb0e2a` → `5a852dbe`; code `ad5dd181` | Hồn ma "giữ để xem" (§7b), trước PR #1. Người chết có đúng một thẻ giữ; không giữ thì màn giống hệt nhau (cặp ảnh riêng tư 54/54 = 0.000), giữ thì thấy vai / lựa chọn đêm / nhật ký (hồn ma bật) hoặc chỉ vai của mình (tắt, hoặc Thợ săn chưa bắn). Ván thật `ghostleave` 23/23, `hunterpoison` 12/12, `hidden` 15/15. Chi tiết, lệch kế hoạch và số đo ở §12.7, review ở §12.8. |
 | GĐ3a | **Người dùng đã duyệt hướng hình ảnh** (2026-10-17) | `336349ec` → (commit này); code `9867bcef`, `f35c2a70` | Token `--ww-*` (đêm xanh tím, chữ ánh trăng, một màu nhấn đèn lồng, font Grenze), bộ UI nhỏ, 29 icon qua registry (14 mới, người dùng duyệt tải), 2 cảnh cắt giấy (làng ban đêm, bình minh), 4 màn mẫu (Sảnh, Xem vai, Đêm ①, Bình minh) có bố cục hai cột ở 1440 px, bảng phong cách. Cặp ảnh riêng tư 114/114 = 0.000, tương phản 777/777 ≥ 4,5 : 1, không cuộn ngang ở 320 px. Gói Ma Sói +22,5 KB gzip. Chi tiết ở §12.10. |
 | GĐ3b | **Review đạt** (nhạc trưởng, 2026-10-17; GĐ3a cùng review) | `05feb3bd` → `7fece5ea`; code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11, review ở §12.12. |
+| GĐ5a | **Review đạt** (nhạc trưởng, 2026-10-18) | `fcc2a7f5` → `4e0858bd`; code `bddc1cf5` | 6 vai mở rộng + 12 người thành engine thuần, giữ tương thích ngược (138 test cũ chạy nguyên, chỉ sửa 3 chỗ ghi cứng "5–10 người"). Engine 202 test, phủ đủ E1–E55. UI chỉ thêm khoá cho vai mới để build qua. Ván thật hồi quy `heal` 7 cửa sổ 22/22. 6 cách hiểu luật: **người dùng chốt giữ nguyên cả 6** (2026-10-18), đã ghi vào rules §11. Chi tiết, API cho GĐ5b ở §12.16, review ở §12.17. |
+| GĐ5b | **Review đạt** (nhạc trưởng, 2026-10-31) → PR #3 | `53d21220` → (commit docs này); code `a3242eb1`, `11bd53de`, `dda718fe` | Vai mở rộng có giao diện + máy trạng thái, 5–12 người. Riêng tư 613/613 cặp khung hình = 0.000 (6 vai mới × 16 màn × 5 khung, đêm cắn 2, 2 người bị nhắm, cặp đôi, 1440 px). Ván thật production 8 kịch bản 83/83 (11–12 cửa sổ + hồi quy `heal` 7 cửa sổ), 0 banner, 0 lỗi JS, riêng tư liên tục 0 vi phạm. Va chạm 310/310, tương phản 918/918, không cuộn ngang 122/122 màn. Gói Ma Sói 66,2 → 74,6 KB gzip. Chi tiết, lệch kế hoạch, chỗ cần chốt ở §12.18. Review ở §12.19. |
+| GĐ6 | Chưa bắt đầu | | Chơi thật (§10c). |
 | GĐ4 | **Review đạt** (nhạc trưởng, 2026-10-17) | `e0ffa324` → `e336a9e1`; code `13d5e3fe` | Hoạt cảnh theo đồng hồ chung (`scenes/timelines.ts`): vào đêm, trăng / mặt trời lên, bình minh lần lượt theo ghế, kết quả phiếu dạng cột đếm, phát bắn của Thợ săn ở bước kế tiếp, kết thúc kể theo từng đêm / ngày; bù độ trễ dựng (`useCueSync`). Riêng tư 675/675 cặp = 0.000 ở 5 khung hình. Ván thật production 3 kịch bản 52/52, các cửa sổ lệch ≤ 5,3 ms ở 166 mốc, reload giữa hoạt cảnh lệch ≤ 1,1 ms. Gói Ma Sói 60,2 → 64,0 KB gzip. Chi tiết ở §12.13, review ở §12.14. |
 
 ### 12.1 GĐ0 — ghi chú của người thực thi (2026-10-11)
@@ -1201,3 +1330,244 @@ Người dùng duyệt hướng hình ảnh GĐ3a (màu nhấn đèn lồng, fon
 - Ở Kết quả, khoảng 3,0–3,3 s câu "Minh bị treo" chồng lên "Đang kiểm phiếu…" lúc crossfade.
 - Nhịp 8 s của Bình minh / Kết quả.
 - Kéo bằng ngón để cuộn tờ hồn ma (còn mở từ GĐ2b).
+
+### 12.15 PR #2 (2026-10-17)
+- PR huytt-it/board-game-app#64 (`dev-werewolf` → `main`), CI 2/2. Người dùng nhờ nhạc trưởng push + squash-merge: `main` = `709a29d8`.
+- Tree của `main` trùng `dev-werewolf@99bcf67a`. `git merge -s ours origin/main` trên `dev-werewolf` (`13546c22`), đã push.
+- Tiếp theo: **GĐ5**. Người dùng chơi thật 2–3 ván với nhóm bạn, gửi phản hồi. Nhạc trưởng viết brief GĐ5 từ phản hồi đó cùng các mục "Để GĐ5" ở §12.8 và §12.14.
+
+### 12.16 GĐ5a — ghi chú của người thực thi (2026-10-18)
+
+**Commit** (trên `dev-werewolf`, chưa push; điểm bắt đầu `fcc2a7f5`):
+1. `bddc1cf5` `feat(werewolf): GĐ5a — vai mở rộng + 12 người: luật thành engine` (engine, test, sửa UI tối thiểu).
+2. Commit docs này: §12.
+
+**Đã làm**
+- `engine/types.ts`: `WwRole = BaseRole | ExtraRole` (`elder`, `lycan`, `minion`, `tanner`, `cupid`, `wolfcub`); `WwTeam` thêm `tanner`, `lovers`; `DeathCause` thêm `love`; `WinReason` thêm `tanner-hanged`, `lovers`; `WwTable.lovers?`; `WolfBites = 1 | 2`; `NightPick.biteIds?` (Sói, đêm cắn 2), `NightPick.loverIds?` (Cupid, đêm 1); `WitchPick.healId?`; nhật ký thêm `lovers`, `elder`, `love`, mục `wolves` có thêm `targetIds?` (chỉ ở đêm cắn 2).
+- `roles.ts`: tên, phe, điểm, câu mô tả của 6 vai (rules §11); `EXTRA_ROLES`, `ALL_ROLES`, `WOLF_ROLES`, `isWolfRole`, `seenAsWolf`, `LIMITED_ROLES`, `wolfCount`; `MAX_PLAYERS = 12`, bộ mặc định 11–12 (chỉ 6 vai gốc); `validateSetup`: Sói = Ma Sói + Sói con, mỗi vai mở rộng ≤ 1 (E55); `nightActionOf`: Sói con → `wolf`; `cupidPairsTonight`.
+- `table.ts`: `isWolf` = Ma Sói / Sói con (Tay sai không); `loversOf`, `loverOf`, `loveDeaths` (chết theo), `countsAsLeft`.
+- `win.ts`: `checkWinner(table, hangedId?)` theo đúng thứ tự §11.8; `isLoversTeam`, `teamOf`, `wonGame`; câu cho 2 lý do thắng mới.
+- `night.ts`:
+  - bầy Sói: `wolfBitesFor` (suy từ `deaths`, không thêm state), `wolfStatus(…, bites?)` thêm `bites` / `sets` / `agreedIds` (thống nhất = cùng một tập), `tallyBites` (top-k; hoà ở ranh giới theo `wolfTie`; chỉ 1 người được chọn thì cắn 1);
+  - Cupid: `TargetKind` thêm `lover`, `validateCupidPick` + `CUPID_PICK_ERROR_TEXT`, `cupidPairOf`;
+  - Phù thủy cứu một trong hai: `healId`, lỗi `heal-which` / `heal-invalid`, ngữ cảnh độc `{ healId }`;
+  - `resolveNight` nhận `attacks` + `elderLife`, trả thêm `attacks`, `elderLife`, `elderHitId`; chết theo người yêu; Tiên tri soi Người hoá sói ra "Là Sói", Tay sai / Kẻ chán đời ra "Không phải Sói".
+- `flow.ts`: `afterNight` chốt người bị nhắm (1–2 người) và cặp đôi đêm 1 (có hiệu lực ngay đêm đó); chết theo ở mọi lượt (`afterNight` / `afterNightWitch`, `afterVote`, `afterHunter`, `applyLeave`); `afterVoteResult`: Kẻ chán đời → Thợ săn (bị treo hoặc chết theo người bị treo) → thắng thua; `dawnHunter` nhận Thợ săn chết theo.
+- `log.ts`: `phasePart`, `loveLog`; câu tiếng Việt cho ghép đôi (kèm "khác phe nên thành phe Tình nhân"), mất mạng phụ, chết theo (đêm / ngày), 5 cách chốt của đêm cắn 2; `DEATH_CAUSE_TEXT.love`.
+- Test: file mới `engine/extra.test.ts` (62 test, 8 nhóm) + `testkit.ts` (`table12` có đủ 6 vai mở rộng, `withLovers`, `bite`, `cupid`). Có các tổ hợp: Cupid ghép Sói con với Thợ săn (treo Sói con → Thợ săn chết theo và bắn → đêm sau cắn 2), đêm cắn 2 trúng Già làng + người yêu, Tay sai / Kẻ chán đời trong cặp Tình nhân, một ván ngắn có vai mở rộng kể lại đủ nhật ký.
+
+**API cho GĐ5b** (như §12.1; mọi hàm thuần, `WwTable` có thêm `lovers`):
+- **Dữ liệu UI cần thêm** (tên trường là đề xuất, GĐ5b chốt):
+  - `state.lovers: [string, string] | null` ← `NightStep.lovers` (cặp của ván sau Đêm ①; ghi ở mọi lần `night → …`). `tableOf` đưa vào `table.lovers`.
+  - `state.attacks: string[]` ← `NightStep.attacks` (`state.attack` giữ là người đầu). `resolveWitchPhase` truyền `attacks` vào `afterNightWitch` và thêm vào `expect`.
+  - `gameData.elderLife` của Già làng (thiếu = còn mạng phụ): truyền vào `afterNight` / `afterNightWitch` (`elderLife`), ghi lại `night.elderLife` trong cùng transaction như `potions`, thêm vào `expectPlayerData`.
+  - `nightPick.biteIds` (Sói ở đêm cắn 2), `nightPick.loverIds` (Cupid ở đêm 1, ghi cùng lần Xác nhận), `witchPick.healId`.
+- **Đêm ①:** `wolfBitesFor(table, round)` (câu "Đêm nay bầy được cắn 2 người" trong thẻ giữ của Sói), `wolfStatus` (`bites`, `sets`, `agreedIds`), `nightDone` (đã tính đêm cắn 2), `cupidPairsTonight(role, round)`, `validTargets(…, 'lover')`, `validateCupidPick` + `CUPID_PICK_ERROR_TEXT`.
+- **Đêm ②:** `validateWitchPick(table, witchId, { heal, poisonId, healId }, attacks, potions)` (nhận một id hoặc danh sách), `WITCH_PICK_ERROR_TEXT` (thêm `heal-which`, `heal-invalid`).
+- **Xem vai, thẻ giữ:** `wolfIds(table)` là bầy cho Sói, Sói con **và Tay sai** (Sói không thấy Tay sai); `loverOf` + `roleOf` cho "Bạn yêu X — X là ‹vai›"; `NightResult.elderHitId` / `gameData.elderLife === false` cho "Bạn đã mất mạng phụ".
+- **Phe, thắng thua:** `teamOf(table, id)` (phe lúc này; `gameData.team` chỉ là phe lúc vào ván), `wonGame(table, id, result)` cho "Phe bạn thắng / thua", `isLoversTeam`, `TEAM_NAME` (thêm Kẻ chán đời, Tình nhân), `WIN_REASON_TEXT`.
+- **Sảnh:** `EXTRA_ROLES`, `LIMITED_ROLES`, `ROLE_POINTS`, `ROLE_BLURB`, `balanceScore` / `validateSetup` đã tính vai mở rộng.
+- **Nhật ký:** `describeLog` có câu cho mục mới; `love.part` cho biết đêm / ngày.
+
+**Việc của GĐ5b ở UI** (GĐ5a chưa làm, đúng phạm vi):
+- `useWerewolf`: ghi `lovers`, `attacks`, `elderLife` như trên; `nightCheck` cho Sói con đổi lựa chọn sau Xác nhận như Ma Sói (đang so `role !== 'werewolf'`).
+- `state.lobbyCounts`: Dân = số người − mọi vai khác (đang chỉ trừ 5 vai gốc).
+- `panel/LobbyPanel.tsx`: hằng tạm `MAX_PLAYERS = 10` (sảnh vẫn ghi 5–10 người); bỏ khi `gameRegistry` lên 12.
+- `MyRoleBody` (Sói con, Tay sai thấy bầy; "Phe …"), `EndPanel` ("Phe bạn thắng" dùng `wonGame`, "Đêm / Ngày N" của người chết theo), `getScene` cho phe thắng mới.
+- 6 icon tạm trong `assets/registry.ts` (mượn Dân / Sói / giàn treo).
+
+**Lệch kế hoạch**
+1. **Thêm chứ không đổi tên**, để 138 test cũ chạy nguyên: `attack` vẫn là một người (thêm `attacks`), `WitchPick.heal` còn nguyên (thêm `healId`), `tallyWolves` vẫn là đêm cắn 1, trả `{ targetId, how, counts }` (thêm `tallyBites`). Brief ghi "`tallyWolves` nhận số người cần cắn": số người nằm ở `tallyBites` và `wolfStatus(…, bites?)` (mặc định `wolfBitesFor`).
+2. `nightActionOf` vẫn là việc khi chạm lưới: Cupid là `suspect` (rules §11.5: không giữ thẻ thì chạm lưới là "người mình nghi"). Ghép đôi ở đêm 1 là `cupidPairsTonight`. UI đang dùng `nightActionOf` làm `TargetKind` cho ô lưới.
+3. **3 test cũ ghi cứng giới hạn v1 "5–10 người"** sửa theo luật mới 5–12: bảng bộ mặc định thêm hàng 11, 12; "ngoài 5–12" thử 13 thay cho 11 (2 chỗ). Vòng lặp bộ mặc định tự sinh thêm ca 11 và 12, nên 138 test cũ thành 140. Mọi test logic ván (E1–E28, luồng phase, nhật ký) không đổi một dòng.
+4. Chết theo người yêu là mục nhật ký riêng `love` (`loverId`, `part`), không phải `death`: cùng nguyên nhân có thể xảy ra ban đêm hay ban ngày. Mục `death` vẫn chỉ cho người chết đêm vì Sói / độc (§12.1 mục 4).
+5. "Kẻ chán đời / Tình nhân thắng" là lý do thắng (`WIN_REASON_TEXT`), như v1; không thêm mục nhật ký.
+6. Thứ tự `newDeaths`: Bình minh theo ghế, gồm người chết theo (E42); treo / phát bắn / rời làng: người chết chính trước, người chết theo sau. Màn công bố tự sắp theo ghế.
+7. `presetFor` trả `Record<BaseRole, number> & RoleCounts`. `fullCounts` trả đủ 12 khoá, nên `state.roleCounts` của ván mới có thêm 6 số 0 (không ai đọc, không đổi hiển thị).
+8. UI sửa tối thiểu để build: khoá vai mới trong `ACTION_TEXT` (NightPanel), `ROLE_MAX` (LobbySettings), `KIND_ICON` (EndStory), roleCounts của Preview (`fullCounts({})`), 6 icon tạm trong registry, hằng 5–10 người ở sảnh. Không thêm dependency, không đụng Avalon hay file dùng chung.
+
+**Chỗ rules §11 chưa rõ — engine đã chọn cách hiểu.** Người dùng chốt **giữ nguyên cả 6** (2026-10-18); đã ghi vào rules §11.2, §11.5, §11.7 (đánh dấu "chốt 2026-10-18") và các dòng E32, E41, E46, E52 của §11.9:
+1. **Chết theo người yêu bị cho rời làng** (`countsAsLeft`): coi như rời làng. Thợ săn chết kiểu này **không bắn**; Sói con chết kiểu này **không** làm bầy cắn 2. Rules §11.5 nói Thợ săn chết theo vẫn bắn, nhưng không nói bắn lúc nào khi việc rời làng xảy ra giữa một bước (rời làng không đổi phase). Phương án khác: bắn ở mốc kế tiếp (sau Bình minh nếu rời làng ban đêm, sau Kết quả phiếu nếu ban ngày), phải lưu thêm "đã bắn chưa". Muốn đổi thì sửa gọn ở `countsAsLeft` + `afterVoteResult`.
+2. **Cupid hoặc người được ghép bị cho rời làng trước khi Đêm ① của đêm 1 kết thúc**: ván không có cặp đôi (như E25: lựa chọn của người đã rời làng không còn được tính).
+3. **Già làng bị cắn trúng và bị độc cùng đêm**: chết vì độc, mạng phụ không tính là đã dùng (như E4). Bị cắn trúng (mất mạng phụ) mà người yêu chết cùng đêm thì vẫn chết theo; nhật ký có cả hai dòng.
+4. **Đêm cắn 2, Phù thủy ghi `heal: true` mà không chọn người** (`healId`): không cứu ai, bình còn. UI phải bắt chọn (lỗi `heal-which`).
+5. **Đêm cắn 2, Sói chưa có `biteIds`**: dùng ô đã chạm (`targetId`) như chọn một người. Bầy chỉ "thống nhất" khi mọi Sói chọn đủ 2 người (trừ khi chỉ còn 1 người để cắn).
+6. **Phe dùng để xét "khác phe"** là phe của vai: Ma Sói / Sói con / Tay sai = phe Sói, Kẻ chán đời = phe riêng, còn lại = phe Dân. Vì vậy cặp Tay sai + Sói vẫn ở phe Sói; Kẻ chán đời luôn khác phe với người kia nên luôn thành Tình nhân (và không thắng khi bị treo).
+7. Hai điểm "(đề xuất)" của rules §11 (người yêu thấy cả vai của nhau; Sói con rời làng không kích hoạt cắn 2) engine làm đúng đề xuất. Điểm thứ nhất chỉ là việc của UI (GĐ5b).
+
+**Kiểm thử (§11 + nghiệm thu GĐ5a)**
+- `npm run test:werewolf`: **202/202** (31 nhóm) = 140 test cũ (138 + 2 ca 11, 12 người tự sinh) + 62 test mới. Mỗi mã E1–E55 có ít nhất một test mang mã đó (đếm bằng grep: 55/55).
+- `npx tsc --noEmit` sạch. `npx eslint src/components/games/werewolf` sạch; `npx eslint src/components/games` 29 lỗi / 29 cảnh báo = mốc. `npm run build` qua. Engine không import react / firebase / `@/`, không `enum` / `namespace`.
+- **Ván thật hồi quy** (bản production, 7 cửa sổ `localhost`, `127.0.0.1`, `a`–`e.localhost`, cửa sổ cuối 320×568; bộ bot của GĐ4 + kịch bản `heal` của GĐ2 chuyển sang 7 người): **22/22**.
+  - Đêm 1: Bảo vệ che X + Sói cắn X + Phù thủy cứu X → bình yên; Phù thủy vẫn thấy "Sói nhắm: X" (E1). Ngày 1 treo Sói thứ nhất. Đêm 2: Sói cắn Y + Phù thủy độc Sói cuối; thẻ Phù thủy ghi "Đã dùng bình cứu" (E2); bình minh 2 người theo ghế → Dân thắng ngay ở bình minh (E20).
+  - Nhật ký có che / cứu / độc / đoán / nghi / soi và không có câu nào của vai mở rộng.
+  - Riêng tư liên tục 1 606 mẫu, 0 vi phạm. 0 banner, 0 lỗi JS. Lệch phase giữa các cửa sổ lớn nhất 188 ms. Hoạt cảnh lệch ≤ 4,2 ms ở 45 mốc. Bình minh / Kết quả 8 251–8 255 ms. Không cuộn ngang (cả cửa sổ 320 px). 107 commit, 16 bị từ chối rồi tự thử lại (acks / phiếu, như GĐ2). Phòng thử đã xoá bằng nút của chủ phòng.
+  - Ảnh 375 px của mọi bước giống GĐ4 (đã xem Đêm 1 và màn kết thúc).
+- Script: scratchpad `2cc6d445-…` (`game4.mjs` thêm kịch bản `heal`, `bot2.js`, `anim4.js`, `cdp.mjs`).
+
+**Việc chuyển tiếp**
+- ~~Người dùng chốt 6 cách hiểu ở trên~~: đã chốt giữ nguyên, ghi vào rules §11 (2026-10-18).
+- Nhạc trưởng review `git diff fcc2a7f5..HEAD`, rồi viết brief GĐ5b.
+
+### 12.17 GĐ5a — review của nhạc trưởng (2026-10-18): **ĐẠT**
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 202/202. Mỗi mã E29–E55 có ít nhất một test (đếm bằng grep).
+- `tsc` sạch. eslint werewolf sạch. `npx eslint src/components/games` 29 / 29 = baseline.
+- `npm run build` exit 0.
+- Engine không import react / firebase / `@/`, không `enum`.
+- Test cũ: chỉ `roles.test.ts` đổi đúng 3 chỗ giới hạn 5–10 → 5–12 (và 2 hàng bộ mặc định 11–12). Các file test logic ván không đổi một dòng.
+
+**Đọc code:**
+- `checkWinner` đúng thứ tự rules §11.8: Kẻ chán đời (chỉ khi không thuộc Tình nhân) → Tình nhân 2 người cuối → hết Sói (gồm Sói người yêu) → Sói đủ số (không đếm Sói người yêu, người yêu tính vào "người còn lại").
+- `afterVoteResult`: Kẻ chán đời trước Thợ săn; Thợ săn chết theo người bị treo cũng được bắn; thắng thua sau phát bắn.
+- `loveDeaths` có mặt ở mọi lượt có người chết. `countsAsLeft` chặn Thợ săn / Sói con khi người yêu rời làng.
+- `wolfBitesFor` suy từ `deaths` (vòng r − 1, không tính rời làng).
+- `resolveNight`: độc trước (Già làng bị độc thì không tốn mạng phụ), được che / cứu thì giữ mạng phụ.
+- Khi không bật vai mở rộng, mọi nhánh quay về đúng v1.
+
+**Bằng chứng của người thực thi:** ván thật hồi quy `heal` 7 cửa sổ 22/22 (riêng tư 1 606 mẫu, 0 vi phạm).
+
+**Chấp nhận các lệch:**
+- thêm trường thay vì đổi tên (`attacks`, `healId`, `tallyBites`);
+- Cupid vẫn là `suspect` khi chạm lưới;
+- 3 test giới hạn số người;
+- mục nhật ký `love` riêng;
+- thứ tự `newDeaths` khi treo / bắn / rời làng (màn công bố tự sắp theo ghế).
+
+**6 cách hiểu luật:** người dùng chốt giữ nguyên (2026-10-18), đã ghi vào rules §11 và E32 / E41 / E46 / E52.
+
+**Chuyển sang GĐ5b:** "Bổ sung cho GĐ5b" ở §10b.
+
+### 12.18 GĐ5b — ghi chú của người thực thi (2026-10-31)
+
+**Commit** (trên `dev-werewolf`, chưa push; điểm bắt đầu `53d21220`):
+1. `a3242eb1` icon 6 vai mở rộng + phe Tình nhân, cảnh kết thúc Kẻ chán đời / Tình nhân, ô thời gian Bình minh khi ≥ 3 người chết.
+2. `11bd53de` máy trạng thái (`useWerewolf`, `state`, `types`), Đêm ① / Đêm ②, thẻ giữ của vai mở rộng, sảnh 5–12 + "Vai mở rộng", Luật chơi, `WerewolfPreview`.
+3. `dda718fe` người chết theo người yêu (Bình minh / Kết quả / phát bắn), màn kết thúc phe mới, tờ hồn ma.
+4. Commit docs này: §12.
+
+**Đã làm**
+- **Dữ liệu + CAS** (đúng bảng "Bổ sung cho GĐ5b" mục 2):
+  - `state.attacks` (đọc qua `attacksOf`, ván cũ rơi về `attack`), `state.lovers` (vào `tableOf` → `table.lovers`), `gameData.elderLife` (Già làng; thiếu / null = còn, đọc qua `elderLifeOf`). Bắt đầu ván ghi `attacks: []`, `lovers: null`, `elderLife: null` cho mọi người.
+  - `night → night-witch / dawn`: `expectPlayerData` = `nightPick` của mọi người còn sống (gồm `biteIds` / `loverIds`) + `guardLast` của Bảo vệ + `elderLife` của Già làng; patch `attack`, `attacks`, `lovers`; sang thẳng `dawn` thì `playerData` thêm `elderLife`.
+  - `night-witch → dawn`: `expect { attack, attacks }`, thêm `elderLife` vào `expectPlayerData` và `playerData`; `afterNightWitch` nhận `attacks` + `elderLife`.
+  - Lựa chọn Đêm ① là `NightDraft { targetId, biteIds?, loverIds? }`, ghi qua hàng đợi như cũ (`nightPick` chỉ có `biteIds` / `loverIds` khi màn có, đêm thường giữ đúng dạng v1). Xác nhận ghi cả `biteIds` / `loverIds` trong cùng lần ghi; Cupid ghi `loverIds` cùng lần Xác nhận. `nightCheck` dùng `isWolfRole` (Sói con đổi được sau Xác nhận), kiểm `biteIds` (Sói, đêm cắn 2, ≤ 2 người hợp lệ) và `loverIds` (Cupid, đêm 1, ≤ 2 người còn sống, được gồm mình).
+  - `WitchDraft.healId`: chỉ ghi ở đêm có 2 người bị nhắm (đêm thường giữ `heal: boolean` như v1). `witchCheck` kiểm bằng `validateWitchPick(…, attacksOf(state), …)`.
+  - `lobbyCounts`: Dân = số người − mọi vai khác (`ALL_ROLES`). `applyStep` vào `night` đặt lại `attacks: []`.
+- **Sảnh:** `gameRegistry` 5–12 người; bỏ `MAX_PLAYERS = 10` tạm ở `LobbyPanel` (dùng `MAX_PLAYERS` của engine). Mục **"Vai mở rộng"**: 6 hàng icon + tên + một câu + công tắc Bật / Tắt (`role="switch"`, `aria-label` = tên vai); người khác thấy chỉ đọc. Điểm cân bằng, cảnh báo, Dân "phần còn lại" tự cập nhật. "Về mặc định" bỏ cả vai mở rộng.
+- **Thẻ giữ** (mọi thứ của vai mới chỉ render khi đang giữ; `panel/RoleInfo.tsx`):
+  - Xem vai / "Vai của tôi" / thẻ của người chết (tắt hồn ma): Sói và Sói con thấy đồng đội (không có Tay sai); Tay sai thấy "Bầy Sói: … (họ không biết bạn)"; Già làng "Bạn còn / đã mất mạng phụ"; phe của mình (Phe Sói / Dân làng / riêng — Kẻ chán đời / Tình nhân).
+  - Từ Bình minh ngày 1: người trong cặp thấy "Bạn yêu X — X là ‹vai›" + câu khác phe (Tình nhân) / cùng phe; Cupid thấy "Bạn đã ghép đôi A và B" (hoặc "Ván này không có cặp đôi"). Có ở "Vai của tôi" và thẻ Đêm ① từ đêm 2 (bản gọn).
+  - **Đêm ①**: Cupid đêm 1 — giữ thẻ + chạm lưới thêm / bỏ người được ghép (≤ 2, chạm thêm khi đủ 2 thì báo, chạm lại để bỏ); chạm khi không giữ vẫn là "người mình nghi". Bầy Sói ở đêm cắn 2 — thẻ ghi "Đêm nay bầy được cắn 2 người", danh sách tập của từng Sói, "Bầy đã thống nhất: A và B"; ô sáng (chạm khi không giữ) là người thứ nhất, người thứ hai là giữ thẻ + chạm (chạm lại để bỏ, chạm người thứ ba thì thay người thứ hai). Dấu "cắn" / "đôi" trên ô chỉ hiện khi đang giữ.
+  - **Đêm ②**: Phù thủy thấy "Sói nhắm 2 người: A và B", hai nút "Cứu A" / "Cứu B" (chọn một, bấm lại để bỏ); độc vẫn là giữ + chạm, không độc được người đang cứu.
+- **Khi không giữ** màn của Cupid, Tay sai, Người hoá sói, Già làng, Kẻ chán đời, Sói con giống hệt Dân làng; đêm cắn 2 và Đêm ② có 2 người bị nhắm giống hệt đêm thường (một ô sáng, cùng câu, cùng nút, cùng thời lượng).
+- **Người chết theo người yêu** (dùng chung chuỗi GĐ4, không thêm bước, không nói nguyên nhân):
+  - Bình minh: nằm trong `dawnDeaths` theo ghế. Từ 3 người chết (cắn 2 + độc + chết theo, tối đa 4) các ô thời gian dồn lại (`DAWN.slotFor`) để lá cuối xong trước mốc lật vai 3,8 s; ≤ 2 người giống hệt GĐ4.
+  - Kết quả phiếu: dưới "X bị treo" thêm "Y cũng chết" (+ lật vai theo luật) ở mốc giàn treo.
+  - Sau phát bắn: thẻ phát bắn thêm "Y cũng chết"; ghế của cả hai thành bia mộ cùng lúc (Thảo luận, Kết thúc). `loveFollowersOf` đọc mục `love` của nhật ký.
+  - `hunterShotOf` ở màn kết thúc: phát bắn vẫn là "việc cuối" khi sau nó chỉ có mục `love` cùng vòng.
+  - Thợ săn chết theo vẫn có bước Thợ săn (engine), màn Thợ săn không đổi.
+- **Kết thúc:** phe Kẻ chán đời / Tình nhân có tiêu đề "‹phe› thắng", câu lý do (`WIN_REASON_TEXT`), màu (`--ww-tanner*`, `--ww-lovers*`), icon (shrug / nested-hearts), cảnh `end-tanner` (giàn treo nhuộm màu đất sét) / `end-lovers` (làng ngày hội nhuộm hồng). "Phe bạn thắng / thua" theo `wonGame` (`data-ww-won`). Danh sách vai tô màu theo phe lúc kết thúc (`teamOf`, `data-ww-end-team`) + icon trái tim cho người trong cặp. "Đêm / Ngày N" của người chết theo lấy từ mục `love`. "Diễn biến ván" có icon cho ghép đôi (cupid), mất mạng phụ (elder), chết theo (heartbreak).
+- **Hồn ma** (xem hết): thêm "Cặp đôi: A và B — phe Tình nhân / cùng phe", "Già làng X: còn / đã mất mạng phụ"; Đêm ①: "Đêm cắn 2 người.", tập `biteIds` của từng Sói, Cupid "ghép đôi: …" (`loverIds`); Đêm ②: 2 người bị nhắm, Phù thủy "cứu X" theo `healId`.
+- **Luật chơi:** mục "Vai mở rộng": các vai đang bật trong phòng / ván trước (công khai qua bộ vai), nút "Xem cả 6 vai mở rộng" / "Xem N vai còn lại", 4 dòng luật (Sói và phe Sói, cặp đôi + Tình nhân + nhắc giữ "Vai của tôi" sáng ngày 1, Kẻ chán đời, Sói con). Vai đã lộ (ô, Bình minh, Kết quả, Luật chơi) tô màu theo phe của vai (`roleText`, `TEAM_CHIP`).
+- **Icon** (người dùng cho tải trong brief, 8/8): beard (Già làng), werewolf (Người hoá sói), cowled (Tay sai), shrug (Kẻ chán đời), cupidon-arrow (Cupid), paw-print (Sói con) — Lorc / Delapouite; nested-hearts (phe Tình nhân), broken-heart (chết theo). Tải vào thư mục trống ở scratchpad, chỉ đọc path; `mkicons.mjs` làm tròn 1 chữ số không trôi (sai số ≤ 0,05 đơn vị / 512). `CREDITS.md`, `README.md` (8 cảnh, `tint`).
+- **12 người:** `WerewolfPreview` 12 ghế, tham số `extras` (vai mở rộng vào ghế Dân cuối bàn để đổi vai người xem mà bộ vai không đổi), 15 màn mới (`night-bite2`/`night-bite1`, `witch-two`/`witch-one-r2`, `night-lovers`/`-ctrl`, `dawn-lovers`, `dawn-four`, `vote-result-lover`, `talk-shot-lover`, `ghost-extras`, `end-tanner`/`-lovers`/`-minion`, `lobby-extras`…).
+
+**Lệch kế hoạch / cách hiểu cần người dùng hoặc nhạc trưởng chốt**
+1. **Cupid đêm 1 phải ghép đủ 2 người mới Xác nhận được.** Bấm Xác nhận khi chưa đủ thì không ghi gì, dòng vẫn "Chưa xác nhận", lý do chỉ hiện trong thẻ giữ. Chọn vì rules §11.5 ghi "chọn 2 người … rồi Xác nhận" và để Cupid không lỡ tay bỏ ghép. Hết giờ mà chưa ghép đủ thì vẫn "không có cặp đôi" (E41, engine không đổi). Đánh đổi: ai nhìn thấy Cupid bấm Xác nhận mà dòng trạng thái không đổi thì có một tín hiệu rất nhỏ. Phương án khác: cho Xác nhận không cần cặp (= chủ động không ghép).
+2. **Cách chọn người thứ hai ở đêm cắn 2** (brief chỉ ghi "chọn 2 người trong thẻ"): người thứ nhất = ô sáng (chạm khi không giữ, như mọi đêm), người thứ hai = giữ thẻ + chạm, để khi không giữ màn chỉ có MỘT ô sáng như đêm thường. Sau Xác nhận, Sói / Sói con đổi tập bằng giữ + chạm (mất Xác nhận, như GĐ1).
+3. **Câu công khai ở Bình minh ngày 1 của ván có Cupid**: "Ván có Cupid: giữ “Vai của tôi” (menu ⋯) để xem mình có được ghép đôi không." Chỉ phụ thuộc bộ vai (công khai), giống hệt mọi người xem. Lý do: người được ghép không có thẻ giữ nào ở ban ngày, không có câu này thì họ không biết phải xem. Phá nhẹ "mỗi màn một câu".
+4. "Bạn yêu X — X là ‹vai›" hiện từ Bình minh 1 (không hiện ở Đêm ② của đêm 1 dù cặp đã chốt trong state) — đúng chữ "từ Bình minh ngày 1" của rules §11.5. Hai điểm "(đề xuất)" cũ của rules §11 vẫn theo đề xuất (người yêu thấy cả vai; Sói con rời làng không kích hoạt).
+5. Người chết theo ở Kết quả phiếu / sau phát bắn được nêu là "Y cũng chết" (không ghi nguyên nhân, nhưng ai cũng đoán ra vì cùng lúc — chết theo vốn công khai).
+6. Hai cảnh kết thúc mới **dùng lại lớp vẽ có sẵn + lớp `tint`** (`mix-blend-mode: color`) thay vì vẽ cảnh mới (brief cho phép).
+7. Stepper Ma Sói ở sảnh tối đa 5 (trước 4): 12 người cho phép tới 5 Sói; `validateSetup` vẫn chặn.
+8. Thẻ "Vai của tôi" cao hơn (`h-56` → `h-64`, như nhau với mọi vai) để đủ chỗ cho dòng người yêu.
+9. Thêm `panel/RoleInfo.tsx` (phần riêng của vai mở rộng, chỉ gọi trong thẻ đang giữ). `TEAM_TEXT` / `roleText` ở `panel/shared.tsx`.
+10. Không đổi engine (202 test giữ nguyên), `rules.md`, Avalon, file dùng chung. Không thêm dependency, không âm thanh.
+
+**Kiểm thử**
+- `npm run test:werewolf` **202/202**. `npx tsc --noEmit` sạch. `npx eslint src/components/games/werewolf` + `gameRegistry.ts` sạch; `npx eslint src/components/games` 29 lỗi / 29 cảnh báo = mốc. `npm run build` qua (đã xoá trang harness `src/app/wwtest`, `rm -rf .next`). Engine không import react / firebase / `@/`; `git diff 53d21220` không đụng `engine/`, Avalon, `games/shared`, `services`, `app`.
+- **Cặp ảnh riêng tư** (bản production + harness, `frozen=1` đồng hồ đứng yên, không giữ, chụp cả trang, mọi animation dừng ở cùng T; thu 10 %, trung bình |Δ|; kèm kiểm DOM: không có `[data-ww-hold-panel]`, `[data-ww-ghost]`, `[data-ww-my-role]`, `[data-ww-pack]`, dấu cắn / đôi / độc, thẻ nào cũng "sealed"):
+  - 6 vai mới (mỗi vai so với Dân, cùng bộ vai 12 người) × 16 màn (Xem vai; Đêm ① chưa chọn / đã chọn / đã xác nhận — Cupid đã ghép đôi; Đêm ② chưa chọn / đã chọn / đã xác nhận; người chết ở Đêm ①, Đêm ②, hồn ma Đêm ① / Bình minh / Bỏ phiếu / Kết quả / Thảo luận / hồn ma tắt; Bỏ phiếu) × 5 khung (T = 0 / 0,5 / 1,5 / 4 s / cuối): **480/480 = 0.000**.
+  - Thông tin ẩn: Sói và Sói con so với Dân ở đêm cắn 2; đêm cắn 2 so với đêm thường (Sói, Dân, Tiên tri); Đêm ② 2 người bị nhắm: Phù thủy so với Dân, 2 người so với 1 người (Phù thủy, Dân); người xem trong / ngoài cặp đôi (Dân, Sói); hồn ma có thông tin vai mở rộng bật / tắt: **55/55 = 0.000**.
+  - 1440 px (6 vai × Xem vai / Đêm ① / Đêm ② / người chết + đêm cắn 2 + 2 người bị nhắm) × 3 khung: **78/78 = 0.000**.
+  - Tổng **613/613 = 0.000**, 0 rò rỉ DOM. Đối chứng: Đêm ① chưa chọn | đã xác nhận (Cupid) 0.878; Xem vai | Đêm ① 19.47. Ghi chú: trên `next dev`, Kết quả phiếu ở T = 0,5 s thỉnh thoảng lệch 0.001–0.002 ngay cả khi hai ảnh cùng vai (nhiễu dựng hình khi đang hoạt cảnh); trên production mọi cặp đều 0.
+- **Tương tác giữ thẻ** (harness, giữ = PointerEvent giả, ngón thứ hai = chuột thật qua CDP): **27/27** — Cupid: chạm không giữ = 1 ô sáng, giữ + chạm 2 ô = ghép, thẻ không đóng, dấu "đôi" chỉ khi giữ, ô thứ 3 bị từ chối, chạm lại bỏ, Xác nhận khi mới 1 người bị chặn + lý do trong thẻ, đủ 2 thì xác nhận; đêm cắn 2: chạm không giữ đổi người 1 giữ người 2, giữ + chạm thêm / bỏ, chạm Sói bị từ chối, đổi sau Xác nhận mất Xác nhận; Sói con đổi sau Xác nhận (giữ + chạm), Tay sai thì không; Phù thủy 2 người: 2 nút cứu, chọn một, không độc người đang cứu.
+- **Ván thật** (bản production, `npm start`, Chrome headless `--disable-quic`, mỗi cửa sổ một origin `localhost`, `127.0.0.1`, `a`–`j.localhost`, cửa sổ cuối 320×568; bot `game5.mjs` + kịch bản `scenarios5.mjs`: vai chia ngẫu nhiên, bộ điều phối đọc vai bằng cách giữ thẻ rồi lên kế hoạch; chủ phòng bật vai ở mục "Vai mở rộng" và giảm thời gian; bộ lấy mẫu phase chạy nền 100 ms; bộ lấy mẫu riêng tư chèn vào mọi trang 120 ms: không có nội dung thẻ giữ khi không giữ (dấu trên ô chỉ khi thẻ mở), vai chỉ hiện trong chỗ công bố người chết và đúng vai thật; đối chứng âm: chèn rò rỉ giả → bắt cả hai loại):
+
+  | Kịch bản | Cửa sổ | Kết quả | Phủ | Lệch phase lớn nhất | Mẫu riêng tư |
+  |---|---|---|---|---|---|
+  | lovers | 11 | **14/14** | Cupid ghép Sói + Dân (giữ + chạm), sáng ngày 1 hai người thấy nhau + "Phe Tình nhân" trong "Vai của tôi", người ngoài cặp không thấy; Phù thủy độc, treo Thợ săn → bắn Sói; 4 đêm → còn đúng cặp → **Tình nhân thắng** ở Bình minh 4 ở mọi cửa sổ, chỉ hai người "Phe bạn thắng", danh sách ghi phe Tình nhân, cảnh `end-lovers`. 112 s ván | 217 ms | 9 444, 0 vi phạm |
+  | tanner | 11 | **10/10** | Treo Kẻ chán đời → **Kẻ chán đời thắng**, chỉ người đó thắng, cảnh `end-tanner` | 121 ms | 3 551, 0 |
+  | cub | 11 | **10/10** | Sói con thấy bầy; treo Sói con → Đêm 2 thẻ của cả bầy "cắn 2 người" (`bites = 2`), giữ + chạm người thứ hai → thống nhất; Phù thủy thấy 2 người bị nhắm, cứu một → Bình minh chỉ người kia chết | 122 ms | 3 838, 0 |
+  | elder | 11 | **9/9** | Già làng bị cắn lần đầu → "Đêm qua bình yên"; "Vai của tôi" của Già làng: đã mất mạng phụ; lần hai → chết | 123 ms | 3 531, 0 |
+  | seer | 11 | **10/10** | Tay sai thấy bầy, Sói không thấy Tay sai; Tiên tri soi Người hoá sói → "LÀ SÓI", soi Tay sai → "không phải Sói" | 132 ms | 3 805, 0 |
+  | hunterlove | 11 | **9/9** | Cupid ghép Thợ săn + Dân; Dân bị cắn → Bình minh 2 người theo ghế; bước Thợ săn của người chết theo → bắn Sói → Thảo luận diễn lại phát bắn | 110 ms | 1 763, 0 |
+  | twelve | **12** | **10/10** | Cupid + Tay sai + Người hoá sói + Già làng; cặp cùng phe (Tiên tri + Bảo vệ); độc 1 Sói, treo 2 Sói → **Dân thắng** ở Kết quả phiếu; Tay sai thua, Cupid thắng; cặp cùng phe không ghi Tình nhân | 324 ms | 6 410, 0 |
+  | heal (hồi quy 6 vai gốc) | 7 | **11/11** | Bảo vệ + Phù thủy cứu cùng người → bình yên (E1: Phù thủy vẫn thấy người bị nhắm); treo Sói; đêm 2 thẻ Phù thủy "Đã dùng bình cứu" (E2), độc Sói cuối → Dân thắng ở Bình minh (E20) | 542 ms | 2 737, 0 |
+
+  - Tổng **83/83**. Mọi kịch bản: 0 banner lỗi, 0 lỗi JS / `console.error`, mọi token phase được mọi cửa sổ thấy, phòng thử đã xoá bằng nút của chủ phòng (kiểm lại bằng cách mở link phòng). Mỗi lần chạy (cả tạo phòng, vào 11 cửa sổ, cài đặt, xoá phòng) 33–118 s.
+  - Lệch phase là thời điểm đầu tiên mỗi cửa sổ thấy token, lấy mẫu 100 ms (sai số lấy mẫu ~100 ms). Hai số cao nhất (542, 324 ms) là một cửa sổ nhận snapshot chậm ở một bước, như ghi chú QUIC / môi trường của GĐ2.
+  - **Một lần chạy `heal` (lần đầu trong 5) có 1/7 cửa sổ chưa thấy `end` sau ~4 s** (6 cửa sổ kia thấy, 0 lỗi JS, 0 banner); chưa bắt được nguyên nhân. Đã thêm ghi lại cửa sổ chậm (ảnh + phase + chữ) và chạy lại 4 lần (cả bản build cuối): 11/11 cả 4, không lặp lại. Đoán là snapshot của một cửa sổ đến muộn (môi trường 7–12 danh tính trên một hồ sơ Chrome), không phải logic ván — để ý khi chơi thật (GĐ6).
+- **Va chạm ô / dấu** (9 màn: Đêm ①, Bỏ phiếu, Thảo luận, Sảnh, Kết quả, Kết thúc, Đêm ② đang giữ (dấu độc), đêm cắn 2 đang giữ (dấu cắn), Cupid đang giữ (dấu đôi)) × 5–12 người × 320 / 340 / 360 / 375 / 390 px: **310/310** (2 màn cuối chỉ từ 10 người). Đối chứng âm (chèn dấu lệch sang ô bên): bắt được.
+- **Tương phản trên điểm ảnh thật** (chụp lại với chữ trong suốt để lấy nền; ẩn icon, giữ cảnh): 25 màn mới / đang giữ ở 375 + 1440 px: **918/918 ≥ 4,5 : 1**, thấp nhất 5,96; màn kết thúc Kẻ chán đời / Tình nhân đo thêm đúng khung nhìn 375×812 / 375×667: 244/244, thấp nhất 5,67 ("Phe bạn thắng!" có từ GĐ4). Lần đo đầu báo sai 3,58 vì script ẩn cả SVG của cảnh (lớp `tint` còn lại thành nền sáng) — đã sửa script, giao diện không đổi.
+- **Không cuộn ngang ở 320 px:** mọi màn của Preview (58 màn trừ màn vào phòng + 3 màn vai mở rộng) × 12 và 9 người × 7 khung hình (0 … 6,5 s, cuối): **122/122**.
+- **Kích thước gói** (build sạch không harness, một lần import Ma Sói theo `react-loadable-manifest`, gzip mức 6): `53d21220` (GĐ5a) 195 570 / 66 234 B → GĐ5b **218 831 / 74 590 B (+8,4 KB gzip)** (8 icon ≈ 9 KB raw path, phần còn lại là giao diện vai mở rộng). GĐ4 là 188 641 / 63 981 B. Avalon không đổi (317 626 / 104 483 B).
+- Ảnh: `.claude/ww-gd5b-shots/` (bị git bỏ qua): `375/` (28 màn, gồm thẻ đang giữ của từng vai mới, 3 màn 320 px 12 người), `1440/` (13 màn), `sheet-375.png`, `sheet-1440.png`, `collide.json`, `contrast.json`, `noscroll-320.json`.
+- Script (dùng lại được, bị git bỏ qua): `.claude/ww-tools/` — `cdp.mjs` (CDP không dependency, `openWindow` = `newWindow: true`), `lib.mjs` (harness, đồng hồ đứng yên `FROZEN_INIT`, `freeze`, `diff`, tờ ghép ảnh), `harness/wwtest-page.tsx` (trang tạm, chép vào `src/app/wwtest/page.tsx`, xoá trước khi build bản thật) + các `spec-*.json`, `pairs.mjs` (preset `roles` / `hidden` / `wide` / `control` / `noise`), `held.mjs`, `collide.mjs` + `collide-ctrl.mjs`, `contrast.mjs`, `noscroll.mjs`, `wwshots.mjs`, `crop.mjs`, `game5.mjs` + `scenarios5.mjs` (8 kịch bản) + `sampler-ctrl.mjs`, `bundle.mjs`, `mkicons.mjs`, `rep.cjs`.
+
+**Việc chuyển tiếp**
+- Nhạc trưởng review `git diff 53d21220..HEAD`; người dùng / nhạc trưởng chốt các mục 1–3 (và 7) ở trên.
+- Sau review: mốc PR #3 (người dùng đã đồng ý 2026-10-31 cho nhạc trưởng push + mở PR + squash-merge GĐ5a + GĐ5b).
+- GĐ6 (chơi thật): điểm cân bằng của vai mở rộng (đang "tạm"); tờ hồn ma với 12 người + vai mở rộng dài hơn 667 px (cuộn được, kéo bằng ngón chưa kiểm trên cảm ứng thật — còn mở từ GĐ2b); cửa sổ chậm thấy `end` ở một lần `heal`; nhịp 8 s của Bình minh khi có 3–4 người chết.
+
+### 12.19 GĐ5b — review của nhạc trưởng (2026-10-31): **ĐẠT** → mốc PR #3
+
+GĐ5b do một agent thực thi (Opus) chạy nền làm, theo yêu cầu của người dùng. Khoảng commit `53d21220..2441b331`.
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 202/202.
+- `tsc` sạch. eslint werewolf + `gameRegistry.ts` sạch. `npx eslint src/components/games` 29 / 29 = baseline.
+- Lớp màu lẻ / `text-[Npx]`: 0 / 0.
+- `npm run build` exit 0.
+- **Phạm vi:** engine, Avalon, `games/shared`, `services`, `hooks`, `tsconfig`, `package.json` không đổi. Ngoài thư mục werewolf chỉ có `gameRegistry.ts` (5–12 người).
+
+**Đọc code (`useWerewolf`, `state.ts`):**
+- `lobbyCounts`: Dân = số người − mọi vai khác.
+- `tableOf` đưa `lovers` vào bàn.
+- `nightCheck`:
+  - Sói con đổi được sau Xác nhận (`isWolfRole`);
+  - `biteIds` chỉ hợp lệ cho Sói ở đêm cắn 2;
+  - `loverIds` chỉ cho Cupid ở đêm 1.
+- `confirmNight`: Cupid đêm 1 kiểm `validateCupidPick`; ghi `biteIds` / `loverIds` cùng lần Xác nhận.
+- `resolveNightPhase`:
+  - ghi `attack` / `attacks` / `lovers`;
+  - `expectPlayerData` có `elderLife`;
+  - sang thẳng `dawn` thì ghi `elderLife` cùng `guardLast`.
+- `resolveWitchPhase`:
+  - `attacks` lấy từ state, `expect` có `attacks`;
+  - ghi `elderLife`;
+  - `witchCheck` dùng `attacksOf` và chặn `healId` của người không phải Phù thủy.
+- Đêm thường ghi `nightPick` / `witchPick` đúng dạng v1 (không thêm khoá rỗng).
+
+**Ảnh (375px):** sảnh "Vai mở rộng" (6 công tắc, điểm và cảnh báo cập nhật), Cupid đêm 1 khi giữ (dấu "đôi" chỉ khi giữ), Phù thủy 2 người bị nhắm khi giữ (Cứu một trong hai, Độc), kết thúc "Tình nhân thắng" (vai theo `teamOf`, "Phe bạn thua", nhật ký có câu ghép đôi).
+
+**Bằng chứng của người thực thi:**
+- Riêng tư 613/613 = 0.000.
+- Giữ thẻ 27/27.
+- Ván thật 11–12 cửa sổ 83/83 (8 kịch bản, gồm hồi quy `heal`).
+- Va chạm 310/310. Tương phản 918/918. Không cuộn ngang 122/122.
+- Gói 66,2 → 74,6 KB gzip.
+
+**Chấp nhận, cần người dùng chốt ở GĐ6 (không chặn PR):**
+1. **Cupid đêm 1 chưa ghép đủ 2 người thì không Xác nhận được** (lý do chỉ hiện trong thẻ giữ). Hệ quả: nếu ai đó nhìn chằm chằm Cupid bấm Xác nhận mà dòng trạng thái không đổi, đó là một tín hiệu nhỏ. Phương án khác: cho Xác nhận, không có cặp đôi (đúng rules §11.5 "chưa chọn đủ … thì không có cặp đôi").
+2. Đêm cắn 2: người thứ nhất bằng chạm thường, người thứ hai bằng giữ thẻ + chạm.
+3. Bình minh 1 của ván có Cupid có thêm câu công khai nhắc mọi người giữ "Vai của tôi". Câu này như nhau với mọi người; việc có Cupid vốn công khai ở sảnh.
+4. Sảnh cho tối đa 5 Ma Sói.
+
+**Còn mở:**
+- 1/5 lần chạy `heal` (7 cửa sổ) có 1 cửa sổ chưa thấy màn kết thúc sau khoảng 4 s (6 cửa sổ kia thấy, 0 lỗi JS). 4 lần chạy lại đều đạt. Nghi do snapshot đến muộn trong môi trường thử (như ghi chú QUIC ở GĐ2). Theo dõi khi chơi thật (GĐ6).
+- Để GĐ6: điểm cân bằng vai mở rộng; tờ hồn ma 12 người phải cuộn (kéo ngón chưa thử trên cảm ứng thật); nhịp Bình minh khi có 3–4 người chết.
+
+**Tiếp theo:** người dùng đã đồng ý (2026-10-31). Nhạc trưởng push `dev-werewolf`, mở PR #3 và squash-merge GĐ5a + GĐ5b vào `main`, rồi `git merge -s ours origin/main` trên `dev-werewolf`. Sau đó GĐ6 (§10c).
