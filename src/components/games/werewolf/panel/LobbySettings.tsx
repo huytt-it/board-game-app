@@ -2,7 +2,9 @@
 
 import type { ReactNode } from 'react';
 import {
+  ALL_ROLES,
   BALANCE_LEAN_TEXT,
+  EXTRA_ROLES,
   ROLE_NAME,
   balanceLean,
   balanceScore,
@@ -26,9 +28,10 @@ const PHASE_LABEL: Record<TimedPhase, string> = {
 };
 
 const STEP_ROLES: readonly WwRole[] = ['werewolf', 'seer', 'guard', 'witch', 'hunter'];
-// Vai mở rộng chưa có stepper ở sảnh (GĐ5b); mỗi vai tối đa 1 người (rules §4).
+// Mỗi vai đặc biệt / vai mở rộng tối đa 1 người (rules §4, E55). Số Sói thật
+// sự bị chặn bởi validateSetup (2 × Sói < số người).
 const ROLE_MAX: Record<WwRole, number> = {
-  werewolf: 4,
+  werewolf: 5,
   seer: 1,
   guard: 1,
   witch: 1,
@@ -40,6 +43,16 @@ const ROLE_MAX: Record<WwRole, number> = {
   tanner: 1,
   cupid: 1,
   wolfcub: 1,
+};
+
+// Một câu ngắn cho mục "Vai mở rộng" ở sảnh (câu đầy đủ: ROLE_BLURB, màn "Luật chơi").
+const EXTRA_SHORT: Partial<Record<WwRole, string>> = {
+  elder: 'Sống sót lần đầu bị Sói cắn trúng.',
+  lycan: 'Dân làng, nhưng Tiên tri soi ra "Là Sói".',
+  minion: 'Phe Sói, biết bầy Sói; Sói không biết mình.',
+  tanner: 'Phe riêng: thắng một mình nếu bị treo.',
+  cupid: 'Đêm đầu ghép đôi hai người: một chết, người kia chết theo.',
+  wolfcub: 'Là Sói. Chết thì đêm sau bầy được cắn 2 người.',
 };
 
 function formatDuration(s: number): string {
@@ -129,6 +142,33 @@ function Choice({
   );
 }
 
+/** Một vai mở rộng ở sảnh: icon, tên, một câu, công tắc Bật / Tắt (người khác: chỉ đọc). */
+function ExtraRole({ role, on, onToggle }: { role: WwRole; on: boolean; onToggle?: () => void }) {
+  return (
+    <div className="flex items-center gap-2 py-1.5" data-ww-extra-role={role}>
+      <WwIcon name={role} size={18} className="shrink-0 self-start mt-0.5 text-(--ww-text-3)" />
+      <div className="min-w-0 flex-1">
+        <p className="text-sm text-(--ww-text)">{ROLE_NAME[role]}</p>
+        <p className="text-xs leading-snug text-(--ww-text-3)">{EXTRA_SHORT[role]}</p>
+      </div>
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        aria-label={ROLE_NAME[role]}
+        disabled={!onToggle}
+        onClick={onToggle}
+        className={`flex min-h-11 w-20 shrink-0 items-center justify-center gap-1.5 rounded-xl text-sm font-semibold disabled:cursor-default ${
+          on ? 'bg-(--ww-raised-hi) text-(--ww-text) shadow-md shadow-black/30' : 'bg-(--ww-ink) text-(--ww-text-3)'
+        }`}
+      >
+        {on && <WwIcon name="check" size={14} />}
+        {on ? 'Bật' : 'Tắt'}
+      </button>
+    </div>
+  );
+}
+
 export default function LobbySettings({
   config,
   playerCount,
@@ -145,11 +185,13 @@ export default function LobbySettings({
   const warning = balanceWarning(counts);
   const edit = editable ? onUpdateConfig : undefined;
 
-  const stepRole = (role: WwRole, dir: 1 | -1) => {
-    const next: RoleCounts = { werewolf: counts.werewolf, seer: counts.seer, guard: counts.guard, witch: counts.witch, hunter: counts.hunter };
-    next[role] = Math.min(ROLE_MAX[role], Math.max(0, (next[role] ?? 0) + dir));
+  // Ghi mọi vai trừ Dân (Dân luôn = số người − các vai khác: lobbyCounts).
+  const setRole = (role: WwRole, n: number) => {
+    const next: RoleCounts = Object.fromEntries(ALL_ROLES.filter((r) => r !== 'villager').map((r) => [r, counts[r]]));
+    next[role] = Math.min(ROLE_MAX[role], Math.max(0, n));
     edit?.({ roleCounts: next });
   };
+  const stepRole = (role: WwRole, dir: 1 | -1) => setRole(role, counts[role] + dir);
   const setRule = <K extends keyof WwRules>(key: K, value: WwRules[K]) => edit?.({ rules: { ...config.rules, [key]: value } });
   const stepTime = (phase: TimedPhase, dir: 1 | -1) => {
     const { min, max, step } = PHASE_SECONDS_LIMITS[phase];
@@ -196,6 +238,19 @@ export default function LobbySettings({
             {warning}
           </p>
         )}
+      </section>
+
+      <section data-ww-extra-roles="">
+        <h3 className="text-base font-semibold text-(--ww-text)">Vai mở rộng</h3>
+        <p className="mb-1 text-xs text-(--ww-text-3)">Mặc định tắt. Mỗi vai tối đa 1 người; Dân làng tự bớt đi.</p>
+        {EXTRA_ROLES.map((role) => (
+          <ExtraRole
+            key={role}
+            role={role}
+            on={counts[role] > 0}
+            onToggle={editable ? () => setRole(role, counts[role] > 0 ? 0 : 1) : undefined}
+          />
+        ))}
       </section>
 
       <section>

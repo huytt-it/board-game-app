@@ -126,8 +126,18 @@ export interface WerewolfGameState {
   deaths: WwDeath[];
   /** Đã xem vai / sẵn sàng bỏ phiếu; về rỗng mỗi lần đổi phase. */
   acks: Record<string, boolean>;
-  /** Người bị Sói nhắm đêm nay (chốt khi hết Đêm ①). */
+  /** Người bị Sói nhắm đêm nay (chốt khi hết Đêm ①); đêm cắn 2 là người đầu (theo ghế). */
   attack: string | null;
+  /**
+   * Mọi người bị Sói nhắm đêm nay, theo ghế (đêm cắn 2: tối đa 2 — rules §11.7).
+   * Ván cũ (trước GĐ5b) không có trường này: đọc qua `attacksOf`.
+   */
+  attacks?: string[];
+  /**
+   * Cặp đôi Cupid đã ghép (rules §11.5), theo ghế; chốt khi hết Đêm ① của đêm 1.
+   * null / thiếu = ván không có cặp đôi.
+   */
+  lovers?: [string, string] | null;
   /** Người chết đêm qua, theo thứ tự ghế (công bố ở Bình minh, không nói nguyên nhân). */
   dawnDeaths: string[];
   /** Phiếu ban ngày: người bầu → người bị bầu | 'skip'. Bầu ai thì ẩn đến Kết quả. */
@@ -161,4 +171,9 @@ export interface WerewolfGameData extends BaseGameData {
   guardLast?: string | null;
   /** Tiên tri: kết quả soi, ghi lúc Xác nhận (E15). */
   seerLog?: WwSeerLook[];
+  /**
+   * Già làng: còn mạng phụ không (rules §11.2). Thiếu / null = còn. Ghi lại
+   * cùng transaction cuối đêm, như `potions`.
+   */
+  elderLife?: boolean | null;
 }

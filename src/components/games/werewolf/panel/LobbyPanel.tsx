@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import type { Player } from '@/types/player';
-import { validateSetup, MIN_PLAYERS } from '@/components/games/werewolf/engine/roles.ts';
+import { validateSetup, MAX_PLAYERS, MIN_PLAYERS } from '@/components/games/werewolf/engine/roles.ts';
 import { lobbyCounts, type WwConfig } from '../state';
 import type { WerewolfRoomConfig } from '../types';
 import WwIcon from '../assets/WwIcon';
@@ -15,10 +15,6 @@ import { Dock, PhaseHeader, PhaseLayout, Seat, StatusLine } from './shared';
 // (giữa ván không xoá doc người chơi nào — plan §6 "Bổ sung cho GĐ1" mục 3):
 // chủ phòng chạm vào một ghế thì ghế đó mới hiện nút mời ra (không rải ✕ lên
 // mọi ghế). Màn rộng: người trong phòng + mã mời bên trái, cài đặt + nút bên phải.
-
-// Phòng Ma Sói vẫn tối đa 10 người (gameRegistry) cho tới GĐ5b; engine đã cho
-// tới MAX_PLAYERS = 12. GĐ5b nâng registry lên 12 thì dùng lại MAX_PLAYERS.
-const MAX_PLAYERS = 10;
 
 export default function LobbyPanel({
   players,

@@ -4,15 +4,15 @@ import { useMemo, useState } from 'react';
 import type { Player } from '@/types/player';
 import { serverNow } from '@/lib/serverClock';
 import { afterVote } from '@/components/games/werewolf/engine/flow.ts';
-import { isValidTarget, pickFor, seerLook, validateWitchPick } from '@/components/games/werewolf/engine/night.ts';
-import { fullCounts, nightActionOf, ROLE_NAME, ROLE_ORDER, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
+import { isValidTarget, pickFor, seerLook, validateCupidPick, validateWitchPick, wolfBitesFor } from '@/components/games/werewolf/engine/night.ts';
+import { ALL_ROLES, cupidPairsTonight, fullCounts, isWolfRole, nightActionOf, ROLE_NAME, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
 import { DEFAULT_RULES, FULL_POTIONS } from '@/components/games/werewolf/engine/types.ts';
 import { PhaseView, TopBar } from './WerewolfBoard';
 import WwShell from './WwShell';
 import StyleBoard from './StyleBoard';
 import WerewolfJoinScreen from './WerewolfJoinScreen';
-import { dataOf, potionsOf, readConfig, tableOf } from './state';
-import type { PickResult, WitchDraft, WitchResult } from './useWerewolf';
+import { attacksOf, dataOf, potionsOf, readConfig, tableOf } from './state';
+import type { NightDraft, PickResult, WitchDraft, WitchResult } from './useWerewolf';
 import type { DayBallot, WerewolfGameData, WerewolfGameState, WwLogEntry, WwPhase, WwRole, WwRules } from './types';
 import LobbyPanel from './panel/LobbyPanel';
 import RoomMenu from './ui/RoomMenu';
@@ -68,25 +68,58 @@ export const PREVIEW_SCENES = {
   'end-village': 'Kết thúc — Dân thắng',
   'end-wolves': 'Kết thúc — Sói thắng',
   'end-hunter': 'Kết thúc — Thợ săn bắn Sói cuối cùng',
+  // Vai mở rộng (GĐ5b). Người xem chọn vai mở rộng ở ô "Người xem".
+  'lobby-extras': 'Sảnh — 12 người, bật vai mở rộng',
+  'night-bite2': 'Đêm 2 — đêm cắn 2 (Sói con bị treo hôm qua, lộ vai tắt)',
+  'night-bite1': 'Đêm 2 — đêm thường (đối chứng của đêm cắn 2, lộ vai tắt)',
+  'night-lovers': 'Đêm 2 — người xem trong cặp đôi (khác phe)',
+  'night-lovers-ctrl': 'Đêm 2 — có cặp đôi, người xem không ở trong cặp (đối chứng)',
+  'witch-two': 'Đêm ② — Sói nhắm 2 người (đêm cắn 2)',
+  'witch-one-r2': 'Đêm ② — Sói nhắm 1 người (đối chứng, vòng 2)',
+  'dawn-lovers': 'Bình minh — người yêu chết theo (3 người)',
+  'dawn-four': 'Bình minh — 4 người chết (cắn 2 + độc + chết theo)',
+  'vote-result-lover': 'Kết quả — người bị treo kéo người yêu chết theo',
+  'talk-shot-lover': 'Thảo luận — Thợ săn bắn người có người yêu',
+  'ghost-extras': 'Hồn ma — Đêm 2 cắn 2, cặp đôi, Già làng (xem hết)',
+  'end-tanner': 'Kết thúc — Kẻ chán đời thắng',
+  'end-lovers': 'Kết thúc — Tình nhân thắng',
+  'end-minion': 'Kết thúc — Sói thắng, có Tay sai',
 } as const;
 
 export type PreviewScene = keyof typeof PREVIEW_SCENES;
-export const PREVIEW_ROLES: readonly WwRole[] = ROLE_ORDER;
+export const PREVIEW_ROLES: readonly WwRole[] = ALL_ROLES;
 
-const NAMES = ['Lan', 'Minh', 'Hùng', 'Mai', 'Tú', 'Hoa', 'Khoa', 'Quân', 'Vy', 'Đức'];
+const NAMES = ['Lan', 'Minh', 'Hùng', 'Mai', 'Tú', 'Hoa', 'Khoa', 'Quân', 'Vy', 'Đức', 'Phương', 'Nguyên'];
 // Bộ mặc định 9 người: 2 Sói, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, 3 Dân. Ghế
-// 5 và 7 luôn là Dân (đổi vai người xem không chạm tới). `count` 5–10 lấy n ghế
-// đầu (để kiểm bố cục với 5–10 người; vài màn của Phù thủy / Thợ săn / hồn ma
-// cần đủ 9).
-const LINEUP: WwRole[] = ['villager', 'werewolf', 'seer', 'guard', 'villager', 'werewolf', 'villager', 'witch', 'hunter', 'villager'];
+// 5 và 7 luôn là Dân (đổi vai người xem không chạm tới). `count` 5–12 lấy n ghế
+// đầu (để kiểm bố cục với 5–12 người; vài màn của Phù thủy / Thợ săn / hồn ma
+// cần đủ 9, màn của vai mở rộng cần 10).
+const LINEUP: WwRole[] = ['villager', 'werewolf', 'seer', 'guard', 'villager', 'werewolf', 'villager', 'witch', 'hunter', 'villager', 'villager', 'villager'];
 const DEFAULT_COUNT = 9;
 const ID = (i: number) => `p${i + 1}`;
 const ME = ID(0);
+/** Ghế 10: ghế của vai mở rộng "phía sau" (Sói con đã chết, người yêu…), không bao giờ là người xem. */
+const BACK = ID(9);
 
-function lineupFor(role: WwRole, n: number): WwRole[] {
+/**
+ * Bộ vai của bàn: bộ mặc định, thêm `extras` (vai mở rộng) vào ghế Dân từ cuối
+ * bàn lên (không đụng ghế 1, 5, 7), rồi đổi chỗ người xem với người giữ `role`.
+ */
+function baseLineup(n: number, extras: readonly WwRole[] = []): WwRole[] {
   const roles = LINEUP.slice(0, n);
+  const free = roles.map((r, i) => (r === 'villager' && i !== 0 && i !== 4 && i !== 6 ? i : -1)).filter((i) => i >= 0).reverse();
+  extras.forEach((e, k) => {
+    if (free[k] !== undefined) roles[free[k]] = e;
+  });
+  return roles;
+}
+
+function lineupFor(role: WwRole, n: number, extras: readonly WwRole[] = []): WwRole[] {
+  const roles = baseLineup(n, extras);
   const j = roles.findIndex((r, i) => i > 0 && r === role);
   if (roles[0] !== role && j > 0) [roles[0], roles[j]] = [roles[j], roles[0]];
+  // Vai mở rộng không có trong bộ mặc định: người xem (ghế 1, Dân) giữ luôn vai đó.
+  else if (roles[0] !== role) roles[0] = role;
   return roles;
 }
 
@@ -110,20 +143,22 @@ function makePlayers(roles: WwRole[], extra: (id: string, role: WwRole) => Parti
   }));
 }
 
-function baseStateN(phase: WwPhase, start: number, over: Partial<WerewolfGameState> = {}, n = DEFAULT_COUNT): WerewolfGameState {
+function baseStateN(phase: WwPhase, start: number, over: Partial<WerewolfGameState>, lineup: readonly WwRole[]): WerewolfGameState {
   const roleCounts = fullCounts({});
-  for (const r of LINEUP.slice(0, n)) roleCounts[r] += 1;
+  for (const r of lineup) roleCounts[r] += 1;
   return {
     phase,
     phaseStartedAt: start,
     round: 1,
-    seatOrder: NAMES.slice(0, n).map((_, i) => ID(i)),
+    seatOrder: lineup.map((_, i) => ID(i)),
     roleCounts,
     rules: DEFAULT_RULES,
     timeouts: {},
     deaths: [],
     acks: {},
     attack: null,
+    attacks: [],
+    lovers: null,
     dawnDeaths: [],
     dayVotes: {},
     lastVote: null,
@@ -165,9 +200,9 @@ interface Mock {
   join?: 'open' | 'closed';
 }
 
-function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAULT_COUNT): Mock {
-  const roles = lineupFor(role, n);
-  const baseState = (phase: WwPhase, at: number, over: Partial<WerewolfGameState> = {}) => baseStateN(phase, at, over, n);
+function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAULT_COUNT, extras: readonly WwRole[] = []): Mock {
+  const roles = lineupFor(role, n, extras);
+  const baseState = (phase: WwPhase, at: number, over: Partial<WerewolfGameState> = {}) => baseStateN(phase, at, over, roles);
   const idOf = (r: WwRole, nth = 0) => ID(roles.map((x, i) => (x === r ? i : -1)).filter((i) => i >= 0)[nth]);
   const wolves = roles.map((r, i) => (r === 'werewolf' ? ID(i) : null)).filter(Boolean) as string[];
   // Người ai cũng chọn được (ghế 5 và 7 luôn là Dân, đổi vai không chạm tới):
@@ -195,7 +230,9 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAUL
     case 'night-confirmed':
     case 'night-split':
     case 'night-dead': {
-      const mine = scene === 'night-empty' || scene === 'night-dead' ? null : { round: 1, targetId: common, confirmed: scene !== 'night-picked' };
+      // Cupid đêm 1 đã ghép đôi (chỉ thấy khi giữ thẻ): ghế 3 và 4.
+      const lovers = role === 'cupid' ? { loverIds: [ID(2), ID(3)] } : {};
+      const mine = scene === 'night-empty' || scene === 'night-dead' ? null : { round: 1, targetId: common, confirmed: scene !== 'night-picked', ...lovers };
       const deaths = scene === 'night-dead' ? [{ id: ME, round: 1, cause: 'wolf' as const }] : [];
       const players = makePlayers(roles, (id, r) => {
         if (id === ME) return { nightPick: mine };
@@ -438,9 +475,225 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAUL
         players,
       };
     }
+    case 'lobby-extras':
+      return {
+        state: null,
+        players: makePlayers(roles).map((p) => ({ ...p, gameData: {} })),
+        lobby: {
+          isHost: true,
+          roleCounts: { werewolf: 2, wolfcub: 1, seer: 1, guard: 1, witch: 1, hunter: 1, elder: 1, cupid: 1, minion: 1 },
+        },
+      };
+    case 'night-bite2':
+    case 'night-bite1':
+    case 'witch-two':
+    case 'witch-one-r2': {
+      // Vòng 2, lộ vai tắt. Hôm qua treo ghế 10: Sói con (đêm cắn 2) hoặc Ma Sói
+      // (đêm thường) — công khai như nhau. Các Sói khác đã chọn (đêm cắn 2: hai người).
+      const two = scene === 'night-bite2' || scene === 'witch-two';
+      roles[9] = two ? 'wolfcub' : 'werewolf';
+      const witchPhase = scene.startsWith('witch');
+      const bite = (confirmed: boolean) =>
+        two ? { round: 2, targetId: common, biteIds: [common, otherVillager], confirmed } : { round: 2, targetId: common, confirmed };
+      const players = makePlayers(roles, (id, r) => {
+        if (witchPhase) {
+          if (id !== ME) return {};
+          return role === 'witch'
+            ? { witchPick: { round: 2, heal: true, poisonId: wolves[0], guessId: common, confirmed: false, ...(two ? { healId: otherVillager } : {}) } }
+            : { witchPick: { round: 2, heal: false, poisonId: null, guessId: common, confirmed: false } };
+        }
+        if (id === ME) return { nightPick: isWolfRole(r) ? bite(false) : { round: 2, targetId: common, confirmed: false } };
+        if (isWolfRole(r) && id !== BACK) return { nightPick: bite(true) };
+        return {};
+      });
+      const deaths = [{ id: BACK, round: 1, cause: 'vote' as const }];
+      return {
+        state: baseState(witchPhase ? 'night-witch' : 'night', start, {
+          round: 2,
+          deaths,
+          rules: { ...DEFAULT_RULES, revealOnDeath: false },
+          attack: witchPhase ? common : null,
+          attacks: witchPhase ? (two ? [common, otherVillager] : [common]) : [],
+          log: [...ROUND1_LOG, { kind: 'vote', round: 1, ballots: { [ME]: BACK, [common]: BACK }, executedId: BACK }],
+        }),
+        players,
+      };
+    }
+    case 'night-lovers':
+    case 'night-lovers-ctrl': {
+      // Đêm 2: người xem và ghế 6 (Ma Sói) là cặp đôi Cupid (ghế 10) đã ghép đêm 1.
+      // Đối chứng: cặp là ghế 3 và ghế 6 (người xem không ở trong cặp).
+      roles[9] = 'cupid';
+      const pair: [string, string] = [scene === 'night-lovers' ? ME : ID(2), ID(5)];
+      return {
+        state: baseState('night', start, {
+          round: 2,
+          lovers: pair,
+          log: [...ROUND1_LOG.filter((e) => e.kind !== 'death'), { kind: 'lovers', round: 1, cupidId: BACK, loverIds: pair, mixed: true }],
+        }),
+        players: makePlayers(roles),
+      };
+    }
+    case 'dawn-lovers':
+    case 'dawn-four': {
+      // Ghế 4 yêu ghế 5 (ghế 5 bị cắn → ghế 4 chết theo). dawn-four: đêm cắn 2 (ghế 5, 7) + độc ghế 3.
+      roles[9] = scene === 'dawn-four' ? 'wolfcub' : 'cupid';
+      const four = scene === 'dawn-four';
+      const r = four ? 2 : 1;
+      const pair: [string, string] = [ID(3), common];
+      const deaths = [
+        ...(four ? [{ id: BACK, round: 1, cause: 'vote' as const }] : []),
+        { id: common, round: r, cause: 'wolf' as const },
+        { id: otherVillager, round: r, cause: four ? ('wolf' as const) : ('poison' as const) },
+        ...(four ? [{ id: ID(2), round: 2, cause: 'poison' as const }] : []),
+        { id: ID(3), round: r, cause: 'love' as const },
+      ];
+      const dawnDeaths = deaths
+        .filter((d) => d.round === r && d.cause !== 'vote')
+        .map((d) => d.id)
+        .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
+      return {
+        state: baseState('dawn', start, {
+          round: r,
+          lovers: pair,
+          deaths,
+          dawnDeaths,
+          log: [{ kind: 'love', round: r, id: ID(3), loverId: common, part: 'night' }],
+        }),
+        players: makePlayers(roles),
+      };
+    }
+    case 'vote-result-lover': {
+      // Treo Sói ghế 2 (hoặc người xem nếu người xem là Ma Sói) → ghế 4 (người yêu) chết theo ngay.
+      roles[9] = 'cupid';
+      const players = makePlayers(roles);
+      const hanged = wolves[0];
+      const pair: [string, string] = [ID(3), hanged];
+      const deaths = [{ id: common, round: 1, cause: 'wolf' as const }];
+      const { table } = tableOf(baseState('day-vote', start, { deaths, lovers: pair }), players);
+      const votes: Record<string, DayBallot> = {};
+      for (const id of table.seatOrder.filter((x) => x !== common)) votes[id] = id === hanged ? 'skip' : hanged;
+      const step = afterVote(table, 1, votes);
+      return {
+        state: baseState('vote-result', start, {
+          lovers: pair,
+          deaths: [...deaths, ...step.newDeaths],
+          lastVote: { ballots: step.vote.ballots, executedId: step.vote.executedId, outcome: step.vote.outcome },
+          log: step.log,
+        }),
+        players,
+      };
+    }
+    case 'talk-shot-lover': {
+      // Thợ săn bị cắn đêm 1, bắn ghế 4; ghế 7 (người yêu của ghế 4) chết theo.
+      roles[9] = 'cupid';
+      const hunterId = idOf('hunter');
+      return {
+        state: baseState('day-talk', start, {
+          lovers: [ID(3), otherVillager],
+          deaths: [
+            { id: hunterId, round: 1, cause: 'wolf' },
+            { id: ID(3), round: 1, cause: 'hunter' },
+            { id: otherVillager, round: 1, cause: 'love' },
+          ],
+          log: [
+            { kind: 'wolves', round: 1, targetId: hunterId, how: 'consensus' },
+            { kind: 'death', round: 1, id: hunterId, cause: 'wolf' },
+            { kind: 'hunter', round: 1, hunterId, targetId: ID(3) },
+            { kind: 'love', round: 1, id: otherVillager, loverId: ID(3), part: 'day' },
+          ],
+        }),
+        players: makePlayers(roles),
+      };
+    }
+    case 'ghost-extras': {
+      // Người xem chết đêm 1; đêm 2 là đêm cắn 2 (Sói con ghế 10 bị treo), Già làng
+      // ghế 11 đã mất mạng phụ, Cupid ghế 12 ghép ghế 4 với ghế 6 (Ma Sói, khác phe).
+      roles[9] = 'wolfcub';
+      if (n > 10) roles[10] = 'elder';
+      if (n > 11) roles[11] = 'cupid';
+      const pair: [string, string] = [ID(3), ID(5)];
+      const players = makePlayers(roles, (id, r) => {
+        if (id === ME) return {};
+        if (r === 'elder') return { elderLife: false, nightPick: { round: 2, targetId: common, confirmed: true } };
+        if (isWolfRole(r) && id !== BACK) {
+          return { nightPick: { round: 2, targetId: common, biteIds: id === wolves[0] ? [common, otherVillager] : [common], confirmed: true } };
+        }
+        return { nightPick: { round: 2, targetId: wolves[0], confirmed: false } };
+      });
+      return {
+        state: baseState('night', start, {
+          round: 2,
+          lovers: pair,
+          deaths: [
+            { id: ME, round: 1, cause: 'wolf' },
+            { id: BACK, round: 1, cause: 'vote' },
+          ],
+          log: [
+            ...ROUND1_LOG.filter((e) => e.kind !== 'death'),
+            { kind: 'lovers', round: 1, cupidId: ID(11), loverIds: pair, mixed: true },
+            { kind: 'elder', round: 1, elderId: ID(10) },
+            { kind: 'death', round: 1, id: ME, cause: 'wolf' },
+            { kind: 'vote', round: 1, ballots: { [common]: BACK }, executedId: BACK },
+          ],
+        }),
+        players,
+      };
+    }
+    case 'end-tanner':
+    case 'end-lovers':
+    case 'end-minion': {
+      const base = baseLineup(n, extras);
+      base[9] = scene === 'end-tanner' ? 'tanner' : scene === 'end-lovers' ? 'cupid' : 'minion';
+      const players = makePlayers(base);
+      if (scene === 'end-tanner') {
+        return {
+          state: baseState('end', start, {
+            deaths: [
+              { id: common, round: 1, cause: 'wolf' },
+              { id: BACK, round: 1, cause: 'vote' },
+            ],
+            winner: 'tanner',
+            endReason: 'tanner-hanged',
+            log: [...ROUND1_LOG, { kind: 'vote', round: 1, ballots: { [ME]: BACK, [common]: BACK }, executedId: BACK }],
+          }),
+          players,
+        };
+      }
+      if (scene === 'end-lovers') {
+        // Còn đúng cặp Tình nhân: ghế 2 (Ma Sói) và ghế 5 (Dân).
+        const pair: [string, string] = [ID(1), common];
+        const others = base.map((_, i) => ID(i)).filter((id) => !pair.includes(id));
+        return {
+          state: baseState('end', start, {
+            round: 3,
+            lovers: pair,
+            deaths: others.map((id, k) => ({ id, round: 1 + (k % 3), cause: k % 2 ? ('vote' as const) : ('wolf' as const) })),
+            winner: 'lovers',
+            endReason: 'lovers',
+            log: [{ kind: 'lovers', round: 1, cupidId: BACK, loverIds: pair, mixed: true }, ...SAMPLE_LOG.slice(0, 7)],
+          }),
+          players,
+        };
+      }
+      return {
+        state: baseState('end', start, {
+          round: 2,
+          deaths: [
+            { id: common, round: 1, cause: 'wolf' },
+            { id: otherVillager, round: 1, cause: 'vote' },
+            { id: ID(2), round: 2, cause: 'wolf' },
+          ],
+          winner: 'wolves',
+          endReason: 'wolf-parity',
+          log: SAMPLE_LOG,
+        }),
+        players,
+      };
+    }
     case 'end-hunter': {
       // Thợ săn (ghế 9) bị cắn đêm 2, bắn Sói cuối cùng (ghế 6): phát bắn diễn trước, rồi mới lộ phe thắng.
-      const base = LINEUP.slice(0, n);
+      const base = baseLineup(n, extras);
       return {
         state: baseState('end', start, {
           round: 2,
@@ -485,7 +738,7 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAUL
           endReason: village ? 'no-wolves' : 'wolf-parity',
           log: SAMPLE_LOG,
         }),
-        players: makePlayers(LINEUP.slice(0, n)),
+        players: makePlayers(baseLineup(n, extras)),
       };
     }
   }
@@ -497,6 +750,7 @@ function Screen({
   start,
   rules,
   count,
+  extras,
   chrome,
 }: {
   scene: PreviewScene;
@@ -504,10 +758,13 @@ function Screen({
   start: number;
   rules?: Partial<WwRules>;
   count: number;
+  extras: readonly WwRole[];
   /** Thanh chọn màn / vai của Preview (nằm trong khung để cảnh nền phủ cả nó). */
   chrome: React.ReactNode;
 }) {
-  const initial = useMemo(() => buildScene(scene, role, start, count), [scene, role, start, count]);
+  const extrasKey = extras.join(',');
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- extras theo khoá chuỗi
+  const initial = useMemo(() => buildScene(scene, role, start, count, extras), [scene, role, start, count, extrasKey]);
   const [players, setPlayers] = useState(initial.players);
   const [state, setState] = useState(() => (initial.state && rules ? { ...initial.state, rules: { ...initial.state.rules, ...rules } } : initial.state));
   const setMine = (data: Partial<WerewolfGameData>) =>
@@ -560,28 +817,45 @@ function Screen({
   const myData = dataOf(me);
   const ctx = { state, me, myData, players, table, isHost: true };
 
-  const onPick = (targetId: string): PickResult => {
+  // Như useWerewolf.nightCheck / pickNight / confirmNight, nhưng ghi vào state cục bộ.
+  const myRole = myData.role as WwRole;
+  const nightPick = (draft: NightDraft, confirmed: boolean) => ({
+    round: state.round,
+    targetId: draft.targetId,
+    confirmed,
+    ...(draft.biteIds != null ? { biteIds: draft.biteIds } : {}),
+    ...(draft.loverIds != null ? { loverIds: draft.loverIds } : {}),
+  });
+  const onPick = (draft: NightDraft): PickResult => {
     const cur = pickFor(myData.nightPick, state.round);
-    if (cur?.confirmed && myData.role !== 'werewolf') return { outcome: 'locked', write: null };
-    if (!isValidTarget(table, ME, nightActionOf(myData.role as WwRole), targetId, { guardLast: myData.guardLast ?? null })) {
-      return { outcome: 'invalid', write: null };
-    }
-    setMine({ nightPick: { round: state.round, targetId, confirmed: false } });
+    if (cur?.confirmed && !isWolfRole(myRole)) return { outcome: 'locked', write: null };
+    const ok = (kind: Parameters<typeof isValidTarget>[2], id: string) => isValidTarget(table, ME, kind, id, { guardLast: myData.guardLast ?? null });
+    const bad =
+      (draft.targetId !== null && !ok(nightActionOf(myRole), draft.targetId)) ||
+      (draft.biteIds != null && !(isWolfRole(myRole) && wolfBitesFor(table, state.round) === 2 && draft.biteIds.every((id) => ok('wolf', id)))) ||
+      (draft.loverIds != null && !(cupidPairsTonight(myRole, state.round) && draft.loverIds.every((id) => ok('lover', id))));
+    if (bad) return { outcome: 'invalid', write: null };
+    setMine({ nightPick: nightPick(draft, false) });
     return { outcome: 'ok', write: Promise.resolve() };
   };
-  const onConfirm = async (targetId: string) => {
-    const look = myData.role === 'seer' ? seerLook(table, ME, targetId) : null;
+  const onConfirm = async (draft: NightDraft) => {
+    if (cupidPairsTonight(myRole, state.round)) {
+      const error = validateCupidPick(table, ME, draft.loverIds ?? [], state.round);
+      if (error) return { outcome: 'invalid' as const, error };
+    }
+    const look = myRole === 'seer' && draft.targetId ? seerLook(table, ME, draft.targetId) : null;
     setMine({
-      nightPick: { round: state.round, targetId, confirmed: true },
+      nightPick: nightPick(draft, true),
       ...(look ? { seerLog: [{ round: state.round, targetId: look.targetId, isWolf: look.isWolf }] } : {}),
     });
+    return { outcome: 'ok' as const, error: null };
   };
   const witchDraft = (draft: WitchDraft): WitchResult => {
     const cur = pickFor(myData.witchPick, state.round);
     if (cur?.confirmed) return { outcome: 'locked', error: null, write: null };
     if (draft.guessId && !isValidTarget(table, ME, 'guess', draft.guessId)) return { outcome: 'invalid', error: null, write: null };
     if (myData.role === 'witch') {
-      const error = validateWitchPick(table, ME, draft, state.attack, potionsOf(myData));
+      const error = validateWitchPick(table, ME, draft, attacksOf(state), potionsOf(myData));
       if (error) return { outcome: 'invalid', error, write: null };
     }
     setMine({ witchPick: { round: state.round, ...draft, confirmed: false } });
@@ -598,6 +872,7 @@ function Screen({
             isHost
             inGame
             rules={state.rules}
+            counts={state.roleCounts}
             leaveCandidates={state.phase === 'end' ? null : players.filter((p) => p.id !== ME && !table.deaths.some((d) => d.id === p.id))}
             onLeaveVillage={(id) =>
               setState((s) => s && { ...s, deaths: [...s.deaths, { id, round: s.round, cause: 'left' }], log: [...s.log, { kind: 'left', round: s.round, id, during: s.phase }] })
@@ -636,9 +911,15 @@ export default function WerewolfPreview({
   chrome = true,
   rules,
   count = DEFAULT_COUNT,
+  extras = [],
 }: {
-  /** Số người trên bàn (5–10, mặc định 9): kiểm bố cục với ít / nhiều người. */
+  /** Số người trên bàn (5–12, mặc định 9): kiểm bố cục với ít / nhiều người. */
   count?: number;
+  /**
+   * Vai mở rộng thêm vào bàn (ghế Dân từ cuối bàn lên, cần ≥ 10 người): để đổi
+   * vai người xem sang vai mở rộng mà bộ vai trên bàn không đổi (cặp ảnh riêng tư).
+   */
+  extras?: readonly WwRole[];
   initialScene?: PreviewScene;
   initialRole?: WwRole;
   /** Ghi đè luật của màn (vd. tắt "Hồn ma xem hết vai" để chụp ảnh). */
@@ -681,5 +962,16 @@ export default function WerewolfPreview({
       </select>
     </div>
   ) : null;
-  return <Screen key={`${scene}:${role}:${startAt}`} scene={scene} role={role} start={startAt} rules={rules} count={count} chrome={bar} />;
+  return (
+    <Screen
+      key={`${scene}:${role}:${startAt}:${extras.join(',')}`}
+      scene={scene}
+      role={role}
+      start={startAt}
+      rules={rules}
+      count={count}
+      extras={extras}
+      chrome={bar}
+    />
+  );
 }

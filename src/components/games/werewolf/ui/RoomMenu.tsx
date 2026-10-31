@@ -5,18 +5,23 @@ import type { Player } from '@/types/player';
 import { useHold } from '@/components/games/shared/hooks/useHold';
 import { MyRoleBody } from '../panel/DealPanel';
 import { Avatar, HoldCard, nameOf, type PanelCtx } from '../panel/shared';
-import type { WwRules } from '../types';
+import type { WwRole, WwRules } from '../types';
 import Button from './Button';
 import { Modal } from './Dialog';
 import RulesDialog from './RulesDialog';
 
-/** "Vai của tôi": giữ để xem vai, đồng đội Sói, kết quả soi các đêm (Tiên tri). */
-function MyRoleDialog({ ctx, onClose }: { ctx: Pick<PanelCtx, 'me' | 'myData' | 'players' | 'table'>; onClose: () => void }) {
+type MenuCtx = Pick<PanelCtx, 'me' | 'myData' | 'players' | 'table'> & { state?: Pick<PanelCtx['state'], 'phase' | 'round'> };
+
+/**
+ * "Vai của tôi": giữ để xem vai, đồng đội Sói, kết quả soi các đêm (Tiên tri),
+ * và phần của vai mở rộng (bầy Sói của Tay sai, mạng phụ, cặp đôi từ Bình minh 1).
+ */
+function MyRoleDialog({ ctx, onClose }: { ctx: MenuCtx; onClose: () => void }) {
   const { held, bind } = useHold();
   const looks = ctx.myData.seerLog ?? [];
   return (
     <Modal title="Vai của tôi" onClose={onClose}>
-      <HoldCard held={held} bind={bind} className="h-56" hint="Che màn hình rồi hãy giữ.">
+      <HoldCard held={held} bind={bind} className="h-64" hint="Che màn hình rồi hãy giữ.">
         {() => (
           <div className="text-left">
             <MyRoleBody ctx={ctx} />
@@ -83,17 +88,20 @@ export default function RoomMenu({
   isHost,
   inGame,
   rules,
+  counts = null,
   leaveCandidates = null,
   onLeaveVillage,
   onLeave,
   onDelete,
 }: {
   /** Có khi đang trong ván (để mở "Vai của tôi"). */
-  ctx: Pick<PanelCtx, 'me' | 'myData' | 'players' | 'table'> | null;
+  ctx: MenuCtx | null;
   isHost: boolean;
   inGame: boolean;
   /** Luật tuỳ chọn của ván (hoặc của phòng ở sảnh), cho màn "Luật chơi". */
   rules: WwRules | null;
+  /** Bộ vai của ván (hoặc của phòng ở sảnh), công khai: "Luật chơi" nêu vai mở rộng đang bật. */
+  counts?: Partial<Record<WwRole, number>> | null;
   /** Chủ phòng, giữa ván: người còn sống có thể cho rời làng. null = ẩn mục này. */
   leaveCandidates?: Player[] | null;
   onLeaveVillage?: (id: string, name: string) => void;
@@ -183,7 +191,7 @@ export default function RoomMenu({
         </Modal>
       )}
       {showRole && ctx && <MyRoleDialog ctx={ctx} onClose={() => setShowRole(false)} />}
-      {showRules && <RulesDialog rules={rules} onClose={() => setShowRules(false)} />}
+      {showRules && <RulesDialog rules={rules} counts={counts} onClose={() => setShowRules(false)} />}
       {showLeave && leaveCandidates && onLeaveVillage && (
         <LeaveDialog
           candidates={leaveCandidates}

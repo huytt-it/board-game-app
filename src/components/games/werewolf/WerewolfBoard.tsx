@@ -10,8 +10,8 @@ import QRCodeDisplay from '@/components/core/QRCodeDisplay';
 import type { GameModuleProps } from '@/lib/gameRegistry';
 import { dealDone, nightDone, talkDone, voteDone, witchDone } from '@/components/games/werewolf/engine/flow.ts';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
-import { useWerewolf, type PickResult, type WitchDraft, type WitchResult } from './useWerewolf';
-import { dataOf, nightPicksOf, witchPicksOf } from './state';
+import { useWerewolf, type NightConfirmResult, type NightDraft, type PickResult, type WitchDraft, type WitchResult } from './useWerewolf';
+import { dataOf, lobbyCounts, nightPicksOf, witchPicksOf } from './state';
 import { phaseTimeoutMs, type DayBallot, type WerewolfGameState, type WerewolfRoomConfig, type WwTable } from './types';
 import { usePhaseRemaining } from './hooks/usePhaseClock';
 import { useCueSync } from './hooks/useCueSync';
@@ -51,8 +51,9 @@ function remainingMs(state: WerewolfGameState): number {
 // Hành động trong phase trả về lần ghi: panel trả lại trạng thái "đã bấm" nếu gửi lỗi.
 export interface PhaseHandlers {
   onAckDeal: () => Promise<unknown>;
-  onPick: (targetId: string) => PickResult;
-  onConfirmNight: (targetId: string) => Promise<unknown>;
+  onPick: (draft: NightDraft) => PickResult;
+  /** Cupid ở đêm 1 chưa ghép đủ đôi: `invalid` + lý do (hiện trong thẻ giữ). */
+  onConfirmNight: (draft: NightDraft) => Promise<NightConfirmResult>;
   onPickWitch: (draft: WitchDraft) => WitchResult;
   onConfirmWitch: (draft: WitchDraft) => Promise<Pick<WitchResult, 'outcome' | 'error'>>;
   /** Thợ săn bắn (`targetId`) / không bắn (null). false = bước đã qua. */
@@ -323,8 +324,8 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
   );
 
   const handlePick = useCallback(
-    (targetId: string): PickResult => {
-      const res = pickNight(playerId, targetId);
+    (draft: NightDraft): PickResult => {
+      const res = pickNight(playerId, draft);
       res.write?.catch(() => setNotice('Không gửi được — kiểm tra kết nối mạng rồi thử lại.'));
       return res;
     },
@@ -353,7 +354,7 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
 
   const me = players.find((p) => p.id === playerId);
   const myData = dataOf(me);
-  const menuCtx = state && table && me ? { me, myData, players: gamePlayers, table } : null;
+  const menuCtx = state && table && me ? { me, myData, players: gamePlayers, table, state } : null;
   const leaveCandidates =
     isHost && inGame && state && table && ready && state.phase !== 'end'
       ? gamePlayers.filter((p) => p.id !== playerId && aliveIds(table).includes(p.id))
@@ -364,6 +365,7 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
       isHost={isHost}
       inGame={inGame}
       rules={state?.rules ?? config?.rules ?? null}
+      counts={room.status !== 'lobby' && state ? state.roleCounts : config ? lobbyCounts(config.roleCounts, players.length) : null}
       leaveCandidates={leaveCandidates}
       onLeaveVillage={handleLeaveVillage}
       onLeave={handleLeave}
@@ -426,7 +428,7 @@ export default function WerewolfBoard({ room, players, playerId, isHost }: GameM
       handlers={{
         onAckDeal: () => ackDeal(playerId).catch(failed),
         onPick: handlePick,
-        onConfirmNight: (targetId: string) => confirmNight(playerId, targetId).catch(failed),
+        onConfirmNight: (draft: NightDraft) => confirmNight(playerId, draft).catch(failed),
         onPickWitch: handlePickWitch,
         onConfirmWitch: (draft: WitchDraft) => confirmWitch(playerId, draft).catch(failed),
         onShoot: (targetId: string | null) => shootHunter(playerId, targetId).catch(failed),

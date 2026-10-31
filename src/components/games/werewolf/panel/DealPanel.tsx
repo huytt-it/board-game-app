@@ -3,21 +3,26 @@
 import { useState } from 'react';
 import { useHold } from '@/components/games/shared/hooks/useHold';
 import { ROLE_BLURB, ROLE_NAME } from '@/components/games/werewolf/engine/roles.ts';
-import { wolfIds } from '@/components/games/werewolf/engine/table.ts';
 import WwIcon from '../assets/WwIcon';
 import Button from '../ui/Button';
-import { Dock, HoldCard, nameOf, PhaseHeader, PhaseLayout, Seat, StatusLine, type PanelCtx } from './shared';
+import { Dock, HoldCard, PhaseHeader, PhaseLayout, Seat, StatusLine, type PanelCtx } from './shared';
+import { myTeam, RoleNotes, TeamLine } from './RoleInfo';
 
 /**
  * Nội dung riêng của "vai của tôi" (chỉ render khi đang giữ): huy hiệu vai trung
  * tính (không tô màu phe lên mảng lớn), tên vai, phe bằng chữ nhỏ, một câu; Sói
- * thấy đồng đội.
+ * thấy đồng đội; vai mở rộng thêm các dòng của RoleNotes (Tay sai thấy bầy, Già
+ * làng thấy mạng phụ, cặp đôi từ Bình minh ngày 1). `state`: để biết cặp đôi đã
+ * được biết chưa (thiếu = đã biết).
  */
-export function MyRoleBody({ ctx }: { ctx: Pick<PanelCtx, 'me' | 'myData' | 'players' | 'table'> }) {
+export function MyRoleBody({
+  ctx,
+}: {
+  ctx: Pick<PanelCtx, 'me' | 'myData' | 'players' | 'table'> & { state?: Pick<PanelCtx['state'], 'phase' | 'round'> };
+}) {
   const role = ctx.myData.role;
   if (!role) return <p>Chưa có vai.</p>;
-  const wolf = role === 'werewolf';
-  const mates = wolf ? wolfIds(ctx.table).filter((id) => id !== ctx.me.id) : [];
+  const team = myTeam(ctx);
   return (
     <div className="flex items-start gap-3 text-left">
       <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-(--ww-ink) text-(--ww-moon) ring-1 ring-(--ww-line)">
@@ -27,13 +32,9 @@ export function MyRoleBody({ ctx }: { ctx: Pick<PanelCtx, 'me' | 'myData' | 'pla
         <p className="ww-display text-2xl leading-tight text-(--ww-text)" data-ww-my-role={role}>
           Bạn là {ROLE_NAME[role]}
         </p>
-        <p className={`text-xs font-semibold ${wolf ? 'text-(--ww-wolf-light)' : 'text-(--ww-village-light)'}`}>{wolf ? 'Phe Sói' : 'Phe Dân làng'}</p>
+        {team && <TeamLine team={team} />}
         <p className="text-sm leading-snug text-(--ww-text-2)">{ROLE_BLURB[role]}</p>
-        {wolf && (
-          <p className="text-sm text-(--ww-text)">
-            {mates.length > 0 ? <>Đồng đội: {mates.map((id) => nameOf(ctx.players, id)).join(', ')}</> : 'Bạn là Sói duy nhất.'}
-          </p>
-        )}
+        <RoleNotes ctx={ctx} />
       </div>
     </div>
   );
