@@ -6,7 +6,7 @@ import { useReducedMotion } from '@/components/games/shared/hooks/useReducedMoti
 import { between, H, rng, W } from '@/components/games/avalon/scenes/paper';
 import { hashString } from '@/components/games/avalon/scenes/journey';
 import { SCENES, type SceneLayerDef } from '../assets/registry';
-import type { ParticleGroup, SceneId } from './types';
+import type { ParticleGroup, SceneId, SceneTint } from './types';
 
 // Cảnh cắt giấy phủ kín màn hình, phía sau giao diện Ma Sói (mẫu: Avalon
 // scenes/SceneBackdrop). Cảnh do getScene(state) chọn theo phase, nên mọi máy
@@ -81,6 +81,7 @@ function SceneView({ id, motionAt, fadeIn, onShown }: { id: SceneId; motionAt: n
             <SceneLayer key={i} src={layer} />
           )
         )}
+        {def.tint && <SceneTintLayer tint={def.tint} />}
         {def.particles && <Particles sceneId={id} groups={def.particles} />}
         {def.intro === 'brighten' && motionAt !== null && <Brighten key={motionAt} startedAt={motionAt} />}
       </div>
@@ -98,6 +99,11 @@ function SceneLayer({ src, className = '', style }: { src: SceneLayerDef; classN
   }
   const Svg = src.Component;
   return <Svg className={`absolute inset-0 h-full w-full ${className}`} style={style} />;
+}
+
+/** Đổi bảng màu của cả chồng lớp (GĐ5b): lớp màu phẳng hoà trộn lên các lớp phía dưới. */
+export function SceneTintLayer({ tint }: { tint: SceneTint }) {
+  return <div className="absolute inset-0" style={{ backgroundColor: tint.color, mixBlendMode: tint.blend, opacity: tint.opacity }} data-ww-scene-tint="" />;
 }
 
 // Mặt trời / trăng nhô lên sau đồi (scenes/timelines.ts: DAWN.sunMs, NIGHTFALL.moonMs).

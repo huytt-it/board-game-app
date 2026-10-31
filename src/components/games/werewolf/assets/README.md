@@ -46,7 +46,7 @@ URL ở dòng đầu file, path làm tròn 1 chữ số thập phân; thêm mộ
 - Cảnh chọn theo phase (`scenes/getScene.ts`), **không bao giờ theo vai** của người xem.
 - Thay một lớp bằng ảnh: `layers: [{ kind: 'image', src: '/werewolf/scenes/dawn-sky.webp' }, svg(DawnHills), …]`
   (ảnh 1600×900 hoặc 3200×1800, cùng khung).
-- 6 cảnh: `village-night` (sảnh, xem vai, đêm), `dawn`, `day` (thảo luận, bỏ phiếu, Thợ săn sau bình minh), `gallows` (kết quả phiếu, Thợ săn sau khi treo), `end-village`, `end-wolves`.
+- 8 cảnh: `village-night` (sảnh, xem vai, đêm), `dawn`, `day` (thảo luận, bỏ phiếu, Thợ săn sau bình minh), `gallows` (kết quả phiếu, Thợ săn sau khi treo), `end-village`, `end-wolves`, và hai cảnh kết thúc của vai mở rộng (GĐ5b) dùng lại lớp vẽ có sẵn + `tint` đổi bảng màu: `end-tanner` (giàn treo, màu đất sét) và `end-lovers` (làng ngày hội, màu hồng). `tint` là một lớp màu phẳng với `mix-blend-mode` nằm trên các lớp, dưới hạt.
 - Chuyển động của cảnh (GĐ4): lớp có `motion: 'rise'` (mặt trời của `dawn`, trăng của `village-night`)
   nhô lên sau đồi lúc bước bắt đầu; `intro: 'brighten'` (`dawn`) làm trời sáng dần. Mốc ở
   `scenes/timelines.ts`, bước nào có chuyển động ở `getSceneMotion`. Lớp đổi sang ảnh vẫn giữ được

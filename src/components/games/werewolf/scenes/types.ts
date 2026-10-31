@@ -9,6 +9,8 @@ export const SCENE_IDS = [
   'gallows', // kết quả phiếu, Thợ săn sau khi treo
   'end-village', // Dân thắng
   'end-wolves', // Sói thắng
+  'end-tanner', // Kẻ chán đời thắng (giàn treo, đổi bảng màu)
+  'end-lovers', // Tình nhân thắng (làng ngày hội, đổi bảng màu)
 ] as const;
 
 export type SceneId = (typeof SCENE_IDS)[number];
@@ -20,6 +22,8 @@ export const SCENE_NAMES_VI: Record<SceneId, string> = {
   gallows: 'Giàn treo',
   'end-village': 'Dân làng thắng',
   'end-wolves': 'Bầy Sói thắng',
+  'end-tanner': 'Kẻ chán đời thắng',
+  'end-lovers': 'Tình nhân thắng',
 };
 
 export interface ScenePalette {
@@ -37,6 +41,17 @@ export interface ScenePalette {
  */
 export type LayerMotion = 'rise';
 export type SceneIntro = 'brighten';
+
+/**
+ * Đổi bảng màu của một cảnh có sẵn (GĐ5b: hai cảnh kết thúc của phe mới dùng lại
+ * lớp vẽ của cảnh khác): một lớp màu phẳng phủ lên các lớp cảnh với
+ * `mix-blend-mode` (`color` giữ độ sáng, thay sắc). Nằm dưới hạt hiệu ứng.
+ */
+export interface SceneTint {
+  color: string;
+  blend: 'color' | 'soft-light';
+  opacity: number;
+}
 
 /** Hạt hiệu ứng vẽ bằng HTML trên các lớp; toạ độ theo khung cảnh 1600×900. Ẩn khi giảm chuyển động. */
 export type ParticleKind =
