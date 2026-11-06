@@ -111,7 +111,7 @@ function Stepper({
 }
 
 /** Một vai đặc biệt: ô chạm bật / tắt (bật = viền màu nhấn + ✓). */
-function RoleTile({ role, on, onToggle }: { role: WwRole; on: boolean; onToggle: () => void }) {
+function RoleTile({ role, on, dense, onToggle }: { role: WwRole; on: boolean; /** Ba ô một hàng: ở màn rất hẹp bỏ icon vai để tên và dấu ✓ không đè nhau. */ dense: boolean; onToggle: () => void }) {
   return (
     <button
       type="button"
@@ -124,7 +124,9 @@ function RoleTile({ role, on, onToggle }: { role: WwRole; on: boolean; onToggle:
         on ? 'bg-(--ww-raised-hi) text-(--ww-text) ring-2 ring-(--ww-accent)' : 'border border-(--ww-line) bg-(--ww-ink) text-(--ww-text-3)'
       }`}
     >
-      <WwIcon name={role} size={18} className="shrink-0" />
+      <span className={`shrink-0 ${dense ? 'max-[359px]:hidden' : ''}`} aria-hidden="true">
+        <WwIcon name={role} size={18} />
+      </span>
       <span className="min-w-0 flex-1">{ROLE_NAME[role]}</span>
       {on && <WwIcon name="check" size={14} className="shrink-0 text-(--ww-accent)" />}
     </button>
@@ -141,6 +143,7 @@ function RoleGroup({ title, roles, cols, counts, onToggle, onInfo }: { title: st
             key={role}
             role={role}
             on={counts[role] > 0}
+            dense={cols === 3}
             onToggle={() => {
               onInfo(role);
               onToggle(role);

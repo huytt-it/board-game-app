@@ -33,6 +33,7 @@ export const PREVIEW_SCENES = {
   'night-empty': 'Đêm ① — chưa chọn',
   'night-picked': 'Đêm ① — đã chọn, chưa xác nhận',
   'night-confirmed': 'Đêm ① — đã xác nhận',
+  'night-confirmed-half': 'Đêm ① — đã xác nhận, Cupid mới ghép 1 người (GĐ6a)',
   'night-split': 'Đêm ① — bầy Sói chưa thống nhất',
   'night-dead': 'Đêm ① — người xem đã chết',
   'night-2': 'Đêm 2 — vào đêm, trăng lên',
@@ -248,10 +249,11 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAUL
     case 'night-empty':
     case 'night-picked':
     case 'night-confirmed':
+    case 'night-confirmed-half':
     case 'night-split':
     case 'night-dead': {
       // Cupid đêm 1 đã ghép đôi (chỉ thấy khi giữ thẻ): ghế 3 và 4.
-      const lovers = role === 'cupid' ? { loverIds: [ID(2), ID(3)] } : {};
+      const lovers = role === 'cupid' ? { loverIds: scene === 'night-confirmed-half' ? [ID(2)] : [ID(2), ID(3)] } : {};
       const mine = scene === 'night-empty' || scene === 'night-dead' ? null : { round: 1, targetId: common, confirmed: scene !== 'night-picked', ...lovers };
       const deaths = scene === 'night-dead' ? [{ id: ME, round: 1, cause: 'wolf' as const }] : [];
       const players = makePlayers(roles, (id, r) => {
