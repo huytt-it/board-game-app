@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useHold } from '@/components/games/shared/hooks/useHold';
-import { CUPID_PICK_ERROR_TEXT, pickFor, wolfBitesFor, wolfStatus } from '@/components/games/werewolf/engine/night.ts';
+import { pickFor, wolfBitesFor, wolfStatus } from '@/components/games/werewolf/engine/night.ts';
 import { cupidPairsTonight, isWolfRole } from '@/components/games/werewolf/engine/roles.ts';
 import { aliveIds } from '@/components/games/werewolf/engine/table.ts';
 import type { NightConfirmResult, NightDraft, PickResult } from '../useWerewolf';
@@ -122,6 +122,11 @@ function PrivateBody({ ctx, draft, note, bitesTwo }: { ctx: PanelCtx; draft: Nig
             {lovers.length === 0 ? 'Chưa ghép ai.' : lovers.length === 1 ? `Đã chọn ${nameOf(ctx.players, lovers[0])}, chọn thêm 1 người.` : `Ghép đôi: ${nameOf(ctx.players, lovers[0])} và ${nameOf(ctx.players, lovers[1])}.`}
           </p>
           <p className="text-(--ww-text-2)">Vẫn giữ thẻ, chạm từng người ở lưới (chạm lại để bỏ). Chạm khi không giữ: người bạn nghi.</p>
+          {lovers.length < 2 && (
+            <p className="font-semibold text-(--ww-accent)" data-ww-cupid-short="">
+              {pick?.confirmed ? 'Chưa ghép đủ 2 người: ván không có cặp đôi.' : 'Chưa ghép đủ 2 người: Xác nhận thì ván không có cặp đôi.'}
+            </p>
+          )}
         </div>
       )}
       {role === 'seer' &&
@@ -225,13 +230,13 @@ export default function NightPanel({
 
   const confirm = () => {
     if (!shownPick) return;
-    // Giữ "đang gửi" đến khi snapshot báo đã xác nhận; gửi lỗi / Cupid chưa ghép đủ thì trả lại.
+    // Giữ "đang gửi" đến khi snapshot báo đã xác nhận; gửi lỗi thì trả lại.
     setConfirmingAt(state.phaseStartedAt);
     onConfirm(draft).then(
-      ({ outcome, error }) => {
+      ({ outcome }) => {
         if (outcome === 'ok') return;
         setConfirmingAt(null);
-        if (outcome === 'invalid') say(error ? `${CUPID_PICK_ERROR_TEXT[error]} Giữ thẻ, chạm lưới để ghép đôi.` : 'Lựa chọn không còn hợp lệ, chọn lại.');
+        if (outcome === 'invalid') say('Lựa chọn không còn hợp lệ, chọn lại.');
         else if (outcome === 'closed') say('Hết giờ.');
       },
       () => setConfirmingAt(null)

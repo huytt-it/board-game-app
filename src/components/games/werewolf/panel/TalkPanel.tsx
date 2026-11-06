@@ -66,6 +66,10 @@ export default function TalkPanel({ ctx, onReady }: { ctx: PanelCtx; onReady: ()
       <StatusLine icon="check" className="mt-3 lg:mt-0">
         {readyCount}/{alive.length} người sẵn sàng bỏ phiếu
       </StatusLine>
+      {/* Gợi ý công khai, như nhau với mọi người (kể cả người chết): rules §5.8. */}
+      <p className="mt-2 text-center text-sm text-(--ww-text-2)" data-ww-skip-hint="">
+        Không muốn treo ai? Bấm Sẵn sàng, rồi chọn Bỏ qua khi bỏ phiếu.
+      </p>
       {iAmAlive ? (
         <Dock>
           <Button variant="primary" size="lg" block disabled={ready || ctx.remaining <= 0} onClick={send}>

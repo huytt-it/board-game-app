@@ -126,6 +126,7 @@ Mỗi bước có đồng hồ. Thời lượng do chủ phòng đặt (mục 8.
 ### 5.8 Thảo luận
 - Cả làng nói chuyện **ngoài đời**. App đếm giờ và hiện danh sách người còn sống / đã chết.
 - Nút **"Sẵn sàng bỏ phiếu"**. Kết thúc sớm khi mọi người còn sống đã bấm, hoặc hết giờ.
+- Màn Thảo luận có dòng gợi ý: *"Không muốn treo ai? Bấm Sẵn sàng, rồi chọn Bỏ qua khi bỏ phiếu."* Không có nút bỏ qua cả buổi sáng: muốn không treo ai thì cả làng chọn Bỏ qua ở bước Bỏ phiếu (người dùng chốt 2026-11-06).
 
 ### 5.9 Bỏ phiếu và kết quả
 - Mỗi người còn sống bầu **một người còn sống khác mình**, hoặc **"Bỏ qua"**. Được đổi phiếu đến khi bước kết thúc. Không bầu thì tính là Bỏ qua.
@@ -172,7 +173,13 @@ Mỗi bước có đồng hồ. Thời lượng do chủ phòng đặt (mục 8.
 ## 8. Cài đặt phòng (chủ phòng, ở sảnh)
 
 ### 8.1 Bộ vai
-Bộ vai mặc định theo số người (mục 4). Chủ phòng chỉnh được số Sói và từng vai đặc biệt. Dân làng là phần còn lại, tự tính theo số người trong phòng.
+Bộ vai mặc định theo số người (mục 4). Dân làng là phần còn lại, tự tính theo số người trong phòng.
+
+Cách chỉnh (người dùng chốt 2026-11-06):
+- **Số Sói** là thứ duy nhất có số lượng (nút −/+).
+- **Mọi vai đặc biệt** (4 vai cơ bản và 6 vai mở rộng) đều là ô chạm để bật/tắt, cùng một kiểu, mỗi vai 0 hoặc 1 người.
+- Mô tả của vai vừa chạm hiện thành một dòng. Mô tả đầy đủ có trong màn Luật chơi.
+- Người không phải chủ phòng chỉ thấy tóm tắt bộ vai, không thấy nút bị khoá.
 
 Sảnh luôn hiện điểm cân bằng kèm nhãn:
 - "cân" khi |điểm| ≤ 2;
@@ -195,7 +202,20 @@ Lệch quá ±6 thì có thêm cảnh báo (người dùng chốt 2026-10-11).
 | Thợ săn bị độc vẫn được bắn | Tắt | Bật / Tắt |
 
 ### 8.3 Thời gian các bước
-Chỉnh bằng nút −/+, cố định khi bắt đầu ván (giống Avalon GĐ8).
+Chủ phòng chọn **Nhịp ván** (người dùng chốt 2026-11-06). Thời lượng cố định khi bắt đầu ván (giống Avalon GĐ8).
+
+| Bước | Nhanh | **Vừa** (mặc định) | Thong thả |
+|---|---|---|---|
+| Xem vai | 45 giây | 1 phút | 1,5 phút |
+| Ban đêm (Đêm ①) | 30 giây | 45 giây | 1 phút |
+| Phù thủy (Đêm ②) | 15 giây | 20 giây | 30 giây |
+| Thợ săn bắn | 20 giây | 30 giây | 45 giây |
+| Thảo luận | 2 phút | 3 phút | 5 phút |
+| Bỏ phiếu | 30 giây | 45 giây | 1 phút |
+
+Mục **Tuỳ chỉnh** (mặc định đóng) cho chỉnh từng bước bằng nút −/+ trong giới hạn ở bảng dưới. Chỉ hiện những bước ván có thật: không có Phù thủy thì không có dòng Phù thủy, không có Thợ săn thì không có dòng Thợ săn. Khi giá trị không khớp nhịp nào thì nhịp hiện "Tuỳ chỉnh".
+
+Giới hạn khi tuỳ chỉnh:
 
 | Bước | Mặc định | Tối thiểu | Tối đa | Bước nhảy |
 |---|---|---|---|---|
@@ -286,6 +306,7 @@ Phe Dân, giống Dân làng ở mọi mặt, trừ một điểm: Tiên tri soi
 - **Ghép đôi (Đêm 1, trong Đêm ①):**
   - Cupid chọn **2 người khác nhau** còn sống làm cặp đôi, được chọn cả chính mình, rồi Xác nhận.
   - Màn của Cupid giống mọi người: chạm lưới khi không giữ là "người mình nghi"; việc ghép đôi làm trong thẻ giữ (giữ thẻ rồi chạm lưới, giống cách Phù thủy độc).
+  - Cupid **Xác nhận được cả khi chưa ghép đủ 2 người**. Khi đó ván không có cặp đôi (người dùng chốt 2026-11-06; trước đó màn chặn Xác nhận). Thẻ giữ của Cupid nhắc: "Chưa ghép đủ 2 người: Xác nhận thì ván không có cặp đôi."
   - Hết giờ mà chưa chọn đủ 2 người hoặc chưa Xác nhận thì ván **không có cặp đôi**.
   - Cupid, hoặc một trong hai người được chọn, bị cho rời làng trước khi Đêm ① của đêm 1 kết thúc thì ván cũng không có cặp đôi (như E25) **(chốt 2026-10-18)**.
 - **Ai biết gì:**

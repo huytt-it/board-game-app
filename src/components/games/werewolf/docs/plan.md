@@ -739,7 +739,82 @@ Giao diện vai mới, sảnh "Vai mở rộng", cảnh mới, ván thật 12 c�
 
 ---
 
-## 10c. GĐ6 — Chơi thật (chưa lên lịch)
+## 10c. GĐ6a — Dọn sảnh, Cupid, gợi ý bỏ qua (thêm 2026-11-06)
+
+Phản hồi của người dùng sau khi merge #65:
+- Phần chọn vai ở sảnh phức tạp: tại sao Tiên tri, Phù thủy có số lượng, còn vai khác lại bật/tắt?
+- Phần Thời gian nhìn rối.
+- Cupid phải Xác nhận được mà không cần ghép đôi.
+- Muốn có gợi ý cách bỏ qua việc treo ở Thảo luận. Chỉ thêm dòng gợi ý, **không** thêm nút "Đi ngủ luôn".
+
+Người dùng duyệt plan dưới đây ngày 2026-11-06.
+
+### Review màn sảnh trước khi sửa (`5aaf25e1`, 375px)
+1. Hai kiểu điều khiển cho cùng một việc: 4 vai cơ bản dùng −/+ dù chỉ 0–1; 6 vai mở rộng dùng Bật/Tắt kèm mô tả dài.
+2. Sảnh của chủ phòng cao khoảng 2.450px, của người chơi khác khoảng 2.100px.
+3. Người không phải chủ phòng thấy nút "Tắt" và −/+ bị khoá.
+4. Thời gian: 6 dòng −/+ luôn hiện, kể cả bước ván không có. Nhãn "Đêm ①/②" khó hiểu.
+5. Luật: 4 khối chọn to; "Thợ săn bị độc…" hiện cả khi không có Thợ săn.
+
+### Việc cần làm
+1. **Cupid** (rules §11.5):
+   - Xác nhận được cả khi chưa ghép đủ 2 người. Bỏ việc chặn bằng `validateCupidPick` ở `confirmNight`.
+   - Ghép dở 1 người thì vẫn ghi như hiện có; engine `cupidPairOf` trả null nên ván không có cặp đôi. Engine không đổi.
+   - Ghép không hợp lệ (trùng người, người chết) thì vẫn chặn **ngay lúc chạm**, như bây giờ.
+   - Thẻ giữ của Cupid đêm 1 nhắc: "Chưa ghép đủ 2 người: Xác nhận thì ván không có cặp đôi."
+   - Từ ngoài nhìn vào, nút và dòng trạng thái của Cupid phải giống hệt mọi người.
+2. **Bộ vai: một kiểu điều khiển** (rules §8.1):
+   - Dòng tóm tắt + nhãn cân bằng, ví dụ "12 người = 3 Sói · 4 vai đặc biệt · 5 Dân" và "Cân +1"; cảnh báo lệch ±6 giữ nguyên.
+   - **Số Sói** là stepper duy nhất, kèm "đề xuất: N" theo bộ mặc định.
+   - **Vai đặc biệt** là lưới ô chạm để bật/tắt (icon + tên; bật = viền màu nhấn + ✓), chia hai nhóm "Cơ bản" (Tiên tri, Bảo vệ, Phù thủy, Thợ săn) và "Mở rộng" (6 vai).
+   - Một dòng mô tả cho vai vừa chạm. Bỏ mô tả nằm sẵn dưới từng vai.
+   - Dân làng chỉ nằm trong dòng tóm tắt.
+   - "Về mặc định" giữ nguyên.
+3. **Thời gian: Nhịp ván** (rules §8.3):
+   - Mặc định chỉ hiện ô chọn 3 nhịp (Nhanh / **Vừa** / Thong thả) + một dòng tóm tắt (ví dụ "Đêm 45 giây · Thảo luận 3 phút · Bỏ phiếu 45 giây").
+   - Mục **Tuỳ chỉnh** mặc định đóng. Mở ra là các stepper, chỉ cho bước ván có thật (theo bộ vai đang chọn).
+   - Nhãn chữ thường: "Xem vai", "Ban đêm", "Phù thủy", "Thợ săn bắn", "Thảo luận", "Bỏ phiếu".
+   - Không khớp nhịp nào thì hiện "Tuỳ chỉnh".
+   - Giá trị nhịp lấy đúng bảng rules §8.3.
+   - **Dữ liệu không đổi:** vẫn ghi `config.phaseSeconds`. Nhịp nào đang chọn thì suy ra từ giá trị.
+4. **Luật:**
+   - 4 dòng công tắc gọn ("Sói hoà phiếu" có thể là công tắc "Hoà thì không cắn").
+   - Ẩn luật không áp dụng cho bộ vai: "Thợ săn bị độc vẫn bắn" khi không có Thợ săn (hoặc không có Phù thủy).
+5. **Người không phải chủ phòng:** sảnh chỉ hiện tóm tắt chỉ đọc (vai trong ván dạng chip icon + tên, nhịp ván, các luật đang bật). Không còn nút bị khoá.
+6. **Bố cục sảnh:**
+   - Chủ phòng: "Bộ vai" mở sẵn; "Luật" và "Thời gian" là khối gọn có dòng tóm tắt, chạm để mở.
+   - Nút "Bắt đầu ván" giữ ở thanh đáy.
+   - 1440px giữ bố cục hai cột của GĐ3.
+7. **Gợi ý ở Thảo luận** (rules §5.8): một dòng "Không muốn treo ai? Bấm Sẵn sàng, rồi chọn Bỏ qua khi bỏ phiếu." Như nhau với mọi người, kể cả người chết (hoặc ẩn với người chết).
+8. **Màn Luật chơi:** mô tả vai lấy từ `ROLE_BLURB` như cũ. Thêm dòng về nhịp ván nếu cần.
+
+### Không làm
+- Không đổi engine.
+- Không đổi cách lưu cài đặt (`roleCounts`, `rules`, `phaseSeconds`), luật chơi (ngoài Cupid), máy trạng thái, các màn trong ván.
+- Không thêm nút bỏ qua cả buổi sáng.
+- Không thêm dependency, không đụng Avalon / file dùng chung.
+
+### Nghiệm thu
+- `npm run test:werewolf`, `tsc`, eslint werewolf, eslint games = baseline, `build` đều qua.
+- **Đo trước / sau ở 375px** (12 người, có bật vai mở rộng):
+  - chiều cao sảnh: chủ phòng ≤ khoảng 1.400px, người chơi khác ≤ khoảng 1.000px;
+  - số chữ;
+  - số điều khiển.
+- Không cuộn ngang ở 320px. Tương phản ≥ 4,5:1. Ảnh 375 / 1440 trước và sau.
+- **Bot ở `.claude/ww-tools/`:** cập nhật theo nhãn mới (bật / tắt vai bằng ô, nhịp ván).
+- **Ván thật ngắn** bản production (7–9 cửa sổ):
+  - chủ phòng bật Cupid + Già làng bằng ô, tắt Thợ săn, chọn nhịp "Nhanh", rồi bắt đầu;
+  - `state.timeouts` đúng bảng Nhanh;
+  - Cupid Xác nhận khi chưa ghép đôi → ván không có cặp đôi;
+  - màn Thảo luận có dòng gợi ý;
+  - cả làng chọn Bỏ qua → không ai bị treo.
+- Hồi quy `heal` (6 vai gốc).
+- Cặp ảnh riêng tư Đêm 1 của Cupid so với Dân, khi không giữ (gồm lúc Cupid đã Xác nhận mà chưa ghép): ≈ 0.
+- Dọn mọi phòng thử.
+
+---
+
+## 10d. GĐ6b — Chơi thật (sau GĐ6a)
 - Chơi 2–3 ván thật với nhóm bạn, ghi lỗi và cảm nhận, chỉnh bộ vai mặc định, điểm cân bằng và thời gian mặc định.
 - Kiểm các mục "Để GĐ5" còn mở ở §12.8 và §12.14 (thẻ phát bắn che tiêu đề, chữ chồng lúc crossfade ở Kết quả, nhịp 8 giây, kéo để cuộn tờ hồn ma).
 - Tuỳ chọn "loa chung": máy chủ phòng đọc thông báo **công khai** bằng giọng nói (Web Speech, vi-VN).
@@ -786,7 +861,8 @@ Giao diện vai mới, sảnh "Vai mở rộng", cảnh mới, ván thật 12 c�
 | GĐ3b | **Review đạt** (nhạc trưởng, 2026-10-17; GĐ3a cùng review) | `05feb3bd` → `7fece5ea`; code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11, review ở §12.12. |
 | GĐ5a | **Review đạt** (nhạc trưởng, 2026-10-18) | `fcc2a7f5` → `4e0858bd`; code `bddc1cf5` | 6 vai mở rộng + 12 người thành engine thuần, giữ tương thích ngược (138 test cũ chạy nguyên, chỉ sửa 3 chỗ ghi cứng "5–10 người"). Engine 202 test, phủ đủ E1–E55. UI chỉ thêm khoá cho vai mới để build qua. Ván thật hồi quy `heal` 7 cửa sổ 22/22. 6 cách hiểu luật: **người dùng chốt giữ nguyên cả 6** (2026-10-18), đã ghi vào rules §11. Chi tiết, API cho GĐ5b ở §12.16, review ở §12.17. |
 | GĐ5b | **Review đạt** (nhạc trưởng, 2026-10-31) → PR #3 | `53d21220` → (commit docs này); code `a3242eb1`, `11bd53de`, `dda718fe` | Vai mở rộng có giao diện + máy trạng thái, 5–12 người. Riêng tư 613/613 cặp khung hình = 0.000 (6 vai mới × 16 màn × 5 khung, đêm cắn 2, 2 người bị nhắm, cặp đôi, 1440 px). Ván thật production 8 kịch bản 83/83 (11–12 cửa sổ + hồi quy `heal` 7 cửa sổ), 0 banner, 0 lỗi JS, riêng tư liên tục 0 vi phạm. Va chạm 310/310, tương phản 918/918, không cuộn ngang 122/122 màn. Gói Ma Sói 66,2 → 74,6 KB gzip. Chi tiết, lệch kế hoạch, chỗ cần chốt ở §12.18. Review ở §12.19. |
-| GĐ6 | Chưa bắt đầu | | Chơi thật (§10c). |
+| GĐ6a | **Review đạt + người dùng duyệt giao diện** (2026-11-06) → PR #4 | `21eea079` → (commit docs này); code `e7763f4a`, `a141f7bd` | Sảnh gọn: số Sói là stepper duy nhất, mọi vai đặc biệt là ô chạm; Luật và Thời gian (nhịp Nhanh / Vừa / Thong thả + Tuỳ chỉnh) là khối gập; người chơi chỉ thấy tóm tắt. Cupid Xác nhận được khi chưa ghép đôi (ván không có cặp đôi); Thảo luận có dòng gợi ý chọn Bỏ qua. Sảnh 12 người có vai mở rộng ở 375 px: chủ phòng 2.453 → 1.424 px, người chơi 2.145 → 1.007 px. Test 202/202, riêng tư Cupid 30/30 + 30/30 + 160/160 = 0.000, tương phản 623/623, không cuộn ngang 126/126, ván thật 9 cửa sổ `gd6a` 19/19 (timeouts đúng bảng Nhanh), hồi quy `heal` 11/11 và `lovers` 14/14. Chi tiết ở §12.20. Review ở §12.21. |
+| GĐ6b | Chưa bắt đầu | | Chơi thật (§10d). |
 | GĐ4 | **Review đạt** (nhạc trưởng, 2026-10-17) | `e0ffa324` → `e336a9e1`; code `13d5e3fe` | Hoạt cảnh theo đồng hồ chung (`scenes/timelines.ts`): vào đêm, trăng / mặt trời lên, bình minh lần lượt theo ghế, kết quả phiếu dạng cột đếm, phát bắn của Thợ săn ở bước kế tiếp, kết thúc kể theo từng đêm / ngày; bù độ trễ dựng (`useCueSync`). Riêng tư 675/675 cặp = 0.000 ở 5 khung hình. Ván thật production 3 kịch bản 52/52, các cửa sổ lệch ≤ 5,3 ms ở 166 mốc, reload giữa hoạt cảnh lệch ≤ 1,1 ms. Gói Ma Sói 60,2 → 64,0 KB gzip. Chi tiết ở §12.13, review ở §12.14. |
 
 ### 12.1 GĐ0 — ghi chú của người thực thi (2026-10-11)
@@ -1571,3 +1647,121 @@ GĐ5b do một agent thực thi (Opus) chạy nền làm, theo yêu cầu của 
 - Để GĐ6: điểm cân bằng vai mở rộng; tờ hồn ma 12 người phải cuộn (kéo ngón chưa thử trên cảm ứng thật); nhịp Bình minh khi có 3–4 người chết.
 
 **Tiếp theo:** người dùng đã đồng ý (2026-10-31). Nhạc trưởng push `dev-werewolf`, mở PR #3 và squash-merge GĐ5a + GĐ5b vào `main`, rồi `git merge -s ours origin/main` trên `dev-werewolf`. Sau đó GĐ6 (§10c).
+
+### 12.20 GĐ6a — ghi chú của người thực thi (2026-11-06)
+
+**Commit** (trên `dev-werewolf`, chưa push; điểm bắt đầu `21eea079`):
+1. `e7763f4a` sảnh gọn (ô vai, nhịp ván, Luật / Thời gian gập), Cupid Xác nhận không cần ghép đôi, gợi ý bỏ qua ở Thảo luận, Preview có sảnh tương tác.
+2. `a141f7bd` Preview thêm cảnh `night-confirmed-half`; ô vai 3 cột bỏ icon khi màn < 360 px.
+3. Commit docs này: §12.
+
+**Đã làm**
+- **Cupid** (`useWerewolf.confirmNight`, `NightPanel`):
+  - Bỏ chặn `validateCupidPick` ở `confirmNight` (và ở `onConfirm` của Preview). `NightConfirmResult` không còn `error`. Cupid mới ghép 0 / 1 người vẫn Xác nhận được; `loverIds` dở được ghi như cũ, engine `cupidPairOf` trả null nên `lovers: null` và ván không có cặp đôi. Engine không đổi (202 test).
+  - Ghép không hợp lệ (trùng người, người chết) vẫn bị chặn ngay lúc chạm.
+  - Thẻ giữ của Cupid đêm 1, khi `loverIds` < 2: "Chưa ghép đủ 2 người: Xác nhận thì ván không có cặp đôi."; sau khi đã Xác nhận: "Chưa ghép đủ 2 người: ván không có cặp đôi." Chỉ có trong thẻ giữ (`data-ww-cupid-short`). Khi không giữ: nút và dòng trạng thái như mọi người.
+- **Thảo luận** (`TalkPanel`): dòng "Không muốn treo ai? Bấm Sẵn sàng, rồi chọn Bỏ qua khi bỏ phiếu." dưới dòng "n/m người sẵn sàng", như nhau với mọi người kể cả người chết (`data-ww-skip-hint`).
+- **Sảnh** (`LobbySettings` viết lại, `LobbyPanel`):
+  - Dòng tóm tắt "12 người = 2 Sói · 8 vai đặc biệt · 2 Dân" + "Cân bằng −7 · lợi Sói" (nhãn `BALANCE_LEAN_TEXT`), cảnh báo lệch ±6 giữ nguyên. "Về mặc định" nằm cạnh dòng cân bằng.
+  - **Số Sói** là stepper duy nhất, kèm "đề xuất: N" (`presetFor(số người).werewolf`). aria-label nút vẫn "Bớt / Thêm Ma Sói".
+  - **Vai đặc biệt** là ô chạm `role="switch"` (aria-label = tên vai; bật = viền `--ww-accent` + ✓), nhóm "Cơ bản" (2 × 2) và "Mở rộng" (3 cột). Một dòng mô tả vai vừa chạm (`ROLE_BLURB`); chưa chạm thì dòng hướng dẫn. Dân làng chỉ nằm trong dòng tóm tắt. Bỏ `EXTRA_SHORT`.
+  - **Luật**: khối gập (mặc định đóng) có dòng tóm tắt (các luật đang bật), 4 công tắc một dòng; "Sói hoà phiếu" thành công tắc "Sói hoà phiếu thì không cắn"; ẩn "Thợ săn bị độc vẫn được bắn" khi không có Thợ săn hoặc không có Phù thủy.
+  - **Thời gian = Nhịp ván**: khối gập (mặc định đóng), dòng tóm tắt "Vừa · Đêm 45 giây · Thảo luận 3 phút · Bỏ phiếu 45 giây". Mở ra: ô chọn Nhanh / Vừa / Thong thả / Tuỳ chỉnh. Nhịp lấy từ `paceOf(phaseSeconds)` (so khớp cả sáu giá trị, bảng rules §8.3 ở `types.ts`: `PACE_SECONDS`), không khớp thì "Tuỳ chỉnh". Chọn nhịp ghi nguyên `config.phaseSeconds` (dữ liệu không đổi). Tuỳ chỉnh (đóng mặc định; tự mở khi không khớp nhịp nào) là các stepper "Xem vai", "Ban đêm", "Phù thủy", "Thợ săn bắn", "Thảo luận", "Bỏ phiếu" — chỉ bước ván có thật.
+  - **Người không phải chủ phòng**: tóm tắt chỉ đọc (dòng tóm tắt + cân bằng + chip icon + tên các vai trong ván, "Nhịp ván: …", "Luật: …"), 0 nút / công tắc.
+  - Ghế ở sảnh thấp hơn (`Seat compact`, 48 px thay vì 56) để 12 ghế không đẩy cài đặt quá xa.
+  - Bố cục 1440 px (hai cột GĐ3) và nút "Bắt đầu ván" ở thanh đáy giữ nguyên.
+- **Preview**: sảnh có state cục bộ (`PreviewLobby`, bật / tắt vai, nhịp, luật thử được); cảnh mới `lobby-extras-guest` (12 người, người chơi) và `night-confirmed-half` (Cupid đã Xác nhận, mới ghép 1 người).
+- Màn "Luật chơi": không đổi (mô tả vai vẫn từ `ROLE_BLURB`); **không** thêm dòng về nhịp ván (plan ghi "nếu cần").
+
+**Lệch kế hoạch / cách hiểu cần người dùng hoặc nhạc trưởng chốt**
+1. **Chiều cao sảnh mục tiêu là chiều cao cả trang** (số đo "trước" 2.453 / 2.145 px khớp con số ~2.450 / ~2.100 của plan, gồm 12 ghế + mã mời). Sau: chủ phòng **1.424 px** (≈ 1.400 ✓), người chơi **1.007 px** (≈ 1.000 ✓). Muốn thấp hơn nữa phải giảm phần ghế / mã mời (≈ 600 px) chứ không phải phần cài đặt.
+2. Ô chọn nhịp có **4 ô** (Nhanh / Vừa / Thong thả / Tuỳ chỉnh): "Tuỳ chỉnh" vừa là nhịp hiện khi giá trị lệch, vừa là nút mở / đóng các stepper. Khi đang ở một nhịp, bấm "Tuỳ chỉnh" chỉ mở stepper (không đổi giá trị); bấm một nhịp thì ghi đè cả sáu giá trị và đóng Tuỳ chỉnh.
+3. Mở "Luật" thì đóng "Thời gian" và ngược lại (chỉ một khối mở cùng lúc) để sảnh không dài ra.
+4. Nhãn cân bằng viết "Cân bằng −7 · lợi Sói" (plan ví dụ "Cân +1"); giữ chữ "Cân bằng" cho khỏi nhầm với nhãn "cân".
+5. Dân làng âm (quá nhiều vai) vẫn hiện số âm trong dòng tóm tắt; lỗi `total` của `validateSetup` hiện bên dưới như cũ.
+6. Preview `night-confirmed-half` và `lobby-extras-guest` là cảnh mới chỉ để kiểm thử (không có trong sản phẩm).
+7. Không đổi `rules.md` (đã có sẵn chữ của GĐ6a), engine, cách lưu cài đặt, Avalon, file dùng chung. Không thêm dependency, không âm thanh.
+
+**Kiểm thử**
+- `npm run test:werewolf` **202/202**. `npx tsc --noEmit` sạch. `npx eslint src/components/games/werewolf` sạch; `npx eslint src/components/games` 29 lỗi / 29 cảnh báo = mốc. Lớp màu lẻ / `text-[Npx]`: 0 / 0. `npm run build` exit 0 (đã xoá trang harness `src/app/wwtest`, `rm -rf .next` trước build).
+- **Đo trước / sau** (harness, 12 người, bật vai mở rộng: Ma Sói ×2, Sói con, Tiên tri, Bảo vệ, Phù thủy, Thợ săn, Già làng, Cupid, Tay sai; `lobbymetrics.mjs`; "trước" đo ở `21eea079`):
+
+  | 375 px | Trước | Sau |
+  |---|---|---|
+  | Chiều cao trang, chủ phòng | 2.453 px | **1.424 px** |
+  | Chiều cao trang, người chơi | 2.145 px | **1.007 px** |
+  | Chiều cao khối cài đặt, chủ phòng / người chơi | 1.625 / 1.361 px | 644 / 271 px |
+  | Số chữ cả trang, chủ phòng / người chơi | 273 / 248 | 153 / 122 |
+  | Số chữ khối cài đặt, chủ phòng / người chơi | 229 / 204 | 109 / 78 |
+  | Số điều khiển cả trang, chủ phòng / người chơi | 50 / 15 | 28 / 1 (nút Menu) |
+  | Số điều khiển khối cài đặt, chủ phòng / người chơi | 37 / 14 | 15 / 0 |
+
+  - 320 px: chủ phòng 2.934 → 1.820 px, người chơi 2.590 → 1.418 px (ghế một cột). 1440 px: chủ phòng 1.921 → 941 px, người chơi 1.637 → 812 px (vừa khung nhìn). Không cuộn ngang ở cả ba khung.
+  - Sảnh 9 người mặc định (`lobby-host` / `lobby-guest`, 375 px): 2.409 → 1.456 px và 2.101 → 980 px.
+- **Tương tác sảnh** (`lobbyinteract.mjs`, harness): **34/34** — 10 ô vai, không còn −/+ cho vai đặc biệt, tóm tắt đổi theo ô, mô tả vai vừa chạm, "Về mặc định", Luật mở / ẩn luật Thợ săn bị độc, chọn Nhanh / Vừa / Thong thả đúng bảng, Tuỳ chỉnh (6 bước; 4 bước khi không Phù thủy / Thợ săn), đổi một bước → "Tuỳ chỉnh", trả về khớp → "Vừa", người chơi chỉ đọc 0 nút.
+- **Giữ thẻ** (`held.mjs`, đã sửa theo luật mới): **30/30** (Cupid mới ghép 1 người Xác nhận được, thẻ nhắc đúng chữ, không có dòng nhắc khi không giữ; ghép đủ 2 → Xác nhận; phần Sói đêm cắn 2, Sói con, Tay sai, Phù thủy 2 người bị nhắm giữ nguyên).
+- **Cặp ảnh riêng tư** (`pairs.mjs cupid6a`, đồng hồ đứng yên, không giữ, 5 khung, thu 10 %): Cupid so với Dân ở Xem vai, Đêm ① chưa chọn / đã chọn / đã xác nhận (đủ 2 người) / **đã xác nhận mới ghép 1 người**, và Cupid ghép đủ 2 so với ghép 1 người: 6 cặp × 5 khung = **30/30 = 0.000** ở 375 px và **30/30 = 0.000** ở 1440 px, 0 rò rỉ DOM. Thêm `roles` 375 px cho Cupid và Già làng (16 màn × 2 vai × 5 khung): **160/160 = 0.000**. Đối chứng dương: Đêm ① chưa chọn | đã xác nhận (Cupid) 0.878; Xem vai | Đêm ① 19.46 (như GĐ5b).
+- **Tương phản trên điểm ảnh thật** (`contrast.mjs`, `spec-c6a.json`: sảnh chủ phòng 375 / 1440 với Luật mở, Thời gian mở, Tuỳ chỉnh mở, sảnh người chơi, sảnh cảnh báo, Thảo luận 375 / 1440, hồn ma ở Thảo luận, thẻ giữ Cupid mới ghép 1 người): **623/623 ≥ 4,5 : 1**, thấp nhất 5,96.
+- **Không cuộn ngang 320 px** (`noscroll.mjs`, mọi màn của Preview gồm 2 cảnh mới × 12 và 9 người × 7 khung): **126/126**. **Va chạm ô / dấu** (`collide.mjs`, 9 màn × 5–12 người × 320…390 px): **310/310** (lần chạy đầy đủ); chạy lại cho riêng sảnh sau chỉnh ô vai (320 / 340 / 360 / 375 px × 10, 12 người): 72/72.
+- **Ván thật** (bản production, `npm start`, Chrome headless, mỗi cửa sổ một origin `localhost`, `127.0.0.1`, `a`–`g.localhost`; bot `game5.mjs` + kịch bản mới `gd6a`, 9 cửa sổ, chạy 2 lần — trước và sau chỉnh cuối, đều đạt):
+  - Chủ phòng bật Cupid + Già làng bằng ô, tắt Thợ săn, "Bớt Ma Sói" một lần (2 Sói), chọn nhịp **Nhanh** rồi bắt đầu. Sảnh chủ phòng: "9 người = 2 Sói · 5 vai đặc biệt · 2 Dân"; luật Thợ săn bị độc ẩn (3 công tắc); sảnh người chơi chỉ đọc, 0 nút, chip đúng, thấy "Nhịp ván: Nhanh".
+  - **`state.timeouts` đúng bảng Nhanh**: đo bằng đồng hồ còn lại + thời gian đã trôi (`data-ww-clock`, làm tròn 5 giây): Xem vai 45, Đêm ① 30, Phù thủy 15, Thảo luận 120, Bỏ phiếu 30.
+  - Cupid ghép dở (1 người) rồi Xác nhận, ván sang Bình minh bình thường; "Vai của tôi" của Cupid ghi "Ván này không có cặp đôi"; người khác không có dòng người yêu.
+  - Thảo luận: cả 9 cửa sổ (kể cả người chết) có dòng gợi ý đúng chữ. Cả làng chọn Bỏ qua → "không ai bị treo".
+  - **19/19** (cả hai lần), 0 lỗi JS, 0 banner lỗi, mọi token phase được mọi cửa sổ thấy, lệch phase lớn nhất 108 / 110 ms, 2.122 / 2.146 mẫu riêng tư 0 vi phạm (đã thêm `[data-ww-cupid-short]` vào danh sách bí mật của bộ lấy mẫu).
+  - **Hồi quy**: `heal` (6 vai gốc, 7 cửa sổ) **11/11**, lệch phase 111 ms, 2.857 mẫu 0 vi phạm. `lovers` (Cupid ghép đủ 2 người, 11 cửa sổ) **14/14**, 10.180 mẫu 0 vi phạm.
+  - Mọi phòng thử đã xoá bằng nút của chủ phòng (bot ghi "phòng thử đã xoá" cả 4 lần). Máy chủ `npm start` / `next dev` đã tắt, Chrome headless đóng bằng CDP `Browser.close`.
+- **Kích thước gói** (`bundle.mjs`, build sạch không harness): Ma Sói 218 831 / 74 590 B gzip (GĐ5b) → **221 930 / 75 501 B (+0,9 KB gzip)**. Avalon không đổi (317 626 / 104 483 B).
+- Ảnh: `.claude/ww-gd6a-shots/` (bị git bỏ qua): `before/` (sảnh `lobby-extras`, `lobby-extras-guest`, `lobby-host`, `lobby-guest` ở 375 / 1440 / 320 px, ở `21eea079`), `after/` (cùng các màn + `lobby-host-rules-375`, `lobby-host-custom-375` / `-320` (Thời gian mở, Tuỳ chỉnh), `lobby-host-1440` (Luật mở), `lobby-guest-1440`, `cupid-held-0` / `-1` / `-1-320` (thẻ giữ Cupid), `talk-hint` / `-320`), `pairs/`, `metrics-before.json`, `metrics-after.json` (trong `before/` và `after/`), `contrast.json`, `noscroll-320.json`.
+- Script (dùng lại được, bị git bỏ qua) ở `.claude/ww-tools/`: mới `lobbymetrics.mjs` (đo cao / chữ / điều khiển / cuộn ngang + ảnh), `lobbyinteract.mjs` (34 kiểm tra tương tác sảnh), `harness/spec-c6a.json`; đã sửa `game5.mjs` (cài đặt sảnh theo ô vai + nhịp, đo thời lượng bước `timeoutProbe`, `SC.off` / `SC.pace`), `scenarios5.mjs` (kịch bản `gd6a`), `held.mjs` (Cupid theo luật mới), `pairs.mjs` (preset `cupid6a`), `lib.mjs` (đường dẫn gd6a).
+
+**Việc chuyển tiếp**
+- Nhạc trưởng review `git diff 21eea079..HEAD` (chủ yếu `panel/LobbySettings.tsx`), người dùng xem ảnh sảnh `after/` và chốt các mục 1–4 ở trên.
+- Bản harness (`src/app/wwtest`) đã gỡ; muốn chạy lại các script `.claude/ww-tools` kiểu harness thì chép lại `harness/wwtest-page.tsx` và `npm run dev`.
+- GĐ6b (§10d): chơi thật; điểm cân bằng; nhịp mặc định; các mục "Để GĐ5" còn mở ở §12.8, §12.14, §12.18.
+
+### 12.21 GĐ6a — review của nhạc trưởng (2026-11-06): **ĐẠT**, người dùng duyệt giao diện → PR #4
+
+GĐ6a do một agent thực thi (Sonnet) chạy nền làm. Khoảng commit `21eea079..f781afd0`.
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 202/202.
+- `tsc` sạch. eslint werewolf sạch. `npx eslint src/components/games` 29 / 29 = baseline.
+- Lớp màu lẻ / `text-[Npx]`: 0 / 0.
+- `npm run build` exit 0.
+- **Phạm vi:** chỉ thư mục werewolf; engine, cách lưu cài đặt, Avalon, file dùng chung không đổi.
+
+**Đọc code:**
+- `confirmNight` bỏ chặn `validateCupidPick`. Ghép dở vẫn ghi `loverIds`, engine `cupidPairOf` trả null nên không có cặp đôi.
+- Cupid vẫn phải có ô "người nghi" như mọi người mới Xác nhận được, nên từ ngoài nhìn vào giống hệt nhau.
+- Thẻ giữ của Cupid nhắc đúng câu trong plan.
+- Dòng gợi ý ở Thảo luận như nhau với mọi người.
+- `PACE_SECONDS` khớp bảng rules §8.3. `paceOf` suy nhịp từ `phaseSeconds`.
+
+**Ảnh:** sảnh 12 người ở 375px.
+- Trước: chủ phòng 2.453px.
+- Sau: chủ phòng 1.424px, người chơi khác 1.007px. Có dòng tóm tắt, cân bằng + cảnh báo, Số Sói là stepper duy nhất, ô vai Cơ bản / Mở rộng, Luật và Thời gian gập lại.
+- Thời gian mở: Nhanh / Vừa / Thong thả / Tuỳ chỉnh, 6 stepper khi đủ vai.
+- Người chơi khác: chỉ có chip tóm tắt.
+- Thẻ Cupid ghép 1 người.
+
+Người dùng xem ảnh trước / sau và duyệt (2026-11-06).
+
+**Bằng chứng của người thực thi:**
+- Riêng tư Cupid / Dân (gồm đã Xác nhận mà mới ghép 1 người) = 0.000 ở 375 / 1440.
+- Ván thật 9 cửa sổ 19/19 (2 lần): nhịp Nhanh đúng bảng, Cupid không ghép thì không có cặp đôi, gợi ý hiện ở mọi cửa sổ, cả làng Bỏ qua thì không treo.
+- Hồi quy `heal` 11/11, `lovers` 14/14.
+- Không cuộn ngang 126/126. Tương phản 623/623.
+
+**Chấp nhận các lệch (§12.20):**
+- mục tiêu chiều cao tính cho cả trang (12 ghế + mã mời);
+- ô nhịp có 4 lựa chọn (thêm "Tuỳ chỉnh");
+- chỉ một khối mở cùng lúc;
+- nhãn "Cân bằng −7 · lợi Sói";
+- màn Luật chơi không thêm dòng về nhịp.
+
+**Ghi nhận nhỏ, không chặn:**
+- Ở 375px, ô vai mở rộng 3 cột làm tên xuống 2 dòng ("Già làng", "Kẻ chán đời"); vẫn đọc được.
+- Lần chạy va chạm đầy đủ 310/310 làm trước chỉnh sửa cuối; sau chỉ chạy lại cho sảnh (72/72). Thay đổi cuối chỉ chạm sảnh nên chấp nhận.
+
+**Tiếp theo:** push, mở PR #4 và squash-merge (người dùng đồng ý 2026-11-06), rồi `git merge -s ours origin/main` trên `dev-werewolf`. Sau đó GĐ6b (chơi thật, §10d).

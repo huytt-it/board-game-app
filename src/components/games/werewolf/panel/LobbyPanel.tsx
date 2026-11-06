@@ -58,6 +58,7 @@ export default function LobbyPanel({
             {players.map((p) => (
               <li key={p.id} data-player-id={p.id} data-ww-self={p.id === myId ? '' : undefined}>
                 <Seat
+                  compact
                   player={p}
                   selected={armed === p.id}
                   onSelect={isHost && p.id !== myId ? () => setArmed((a) => (a === p.id ? null : p.id)) : undefined}
