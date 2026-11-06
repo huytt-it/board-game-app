@@ -56,6 +56,24 @@ export const PHASE_SECONDS_LIMITS: Record<TimedPhase, { min: number; max: number
 
 export const TIMED_PHASES = Object.keys(PHASE_SECONDS_LIMITS) as TimedPhase[];
 
+/** Nhịp ván (rules §8.3): bộ giá trị đặt sẵn cho cả sáu bước. Dữ liệu vẫn chỉ là `phaseSeconds`. */
+export type Pace = 'fast' | 'normal' | 'slow';
+
+export const PACES: readonly Pace[] = ['fast', 'normal', 'slow'];
+
+export const PACE_LABEL: Record<Pace, string> = { fast: 'Nhanh', normal: 'Vừa', slow: 'Thong thả' };
+
+export const PACE_SECONDS: Record<Pace, Record<TimedPhase, number>> = {
+  fast: { deal: 45, night: 30, 'night-witch': 15, hunter: 20, 'day-talk': 120, 'day-vote': 30 },
+  normal: { deal: 60, night: 45, 'night-witch': 20, hunter: 30, 'day-talk': 180, 'day-vote': 45 },
+  slow: { deal: 90, night: 60, 'night-witch': 30, hunter: 45, 'day-talk': 300, 'day-vote': 60 },
+};
+
+/** Nhịp khớp đúng với `phaseSeconds`, hoặc null (tuỳ chỉnh). */
+export function paceOf(phaseSeconds: Record<TimedPhase, number>): Pace | null {
+  return PACES.find((p) => TIMED_PHASES.every((t) => PACE_SECONDS[p][t] === phaseSeconds[t])) ?? null;
+}
+
 export const PHASE_TIMEOUTS_MS: Record<WwPhase, number> = {
   deal: 60_000,
   night: 45_000,

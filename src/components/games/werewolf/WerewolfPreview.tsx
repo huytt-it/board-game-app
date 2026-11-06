@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react';
 import type { Player } from '@/types/player';
 import { serverNow } from '@/lib/serverClock';
 import { afterVote } from '@/components/games/werewolf/engine/flow.ts';
-import { isValidTarget, pickFor, seerLook, validateCupidPick, validateWitchPick, wolfBitesFor } from '@/components/games/werewolf/engine/night.ts';
+import { isValidTarget, pickFor, seerLook, validateWitchPick, wolfBitesFor } from '@/components/games/werewolf/engine/night.ts';
 import { ALL_ROLES, cupidPairsTonight, fullCounts, isWolfRole, nightActionOf, ROLE_NAME, ROLE_TEAM } from '@/components/games/werewolf/engine/roles.ts';
 import { DEFAULT_RULES, FULL_POTIONS } from '@/components/games/werewolf/engine/types.ts';
 import { PhaseView, TopBar } from './WerewolfBoard';
@@ -70,6 +70,7 @@ export const PREVIEW_SCENES = {
   'end-hunter': 'Kết thúc — Thợ săn bắn Sói cuối cùng',
   // Vai mở rộng (GĐ5b). Người xem chọn vai mở rộng ở ô "Người xem".
   'lobby-extras': 'Sảnh — 12 người, bật vai mở rộng',
+  'lobby-extras-guest': 'Sảnh — 12 người, bật vai mở rộng, người chơi (chỉ đọc)',
   'night-bite2': 'Đêm 2 — đêm cắn 2 (Sói con bị treo hôm qua, lộ vai tắt)',
   'night-bite1': 'Đêm 2 — đêm thường (đối chứng của đêm cắn 2, lộ vai tắt)',
   'night-lovers': 'Đêm 2 — người xem trong cặp đôi (khác phe)',
@@ -191,6 +192,25 @@ const ROUND1_LOG = SAMPLE_LOG.filter((e) => e.round === 1 && e.kind !== 'vote');
 // nên là hồn ma thật (không còn "chưa bắn").
 const ghostLog = (role: WwRole): WwLogEntry[] =>
   role === 'hunter' ? [...ROUND1_LOG, { kind: 'hunter', round: 1, hunterId: ME, targetId: null }] : ROUND1_LOG;
+
+/** Sảnh của harness: cài đặt giữ ở state cục bộ để thử bật / tắt vai, nhịp ván, luật. */
+function PreviewLobby({ players, isHost, roleCounts }: { players: Player[]; isHost: boolean; roleCounts: Record<string, number> | null }) {
+  const [raw, setRaw] = useState<Record<string, unknown>>({ roleCounts });
+  const config = readConfig({ config: raw } as unknown as Room);
+  return (
+    <LobbyPanel
+      players={players}
+      myId={ME}
+      hostId={ME}
+      isHost={isHost}
+      config={config}
+      invite={<p className="text-center font-mono text-2xl tracking-widest text-(--ww-text)">ABC123</p>}
+      onKick={() => {}}
+      onUpdateConfig={(next) => setRaw((r) => ({ ...r, ...next }))}
+      onStart={() => {}}
+    />
+  );
+}
 
 interface Mock {
   state: WerewolfGameState | null;
@@ -476,11 +496,12 @@ function buildScene(scene: PreviewScene, role: WwRole, start: number, n = DEFAUL
       };
     }
     case 'lobby-extras':
+    case 'lobby-extras-guest':
       return {
         state: null,
         players: makePlayers(roles).map((p) => ({ ...p, gameData: {} })),
         lobby: {
-          isHost: true,
+          isHost: scene === 'lobby-extras',
           roleCounts: { werewolf: 2, wolfcub: 1, seer: 1, guard: 1, witch: 1, hunter: 1, elder: 1, cupid: 1, minion: 1 },
         },
       };
@@ -797,17 +818,7 @@ function Screen({
         <TopBar
           menu={<RoomMenu ctx={null} isHost={initial.lobby.isHost} inGame={false} rules={readConfig(room).rules} onLeave={() => {}} onDelete={() => {}} />}
         />
-        <LobbyPanel
-          players={players}
-          myId={ME}
-          hostId={ME}
-          isHost={initial.lobby.isHost}
-          config={readConfig(room)}
-          invite={<p className="text-center font-mono text-2xl tracking-widest text-(--ww-text)">ABC123</p>}
-          onKick={() => {}}
-          onUpdateConfig={() => {}}
-          onStart={() => {}}
-        />
+        <PreviewLobby players={players} isHost={initial.lobby.isHost} roleCounts={initial.lobby.roleCounts} />
       </WwShell>
     );
   }
@@ -839,16 +850,12 @@ function Screen({
     return { outcome: 'ok', write: Promise.resolve() };
   };
   const onConfirm = async (draft: NightDraft) => {
-    if (cupidPairsTonight(myRole, state.round)) {
-      const error = validateCupidPick(table, ME, draft.loverIds ?? [], state.round);
-      if (error) return { outcome: 'invalid' as const, error };
-    }
     const look = myRole === 'seer' && draft.targetId ? seerLook(table, ME, draft.targetId) : null;
     setMine({
       nightPick: nightPick(draft, true),
       ...(look ? { seerLog: [{ round: state.round, targetId: look.targetId, isWolf: look.isWolf }] } : {}),
     });
-    return { outcome: 'ok' as const, error: null };
+    return { outcome: 'ok' as const };
   };
   const witchDraft = (draft: WitchDraft): WitchResult => {
     const cur = pickFor(myData.witchPick, state.round);

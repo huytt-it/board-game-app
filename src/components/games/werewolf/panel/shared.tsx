@@ -275,8 +275,11 @@ export function Seat({
   onSelect,
   selected = false,
   fall,
+  compact = false,
 }: {
   player: Player;
+  /** Ghế thấp hơn (sảnh: 12 ghế không đẩy cài đặt xuống quá xa). */
+  compact?: boolean;
   dead?: boolean;
   /**
    * Hoạt cảnh (GĐ4): người này chết NGAY trong bước này. Ghế hiện như người sống
@@ -311,7 +314,7 @@ export function Seat({
     <div
       data-player-id={player.id}
       data-ww-dead-seat={dead ? '' : undefined}
-      className={`relative flex min-h-14 items-center gap-2.5 rounded-xl py-2 pl-2.5 text-sm font-semibold shadow-md shadow-black/25 ${action ? 'pr-1' : 'pr-2.5'} ${
+      className={`relative flex ${compact ? 'min-h-12 py-1' : 'min-h-14 py-2'} items-center gap-2.5 rounded-xl pl-2.5 text-sm font-semibold shadow-md shadow-black/25 ${action ? 'pr-1' : 'pr-2.5'} ${
         dead ? 'bg-(--ww-ink) text-(--ww-text-3)' : selected ? 'bg-(--ww-raised-hi) text-(--ww-text)' : 'bg-(--ww-raised) text-(--ww-text)'
       }`}
     >

@@ -26,10 +26,8 @@ import {
   isValidTarget,
   pickFor,
   seerLook,
-  validateCupidPick,
   validateWitchPick,
   wolfBitesFor,
-  type CupidPickError,
   type TargetKind,
   type WitchPickError,
 } from '@/components/games/werewolf/engine/night.ts';
@@ -95,10 +93,9 @@ export type WitchDraft = Pick<WitchPick, 'heal' | 'poisonId' | 'guessId'> & { he
 
 export const EMPTY_WITCH_DRAFT: WitchDraft = { heal: false, poisonId: null, guessId: null, healId: null };
 
-/** Kết quả Xác nhận Đêm ①: `error` là lý do Cupid chưa ghép đôi được (chỉ hiện trong thẻ giữ). */
+/** Kết quả Xác nhận Đêm ①. */
 export interface NightConfirmResult {
   outcome: PickOutcome;
-  error: CupidPickError | null;
 }
 
 /** `error`: lý do Phù thủy không dùng được bình như vậy (validateWitchPick). */
@@ -376,21 +373,17 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
   /**
    * Xác nhận lựa chọn đang hiện trên màn ở Đêm ① (kể cả khi lần ghi chọn chưa
    * về). Ghi cả `biteIds` / `loverIds` trong cùng lần ghi. Tiên tri: kết quả soi
-   * ghi vào seerLog cùng lần ghi này (E15). Cupid ở đêm 1 phải ghép đủ 2 người
-   * (validateCupidPick): chưa đủ thì không xác nhận, lý do hiện trong thẻ giữ.
+   * ghi vào seerLog cùng lần ghi này (E15). Cupid xác nhận được cả khi chưa ghép
+   * đủ 2 người (rules §11.5): khi đó ván không có cặp đôi (engine cupidPairOf).
    * Ném lỗi khi gửi không được.
    */
   const confirmNight = useCallback(
     async (playerId: string, draft: NightDraft): Promise<NightConfirmResult> => {
       const outcome = nightCheck(playerId, draft);
-      if (!state || !table || outcome !== 'ok') return { outcome, error: null };
+      if (!state || !table || outcome !== 'ok') return { outcome };
       const me = dataOf(byId.get(playerId));
-      if (!me.role || !draft.targetId) return { outcome: 'invalid', error: null };
+      if (!me.role || !draft.targetId) return { outcome: 'invalid' };
       const round = state.round;
-      if (cupidPairsTonight(me.role, round)) {
-        const error = validateCupidPick(table, playerId, draft.loverIds ?? [], round);
-        if (error) return { outcome: 'invalid', error };
-      }
       const pick = nightPickOf(round, draft, true);
       const data: Partial<WerewolfGameData> = { nightPick: pick };
       const look = me.role === 'seer' ? seerLook(table, playerId, draft.targetId) : null;
@@ -399,7 +392,7 @@ export function useWerewolf(roomId: string | undefined, room: Room | null, playe
         data.seerLog = [...log, { round, targetId: look.targetId, isWolf: look.isWolf }];
       }
       await enqueue('night', `${state.phaseStartedAt}:${nightKey(pick)}:confirm`, () => updateInPhase('night', round, {}, [{ playerId, data }]));
-      return { outcome: 'ok', error: null };
+      return { outcome: 'ok' };
     },
     [state, table, byId, nightCheck, enqueue, updateInPhase]
   );
