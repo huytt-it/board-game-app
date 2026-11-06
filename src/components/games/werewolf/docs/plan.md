@@ -861,7 +861,7 @@ Người dùng duyệt plan dưới đây ngày 2026-11-06.
 | GĐ3b | **Review đạt** (nhạc trưởng, 2026-10-17; GĐ3a cùng review) | `05feb3bd` → `7fece5ea`; code `3f8d510b` | Mọi màn theo bộ nhận diện, 6 cảnh, màn vào phòng riêng. Riêng tư 114/114 = 0.000, tương phản 2 045/2 045, va chạm 210/210, ván thật 54/54. Chi tiết ở §12.11, review ở §12.12. |
 | GĐ5a | **Review đạt** (nhạc trưởng, 2026-10-18) | `fcc2a7f5` → `4e0858bd`; code `bddc1cf5` | 6 vai mở rộng + 12 người thành engine thuần, giữ tương thích ngược (138 test cũ chạy nguyên, chỉ sửa 3 chỗ ghi cứng "5–10 người"). Engine 202 test, phủ đủ E1–E55. UI chỉ thêm khoá cho vai mới để build qua. Ván thật hồi quy `heal` 7 cửa sổ 22/22. 6 cách hiểu luật: **người dùng chốt giữ nguyên cả 6** (2026-10-18), đã ghi vào rules §11. Chi tiết, API cho GĐ5b ở §12.16, review ở §12.17. |
 | GĐ5b | **Review đạt** (nhạc trưởng, 2026-10-31) → PR #3 | `53d21220` → (commit docs này); code `a3242eb1`, `11bd53de`, `dda718fe` | Vai mở rộng có giao diện + máy trạng thái, 5–12 người. Riêng tư 613/613 cặp khung hình = 0.000 (6 vai mới × 16 màn × 5 khung, đêm cắn 2, 2 người bị nhắm, cặp đôi, 1440 px). Ván thật production 8 kịch bản 83/83 (11–12 cửa sổ + hồi quy `heal` 7 cửa sổ), 0 banner, 0 lỗi JS, riêng tư liên tục 0 vi phạm. Va chạm 310/310, tương phản 918/918, không cuộn ngang 122/122 màn. Gói Ma Sói 66,2 → 74,6 KB gzip. Chi tiết, lệch kế hoạch, chỗ cần chốt ở §12.18. Review ở §12.19. |
-| GĐ6a | **Xong, chờ review** (2026-11-06) | `21eea079` → (commit docs này); code `e7763f4a`, `a141f7bd` | Sảnh gọn: số Sói là stepper duy nhất, mọi vai đặc biệt là ô chạm; Luật và Thời gian (nhịp Nhanh / Vừa / Thong thả + Tuỳ chỉnh) là khối gập; người chơi chỉ thấy tóm tắt. Cupid Xác nhận được khi chưa ghép đôi (ván không có cặp đôi); Thảo luận có dòng gợi ý chọn Bỏ qua. Sảnh 12 người có vai mở rộng ở 375 px: chủ phòng 2.453 → 1.424 px, người chơi 2.145 → 1.007 px. Test 202/202, riêng tư Cupid 30/30 + 30/30 + 160/160 = 0.000, tương phản 623/623, không cuộn ngang 126/126, ván thật 9 cửa sổ `gd6a` 19/19 (timeouts đúng bảng Nhanh), hồi quy `heal` 11/11 và `lovers` 14/14. Chi tiết ở §12.20. |
+| GĐ6a | **Review đạt + người dùng duyệt giao diện** (2026-11-06) → PR #4 | `21eea079` → (commit docs này); code `e7763f4a`, `a141f7bd` | Sảnh gọn: số Sói là stepper duy nhất, mọi vai đặc biệt là ô chạm; Luật và Thời gian (nhịp Nhanh / Vừa / Thong thả + Tuỳ chỉnh) là khối gập; người chơi chỉ thấy tóm tắt. Cupid Xác nhận được khi chưa ghép đôi (ván không có cặp đôi); Thảo luận có dòng gợi ý chọn Bỏ qua. Sảnh 12 người có vai mở rộng ở 375 px: chủ phòng 2.453 → 1.424 px, người chơi 2.145 → 1.007 px. Test 202/202, riêng tư Cupid 30/30 + 30/30 + 160/160 = 0.000, tương phản 623/623, không cuộn ngang 126/126, ván thật 9 cửa sổ `gd6a` 19/19 (timeouts đúng bảng Nhanh), hồi quy `heal` 11/11 và `lovers` 14/14. Chi tiết ở §12.20. Review ở §12.21. |
 | GĐ6b | Chưa bắt đầu | | Chơi thật (§10d). |
 | GĐ4 | **Review đạt** (nhạc trưởng, 2026-10-17) | `e0ffa324` → `e336a9e1`; code `13d5e3fe` | Hoạt cảnh theo đồng hồ chung (`scenes/timelines.ts`): vào đêm, trăng / mặt trời lên, bình minh lần lượt theo ghế, kết quả phiếu dạng cột đếm, phát bắn của Thợ săn ở bước kế tiếp, kết thúc kể theo từng đêm / ngày; bù độ trễ dựng (`useCueSync`). Riêng tư 675/675 cặp = 0.000 ở 5 khung hình. Ván thật production 3 kịch bản 52/52, các cửa sổ lệch ≤ 5,3 ms ở 166 mốc, reload giữa hoạt cảnh lệch ≤ 1,1 ms. Gói Ma Sói 60,2 → 64,0 KB gzip. Chi tiết ở §12.13, review ở §12.14. |
 
@@ -1719,3 +1719,49 @@ GĐ5b do một agent thực thi (Opus) chạy nền làm, theo yêu cầu của 
 - Nhạc trưởng review `git diff 21eea079..HEAD` (chủ yếu `panel/LobbySettings.tsx`), người dùng xem ảnh sảnh `after/` và chốt các mục 1–4 ở trên.
 - Bản harness (`src/app/wwtest`) đã gỡ; muốn chạy lại các script `.claude/ww-tools` kiểu harness thì chép lại `harness/wwtest-page.tsx` và `npm run dev`.
 - GĐ6b (§10d): chơi thật; điểm cân bằng; nhịp mặc định; các mục "Để GĐ5" còn mở ở §12.8, §12.14, §12.18.
+
+### 12.21 GĐ6a — review của nhạc trưởng (2026-11-06): **ĐẠT**, người dùng duyệt giao diện → PR #4
+
+GĐ6a do một agent thực thi (Sonnet) chạy nền làm. Khoảng commit `21eea079..f781afd0`.
+
+**Chạy lại nghiệm thu:**
+- `npm run test:werewolf` 202/202.
+- `tsc` sạch. eslint werewolf sạch. `npx eslint src/components/games` 29 / 29 = baseline.
+- Lớp màu lẻ / `text-[Npx]`: 0 / 0.
+- `npm run build` exit 0.
+- **Phạm vi:** chỉ thư mục werewolf; engine, cách lưu cài đặt, Avalon, file dùng chung không đổi.
+
+**Đọc code:**
+- `confirmNight` bỏ chặn `validateCupidPick`. Ghép dở vẫn ghi `loverIds`, engine `cupidPairOf` trả null nên không có cặp đôi.
+- Cupid vẫn phải có ô "người nghi" như mọi người mới Xác nhận được, nên từ ngoài nhìn vào giống hệt nhau.
+- Thẻ giữ của Cupid nhắc đúng câu trong plan.
+- Dòng gợi ý ở Thảo luận như nhau với mọi người.
+- `PACE_SECONDS` khớp bảng rules §8.3. `paceOf` suy nhịp từ `phaseSeconds`.
+
+**Ảnh:** sảnh 12 người ở 375px.
+- Trước: chủ phòng 2.453px.
+- Sau: chủ phòng 1.424px, người chơi khác 1.007px. Có dòng tóm tắt, cân bằng + cảnh báo, Số Sói là stepper duy nhất, ô vai Cơ bản / Mở rộng, Luật và Thời gian gập lại.
+- Thời gian mở: Nhanh / Vừa / Thong thả / Tuỳ chỉnh, 6 stepper khi đủ vai.
+- Người chơi khác: chỉ có chip tóm tắt.
+- Thẻ Cupid ghép 1 người.
+
+Người dùng xem ảnh trước / sau và duyệt (2026-11-06).
+
+**Bằng chứng của người thực thi:**
+- Riêng tư Cupid / Dân (gồm đã Xác nhận mà mới ghép 1 người) = 0.000 ở 375 / 1440.
+- Ván thật 9 cửa sổ 19/19 (2 lần): nhịp Nhanh đúng bảng, Cupid không ghép thì không có cặp đôi, gợi ý hiện ở mọi cửa sổ, cả làng Bỏ qua thì không treo.
+- Hồi quy `heal` 11/11, `lovers` 14/14.
+- Không cuộn ngang 126/126. Tương phản 623/623.
+
+**Chấp nhận các lệch (§12.20):**
+- mục tiêu chiều cao tính cho cả trang (12 ghế + mã mời);
+- ô nhịp có 4 lựa chọn (thêm "Tuỳ chỉnh");
+- chỉ một khối mở cùng lúc;
+- nhãn "Cân bằng −7 · lợi Sói";
+- màn Luật chơi không thêm dòng về nhịp.
+
+**Ghi nhận nhỏ, không chặn:**
+- Ở 375px, ô vai mở rộng 3 cột làm tên xuống 2 dòng ("Già làng", "Kẻ chán đời"); vẫn đọc được.
+- Lần chạy va chạm đầy đủ 310/310 làm trước chỉnh sửa cuối; sau chỉ chạy lại cho sảnh (72/72). Thay đổi cuối chỉ chạm sảnh nên chấp nhận.
+
+**Tiếp theo:** push, mở PR #4 và squash-merge (người dùng đồng ý 2026-11-06), rồi `git merge -s ours origin/main` trên `dev-werewolf`. Sau đó GĐ6b (chơi thật, §10d).
